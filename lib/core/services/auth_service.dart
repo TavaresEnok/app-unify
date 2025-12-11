@@ -65,11 +65,24 @@ class AuthService with ChangeNotifier {
         'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
       };
 
-      print('DEBUG: Enviando login para $apiUrl/check-cpf');
-      final response = await http.post(
-        Uri.parse('$apiUrl/check-cpf'),
-        headers: {'Content-Type': 'application/json'},
+      final url = '$apiUrl/check-cpf';
+      print('DEBUG: Enviando login para $url');
+      print('DEBUG: Body: ${jsonEncode(requestBody)}');
+
+      final response = await http
+          .post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode(requestBody),
+      )
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Timeout: Servidor demorou para responder');
+        },
       );
 
       print('DEBUG: Resposta login (${response.statusCode}): ${response.body}');
