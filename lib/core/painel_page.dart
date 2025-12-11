@@ -80,9 +80,65 @@ class _PainelPageState extends State<PainelPage> {
   AppBar _buildAppBar(BuildContext context, String layoutType) {
     // Cores baseadas no layout
     final isDarkLayout = layoutType == 'layout_06';
+    final isOnDashboard = _currentPage == 'dashboard';
+    final pageName = _pageNames[_currentPage] ?? 'Dashboard';
 
     return AppBar(
-      title: Text(_pageNames[_currentPage] ?? 'Dashboard'),
+      // Back button when not on dashboard
+      leading: isOnDashboard
+          ? null
+          : IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Voltar para Dashboard',
+              onPressed: () {
+                setState(() {
+                  _currentPage = 'dashboard';
+                });
+              },
+            ),
+      // Breadcrumb title
+      title: isOnDashboard
+          ? Text(pageName)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _currentPage = 'dashboard';
+                    });
+                  },
+                  child: Text(
+                    'Início',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onPrimary
+                          .withOpacity(0.7),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onPrimary
+                        .withOpacity(0.5),
+                  ),
+                ),
+                Text(
+                  pageName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
       elevation: isDarkLayout ? 0 : 2,
       actions: [
         IconButton(
