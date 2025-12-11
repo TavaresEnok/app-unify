@@ -58,7 +58,8 @@ class ProviderConfig {
     }
 
     // Se não tiver URL, usamos o IP do servidor principal
-    final effectiveApiUrl = finalApiUrl ?? 'http://168.194.13.18:3000';
+    // IMPORTANTE: trim() para remover espaços que podem quebrar a URL
+    final effectiveApiUrl = (finalApiUrl ?? 'http://168.194.13.18:3000').trim();
 
     final integrationsMap = (json['integrations'] ??
             legacyConfig['integrations']) as Map<String, dynamic>? ??
