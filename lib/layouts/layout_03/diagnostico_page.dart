@@ -3,7 +3,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/providers/configuration_provider.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/services/diagnostico_service.dart';
+import '../../core/services/onu_wifi_service.dart';
 import '../../core/models/diagnostico_state.dart';
 import '../../core/widgets/dashboard_card.dart';
 import '../../core/widgets/app_button.dart';
@@ -18,7 +20,18 @@ class DiagnosticoPage extends StatefulWidget {
 
 class _DiagnosticoPageState extends State<DiagnosticoPage> {
   late final DiagnosticoService _service;
+  OnuWifiService? _onuWifiService;
   bool _serviceInitialized = false;
+
+  // ONU State
+  bool _loadingOnu = false;
+  OnuData? _onuData;
+  String? _onuError;
+
+  // WiFi State
+  bool _loadingWifi = false;
+  List<WifiNetwork> _wifiNetworks = [];
+  String? _wifiError;
 
   @override
   void didChangeDependencies() {
@@ -26,8 +39,26 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
     if (!_serviceInitialized) {
       final providerConfig =
           context.read<ConfigurationProvider>().providerConfig!;
+      final authService = context.read<AuthService>();
+      final usuario = authService.usuario;
+
       _service =
           DiagnosticoService(providerConfig: providerConfig, context: context);
+
+      // Initialize ONU/WiFi service
+      if (usuario != null) {
+        _onuWifiService = OnuWifiService(
+          apiUrl: providerConfig.apiUrl,
+          cpfCnpj: usuario.cpfCnpj,
+          senha: usuario.senha,
+          contrato: usuario.contratoId?.toString(),
+          sgpParams: {
+            'token': providerConfig.config.integrations.apiToken,
+            'app': providerConfig.config.integrations.appName,
+            'sgpBaseUrl': providerConfig.config.integrations.sgpBaseUrl,
+          },
+        );
+      }
       _serviceInitialized = true;
     }
   }
@@ -71,7 +102,11 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
                 children: [
                   _buildConnectionJourneyCard(context, state),
                   const SizedBox(height: 16),
+                  _buildOnuSignalCard(context),
+                  const SizedBox(height: 16),
                   _buildSpeedTestCard(context, state),
+                  const SizedBox(height: 16),
+                  _buildWifiManagementCard(context),
                   const SizedBox(height: 16),
                   _buildWifiDetailsCard(context, state),
                   const SizedBox(height: 16),
@@ -734,5 +769,405 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
         ),
       ),
     );
+  }
+
+  // ============== ONU SIGNAL CARD ==============
+  Future<void> _fetchOnuSignal() async {
+    if (_onuWifiService == null) return;
+    setState(() {
+      _loadingOnu = true;
+      _onuError = null;
+    });
+    try {
+      final data = await _onuWifiService!.fetchOnuSignal();
+      setState(() {
+        _onuData = data;
+        _loadingOnu = false;
+      });
+    } catch (e) {
+      setState(() {
+        _onuError = e.toString().replaceAll('Exception: ', '');
+        _loadingOnu = false;
+      });
+    }
+  }
+
+  Widget _buildOnuSignalCard(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DashboardCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.router, color: theme.primaryColor),
+          const SizedBox(width: 12),
+          const Expanded(
+              child: Text("Sinal da ONU (Fibra)",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          if (!_loadingOnu)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _fetchOnuSignal,
+              tooltip: 'Buscar sinal',
+            ),
+        ]),
+        const Divider(height: 24),
+        if (_loadingOnu)
+          const Center(
+              child: Padding(
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(),
+          ))
+        else if (_onuError != null)
+          Center(
+              child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: [
+              Icon(Icons.error_outline, color: Colors.red[300], size: 40),
+              const SizedBox(height: 8),
+              Text(_onuError!,
+                  style: TextStyle(color: Colors.red[300]),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _fetchOnuSignal,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tentar novamente'),
+              ),
+            ]),
+          ))
+        else if (_onuData == null)
+          Center(
+              child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: [
+              Icon(Icons.signal_cellular_alt,
+                  color: Colors.grey[400], size: 40),
+              const SizedBox(height: 8),
+              Text('Clique em atualizar para buscar o sinal da ONU',
+                  style: TextStyle(color: Colors.grey[500])),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _fetchOnuSignal,
+                icon: const Icon(Icons.search),
+                label: const Text('Buscar Sinal'),
+              ),
+            ]),
+          ))
+        else ...[
+          // Signal Strength
+          Row(children: [
+            Expanded(
+                child: _buildOnuStatBox(
+              context,
+              label: 'Sinal RX',
+              value: '${_onuData!.signalRx.toStringAsFixed(1)} dBm',
+              icon: Icons.arrow_downward,
+              isGood: _onuData!.isSignalGood,
+            )),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _buildOnuStatBox(
+              context,
+              label: 'Sinal TX',
+              value: '${_onuData!.signalTx.toStringAsFixed(1)} dBm',
+              icon: Icons.arrow_upward,
+              isGood: true,
+            )),
+          ]),
+          const SizedBox(height: 16),
+
+          // Quality indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: _onuData!.isSignalGood
+                  ? Colors.green.withOpacity(0.1)
+                  : Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(children: [
+              Icon(
+                _onuData!.isSignalGood ? Icons.check_circle : Icons.warning,
+                color: _onuData!.isSignalGood ? Colors.green : Colors.orange,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Qualidade: ${_onuData!.signalQuality}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _onuData!.isSignalGood ? Colors.green : Colors.orange,
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Additional info
+          Row(children: [
+            if (_onuData!.temperature != null)
+              Expanded(
+                  child: _buildOnuInfoTile('Temp ONU',
+                      '${_onuData!.temperature}°C', Icons.thermostat)),
+            if (_onuData!.voltage != null)
+              Expanded(
+                  child: _buildOnuInfoTile('Voltagem', '${_onuData!.voltage}V',
+                      Icons.electrical_services)),
+          ]),
+          const SizedBox(height: 8),
+          _buildOnuInfoTile('Modelo', _onuData!.model, Icons.router),
+          if (_onuData!.serialNumber != null)
+            _buildOnuInfoTile('Serial', _onuData!.serialNumber!, Icons.tag),
+        ],
+      ]),
+    );
+  }
+
+  Widget _buildOnuStatBox(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required IconData icon,
+    required bool isGood,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: isGood
+                ? Colors.green.withOpacity(0.3)
+                : Colors.orange.withOpacity(0.3)),
+      ),
+      child: Column(children: [
+        Icon(icon, color: isGood ? Colors.green : Colors.orange),
+        const SizedBox(height: 8),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 4),
+        Text(value,
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold)),
+      ]),
+    );
+  }
+
+  Widget _buildOnuInfoTile(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        Icon(icon, size: 18, color: Colors.grey),
+        const SizedBox(width: 12),
+        Text('$label: ', style: const TextStyle(color: Colors.grey)),
+        Expanded(
+            child: Text(value,
+                style: const TextStyle(fontWeight: FontWeight.w500))),
+      ]),
+    );
+  }
+
+  // ============== WIFI MANAGEMENT CARD ==============
+  Future<void> _fetchWifiNetworks() async {
+    if (_onuWifiService == null) return;
+    setState(() {
+      _loadingWifi = true;
+      _wifiError = null;
+    });
+    try {
+      final networks = await _onuWifiService!.fetchWifiNetworks();
+      setState(() {
+        _wifiNetworks = networks;
+        _loadingWifi = false;
+      });
+    } catch (e) {
+      setState(() {
+        _wifiError = e.toString().replaceAll('Exception: ', '');
+        _loadingWifi = false;
+      });
+    }
+  }
+
+  Widget _buildWifiManagementCard(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DashboardCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.wifi, color: theme.primaryColor),
+          const SizedBox(width: 12),
+          const Expanded(
+              child: Text("Gerenciar WiFi (TR-069)",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          if (!_loadingWifi)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _fetchWifiNetworks,
+              tooltip: 'Buscar redes',
+            ),
+        ]),
+        const Divider(height: 24),
+        if (_loadingWifi)
+          const Center(
+              child: Padding(
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(),
+          ))
+        else if (_wifiError != null)
+          Center(
+              child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: [
+              Icon(Icons.error_outline, color: Colors.red[300], size: 40),
+              const SizedBox(height: 8),
+              Text(_wifiError!,
+                  style: TextStyle(color: Colors.red[300]),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _fetchWifiNetworks,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tentar novamente'),
+              ),
+            ]),
+          ))
+        else if (_wifiNetworks.isEmpty)
+          Center(
+              child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: [
+              Icon(Icons.wifi_find, color: Colors.grey[400], size: 40),
+              const SizedBox(height: 8),
+              Text('Clique para buscar as redes WiFi do seu roteador',
+                  style: TextStyle(color: Colors.grey[500]),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _fetchWifiNetworks,
+                icon: const Icon(Icons.search),
+                label: const Text('Buscar Redes WiFi'),
+              ),
+            ]),
+          ))
+        else
+          ..._wifiNetworks
+              .map((network) => _buildWifiNetworkTile(context, network)),
+      ]),
+    );
+  }
+
+  Widget _buildWifiNetworkTile(BuildContext context, WifiNetwork network) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Row(children: [
+        Icon(
+          network.frequency.contains('5') ? Icons.wifi : Icons.wifi_2_bar,
+          color: network.enabled ? Colors.green : Colors.grey,
+          size: 32,
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(network.ssid,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(network.frequency,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+        ])),
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () => _showEditWifiDialog(context, network),
+          tooltip: 'Editar WiFi',
+        ),
+      ]),
+    );
+  }
+
+  void _showEditWifiDialog(BuildContext context, WifiNetwork network) {
+    final ssidController = TextEditingController(text: network.ssid);
+    final passwordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Editar ${network.frequency}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: ssidController,
+            decoration: const InputDecoration(
+              labelText: 'Nome da Rede (SSID)',
+              prefixIcon: Icon(Icons.wifi),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Nova Senha',
+              prefixIcon: Icon(Icons.lock),
+              hintText: 'Deixe vazio para manter',
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _updateWifi(
+                  network.id, ssidController.text, passwordController.text);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateWifi(String wifiId, String ssid, String password) async {
+    if (_onuWifiService == null || ssid.isEmpty) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Aplicando alterações no WiFi...')),
+    );
+
+    try {
+      final success = await _onuWifiService!.updateWifi(
+        wifiId: wifiId,
+        ssid: ssid,
+        password: password.isEmpty ? 'keep_current' : password,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success
+                ? 'WiFi atualizado com sucesso!'
+                : 'Falha ao atualizar WiFi'),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+        if (success) _fetchWifiNetworks();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }
