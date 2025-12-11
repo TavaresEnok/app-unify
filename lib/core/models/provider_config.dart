@@ -49,8 +49,13 @@ class ProviderConfig {
 
     String? rootApiUrl = json['apiUrl'] as String?;
     String? configApiUrl = legacyConfig['apiUrl'] as String?;
-    final finalApiUrl =
+    String? finalApiUrl =
         rootApiUrl?.isNotEmpty == true ? rootApiUrl : configApiUrl;
+
+    // CORREÇÃO: Substitui IP antigo pelo novo automaticamente
+    if (finalApiUrl != null && finalApiUrl.contains('45.176.56.70')) {
+      finalApiUrl = finalApiUrl.replaceAll('45.176.56.70', '168.194.13.18');
+    }
 
     // Se não tiver URL, usamos o IP do servidor principal
     final effectiveApiUrl = finalApiUrl ?? 'http://168.194.13.18:3000';
