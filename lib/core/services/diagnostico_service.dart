@@ -284,7 +284,7 @@ class DiagnosticoService {
             "Android ${androidInfo.version.release} (SDK ${androidInfo.version.sdkInt})";
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
-        deviceModel = iosInfo.model ?? "iOS Device";
+        deviceModel = iosInfo.model;
         osVersion = "iOS ${iosInfo.systemVersion}";
       }
       final resultString =

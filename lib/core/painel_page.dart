@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../layout_selector.dart';
 import 'providers/configuration_provider.dart';
+import 'providers/theme_provider.dart';
 import 'services/auth_service.dart';
 import 'models/usuario.dart';
 
@@ -229,6 +230,32 @@ class _PainelPageState extends State<PainelPage> {
           _buildMenuItem('contract', context),
           _buildMenuItem('my_ip', context),
           _buildMenuItem('faq', context),
+
+          const Divider(),
+
+          // Dark Mode Toggle
+          Consumer<DynamicThemeProvider>(
+            builder: (context, themeProvider, _) {
+              final isDark = themeProvider.themeMode == ThemeMode.dark;
+              return SwitchListTile(
+                secondary: Icon(
+                  isDark ? Icons.dark_mode : Icons.light_mode,
+                  color: isDark ? Colors.amber : Colors.blueGrey,
+                ),
+                title: const Text('Modo Escuro'),
+                subtitle: Text(
+                  isDark ? 'Ativado' : 'Desativado',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                value: isDark,
+                onChanged: (value) {
+                  themeProvider.setThemeMode(
+                    value ? ThemeMode.dark : ThemeMode.light,
+                  );
+                },
+              );
+            },
+          ),
 
           const Divider(),
 
