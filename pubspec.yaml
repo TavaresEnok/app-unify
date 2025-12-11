@@ -1,0 +1,74 @@
+name: app_provedor_unified
+description: "App Provedor Unificado - White Label com seleção dinâmica de layout"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  get_it: ^7.6.7
+
+  # ÍCONES E FONTES
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  font_awesome_flutter: ^10.7.0
+
+  # FIREBASE
+  firebase_core: ^2.32.0
+  cloud_firestore: ^4.17.4
+  firebase_auth: ^4.20.0
+  firebase_storage: ^11.7.5
+  firebase_messaging: ^14.9.3
+  firebase_analytics: ^10.8.0
+  firebase_crashlytics: ^3.4.9
+
+  # GERENCIAMENTO DE ESTADO
+  provider: ^6.1.2
+
+  # FUNCIONALIDADES
+  http: ^1.2.1
+  url_launcher: ^6.3.2
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.0
+  flutter_inappwebview: ^6.0.0
+  share_plus: ^7.0.0
+  pdf: ^3.11.0
+  path_provider: ^2.1.3
+  permission_handler: ^11.3.1
+  local_auth: ^2.1.6
+  
+  # ARMAZENAMENTO SEGURO E LOCAL
+  shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.2
+
+  # UI & UTILITÁRIOS
+  shimmer: ^3.0.0
+  intl: ^0.19.0
+  fl_chart: ^0.68.0
+  lottie: ^3.1.0
+
+  # DIAGNÓSTICO E REDE
+  flutter_local_notifications: ^17.2.1
+  dart_ping: ^9.0.1
+  network_info_plus: ^5.0.3
+  connectivity_plus: ^5.0.2
+  device_info_plus: ^10.1.0
+  package_info_plus: ^9.0.0
+  flutter_internet_speed_test: ^1.3.2
+  speed_test_dart: ^1.0.2
+  
+  # HARDWARE & DIAGNÓSTICO
+  battery_plus: ^5.0.0
+  lan_scanner: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
