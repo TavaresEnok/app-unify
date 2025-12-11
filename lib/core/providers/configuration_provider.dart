@@ -91,9 +91,35 @@ class ConfigurationProvider with ChangeNotifier {
       String providerId, Map<String, dynamic> data) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('provider_config_$providerId', json.encode(data));
+      final safeData = _sanitizeForJson(data);
+      await prefs.setString(
+          'provider_config_$providerId', json.encode(safeData));
     } catch (e) {
       print("Erro ao salvar cache: $e");
     }
+  }
+
+  /// Converte Firestore Timestamps e outros objetos não-serializáveis para tipos JSON
+  dynamic _sanitizeForJson(dynamic value) {
+    if (value == null) return null;
+
+    if (value is Timestamp) {
+      return value.toDate().toIso8601String();
+    }
+
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), _sanitizeForJson(v)));
+    }
+
+    if (value is List) {
+      return value.map((v) => _sanitizeForJson(v)).toList();
+    }
+
+    // Valores primitivos (String, int, double, bool) passam direto
+    return value;
   }
 }
