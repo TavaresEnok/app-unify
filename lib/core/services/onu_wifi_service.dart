@@ -103,10 +103,23 @@ class OnuWifiService {
     required this.sgpParams,
   });
 
+  /// Helper to get base proxy URL
+  String get _baseUrl {
+    // Remove trailing slash and any path like /get-invoices
+    String base = apiUrl.trim();
+    // If URL ends with a path like /get-invoices, remove it
+    final uri = Uri.tryParse(base);
+    if (uri != null) {
+      return '${uri.scheme}://${uri.host}:${uri.port}';
+    }
+    // Fallback: remove trailing slash
+    return base.replaceAll(RegExp(r'/$'), '');
+  }
+
   /// Busca dados da ONU (sinal, temperatura, etc)
   Future<OnuData> fetchOnuSignal() async {
-    final baseUrl = apiUrl.replaceAll(RegExp(r'/[^/]*$'), '');
-    final url = '$baseUrl/diagnostic/onu-signal';
+    final url = '$_baseUrl/diagnostic/onu-signal';
+    print('[ONU-Service] Calling: $url');
 
     try {
       final response = await http
@@ -140,8 +153,8 @@ class OnuWifiService {
 
   /// Lista redes WiFi do CPE/Roteador
   Future<List<WifiNetwork>> fetchWifiNetworks() async {
-    final baseUrl = apiUrl.replaceAll(RegExp(r'/[^/]*$'), '');
-    final url = '$baseUrl/cpe/wifi/list';
+    final url = '$_baseUrl/cpe/wifi/list';
+    print('[WiFi-Service] Calling: $url');
 
     try {
       final response = await http
@@ -181,8 +194,8 @@ class OnuWifiService {
     required String ssid,
     required String password,
   }) async {
-    final baseUrl = apiUrl.replaceAll(RegExp(r'/[^/]*$'), '');
-    final url = '$baseUrl/cpe/wifi/update';
+    final url = '$_baseUrl/cpe/wifi/update';
+    print('[WiFi-Service] Calling: $url');
 
     try {
       final response = await http
