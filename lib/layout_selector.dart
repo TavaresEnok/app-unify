@@ -36,6 +36,24 @@ import 'layouts/layout_03/consumo_page.dart' as l03_cons;
 import 'layouts/layout_06/consumo_page.dart' as l06_cons;
 import 'layouts/layout_07/consumo_page.dart' as l07_cons;
 
+// Imports do Meu IP
+import 'layouts/layout_02/meu_ip_page.dart' as l02_ip;
+import 'layouts/layout_03/meu_ip_page.dart' as l03_ip;
+import 'layouts/layout_06/meu_ip_page.dart' as l06_ip;
+import 'layouts/layout_07/meu_ip_page.dart' as l07_ip;
+
+// Imports do FAQ
+import 'layouts/layout_02/faq_page.dart' as l02_faq;
+import 'layouts/layout_03/faq_page.dart' as l03_faq;
+import 'layouts/layout_06/faq_page.dart' as l06_faq;
+import 'layouts/layout_07/faq_page.dart' as l07_faq;
+
+// Imports do Contrato
+import 'layouts/layout_02/contrato_page.dart' as l02_cont;
+import 'layouts/layout_03/contrato_page.dart' as l03_cont;
+import 'layouts/layout_06/contrato_page.dart' as l06_cont;
+import 'layouts/layout_07/contrato_page.dart' as l07_cont;
+
 /// Classe utilitária que seleciona o layout correto baseado na configuração
 /// carregada do Firestore (campo `layoutType`).
 ///
@@ -225,6 +243,54 @@ class LayoutSelector {
         return const l07_cons.ConsumoPage();
       default:
         return const l06_cons.ConsumoPage();
+    }
+  }
+
+  /// Retorna o widget de Meu IP correto para o layout especificado
+  static Widget getMeuIpPage({required String layoutType}) {
+    switch (layoutType) {
+      case 'layout_02':
+        return const l02_ip.MeuIpPage();
+      case 'layout_03':
+        return const l03_ip.MeuIpPage();
+      case 'layout_06':
+        return const l06_ip.MeuIpPage();
+      case 'layout_07':
+        return const l07_ip.MeuIpPage();
+      default:
+        return const l06_ip.MeuIpPage();
+    }
+  }
+
+  /// Retorna o widget de FAQ correto para o layout especificado
+  static Widget getFaqPage({required String layoutType}) {
+    switch (layoutType) {
+      case 'layout_02':
+        return const l02_faq.FaqPage();
+      case 'layout_03':
+        return const l03_faq.FaqPage();
+      case 'layout_06':
+        return const l06_faq.FaqPage();
+      case 'layout_07':
+        return const l07_faq.FaqPage();
+      default:
+        return const l06_faq.FaqPage();
+    }
+  }
+
+  /// Retorna o widget de Contrato correto para o layout especificado
+  static Widget getContratoPage({required String layoutType}) {
+    switch (layoutType) {
+      case 'layout_02':
+        return const l02_cont.ContratoPage();
+      case 'layout_03':
+        return const l03_cont.ContratoPage();
+      case 'layout_06':
+        return const l06_cont.ContratoPage();
+      case 'layout_07':
+        return const l07_cont.ContratoPage();
+      default:
+        return const l06_cont.ContratoPage();
     }
   }
 
