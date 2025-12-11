@@ -7,7 +7,8 @@ class ProviderConfig {
   final String id;
   final String name;
   final String apiUrl;
-  final String layoutType; // NOVO: Tipo de layout (layout_02, layout_03, layout_06, layout_07)
+  final String
+      layoutType; // NOVO: Tipo de layout (layout_02, layout_03, layout_06, layout_07)
   final ConfigSection config;
   final FeaturesSection features;
   final MenuConfig menuConfig;
@@ -51,9 +52,8 @@ class ProviderConfig {
     final finalApiUrl =
         rootApiUrl?.isNotEmpty == true ? rootApiUrl : configApiUrl;
 
-    // Se não tiver URL, definimos uma default ou lançamos erro.
-    // O código original tinha throw, mas o snippet do usuário usava fallback.
-    final effectiveApiUrl = finalApiUrl ?? 'https://api.seusistema.com';
+    // Se não tiver URL, usamos o IP do servidor principal
+    final effectiveApiUrl = finalApiUrl ?? 'http://168.194.13.18:3000';
 
     final integrationsMap = (json['integrations'] ??
             legacyConfig['integrations']) as Map<String, dynamic>? ??
