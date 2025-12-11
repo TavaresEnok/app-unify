@@ -854,13 +854,45 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
             ]),
           ))
         else ...[
-          // Signal Strength
+          // Status indicator at top
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: _onuData!.isOnline
+                  ? Colors.green.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(children: [
+              Icon(
+                _onuData!.isOnline ? Icons.check_circle : Icons.cancel,
+                color: _onuData!.isOnline ? Colors.green : Colors.red,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Status: ${_onuData!.connectionStatus}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _onuData!.isOnline ? Colors.green : Colors.red,
+                ),
+              ),
+              const Spacer(),
+              if (_onuData!.lastUpdate != null)
+                Text(
+                  _onuData!.lastUpdate!,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Signal Strength (only if online)
           Row(children: [
             Expanded(
                 child: _buildOnuStatBox(
               context,
               label: 'Sinal RX',
-              value: '${_onuData!.signalRx.toStringAsFixed(1)} dBm',
+              value: _onuData!.signalRxDisplay,
               icon: Icons.arrow_downward,
               isGood: _onuData!.isSignalGood,
             )),
@@ -869,54 +901,73 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
                 child: _buildOnuStatBox(
               context,
               label: 'Sinal TX',
-              value: '${_onuData!.signalTx.toStringAsFixed(1)} dBm',
+              value: _onuData!.signalTxDisplay,
               icon: Icons.arrow_upward,
-              isGood: true,
+              isGood: _onuData!.signalTx != null,
             )),
           ]),
           const SizedBox(height: 16),
 
           // Quality indicator
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: _onuData!.isSignalGood
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(children: [
-              Icon(
-                _onuData!.isSignalGood ? Icons.check_circle : Icons.warning,
-                color: _onuData!.isSignalGood ? Colors.green : Colors.orange,
+          if (_onuData!.signalRx != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: _onuData!.isSignalGood
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'Qualidade: ${_onuData!.signalQuality}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
+              child: Row(children: [
+                Icon(
+                  _onuData!.isSignalGood ? Icons.check_circle : Icons.warning,
                   color: _onuData!.isSignalGood ? Colors.green : Colors.orange,
                 ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 16),
+                const SizedBox(width: 12),
+                Text(
+                  'Qualidade: ${_onuData!.signalQuality}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color:
+                        _onuData!.isSignalGood ? Colors.green : Colors.orange,
+                  ),
+                ),
+              ]),
+            ),
+
+          // OLT Info
+          if (_onuData!.oltName != null)
+            _buildOnuInfoTile('OLT', _onuData!.oltName!, Icons.cell_tower),
+          _buildOnuInfoTile(
+              'Posição',
+              'Slot ${_onuData!.slot} | PON ${_onuData!.pon} | ID ${_onuData!.onuId}',
+              Icons.pin_drop),
+
+          // Device info
+          _buildOnuInfoTile('Modelo', _onuData!.model, Icons.router),
+          if (_onuData!.serialNumber != null)
+            _buildOnuInfoTile('Serial', _onuData!.serialNumber!, Icons.tag),
+          if (_onuData!.mode != null)
+            _buildOnuInfoTile('Modo', _onuData!.mode!, Icons.settings),
+
+          // Network info
+          if (_onuData!.vlan != null)
+            _buildOnuInfoTile('VLAN', _onuData!.vlan.toString(), Icons.lan),
+          if (_onuData!.cto != null)
+            _buildOnuInfoTile('CTO', _onuData!.cto!, Icons.location_on),
 
           // Additional info
           Row(children: [
             if (_onuData!.temperature != null)
               Expanded(
-                  child: _buildOnuInfoTile('Temp ONU',
-                      '${_onuData!.temperature}°C', Icons.thermostat)),
+                  child: _buildOnuInfoTile(
+                      'Temp', '${_onuData!.temperature}°C', Icons.thermostat)),
             if (_onuData!.voltage != null)
               Expanded(
                   child: _buildOnuInfoTile('Voltagem', '${_onuData!.voltage}V',
                       Icons.electrical_services)),
           ]),
-          const SizedBox(height: 8),
-          _buildOnuInfoTile('Modelo', _onuData!.model, Icons.router),
-          if (_onuData!.serialNumber != null)
-            _buildOnuInfoTile('Serial', _onuData!.serialNumber!, Icons.tag),
         ],
       ]),
     );

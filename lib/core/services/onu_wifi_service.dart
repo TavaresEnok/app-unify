@@ -5,61 +5,87 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class OnuData {
-  final double signalRx;
-  final double signalTx;
+  final double? signalRx; // null if N/A or offline
+  final double? signalTx; // null if N/A or offline
   final String connectionStatus;
+  final bool isOnline;
   final int oltId;
+  final String? oltName;
   final int slot;
   final int pon;
   final int onuId;
   final double? temperature;
-  final double? oltTemperature;
   final double? voltage;
   final String model;
   final String? serialNumber;
+  // New fields from SGP
+  final String? mode; // Bridge, Router, etc
+  final int? vlan;
+  final String? cto; // CTO location
+  final String? lastUpdate;
 
   OnuData({
-    required this.signalRx,
-    required this.signalTx,
+    this.signalRx,
+    this.signalTx,
     required this.connectionStatus,
+    required this.isOnline,
     required this.oltId,
+    this.oltName,
     required this.slot,
     required this.pon,
     required this.onuId,
     this.temperature,
-    this.oltTemperature,
     this.voltage,
     required this.model,
     this.serialNumber,
+    this.mode,
+    this.vlan,
+    this.cto,
+    this.lastUpdate,
   });
 
   factory OnuData.fromJson(Map<String, dynamic> json) {
+    final status = json['connectionStatus']?.toString() ?? 'unknown';
     return OnuData(
-      signalRx: (json['signalRx'] ?? -999).toDouble(),
-      signalTx: (json['signalTx'] ?? -999).toDouble(),
-      connectionStatus: json['connectionStatus'] ?? 'unknown',
+      signalRx: json['signalRx']?.toDouble(),
+      signalTx: json['signalTx']?.toDouble(),
+      connectionStatus: status,
+      isOnline: status.toLowerCase() == 'online',
       oltId: json['oltId'] ?? 0,
+      oltName: json['oltName'],
       slot: json['slot'] ?? 0,
       pon: json['pon'] ?? 0,
       onuId: json['onuId'] ?? 0,
       temperature: json['temperature']?.toDouble(),
-      oltTemperature: json['oltTemperature']?.toDouble(),
       voltage: json['voltage']?.toDouble(),
       model: json['model'] ?? 'Desconhecido',
       serialNumber: json['serialNumber'],
+      mode: json['mode'],
+      vlan: json['vlan'],
+      cto: json['cto'],
+      lastUpdate: json['lastUpdate'],
     );
   }
 
   /// Qualidade do sinal baseada no RX
   String get signalQuality {
-    if (signalRx >= -23) return 'Excelente';
-    if (signalRx >= -25) return 'Bom';
-    if (signalRx >= -27) return 'Regular';
+    if (signalRx == null) return 'Sem dados';
+    if (signalRx! >= -23) return 'Excelente';
+    if (signalRx! >= -25) return 'Bom';
+    if (signalRx! >= -27) return 'Regular';
     return 'Ruim';
   }
 
   /// Cor do sinal baseada no RX
-  bool get isSignalGood => signalRx >= -25;
+  bool get isSignalGood => signalRx != null && signalRx! >= -25;
+
+  /// Retorna string formatada do sinal RX
+  String get signalRxDisplay =>
+      signalRx != null ? '${signalRx!.toStringAsFixed(1)} dBm' : 'N/A';
+
+  /// Retorna string formatada do sinal TX
+  String get signalTxDisplay =>
+      signalTx != null ? '${signalTx!.toStringAsFixed(1)} dBm' : 'N/A';
 }
 
 class WifiNetwork {
