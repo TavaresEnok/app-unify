@@ -278,6 +278,26 @@ class _PainelPageState extends State<PainelPage> {
       return LayoutSelector.getConsumoPage(layoutType: layoutType);
     }
 
+    // Página de Meu IP
+    if (_currentPage == 'my_ip') {
+      return LayoutSelector.getMeuIpPage(layoutType: layoutType);
+    }
+
+    // Página de FAQ
+    if (_currentPage == 'faq') {
+      return LayoutSelector.getFaqPage(layoutType: layoutType);
+    }
+
+    // Página de Contrato
+    if (_currentPage == 'contract') {
+      return LayoutSelector.getContratoPage(layoutType: layoutType);
+    }
+
+    // Página de Velocidade (usa Diagnóstico que já tem speed test)
+    if (_currentPage == 'speed_test') {
+      return LayoutSelector.getDiagnosticoPage(layoutType: layoutType);
+    }
+
     // Para outras páginas, mostrar placeholder por enquanto
     // TODO: Adicionar LayoutSelector para cada página conforme forem unificadas
     return _buildPlaceholderPage(layoutType);
