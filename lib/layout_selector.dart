@@ -30,6 +30,12 @@ import 'layouts/layout_03/diagnostico_page.dart' as l03_diag;
 import 'layouts/layout_06/diagnostico_page.dart' as l06_diag;
 import 'layouts/layout_07/diagnostico_page.dart' as l07_diag;
 
+// Imports do Consumo
+import 'layouts/layout_02/consumo_page.dart' as l02_cons;
+import 'layouts/layout_03/consumo_page.dart' as l03_cons;
+import 'layouts/layout_06/consumo_page.dart' as l06_cons;
+import 'layouts/layout_07/consumo_page.dart' as l07_cons;
+
 /// Classe utilitária que seleciona o layout correto baseado na configuração
 /// carregada do Firestore (campo `layoutType`).
 ///
@@ -203,6 +209,22 @@ class LayoutSelector {
         return const l07_diag.DiagnosticoPage();
       default:
         return const l06_diag.DiagnosticoPage();
+    }
+  }
+
+  /// Retorna o widget de Consumo correto para o layout especificado
+  static Widget getConsumoPage({required String layoutType}) {
+    switch (layoutType) {
+      case 'layout_02':
+        return const l02_cons.ConsumoPage();
+      case 'layout_03':
+        return const l03_cons.ConsumoPage();
+      case 'layout_06':
+        return const l06_cons.ConsumoPage();
+      case 'layout_07':
+        return const l07_cons.ConsumoPage();
+      default:
+        return const l06_cons.ConsumoPage();
     }
   }
 

@@ -273,6 +273,11 @@ class _PainelPageState extends State<PainelPage> {
       return LayoutSelector.getDiagnosticoPage(layoutType: layoutType);
     }
 
+    // Página de Consumo de Internet
+    if (_currentPage == 'internet_usage') {
+      return LayoutSelector.getConsumoPage(layoutType: layoutType);
+    }
+
     // Para outras páginas, mostrar placeholder por enquanto
     // TODO: Adicionar LayoutSelector para cada página conforme forem unificadas
     return _buildPlaceholderPage(layoutType);
