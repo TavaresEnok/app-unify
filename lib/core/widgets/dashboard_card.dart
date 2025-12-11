@@ -1,44 +1,31 @@
 import 'package:flutter/material.dart';
 
-/// Card estilizado para o dashboard com fundo escuro/glass
 class DashboardCard extends StatelessWidget {
   final Widget child;
-  final EdgeInsetsGeometry padding;
-  final double borderRadius;
-  final Color? backgroundColor;
+  final EdgeInsetsGeometry? padding;
+  final Color? color;
 
-  const DashboardCard({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.borderRadius = 20,
-    this.backgroundColor,
-  });
+  const DashboardCard(
+      {super.key, required this.child, this.padding, this.color});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = backgroundColor ?? 
-        (isDark 
-            ? const Color(0xFF1E293B) 
-            : Colors.white);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: padding,
+      padding: padding ?? const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: isDark 
-              ? Colors.white.withOpacity(0.05) 
-              : Colors.grey.shade200,
-        ),
+        color: color ?? (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+        borderRadius: BorderRadius.circular(20),
+        border:
+            Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 12),
+          )
         ],
       ),
       child: child,
