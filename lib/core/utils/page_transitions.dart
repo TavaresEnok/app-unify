@@ -38,11 +38,11 @@ class FadeSlideTransition extends PageRouteBuilder {
 }
 
 /// Transição com escala
-class ScaleTransition extends PageRouteBuilder {
+class ScalePageTransition extends PageRouteBuilder {
   final Widget page;
   final Duration duration;
 
-  ScaleTransition({
+  ScalePageTransition({
     required this.page,
     this.duration = const Duration(milliseconds: 300),
   }) : super(
