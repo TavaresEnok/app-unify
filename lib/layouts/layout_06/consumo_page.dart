@@ -1,5 +1,8 @@
-// Layout 02 - Página de Consumo de Internet
+// Layout 02 - Página de Consumo de Internet (Planos Ilimitados)
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/providers/configuration_provider.dart';
 
 class ConsumoPage extends StatefulWidget {
   const ConsumoPage({super.key});
@@ -8,190 +11,318 @@ class ConsumoPage extends StatefulWidget {
   State<ConsumoPage> createState() => _ConsumoPageState();
 }
 
-class _ConsumoPageState extends State<ConsumoPage> {
-  bool _isLoading = true;
-  String? _error;
-  double _usedGb = 0;
-  double _totalGb = 0;
-  String _planName = '';
-  String _period = '';
+class _ConsumoPageState extends State<ConsumoPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _loadConsumptionData();
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
-  Future<void> _loadConsumptionData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      // Simula carregamento - substitua por chamada real à API
-      await Future.delayed(const Duration(seconds: 1));
-
-      // TODO: Implementar chamada ao ConsumoService
-      // Por enquanto, usa dados mockados
-      setState(() {
-        _usedGb = 45.5;
-        _totalGb = 100.0;
-        _planName = 'Plano 100MB';
-        _period = 'Dezembro 2024';
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authService = context.watch<AuthService>();
+    final configProvider = context.watch<ConfigurationProvider>();
+    final usuario = authService.usuario;
+    final config = configProvider.providerConfig;
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _loadConsumptionData,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? _buildErrorWidget()
-                : _buildContent(theme),
+        onRefresh: () async {
+          // Refresh user data if needed
+          await Future.delayed(const Duration(milliseconds: 500));
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Card principal - Plano Ilimitado
+            _buildUnlimitedCard(theme, usuario?.plano ?? 'Plano Fibra',
+                config?.name ?? 'Provedor'),
+
+            const SizedBox(height: 16),
+
+            // Card de velocidades
+            _buildSpeedCard(theme, usuario),
+
+            const SizedBox(height: 16),
+
+            // Card de status da conexão
+            _buildConnectionStatusCard(theme),
+
+            const SizedBox(height: 16),
+
+            // Card de benefícios
+            _buildBenefitsCard(theme),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildContent(ThemeData theme) {
-    final percentage = _totalGb > 0 ? (_usedGb / _totalGb) : 0.0;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Card principal com gráfico circular
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Text(
-                  'Consumo de Internet',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _period,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Gráfico circular
-                SizedBox(
-                  width: 200,
-                  height: 200,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 200,
-                        height: 200,
-                        child: CircularProgressIndicator(
-                          value: percentage,
-                          strokeWidth: 16,
-                          backgroundColor:
-                              theme.colorScheme.surfaceContainerHighest,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            percentage > 0.9
-                                ? Colors.red
-                                : percentage > 0.7
-                                    ? Colors.orange
-                                    : theme.colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${_usedGb.toStringAsFixed(1)} GB',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'de ${_totalGb.toStringAsFixed(0)} GB',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-                Text(
-                  '${(percentage * 100).toStringAsFixed(0)}% utilizado',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: percentage > 0.9
-                        ? Colors.red
-                        : percentage > 0.7
-                            ? Colors.orange
-                            : theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+  Widget _buildUnlimitedCard(
+      ThemeData theme, String planName, String providerName) {
+    return Card(
+      elevation: 4,
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.primaryColor.withOpacity(0.1),
+              theme.primaryColor.withOpacity(0.05),
+            ],
           ),
         ),
+        child: Column(
+          children: [
+            // Ícone de infinito animado
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _pulseAnimation.value,
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          theme.primaryColor,
+                          theme.primaryColor.withOpacity(0.7),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.primaryColor.withOpacity(0.3),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.all_inclusive,
+                      size: 60,
+                      color: Colors.white,
+                    ),
+                  ),
+                );
+              },
+            ),
 
-        const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-        // Card com detalhes do plano
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Text(
+              '∞ ILIMITADO',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.primaryColor,
+                letterSpacing: 2,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Text(
+              'Navegue sem limites!',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                planName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.primaryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpeedCard(ThemeData theme, dynamic usuario) {
+    // Extract speed from plan name (e.g., "100 Mega" -> 100)
+    String speedValue = '100';
+    String planName = usuario?.plano ?? 'Plano Fibra';
+    final regex = RegExp(r'(\d+)');
+    final match = regex.firstMatch(planName);
+    if (match != null) {
+      speedValue = match.group(1)!;
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
+                Icon(Icons.speed, color: theme.primaryColor),
+                const SizedBox(width: 12),
                 Text(
-                  'Detalhes do Plano',
+                  'Velocidades Contratadas',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildDetailRow(theme, 'Plano', _planName),
-                _buildDetailRow(
-                    theme, 'Franquia', '${_totalGb.toStringAsFixed(0)} GB'),
-                _buildDetailRow(
-                    theme, 'Consumido', '${_usedGb.toStringAsFixed(1)} GB'),
-                _buildDetailRow(theme, 'Disponível',
-                    '${(_totalGb - _usedGb).toStringAsFixed(1)} GB'),
               ],
             ),
+            const Divider(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSpeedItem(
+                    theme,
+                    'Download',
+                    '$speedValue Mbps',
+                    Icons.arrow_downward,
+                    Colors.green,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 60,
+                  color: theme.dividerColor,
+                ),
+                Expanded(
+                  child: _buildSpeedItem(
+                    theme,
+                    'Upload',
+                    '$speedValue Mbps',
+                    Icons.arrow_upward,
+                    Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpeedItem(
+      ThemeData theme, String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDetailRow(ThemeData theme, String label, String value) {
+  Widget _buildConnectionStatusCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.wifi, color: theme.primaryColor),
+                const SizedBox(width: 12),
+                Text(
+                  'Status da Conexão',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Ativo',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            _buildStatusRow(
+                theme, 'Tipo de Conexão', 'Fibra Óptica', Icons.cable),
+            _buildStatusRow(
+                theme, 'Franquia', 'Ilimitada', Icons.all_inclusive),
+            _buildStatusRow(
+                theme, 'Fidelidade', 'Sem fidelidade', Icons.lock_open),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusRow(
+      ThemeData theme, String label, String value, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
           Text(label, style: theme.textTheme.bodyMedium),
+          const Spacer(),
           Text(
             value,
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -203,40 +334,58 @@ class _ConsumoPageState extends State<ConsumoPage> {
     );
   }
 
-  Widget _buildErrorWidget() {
-    final theme = Theme.of(context);
-
-    return Center(
+  Widget _buildBenefitsCard(ThemeData theme) {
+    return Card(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: theme.colorScheme.error,
+            Row(
+              children: [
+                Icon(Icons.star, color: Colors.amber),
+                const SizedBox(width: 12),
+                Text(
+                  'Benefícios do Seu Plano',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            Text(
-              'Erro ao carregar consumo',
-              style: theme.textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error ?? 'Erro desconhecido',
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadConsumptionData,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar novamente'),
-            ),
+            _buildBenefitItem(theme, Icons.all_inclusive, 'Internet ilimitada'),
+            _buildBenefitItem(theme, Icons.bolt, 'Velocidade garantida'),
+            _buildBenefitItem(theme, Icons.support_agent, 'Suporte 24/7'),
+            _buildBenefitItem(theme, Icons.router, 'Wi-Fi de alta qualidade'),
+            _buildBenefitItem(theme, Icons.security, 'Conexão segura'),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBenefitItem(ThemeData theme, IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: theme.primaryColor, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

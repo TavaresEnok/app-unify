@@ -1,9 +1,11 @@
 // Layout 02 - Financeiro Page (VERSÃO CLEAN)
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/models/fatura.dart';
 import '../../core/providers/financeiro_provider.dart';
@@ -282,6 +284,13 @@ class FinanceiroPage extends StatelessWidget {
                         style: TextStyle(color: Colors.grey[500], fontSize: 13),
                       ),
                     ),
+
+                  // DESBLOQUEIO POR CONFIANÇA - Apenas para faturas vencidas
+                  if (fatura.isVencido)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _buildTrustUnlockButton(context, fatura),
+                    ),
                 ],
               ),
             ),
@@ -289,6 +298,193 @@ class FinanceiroPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildTrustUnlockButton(BuildContext context, Fatura fatura) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.purple.shade400, Colors.purple.shade600],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showTrustUnlockDialog(context, fatura),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_open, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Liberar por Confiança',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTrustUnlockDialog(BuildContext context, Fatura fatura) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock_open, color: Colors.purple),
+            SizedBox(width: 12),
+            Text('Liberação por Confiança'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Libere sua internet por 24 horas enquanto aguarda a confirmação do pagamento.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Essa liberação é válida por apenas 24 horas.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _executeTrustUnlock(context, fatura);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirmar Liberação'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _executeTrustUnlock(BuildContext context, Fatura fatura) async {
+    final configProvider = context.read<ConfigurationProvider>();
+    final authService = context.read<AuthService>();
+    final providerConfig = configProvider.providerConfig;
+    final usuario = authService.usuario;
+
+    if (providerConfig == null || usuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erro: Configuração não encontrada'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 16),
+            Text('Processando liberação...'),
+          ],
+        ),
+        duration: Duration(seconds: 30),
+      ),
+    );
+
+    try {
+      final response = await http.post(
+        Uri.parse('${providerConfig.apiUrl}/unlock-trust'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'cpfCnpj': usuario.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
+          'senha': usuario.senha,
+          'faturaId': fatura.numero,
+          'sgpParams': {
+            'token': providerConfig.config.integrations.apiToken,
+            'app': providerConfig.config.integrations.appName,
+            'sgpBaseUrl': providerConfig.config.integrations.sgpBaseUrl,
+          },
+        }),
+      );
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Internet liberada por 24 horas!')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error']?['message'] ?? 'Erro ao liberar');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro: ${e.toString().replaceAll('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildActionButton(
