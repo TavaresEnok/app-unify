@@ -64,12 +64,10 @@ class _PainelPageState extends State<PainelPage> {
     final usuario = authService.usuario;
 
     // TEMPORARY: Force layout_04 for testing - REMOVE THIS LINE AFTER TESTING!
-    final layoutType = 'layout_04';
-    // final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
+    // final layoutType = 'layout_04';
+    final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
 
-    print('[DEBUG] ⚠️ FORCED layoutType = $layoutType');
-    print(
-        '[DEBUG] Real layoutType from config = ${configProvider.providerConfig?.layoutType}');
+    print('[DEBUG] layoutType from config = $layoutType');
 
     if (usuario == null) {
       // Não deveria acontecer, mas por segurança

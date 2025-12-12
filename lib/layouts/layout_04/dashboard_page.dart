@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/providers/configuration_provider.dart';
 import 'aurora_theme.dart';
 
 class DashboardPage extends StatelessWidget {
@@ -14,9 +13,7 @@ class DashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
-    final configProvider = context.watch<ConfigurationProvider>();
     final usuario = authService.usuario;
-    final config = configProvider.providerConfig;
 
     final customerName = usuario?.nome ?? 'Cliente';
     final planName = usuario?.plano ?? 'Plano';
