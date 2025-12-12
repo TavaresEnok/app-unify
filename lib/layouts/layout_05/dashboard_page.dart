@@ -72,8 +72,11 @@ class _DashboardPageState extends State<DashboardPage> {
 
               const SizedBox(height: 24),
 
-              // Connection Speed
-              _buildSpeedCard(widget.downloadMbps),
+              // Connection Speed - Clickable
+              GestureDetector(
+                onTap: () => widget.onNavigate('speed_test'),
+                child: _buildSpeedCard(widget.downloadMbps),
+              ),
 
               const SizedBox(height: 32),
 
@@ -98,9 +101,10 @@ class _DashboardPageState extends State<DashboardPage> {
                     SizedBox(
                         width: width,
                         child: _buildNeuShortcut(
-                            Icons.lock_open_rounded,
-                            'Desbloqueio',
-                            () => widget.onNavigate('invoices'))),
+                            Icons.speed_rounded, // Changed Icon
+                            'Diagnóstico', // Changed Title
+                            () => widget.onNavigate(
+                                'network_diagnostic'))), // Changed Route
                     SizedBox(
                         width: width,
                         child: _buildNeuShortcut(Icons.support_agent_rounded,
