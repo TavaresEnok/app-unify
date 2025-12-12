@@ -9,44 +9,34 @@ class DiagnosticoPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Layout05Theme.background,
       appBar: AppBar(
-        title: const Text('DIAGNÓSTICO',
-            style: TextStyle(letterSpacing: 2, fontSize: 16)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: Text('Diagnóstico', style: Layout05Theme.heading2),
+        backgroundColor: Layout05Theme.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(30),
+              padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Layout05Theme.primary.withOpacity(0.1),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Layout05Theme.primary.withOpacity(0.2),
-                        blurRadius: 40)
-                  ]),
-              child: const Icon(Icons.wifi_find,
-                  size: 80, color: Layout05Theme.primary),
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: Layout05Theme.softShadow,
+              ),
+              child: const CircularProgressIndicator(
+                color: Layout05Theme.primary,
+                strokeWidth: 4,
+              ),
             ),
             const SizedBox(height: 32),
-            const Text('Verificando conexão...',
-                style: TextStyle(color: Colors.white, fontSize: 18)),
-            const SizedBox(height: 8),
-            const Text('Aguarde um momento',
-                style: TextStyle(color: Colors.white54)),
-            const SizedBox(height: 40),
-            const SizedBox(
-              width: 200,
-              child: LinearProgressIndicator(
-                  color: Layout05Theme.primary,
-                  backgroundColor: Colors.white10),
+            Text('Verificando conexão...', style: Layout05Theme.heading2),
+            const SizedBox(height: 12),
+            const Text(
+              'Aguarde enquanto analisamos sua rede.',
+              style: TextStyle(color: Layout05Theme.textGrey),
             ),
           ],
         ),

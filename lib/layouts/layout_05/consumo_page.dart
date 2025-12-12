@@ -9,63 +9,120 @@ class ConsumoPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Layout05Theme.background,
       appBar: AppBar(
-        title: const Text('MEU CONSUMO',
-            style: TextStyle(letterSpacing: 2, fontSize: 16)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: Text('Consumo', style: Layout05Theme.heading2),
+        backgroundColor: Layout05Theme.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
-      body: Center(
-        child: Container(
-          width: 280,
-          height: 280,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [Layout05Theme.surfaceLight, Layout05Theme.background],
-            ),
-            border: Border.all(
-                color: Layout05Theme.secondary.withOpacity(0.5), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Layout05Theme.secondary.withOpacity(0.2),
-                blurRadius: 30,
-              )
-            ],
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CircularProgressIndicator(
-                value: 0.5,
-                strokeWidth: 12,
-                color: Layout05Theme.secondary,
-                backgroundColor: Colors.white10,
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: Layout05Theme.cardDecoration,
+              child: Column(
                 children: [
-                  const Text('50%',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 56,
-                          fontWeight: FontWeight.bold)),
-                  Text('CONSUMIDO',
-                      style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          letterSpacing: 2)),
-                  const SizedBox(height: 8),
-                  const Text('50 GB / 100 GB',
-                      style: TextStyle(color: Colors.white70)),
+                  SizedBox(
+                    height: 200,
+                    width: 200,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CircularProgressIndicator(
+                          value: 0.7,
+                          strokeWidth: 12,
+                          backgroundColor: Layout05Theme.background,
+                          valueColor: const AlwaysStoppedAnimation(
+                              Layout05Theme.primary),
+                        ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('70%',
+                                style: Layout05Theme.heading1
+                                    .copyWith(fontSize: 40)),
+                            const SizedBox(height: 4),
+                            const Text('Consumido',
+                                style:
+                                    TextStyle(color: Layout05Theme.textGrey)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem(
+                          'Download', '350 GB', Layout05Theme.primary),
+                      Container(
+                          height: 40,
+                          width: 1,
+                          color: Colors.grey.withOpacity(0.2)),
+                      _buildStatItem(
+                          'Upload', '150 GB', Layout05Theme.secondary),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: Layout05Theme.cardDecoration,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Layout05Theme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.calendar_today,
+                        color: Layout05Theme.primary),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Ciclo Atual',
+                            style: TextStyle(
+                                color: Layout05Theme.textGrey, fontSize: 13)),
+                        Text('01/12 - 31/12',
+                            style: TextStyle(
+                                color: Layout05Theme.textDark,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: Layout05Theme.textGrey)),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

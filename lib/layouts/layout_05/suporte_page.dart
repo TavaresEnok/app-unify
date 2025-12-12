@@ -6,70 +6,88 @@ class SuportePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final supportOptions = [
+      {
+        'icon': Icons.chat_bubble_outline,
+        'label': 'WhatsApp',
+        'color': const Color(0xFF25D366)
+      },
+      {
+        'icon': Icons.phone_outlined,
+        'label': 'Ligar',
+        'color': Layout05Theme.primary
+      },
+      {
+        'icon': Icons.email_outlined,
+        'label': 'Email',
+        'color': Layout05Theme.secondary
+      },
+      {
+        'icon': Icons.headset_mic_outlined,
+        'label': 'Chat Online',
+        'color': Colors.orange
+      },
+    ];
+
     return Scaffold(
       backgroundColor: Layout05Theme.background,
       appBar: AppBar(
-        title: const Text('SUPORTE',
-            style: TextStyle(letterSpacing: 2, fontSize: 16)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: Text('Suporte', style: Layout05Theme.heading2),
+        backgroundColor: Layout05Theme.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
-      body: GridView.count(
+      body: GridView.builder(
         padding: const EdgeInsets.all(20),
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        children: [
-          _SupportOption(
-              icon: Icons.chat_bubble,
-              label: 'WhatsApp',
-              color: const Color(0xFF00E676)),
-          _SupportOption(
-              icon: Icons.phone,
-              label: 'Ligar',
-              color: Layout05Theme.secondary),
-          _SupportOption(
-              icon: Icons.email, label: 'Email', color: Layout05Theme.primary),
-          _SupportOption(
-              icon: Icons.chat, label: 'Chat Online', color: Colors.amber),
-        ],
-      ),
-    );
-  }
-}
-
-class _SupportOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _SupportOption(
-      {required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: Layout05Theme.glassDecoration,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withOpacity(0.1),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.1,
+        ),
+        itemCount: supportOptions.length,
+        itemBuilder: (context, index) {
+          final option = supportOptions[index];
+          return Container(
+            decoration: Layout05Theme.cardDecoration,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: Layout05Theme.radiusL,
+                onTap: () {
+                  // Ação
+                },
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: (option['color'] as Color).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        option['icon'] as IconData,
+                        color: option['color'] as Color,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      option['label'] as String,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Layout05Theme.textDark,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: Icon(icon, color: color, size: 32),
-          ),
-          const SizedBox(height: 16),
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold)),
-        ],
+          );
+        },
       ),
     );
   }

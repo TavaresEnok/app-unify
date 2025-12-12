@@ -6,38 +6,48 @@ class FinanceiroPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dados Mockados para exemplo
+    final faturas = [
+      {'status': 'open', 'valor': '99,90', 'vencimento': '10/12/2023'},
+      {'status': 'paid', 'valor': '99,90', 'vencimento': '10/11/2023'},
+      {'status': 'paid', 'valor': '99,90', 'vencimento': '10/10/2023'},
+    ];
+
     return Scaffold(
       backgroundColor: Layout05Theme.background,
       appBar: AppBar(
-        title: const Text('FINANCEIRO',
-            style: TextStyle(letterSpacing: 2, fontSize: 16)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: Text('Minhas Faturas', style: Layout05Theme.heading2),
+        backgroundColor: Layout05Theme.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
-      body: ListView.builder(
+      body: ListView.separated(
         padding: const EdgeInsets.all(20),
-        itemCount: 5,
+        itemCount: faturas.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
-          final isPending = index == 0;
+          final fatura = faturas[index];
+          final isOpen = fatura['status'] == 'open';
+
           return Container(
-            margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(20),
-            decoration: isPending
-                ? Layout05Theme.neonBorderDecoration
-                : Layout05Theme.glassDecoration,
+            decoration: Layout05Theme.cardDecoration,
             child: Row(
               children: [
-                Icon(
-                  isPending
-                      ? Icons.warning_amber_rounded
-                      : Icons.check_circle_outline,
-                  color: isPending
-                      ? Layout05Theme.primary
-                      : const Color(0xFF00E676),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isOpen
+                        ? Layout05Theme.warning.withOpacity(0.1)
+                        : Layout05Theme.success.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isOpen ? Icons.receipt_long : Icons.check_circle,
+                    color:
+                        isOpen ? Layout05Theme.warning : Layout05Theme.success,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -45,30 +55,45 @@ class FinanceiroPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isPending ? 'FATURA ABERTA' : 'PAGO',
-                        style: TextStyle(
-                            color: isPending
-                                ? Layout05Theme.primary
-                                : const Color(0xFF00E676),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold),
+                        isOpen ? 'Fatura Aberta' : 'Fatura Paga',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Layout05Theme.textDark,
+                          fontSize: 16,
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text('R\$ 99,90',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold)),
-                      const Text('Vencimento 10/12/2025',
-                          style:
-                              TextStyle(color: Colors.white54, fontSize: 12)),
+                      Text(
+                        'Vencimento: ${fatura['vencimento']}',
+                        style: const TextStyle(
+                            color: Layout05Theme.textGrey, fontSize: 13),
+                      ),
                     ],
                   ),
                 ),
-                if (isPending)
-                  IconButton(
-                      icon: const Icon(Icons.copy, color: Colors.white),
-                      onPressed: () {})
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'R\$ ${fatura['valor']}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Layout05Theme.textDark,
+                      ),
+                    ),
+                    if (isOpen)
+                      TextButton(
+                        onPressed: () {},
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(50, 20),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: Layout05Theme.primary,
+                        ),
+                        child: const Text('Pagar'),
+                      ),
+                  ],
+                ),
               ],
             ),
           );

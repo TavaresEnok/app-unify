@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'theme.dart';
 
 class MeuIpPage extends StatelessWidget {
@@ -9,48 +10,70 @@ class MeuIpPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Layout05Theme.background,
       appBar: AppBar(
-        title: const Text('MEU IP',
-            style: TextStyle(letterSpacing: 2, fontSize: 16)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: Text('Meu IP', style: Layout05Theme.heading2),
+        backgroundColor: Layout05Theme.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-              margin: const EdgeInsets.all(20),
-              decoration: Layout05Theme.neonBorderDecoration,
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
+              width: double.infinity,
+              padding: const EdgeInsets.all(32),
+              decoration: Layout05Theme.cardDecoration,
+              child: Column(
                 children: [
-                  Icon(Icons.public, color: Layout05Theme.primary, size: 40),
-                  SizedBox(height: 20),
-                  Text('SEU ENDEREÇO IP',
-                      style: TextStyle(
-                          color: Layout05Theme.primary, letterSpacing: 2)),
-                  SizedBox(height: 12),
-                  Text('192.168.1.100',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontFamily: 'monospace',
-                          fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Layout05Theme.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.public,
+                        size: 48, color: Layout05Theme.primary),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Seu IP Atual',
+                      style: TextStyle(color: Layout05Theme.textGrey)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '192.168.1.10',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: Layout05Theme.textDark,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Clipboard.setData(
+                            const ClipboardData(text: '192.168.1.10'));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('IP copiado!')),
+                        );
+                      },
+                      icon: const Icon(Icons.copy, size: 20),
+                      label: const Text('COPIAR ENDEREÇO'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Layout05Theme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            TextButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.refresh, color: Colors.white54),
-              label: const Text('Atualizar',
-                  style: TextStyle(color: Colors.white54)),
-            )
           ],
         ),
       ),

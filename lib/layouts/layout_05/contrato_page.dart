@@ -9,63 +9,52 @@ class ContratoPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Layout05Theme.background,
       appBar: AppBar(
-        title: const Text('CONTRATO',
-            style: TextStyle(letterSpacing: 2, fontSize: 16)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        title: Text('Contrato', style: Layout05Theme.heading2),
+        backgroundColor: Layout05Theme.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             Container(
-              decoration: Layout05Theme.glassDecoration,
               padding: const EdgeInsets.all(24),
+              decoration: Layout05Theme.cardDecoration,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.description,
-                          color: Layout05Theme.primary),
-                      const SizedBox(width: 12),
-                      const Text('CONTRATO DE PRESTAÇÃO',
-                          style: TextStyle(
-                              color: Layout05Theme.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
-                    ],
-                  ),
+                  const Icon(Icons.description_outlined,
+                      size: 64, color: Layout05Theme.textGrey),
                   const SizedBox(height: 24),
-                  const Text(
-                    'TERMOS E CONDIÇÕES GERAIS',
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
                   Text(
-                    '1. OBJETO\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\n\n2. OBRIGAÇÕES\nDuis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.\n\n3. PRAZO\nSed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.',
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.7), height: 1.6),
+                    'Termos de Serviço',
+                    style: Layout05Theme.heading2,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Visualize ou faça o download do seu contrato de prestação de serviços.',
+                    textAlign: TextAlign.center,
+                    style:
+                        TextStyle(color: Layout05Theme.textGrey, height: 1.5),
+                  ),
+                  const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
+                    height: 50,
+                    child: ElevatedButton.icon(
                       onPressed: () {},
-                      icon: const Icon(Icons.download),
+                      icon: const Icon(Icons.download_rounded),
                       label: const Text('BAIXAR PDF'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Layout05Theme.primary,
-                        side: const BorderSide(color: Layout05Theme.primary),
-                        padding: const EdgeInsets.all(16),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Layout05Theme.textDark,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),

@@ -12,54 +12,45 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> {
   final _cpfController = TextEditingController();
-  late AnimationController _animController;
-  late Animation<double> _fadeAnimation;
-  String? _localErrorMessage; // Added local error message state
+  bool _isLoading = false;
+  String? _localErrorMessage;
 
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _fadeAnimation =
-        CurvedAnimation(parent: _animController, curve: Curves.easeIn);
-    _animController.forward();
-  }
+  // Animation constants
+  static const Duration _animDuration = Duration(milliseconds: 800);
 
   @override
   void dispose() {
-    _animController.dispose();
     _cpfController.dispose();
     super.dispose();
   }
 
-  // New method to handle login logic
   Future<void> _handleLogin(
       AuthService authService, ProviderConfig? config) async {
-    setState(() => _localErrorMessage = null); // Clear previous errors
-
-    final cpf = _cpfController.text.trim();
-    if (cpf.isEmpty) {
-      setState(() => _localErrorMessage = 'Digite o CPF/CNPJ');
+    if (_cpfController.text.isEmpty) {
+      setState(() => _localErrorMessage = 'Por favor, digite seu CPF ou CNPJ');
       return;
     }
-
     if (config == null) {
-      setState(() => _localErrorMessage = 'Erro de configuração do provedor');
+      setState(
+          () => _localErrorMessage = 'Erro de configuração. Tente novamente.');
       return;
     }
+
+    setState(() {
+      _isLoading = true;
+      _localErrorMessage = null;
+    });
 
     try {
-      await authService.performLogin(cpf, config);
+      await authService.performLogin(_cpfController.text.trim(), config);
+      // Sucesso navega automaticamente via AuthGate
     } catch (e) {
-      setState(() {
-        _localErrorMessage = e.toString().replaceAll('Exception:', '').trim();
-      });
+      setState(
+          () => _localErrorMessage = 'CPF não encontrado ou erro de conexão.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -70,185 +61,178 @@ class _LoginPageState extends State<LoginPage>
     final config = configProvider.providerConfig;
 
     return Scaffold(
-      backgroundColor: Layout05Theme.background,
-      body: Stack(
-        children: [
-          // Background Elements
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Layout05Theme.secondary.withOpacity(0.3),
-                    Colors.transparent
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -150,
-            left: -50,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Layout05Theme.primary.withOpacity(0.2),
-                    Colors.transparent
-                  ],
-                ),
-              ),
-            ),
-          ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SizedBox.expand(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 40),
 
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(32),
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo
-                      if (config?.config.logoUrl != null)
-                        Image.network(config!.config.logoUrl!, height: 80)
-                      else
-                        const Icon(Icons.wifi_tethering,
-                            size: 80, color: Layout05Theme.primary),
-
-                      const SizedBox(height: 48),
-
-                      // Welcome Text
-                      Text(
-                        'BEM-VINDO',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(
-                                color: Layout05Theme.primary, blurRadius: 20),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Acesse sua conta para continuar',
-                        style: TextStyle(color: Colors.white.withOpacity(0.6)),
-                      ),
-
-                      const SizedBox(height: 48),
-
-                      // Input Container
-                      Container(
-                        decoration: Layout05Theme.glassDecoration,
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: _cpfController,
-                              style: const TextStyle(color: Colors.white),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: 'CPF / CNPJ',
-                                labelStyle:
-                                    const TextStyle(color: Colors.white70),
-                                prefixIcon: const Icon(Icons.person_outline,
-                                    color: Layout05Theme.primary),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.1)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.1)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                      color: Layout05Theme.primary),
-                                ),
-                                filled: true,
-                                fillColor: Colors.black12,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: authService.isLoading
-                                    ? null
-                                    : () => _handleLogin(authService,
-                                        config), // Call new handler
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Layout05Theme.primary,
-                                  foregroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 10,
-                                  shadowColor:
-                                      Layout05Theme.primary.withOpacity(0.5),
-                                ),
-                                child: authService.isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.black),
-                                      )
-                                    : const Text(
-                                        'ENTRAR',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1),
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      if (_localErrorMessage != null) // Use local error message
-                        Padding(
-                          padding: const EdgeInsets.only(top: 24),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Layout05Theme.error.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                  color: Layout05Theme.error.withOpacity(0.5)),
-                            ),
-                            child: Text(
-                              _localErrorMessage!, // Display local error message
-                              style:
-                                  const TextStyle(color: Layout05Theme.error),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
+                // 1. Logo Section
+                Center(
+                  child: Container(
+                    height: 100,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: Layout05Theme.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: config?.config.logoUrl != null
+                        ? Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Image.network(config!.config.logoUrl!),
+                          )
+                        : const Icon(Icons.wifi,
+                            size: 40, color: Layout05Theme.primary),
                   ),
                 ),
-              ),
+
+                const SizedBox(height: 48),
+
+                // 2. Welcome Text
+                Text(
+                  'Bem-vindo de volta',
+                  style: Layout05Theme.heading1,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Acesse sua área de cliente para gerenciar suas faturas e serviços.',
+                  style: Layout05Theme.bodyText
+                      .copyWith(color: Layout05Theme.textGrey),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 60),
+
+                // 3. Input Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CPF / CNPJ',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Layout05Theme.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Layout05Theme.background,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.transparent),
+                      ),
+                      child: TextField(
+                        controller: _cpfController,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Layout05Theme.textDark),
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: '000.000.000-00',
+                          hintStyle: TextStyle(
+                              color: Layout05Theme.textGrey.withOpacity(0.5)),
+                          prefixIcon: const Icon(Icons.person_outline_rounded,
+                              color: Layout05Theme.textGrey),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.all(20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
+
+                // 4. Action Button
+                SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => _handleLogin(authService, config),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Layout05Theme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Acessar Conta',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ),
+
+                // 5. Error Feedback
+                if (_localErrorMessage != null) ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Layout05Theme.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: Layout05Theme.error),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _localErrorMessage!,
+                            style: const TextStyle(
+                                color: Layout05Theme.error,
+                                fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 40),
+
+                // Footer
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Precisa de ajuda? ', style: Layout05Theme.bodyText),
+                    GestureDetector(
+                      onTap: () {
+                        // TODO: Implementar ação de ajuda se necessário
+                      },
+                      child: Text(
+                        'Fale com o suporte',
+                        style: TextStyle(
+                          color: Layout05Theme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
