@@ -82,6 +82,8 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
         if (mounted) {
           setState(() {
             _onuData = results[1] as OnuData;
+            print(
+                '[DiagnosticoPage] Data received: Status=${_onuData?.connectionStatus}, Rx=${_onuData?.signalRx}, Model=${_onuData?.model}');
             _scanning = false;
           });
         }
@@ -192,6 +194,8 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
   }
 
   Widget _buildResultsUI() {
+    print(
+        '[DiagnosticoPage] Building Results UI. Error: $_errorMessage, Data: ${_onuData != null}');
     if (_errorMessage != null) {
       return Center(
         child: Padding(
