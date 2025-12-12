@@ -38,6 +38,24 @@ class Layout05Theme {
         ],
       );
 
+  // 1b. Convex Circle (for Avatars/Icons)
+  static BoxDecoration get neumorphicCircleDecoration => BoxDecoration(
+        color: background,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white,
+            offset: const Offset(-8, -8),
+            blurRadius: 16,
+          ),
+          BoxShadow(
+            color: const Color(0xFFA3B1C6).withOpacity(0.4),
+            offset: const Offset(8, 8),
+            blurRadius: 16,
+          ),
+        ],
+      );
+
   // 2. Concave (Pressed state or Input)
   static BoxDecoration get neumorphicPressedDecoration => BoxDecoration(
         color: background,

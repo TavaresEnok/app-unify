@@ -219,8 +219,22 @@ class _PainelPageState extends State<PainelPage> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: Layout05Theme.neumorphicDecoration
-                        .copyWith(shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: Layout05Theme.background,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white,
+                          offset: const Offset(-8, -8),
+                          blurRadius: 16,
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFFA3B1C6).withOpacity(0.4),
+                          offset: const Offset(8, 8),
+                          blurRadius: 16,
+                        ),
+                      ],
+                    ),
                     child: CircleAvatar(
                       radius: 30,
                       backgroundColor: Layout05Theme.primary,
