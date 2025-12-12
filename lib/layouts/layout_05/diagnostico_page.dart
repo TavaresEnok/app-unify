@@ -235,7 +235,7 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
     final color = _getSignalColor(signal);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
       child: Column(
         children: [
           // Main Status Card

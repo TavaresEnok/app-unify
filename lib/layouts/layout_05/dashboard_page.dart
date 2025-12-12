@@ -48,7 +48,8 @@ class _DashboardPageState extends State<DashboardPage> {
       backgroundColor: Layout05Theme.background, // Soft Grey
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: const EdgeInsets.fromLTRB(
+              24, 32, 24, 120), // Added bottom padding for Nav Bar
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

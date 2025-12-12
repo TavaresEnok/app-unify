@@ -205,7 +205,7 @@ class _WifiPageState extends State<WifiPage> {
                       style: const TextStyle(color: Layout05Theme.error),
                       textAlign: TextAlign.center))
               : ListView.builder(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
                   itemCount: _networks.length,
                   itemBuilder: (context, index) {
                     final network = _networks[index];
