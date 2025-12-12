@@ -143,8 +143,7 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: Layout05Theme.neumorphicDecoration
-                .copyWith(shape: BoxShape.circle),
+            decoration: Layout05Theme.neumorphicCircleDecoration,
             child: Icon(
               state.isTesting
                   ? Icons.network_check_rounded
