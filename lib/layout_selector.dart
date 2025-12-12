@@ -61,6 +61,7 @@ import 'layouts/layout_05/consumo_page.dart' as l05_cons;
 import 'layouts/layout_05/meu_ip_page.dart' as l05_ip;
 import 'layouts/layout_05/faq_page.dart' as l05_faq;
 import 'layouts/layout_05/contrato_page.dart' as l05_cont;
+import 'layouts/layout_05/wifi_page.dart' as l05_wifi;
 
 import 'layouts/layout_06/contrato_page.dart' as l06_cont;
 import 'layouts/layout_07/contrato_page.dart' as l07_cont;
@@ -349,6 +350,18 @@ class LayoutSelector {
         return const l07_cont.ContratoPage();
       default:
         return const l06_cont.ContratoPage();
+    }
+  }
+
+  /// Retorna o widget de Wifi correto para o layout especificado
+  static Widget getWifiPage({required String layoutType}) {
+    switch (layoutType) {
+      case 'layout_05':
+        return const l05_wifi.WifiPage();
+      default:
+        // Se outros layouts não tiverem WifiPage, retornar placeholder ou Layout 05 como fallback
+        return const Center(
+            child: Text('Funcionalidade não disponível neste layout'));
     }
   }
 

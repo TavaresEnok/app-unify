@@ -241,6 +241,12 @@ class DashboardPage extends StatelessWidget {
         'color': Layout05Theme.primary
       },
       {
+        'icon': Icons.wifi,
+        'label': 'Wi-Fi',
+        'id': 'wifi',
+        'color': Colors.blue
+      },
+      {
         'icon': Icons.speed,
         'label': 'Consumo',
         'id': 'consumo',
@@ -251,12 +257,6 @@ class DashboardPage extends StatelessWidget {
         'label': 'Suporte',
         'id': 'suporte',
         'color': Layout05Theme.secondary
-      },
-      {
-        'icon': Icons.router_outlined,
-        'label': 'Meu IP',
-        'id': 'meu_ip',
-        'color': Colors.purple
       },
     ];
 

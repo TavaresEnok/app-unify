@@ -377,6 +377,11 @@ class _PainelPageState extends State<PainelPage> {
       return LayoutSelector.getContratoPage(layoutType: layoutType);
     }
 
+    // Página de Wifi
+    if (_currentPage == 'wifi') {
+      return LayoutSelector.getWifiPage(layoutType: layoutType);
+    }
+
     // Página de Velocidade (usa Diagnóstico que já tem speed test)
     if (_currentPage == 'speed_test') {
       return LayoutSelector.getDiagnosticoPage(layoutType: layoutType);

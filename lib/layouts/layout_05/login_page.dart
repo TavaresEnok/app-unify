@@ -181,6 +181,23 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
 
+                const SizedBox(height: 24),
+
+                Center(
+                  child: IconButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Funcionalidade Bio-Login em breve!'),
+                            backgroundColor: Layout05Theme.textGrey),
+                      );
+                    },
+                    icon: const Icon(Icons.fingerprint,
+                        size: 40, color: Layout05Theme.primary),
+                    tooltip: 'Entrar com Biometria',
+                  ),
+                ),
+
                 // 5. Error Feedback
                 if (_localErrorMessage != null) ...[
                   const SizedBox(height: 24),
