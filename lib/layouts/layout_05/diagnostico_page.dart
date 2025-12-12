@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/configuration_provider.dart';
-import '../../core/services/onu_wifi_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/diagnostico_service.dart';
+import '../../core/services/onu_wifi_service.dart';
+import '../../core/models/diagnostico_state.dart';
 import 'theme.dart';
 
 class DiagnosticoPage extends StatefulWidget {
@@ -13,360 +15,297 @@ class DiagnosticoPage extends StatefulWidget {
 }
 
 class _DiagnosticoPageState extends State<DiagnosticoPage> {
-  bool _scanning = false;
-  OnuData? _onuData;
-  String? _errorMessage;
-  OnuWifiService? _onuService;
+  late final DiagnosticoService _service;
+  OnuWifiService?
+      _onuWifiService; // Kept for consistency if needed direct access
+  bool _serviceInitialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initService();
-    });
-  }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_serviceInitialized) {
+      final providerConfig =
+          context.read<ConfigurationProvider>().providerConfig!;
+      final authService = context.read<AuthService>();
+      final usuario = authService.usuario;
 
-  Future<void> _initService() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final configProvider =
-        Provider.of<ConfigurationProvider>(context, listen: false);
-    final user = authService.usuario;
-    final config = configProvider.providerConfig;
+      _service =
+          DiagnosticoService(providerConfig: providerConfig, context: context);
 
-    if (user == null || config == null) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Erro de autenticação.';
-        });
-      }
-      return;
-    }
-
-    _onuService = OnuWifiService(
-      apiUrl: config.apiUrl,
-      cpfCnpj: user.cpfCnpj,
-      senha: user.senha,
-      contrato: user.contratoId?.toString(),
-      sgpParams: {
-        'token': config.config.integrations.apiToken,
-        'app': config.config.integrations.appName,
-        'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
-      },
-    );
-
-    // Auto-start scan
-    _runDiagnostics();
-  }
-
-  Future<void> _runDiagnostics() async {
-    if (_onuService == null) return;
-
-    if (mounted) {
-      setState(() {
-        _scanning = true;
-        _errorMessage = null;
-        _onuData = null;
+      // Auto-start tests on load
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _service.runAllTests();
       });
-    }
 
-    print('[DiagnosticoPage] _runDiagnostics START');
-    try {
-      // Simulate at least 2 seconds for visual effect if real call is too fast
-      final minTime = Future.delayed(const Duration(seconds: 2));
-      print('[DiagnosticoPage] Calling fetchOnuSignal...');
-      final dataTask = _onuService!.fetchOnuSignal();
-
-      await Future.wait([minTime, dataTask]).then((results) {
-        print(
-            '[DiagnosticoPage] Future completed. Result type: ${results[1].runtimeType}');
-        if (mounted) {
-          setState(() {
-            _onuData = results[1] as OnuData;
-            print(
-                '[DiagnosticoPage] Data received: Status=${_onuData?.connectionStatus}, Rx=${_onuData?.signalRx}, Model=${_onuData?.model}');
-            _scanning = false;
-          });
-        }
-      });
-    } catch (e, stack) {
-      print('[DiagnosticoPage] ERROR: $e');
-      print('[DiagnosticoPage] STACK: $stack');
-      if (mounted) {
-        setState(() {
-          // Check if it's a known error or generic
-          final msg = e.toString().replaceAll('Exception: ', '');
-          _errorMessage = msg.isNotEmpty && msg != 'null'
-              ? msg
-              : 'Não foi possível comunicar com a ONU.\nVerifique se o equipamento está ligado.';
-          _scanning = false;
-        });
-      }
+      _serviceInitialized = true;
     }
   }
 
-  Color _getSignalColor(double? signal) {
-    if (signal == null) return Layout05Theme.textGrey;
-    if (signal > -25) return Layout05Theme.success;
-    if (signal > -27) return Layout05Theme.warning;
-    return Layout05Theme.error;
-  }
-
-  String _getSignalStatus(double? signal) {
-    if (signal == null) return 'Desconhecido';
-    if (signal > -25) return 'Excelente';
-    if (signal > -27) return 'Bom';
-    return 'Fraco';
+  @override
+  void dispose() {
+    _service.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Layout05Theme.background,
-      appBar: AppBar(
-        title: Text('Diagnóstico de Rede', style: Layout05Theme.heading2),
-        backgroundColor: Layout05Theme.background,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _scanning ? null : _runDiagnostics,
+    return StreamBuilder<DiagnosticoState>(
+      stream: _service.stateStream,
+      initialData: DiagnosticoState.initial(),
+      builder: (context, snapshot) {
+        final state = snapshot.data!;
+
+        return Scaffold(
+          backgroundColor: Layout05Theme.background,
+          appBar: AppBar(
+            title:
+                Text('Diagnóstico Inteligente', style: Layout05Theme.heading2),
+            backgroundColor: Layout05Theme.background,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: const IconThemeData(color: Layout05Theme.textDark),
           ),
-        ],
-      ),
-      body: _scanning ? _buildScanningUI() : _buildResultsUI(),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeaderStatus(state),
+                const SizedBox(height: 32),
+
+                // Connection Journey
+                Text('Jornada da Conexão', style: Layout05Theme.heading2),
+                const SizedBox(height: 16),
+                _buildJourneyStep(
+                  icon: Icons.smartphone_rounded,
+                  title: 'Seu Dispositivo',
+                  status: _getStepStatus(state, 'wifiInfo'),
+                  details: _getStepDetails(state, 'wifiInfo'),
+                ),
+                _buildConnector(),
+                _buildJourneyStep(
+                  icon: Icons.router_rounded,
+                  title: 'Roteador (Gateway)',
+                  status: _getStepStatus(state, 'pingGateway'),
+                  details: _getStepDetails(state, 'pingGateway'),
+                ),
+                _buildConnector(),
+                _buildJourneyStep(
+                  icon: Icons.public_rounded,
+                  title: 'Internet',
+                  status: _getStepStatus(state, 'pingGoogle'),
+                  details: _getStepDetails(state, 'pingGoogle'),
+                ),
+
+                const SizedBox(height: 32),
+
+                // ONU Signal Section (If available)
+                if (state.testResultsDisplay.containsKey('deviceInfo')) ...[
+                  Text('Sinal da Fibra', style: Layout05Theme.heading2),
+                  const SizedBox(height: 16),
+                  _buildOnuSignalCard(state),
+                  const SizedBox(height: 32),
+                ],
+
+                // Action Button
+                ElevatedButton.icon(
+                  onPressed: state.isTesting
+                      ? _service.stopAllTests
+                      : _service.runAllTests,
+                  icon: Icon(state.isTesting
+                      ? Icons.stop_rounded
+                      : Icons.play_arrow_rounded),
+                  label: Text(state.isTesting
+                      ? 'PARAR DIAGNÓSTICO'
+                      : 'REFAZER DIAGNÓSTICO'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: state.isTesting
+                        ? Layout05Theme.error
+                        : Layout05Theme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildScanningUI() {
+  Widget _buildHeaderStatus(DiagnosticoState state) {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            height: 160,
-            width: 160,
+            padding: const EdgeInsets.all(24),
+            decoration: Layout05Theme.neumorphicDecoration
+                .copyWith(shape: BoxShape.circle),
+            child: Icon(
+              state.isTesting
+                  ? Icons.network_check_rounded
+                  : Icons.check_circle_outline_rounded,
+              size: 48,
+              color: state.isTesting
+                  ? Layout05Theme.primary
+                  : Layout05Theme.success,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            state.geralStatusMessage,
+            textAlign: TextAlign.center,
+            style: Layout05Theme.bodyText.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJourneyStep({
+    required IconData icon,
+    required String title,
+    required TestStatus status,
+    required String details,
+  }) {
+    final color = _getStatusColor(status);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: Layout05Theme.neumorphicDecoration,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Layout05Theme.background,
               shape: BoxShape.circle,
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
-                  color: Colors.white,
-                  offset: const Offset(-8, -8),
-                  blurRadius: 16,
-                ),
+                    color: Colors.white, offset: Offset(-2, -2), blurRadius: 4),
                 BoxShadow(
-                  color: const Color(0xFFA3B1C6).withOpacity(0.4),
-                  offset: const Offset(8, 8),
-                  blurRadius: 16,
-                ),
+                    color: Color(0x11000000),
+                    offset: Offset(2, 2),
+                    blurRadius: 4),
               ],
             ),
-            child: Stack(
-              alignment: Alignment.center,
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(
-                  height: 140,
-                  width: 140,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 6,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Layout05Theme.primary),
+                Text(title, style: Layout05Theme.label),
+                const SizedBox(height: 4),
+                Text(
+                  details,
+                  style: Layout05Theme.bodyText.copyWith(
+                    color: status == TestStatus.running
+                        ? Layout05Theme.primary
+                        : Layout05Theme.textDark,
+                    fontSize: 13,
                   ),
                 ),
-                Icon(Icons.router_rounded,
-                    size: 56, color: Layout05Theme.textGrey),
               ],
             ),
           ),
-          const SizedBox(height: 48),
-          Text('Analisando sua conexão...', style: Layout05Theme.heading2),
-          const SizedBox(height: 12),
-          Text(
-            'Verificando sinal óptico e status da ONU.\nIsso pode levar alguns segundos.',
-            textAlign: TextAlign.center,
-            style: Layout05Theme.bodyText,
-          ),
+          if (status == TestStatus.running)
+            const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            Icon(
+              status == TestStatus.success
+                  ? Icons.check_circle_rounded
+                  : status == TestStatus.error
+                      ? Icons.cancel_rounded
+                      : Icons.circle_outlined,
+              color: color,
+              size: 20,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildResultsUI() {
-    print(
-        '[DiagnosticoPage] Building Results UI. Error: $_errorMessage, Data: ${_onuData != null}');
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.warning_amber_rounded,
-                  size: 60, color: Layout05Theme.error),
-              const SizedBox(height: 16),
-              Text(
-                'Ops! Algo deu errado.',
-                style: Layout05Theme.heading2,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage!,
-                style: Layout05Theme.bodyText
-                    .copyWith(color: Layout05Theme.textGrey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _runDiagnostics,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('TENTAR NOVAMENTE'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Layout05Theme.primary,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    if (_onuData == null) {
-      return Center(
-          child: Text('Aguardando teste...', style: Layout05Theme.bodyText));
-    }
-
-    final signal = _onuData!.signalRx;
-    final color = _getSignalColor(signal);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
-      child: Column(
-        children: [
-          // Main Status Card
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: Layout05Theme.neumorphicDecoration,
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                      color: Layout05Theme.background,
-                      shape: BoxShape.circle,
-                      boxShadow: const [
-                        BoxShadow(
-                            color: Colors.white,
-                            offset: Offset(-3, -3),
-                            blurRadius: 5),
-                        BoxShadow(
-                            color: Color(0x19000000),
-                            offset: Offset(3, 3),
-                            blurRadius: 5),
-                      ]),
-                  child: Icon(Icons.wifi_tethering, size: 56, color: color),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  _getSignalStatus(signal),
-                  style: TextStyle(
-                      color: color, fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                Text('Sinal Óptico Real', style: Layout05Theme.bodyText),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildMiniStat('Download',
-                        '${_onuData!.signalRx?.toStringAsFixed(2) ?? "N/A"} dBm'),
-                    _buildMiniStat('Upload',
-                        '${_onuData!.signalTx?.toStringAsFixed(2) ?? "N/A"} dBm'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Details Grid
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 20,
-            mainAxisSpacing: 20,
-            childAspectRatio: 1.4,
-            children: [
-              _buildDetailCard(
-                  Icons.device_hub_rounded, 'Modelo', _onuData!.model),
-              _buildDetailCard(Icons.thermostat_rounded, 'Temperatura',
-                  '${_onuData!.temperature ?? "N/A"}°C'),
-              _buildDetailCard(Icons.bolt_rounded, 'Voltagem',
-                  '${_onuData!.voltage ?? "N/A"}V'),
-              _buildDetailCard(Icons.info_outline_rounded, 'Status',
-                  _onuData!.connectionStatus),
-            ],
-          ),
-
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton.icon(
-              onPressed: _runDiagnostics,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('REFAZER TESTE'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Layout05Theme.primary,
-                foregroundColor: Colors.white,
-                elevation: 5,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ),
-        ],
+  Widget _buildConnector() {
+    return Center(
+      child: Container(
+        height: 24,
+        width: 2,
+        color: Layout05Theme.textGrey.withOpacity(0.3),
       ),
     );
   }
 
-  Widget _buildMiniStat(String label, String value) {
-    return Column(
-      children: [
-        Text(label, style: Layout05Theme.label),
-        const SizedBox(height: 8),
-        Text(value,
-            style:
-                Layout05Theme.heading2.copyWith(color: Layout05Theme.textDark)),
-      ],
-    );
-  }
+  Widget _buildOnuSignalCard(DiagnosticoState state) {
+    // Extract info using helper assuming text formatted like "Sinal: -20.0" etc
+    // Layout06 parser logic simulation
+    final result =
+        state.testResultsDisplay['deviceInfo']?['result'] as String? ?? '';
+    // Actually device info usually has signal if OnuService puts it there.
+    // Wait, Layout06 has specific OnuSignalCard.
+    // Here we can use simple display for now.
 
-  Widget _buildDetailCard(IconData icon, String label, String value) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: Layout05Theme.flatDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: Layout05Theme.textGrey),
-              const SizedBox(width: 8),
-              Text(label, style: Layout05Theme.label.copyWith(fontSize: 11)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(value, style: Layout05Theme.heading2.copyWith(fontSize: 14)),
-        ],
+      padding: const EdgeInsets.all(20),
+      decoration: Layout05Theme.neumorphicDecoration,
+      child: Text(
+        result.isEmpty ? 'Aguardando dados da Fibra...' : result,
+        style: Layout05Theme.bodyText,
       ),
     );
+  }
+
+  TestStatus _getStepStatus(DiagnosticoState state, String key) {
+    return state.testResultsDisplay[key]?['status'] as TestStatus? ??
+        TestStatus.pending;
+  }
+
+  String _getStepDetails(DiagnosticoState state, String key) {
+    final result = state.testResultsDisplay[key]?['result'] as String?;
+    final status = _getStepStatus(state, key);
+
+    if (status == TestStatus.running) return 'Testando...';
+    if (status == TestStatus.pending) return 'Aguardando...';
+    if (result == null || result.isEmpty) return 'Sem dados';
+
+    // Simple parser for one-line summary
+    if (key == 'wifiInfo') {
+      if (result.contains('SSID:'))
+        return result.split('\n').firstWhere((l) => l.contains('SSID:')).trim();
+      return 'Wi-Fi Conectado';
+    }
+    if (key == 'pingGateway') {
+      if (result.contains('Latência:'))
+        return result
+            .split('\n')
+            .firstWhere((l) => l.contains('Latência:'))
+            .trim();
+    }
+    if (key == 'pingGoogle') {
+      return 'Conexão validada';
+    }
+
+    return result.split('\n').first; // Default first line
+  }
+
+  Color _getStatusColor(TestStatus status) {
+    switch (status) {
+      case TestStatus.running:
+        return Layout05Theme.primary;
+      case TestStatus.success:
+        return Layout05Theme.success;
+      case TestStatus.error:
+        return Layout05Theme.error;
+      case TestStatus.pending:
+        return Layout05Theme.textGrey;
+    }
   }
 }
