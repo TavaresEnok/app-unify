@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/onu_wifi_service.dart';
 import '../../core/providers/configuration_provider.dart';
+import '../../core/services/auth_service.dart';
 import 'theme.dart';
 
 class WifiPage extends StatefulWidget {
@@ -15,7 +16,7 @@ class _WifiPageState extends State<WifiPage> {
   bool _isLoading = true;
   List<WifiNetwork> _networks = [];
   String? _errorMessage;
-  // OnuWifiService? _wifiService; // TODO: Uncomment when ready to use real service
+  OnuWifiService? _wifiService;
 
   @override
   void initState() {
@@ -26,44 +27,111 @@ class _WifiPageState extends State<WifiPage> {
   }
 
   Future<void> _initServiceAndFetch() async {
-    try {
-      final configProvider =
-          Provider.of<ConfigurationProvider>(context, listen: false);
-      final providerConfig = configProvider.providerConfig;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final configProvider =
+        Provider.of<ConfigurationProvider>(context, listen: false);
+    final user = authService.usuario;
+    final config = configProvider.providerConfig;
 
-      if (providerConfig == null) {
+    if (user == null || config == null) {
+      if (mounted) {
         setState(() {
-          _errorMessage = 'Configuração não encontrada.';
+          _errorMessage = 'Erro de autenticação ou configuração.';
           _isLoading = false;
         });
-        return;
       }
+      return;
+    }
 
-      // Initialize service with data from provider
-      // final apiUrl = providerConfig.apiUrl; // Unused for now while mocking
-      // We need user data. I'll rely on global providers if designed so.
+    try {
+      // Constructing the real service
+      _wifiService = OnuWifiService(
+        apiUrl: config.apiUrl,
+        cpfCnpj: user.cpfCnpj,
+        senha: user.senha,
+        contrato: user.contratoId?.toString(),
+        sgpParams: {
+          'token': config.config.integrations.apiToken,
+          'app': config.config.integrations.appName,
+          'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
+        },
+      );
 
-      // TODO: Instantiate _wifiService with real data when Auth is available in scope
-      // _wifiService = OnuWifiService(apiUrl: apiUrl, cpfCnpj: ..., sgpParams: ...);
-
-      // MOCK DATA for now
-      setState(() {
-        _isLoading = false;
-        _networks = [
-          WifiNetwork(
-              id: '1',
-              ssid: 'MinhaCasa_2G',
-              frequency: '2.4GHz',
-              enabled: true),
-          WifiNetwork(
-              id: '2', ssid: 'MinhaCasa_5G', frequency: '5GHz', enabled: true),
-        ];
-      });
+      await _fetchNetworks();
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erro ao inicializar serviço: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchNetworks() async {
+    if (_wifiService == null) return;
+    if (mounted) {
       setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
+        _isLoading = true;
+        _errorMessage = null;
       });
+    }
+
+    try {
+      final networks = await _wifiService!.fetchWifiNetworks();
+      if (mounted) {
+        setState(() {
+          _networks = networks;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Não foi possível carregar as redes. Verifique seu equipamento.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _updateWifi(
+      WifiNetwork network, String newSsid, String newPassword) async {
+    if (_wifiService == null) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+          child: CircularProgressIndicator(color: Layout05Theme.primary)),
+    );
+
+    try {
+      final success = await _wifiService!
+          .updateWifi(wifiId: network.id, ssid: newSsid, password: newPassword);
+
+      if (!mounted) return;
+      Navigator.pop(context); // Hide loading
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Wi-Fi atualizado com sucesso!'),
+              backgroundColor: Layout05Theme.success),
+        );
+        _fetchNetworks(); // Refresh
+      } else {
+        throw Exception('Falha ao atualizar');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Hide loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Erro: $e'), backgroundColor: Layout05Theme.error),
+      );
     }
   }
 
@@ -74,8 +142,9 @@ class _WifiPageState extends State<WifiPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title:
-            Text('Editar ${network.frequency}', style: Layout05Theme.heading2),
+        title: Text('Editar ${network.frequency}',
+            style:
+                Layout05Theme.heading2.copyWith(color: Layout05Theme.textDark)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -103,13 +172,9 @@ class _WifiPageState extends State<WifiPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              // Call update service
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text(
-                        'Solicitação enviada! O roteador irá reiniciar em instantes.')),
-              );
+              _updateWifi(
+                  network, ssidController.text, passwordController.text);
             },
             style: ElevatedButton.styleFrom(
                 backgroundColor: Layout05Theme.primary),
@@ -129,7 +194,7 @@ class _WifiPageState extends State<WifiPage> {
         backgroundColor: Layout05Theme.background,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
+        iconTheme: const IconThemeData(color: Layout05Theme.textWhite),
       ),
       body: _isLoading
           ? const Center(
@@ -137,7 +202,8 @@ class _WifiPageState extends State<WifiPage> {
           : _errorMessage != null
               ? Center(
                   child: Text(_errorMessage!,
-                      style: const TextStyle(color: Layout05Theme.error)))
+                      style: const TextStyle(color: Layout05Theme.error),
+                      textAlign: TextAlign.center))
               : ListView.builder(
                   padding: const EdgeInsets.all(20),
                   itemCount: _networks.length,
@@ -164,9 +230,13 @@ class _WifiPageState extends State<WifiPage> {
                         ),
                         title: Text(network.ssid,
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Layout05Theme.textDark)),
                         subtitle: Text(
-                            '${network.frequency} - ${network.enabled ? 'Ativo' : 'Inativo'}'),
+                            '${network.frequency} - ${network.enabled ? 'Ativo' : 'Inativo'}',
+                            style: Layout05Theme.bodyText
+                                .copyWith(color: Layout05Theme.textGrey)),
                         trailing: IconButton(
                           icon: const Icon(Icons.edit_outlined,
                               color: Layout05Theme.textGrey),

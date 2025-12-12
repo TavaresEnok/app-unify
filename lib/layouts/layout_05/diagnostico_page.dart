@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/configuration_provider.dart';
-// import '../../core/services/onu_wifi_service.dart'; // TODO: Enable
+import '../../core/services/onu_wifi_service.dart';
+import '../../core/services/auth_service.dart';
 import 'theme.dart';
 
 class DiagnosticoPage extends StatefulWidget {
@@ -11,50 +12,96 @@ class DiagnosticoPage extends StatefulWidget {
   State<DiagnosticoPage> createState() => _DiagnosticoPageState();
 }
 
-class _DiagnosticoPageState extends State<DiagnosticoPage>
-    with SingleTickerProviderStateMixin {
-  bool _isScanning = true;
-  Map<String, dynamic>? _onuData;
+class _DiagnosticoPageState extends State<DiagnosticoPage> {
+  bool _scanning = false;
+  OnuData? _onuData;
+  String? _errorMessage;
+  OnuWifiService? _onuService;
 
   @override
   void initState() {
     super.initState();
-    _startDiagnosis();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initService();
+    });
   }
 
-  void _startDiagnosis() {
-    setState(() {
-      _isScanning = true;
-      _onuData = null;
-    });
+  Future<void> _initService() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final configProvider =
+        Provider.of<ConfigurationProvider>(context, listen: false);
+    final user = authService.usuario;
+    final config = configProvider.providerConfig;
 
-    // Simulando delay de rede/hardware
-    Future.delayed(const Duration(seconds: 3), () {
+    if (user == null || config == null) {
       if (mounted) {
         setState(() {
-          _isScanning = false;
-          // Mock Data
-          _onuData = {
-            'signalRx': -19.5,
-            'signalTx': 2.4,
-            'temp': 42.0,
-            'voltage': 3.3,
-            'status': 'Online',
-            'onuId': '101',
-            'model': 'Huawei HG8245Q2'
-          };
+          _errorMessage = 'Erro de autenticação.';
         });
       }
-    });
+      return;
+    }
+
+    _onuService = OnuWifiService(
+      apiUrl: config.apiUrl,
+      cpfCnpj: user.cpfCnpj,
+      senha: user.senha,
+      contrato: user.contratoId?.toString(),
+      sgpParams: {
+        'token': config.config.integrations.apiToken,
+        'app': config.config.integrations.appName,
+        'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
+      },
+    );
+
+    // Auto-start scan
+    _runDiagnostics();
   }
 
-  Color _getSignalColor(double signal) {
+  Future<void> _runDiagnostics() async {
+    if (_onuService == null) return;
+
+    if (mounted) {
+      setState(() {
+        _scanning = true;
+        _errorMessage = null;
+        _onuData = null;
+      });
+    }
+
+    try {
+      // Simulate at least 2 seconds for visual effect if real call is too fast
+      final minTime = Future.delayed(const Duration(seconds: 2));
+      final dataTask = _onuService!.fetchOnuSignal();
+
+      await Future.wait([minTime, dataTask]).then((results) {
+        if (mounted) {
+          setState(() {
+            _onuData = results[1] as OnuData;
+            _scanning = false;
+          });
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Não foi possível comunicar com a ONU.\nVerifique se o equipamento está ligado.';
+          _scanning = false;
+        });
+      }
+    }
+  }
+
+  Color _getSignalColor(double? signal) {
+    if (signal == null) return Layout05Theme.textGrey;
     if (signal > -25) return Layout05Theme.success;
     if (signal > -27) return Layout05Theme.warning;
     return Layout05Theme.error;
   }
 
-  String _getSignalStatus(double signal) {
+  String _getSignalStatus(double? signal) {
+    if (signal == null) return 'Desconhecido';
     if (signal > -25) return 'Excelente';
     if (signal > -27) return 'Bom';
     return 'Fraco';
@@ -69,15 +116,15 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
         backgroundColor: Layout05Theme.background,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
+        iconTheme: const IconThemeData(color: Layout05Theme.textWhite),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _isScanning ? null : _startDiagnosis,
+            onPressed: _scanning ? null : _runDiagnostics,
           ),
         ],
       ),
-      body: _isScanning ? _buildScanningUI() : _buildResultsUI(),
+      body: _scanning ? _buildScanningUI() : _buildResultsUI(),
     );
   }
 
@@ -104,10 +151,10 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
           const SizedBox(height: 32),
           Text('Analisando sua conexão...', style: Layout05Theme.heading2),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Verificando sinal óptico e status da ONU.\nIsso pode levar alguns segundos.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Layout05Theme.textGrey),
+            style: Layout05Theme.bodyText,
           ),
         ],
       ),
@@ -115,10 +162,18 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
   }
 
   Widget _buildResultsUI() {
-    if (_onuData == null)
-      return const Center(child: Text('Erro ao obter dados.'));
+    if (_errorMessage != null) {
+      return Center(
+          child: Text(_errorMessage!,
+              style: const TextStyle(color: Layout05Theme.error),
+              textAlign: TextAlign.center));
+    }
+    if (_onuData == null) {
+      return Center(
+          child: Text('Aguardando teste...', style: Layout05Theme.bodyText));
+    }
 
-    final signal = _onuData!['signalRx'] as double;
+    final signal = _onuData!.signalRx;
     final color = _getSignalColor(signal);
 
     return SingleChildScrollView(
@@ -128,7 +183,7 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
           // Main Status Card
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: Layout05Theme.cardDecoration,
+            decoration: Layout05Theme.glassDecoration,
             child: Column(
               children: [
                 Container(
@@ -150,8 +205,10 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildMiniStat('Download', '${_onuData!['signalRx']} dBm'),
-                    _buildMiniStat('Upload', '${_onuData!['signalTx']} dBm'),
+                    _buildMiniStat('Download',
+                        '${_onuData!.signalRx?.toStringAsFixed(2) ?? "N/A"} dBm'),
+                    _buildMiniStat('Upload',
+                        '${_onuData!.signalTx?.toStringAsFixed(2) ?? "N/A"} dBm'),
                   ],
                 ),
               ],
@@ -169,13 +226,13 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
             mainAxisSpacing: 16,
             childAspectRatio: 1.5,
             children: [
-              _buildDetailCard(Icons.device_hub, 'Modelo', _onuData!['model']),
+              _buildDetailCard(Icons.device_hub, 'Modelo', _onuData!.model),
+              _buildDetailCard(Icons.thermostat, 'Temperatura',
+                  '${_onuData!.temperature ?? "N/A"}°C'),
               _buildDetailCard(
-                  Icons.thermostat, 'Temperatura', '${_onuData!['temp']}°C'),
+                  Icons.bolt, 'Voltagem', '${_onuData!.voltage ?? "N/A"}V'),
               _buildDetailCard(
-                  Icons.bolt, 'Voltagem', '${_onuData!['voltage']}V'),
-              _buildDetailCard(
-                  Icons.info_outline, 'Status', _onuData!['status']),
+                  Icons.info_outline, 'Status', _onuData!.connectionStatus),
             ],
           ),
 
@@ -184,7 +241,7 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
             width: double.infinity,
             height: 50,
             child: ElevatedButton.icon(
-              onPressed: _startDiagnosis,
+              onPressed: _runDiagnostics,
               icon: const Icon(Icons.refresh),
               label: const Text('REFAZER TESTE'),
               style: ElevatedButton.styleFrom(
@@ -203,15 +260,9 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
   Widget _buildMiniStat(String label, String value) {
     return Column(
       children: [
-        Text(label,
-            style:
-                const TextStyle(color: Layout05Theme.textGrey, fontSize: 12)),
+        Text(label, style: Layout05Theme.label),
         const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Layout05Theme.textDark)),
+        Text(value, style: Layout05Theme.heading2),
       ],
     );
   }
@@ -219,7 +270,7 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
   Widget _buildDetailCard(IconData icon, String label, String value) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: Layout05Theme.cardDecoration,
+      decoration: Layout05Theme.glassDecoration, // Using glass for details too
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -228,17 +279,11 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
             children: [
               Icon(icon, size: 16, color: Layout05Theme.textGrey),
               const SizedBox(width: 8),
-              Text(label,
-                  style: const TextStyle(
-                      color: Layout05Theme.textGrey, fontSize: 12)),
+              Text(label, style: Layout05Theme.label),
             ],
           ),
           const SizedBox(height: 8),
-          Text(value,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Layout05Theme.textDark)),
+          Text(value, style: Layout05Theme.heading2.copyWith(fontSize: 16)),
         ],
       ),
     );

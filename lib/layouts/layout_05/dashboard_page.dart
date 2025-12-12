@@ -1,109 +1,156 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/providers/configuration_provider.dart';
 import 'theme.dart';
 
-typedef NavigateToPageCallback = void Function(String pageId);
-
-class DashboardPage extends StatelessWidget {
-  final String customerName, planName, connectionStatus;
-  final double billAmount, usedGb, totalGb, downloadMbps, uploadMbps;
-  final DateTime? billDueDate;
-  final NavigateToPageCallback? onNavigate;
+class DashboardPage extends StatefulWidget {
+  final String customerName;
+  final String planName;
+  final String connectionStatus;
+  final double billAmount;
+  final DateTime billDueDate;
+  final double usedGb;
+  final double totalGb;
+  final double downloadMbps;
+  final double uploadMbps;
+  final Function(String) onNavigate;
 
   const DashboardPage({
     super.key,
-    this.customerName = '',
-    this.planName = '',
-    this.connectionStatus = '',
-    this.billAmount = 0.0,
-    this.billDueDate,
-    this.usedGb = 0.0,
-    this.totalGb = 0.0,
-    this.downloadMbps = 0.0,
-    this.uploadMbps = 0.0,
-    this.onNavigate,
+    required this.customerName,
+    required this.planName,
+    required this.connectionStatus,
+    required this.billAmount,
+    required this.billDueDate,
+    required this.usedGb,
+    required this.totalGb,
+    required this.downloadMbps,
+    required this.uploadMbps,
+    required this.onNavigate,
   });
 
   @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final user = authService.usuario;
+
+    final name = user?.nome ?? widget.customerName;
+    final plan = user?.plano ?? widget.planName;
+    final status = user?.status ?? widget.connectionStatus;
+
     return Scaffold(
       backgroundColor: Layout05Theme.background,
-      body: CustomScrollView(
-        slivers: [
-          // 1. App Bar Moderno
-          SliverAppBar(
-            expandedHeight: 120,
-            floating: true,
-            pinned: true,
-            backgroundColor: Layout05Theme.background,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              title: Text(
-                'Olá, ${customerName.split(' ').first}',
-                style: Layout05Theme.heading1.copyWith(fontSize: 24),
+      body: Stack(
+        children: [
+          // Background Elements (Glows)
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Layout05Theme.primary.withOpacity(0.2),
               ),
-              background: Container(color: Layout05Theme.background),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+                child: Container(color: Colors.transparent),
+              ),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined,
-                    color: Layout05Theme.textDark),
-                onPressed: () {},
+          ),
+          Positioned(
+            bottom: 100,
+            left: -50,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Layout05Theme.secondary.withOpacity(0.15),
               ),
-              const SizedBox(width: 8),
-            ],
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
           ),
 
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const SizedBox(height: 10),
+          // Main Content
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(name, plan),
+                  const SizedBox(height: 32),
 
-                // 2. Main Bill Card (Destaque)
-                _buildBillCard(),
-                const SizedBox(height: 24),
+                  // Grid Layout (Standard Row/Col implementation)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 2, child: _buildStatusCard(status)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                          flex: 3,
+                          child: _buildBillCard(
+                              widget.billAmount, widget.billDueDate)),
+                    ],
+                  ),
 
-                // 3. Plan & Status
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoCard(
-                        icon: Icons.wifi,
-                        title: 'Seu Plano',
-                        value: planName,
-                        color: Layout05Theme.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildInfoCard(
-                        icon: connectionStatus.toLowerCase() == 'online' ||
-                                connectionStatus.toLowerCase() == 'ativo'
-                            ? Icons.check_circle_outline
-                            : Icons.error_outline,
-                        title: 'Status',
-                        value: connectionStatus,
-                        color: connectionStatus.toLowerCase() == 'online' ||
-                                connectionStatus.toLowerCase() == 'ativo'
-                            ? Layout05Theme.success
-                            : Layout05Theme.error,
-                      ),
-                    ),
-                  ],
-                ),
+                  const SizedBox(height: 16),
 
-                const SizedBox(height: 24),
+                  _buildConnectionCard(widget.downloadMbps),
 
-                // 4. Quick Actions Grid
-                Text('Acesso Rápido', style: Layout05Theme.heading2),
-                const SizedBox(height: 16),
-                _buildQuickActionsGrid(),
+                  const SizedBox(height: 16),
 
-                const SizedBox(height: 32),
-              ]),
+                  // Shortcuts Grid using Wrap
+                  LayoutBuilder(builder: (ctx, constraints) {
+                    final width = (constraints.maxWidth - 16) / 2;
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        SizedBox(
+                            width: width,
+                            child: _buildShortcut(Icons.wifi, 'Meu Wi-Fi',
+                                'Gerenciar', () => widget.onNavigate('wifi'))),
+                        SizedBox(
+                            width: width,
+                            child: _buildShortcut(
+                                Icons.receipt_long,
+                                'Faturas',
+                                'Histórico',
+                                () => widget.onNavigate('invoices'))),
+                        SizedBox(
+                            width: width,
+                            child: _buildShortcut(
+                                Icons.lock_open,
+                                'Desbloqueio',
+                                'Confiança',
+                                () => widget.onNavigate('invoices'))),
+                        SizedBox(
+                            width: width,
+                            child: _buildShortcut(
+                                Icons.support_agent,
+                                'Suporte',
+                                'Ajuda 24h',
+                                () => widget.onNavigate('support'))),
+                      ],
+                    );
+                  }),
+
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ],
@@ -111,199 +158,200 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBillCard() {
-    return Container(
-      decoration: Layout05Theme.cardDecoration.copyWith(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF4338CA)], // Indigo gradient
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _buildHeader(String name, String plan) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Olá, ${name.split(' ').first}',
+                style: Layout05Theme.heading1),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Layout05Theme.primary.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(plan.toUpperCase(),
+                      style: const TextStyle(
+                          color: Layout05Theme.primary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4F46E5).withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+        Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Layout05Theme.primary, width: 2),
+            color: Layout05Theme.surface,
           ),
-        ],
-      ),
-      padding: const EdgeInsets.all(24),
+          child: const Icon(Icons.person, color: Colors.white, size: 30),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusCard(String status) {
+    final isOnline =
+        status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
+    final color = isOnline ? Layout05Theme.secondary : Layout05Theme.accent;
+
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.all(16),
+      decoration: Layout05Theme.glassDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Icon(isOnline ? Icons.wifi : Icons.wifi_off, color: color, size: 32),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Status', style: Layout05Theme.label),
+              const SizedBox(height: 4),
+              Text(isOnline ? 'Online' : 'Offline',
+                  style: Layout05Theme.heading2.copyWith(color: color)),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBillCard(double amount, DateTime dueDate) {
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: Layout05Theme.primaryGradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Layout05Theme.primary.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Fatura Atual',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+              const Icon(Icons.receipt, color: Colors.white70),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              if (billDueDate != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Vence ${DateFormat('dd/MM').format(billDueDate!)}',
+                child: Text('Vence ${dueDate.day}/${dueDate.month}',
                     style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'R\$ ${billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -1,
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () => onNavigate?.call('financeiro'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Layout05Theme.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: const Text('VISUALIZAR FATURA',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: Layout05Theme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(title,
-              style:
-                  const TextStyle(color: Layout05Theme.textGrey, fontSize: 12)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Layout05Theme.textDark,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionsGrid() {
-    final actions = [
-      {
-        'icon': Icons.description_outlined,
-        'label': '2ª Via',
-        'id': 'financeiro',
-        'color': Layout05Theme.primary
-      },
-      {
-        'icon': Icons.wifi,
-        'label': 'Wi-Fi',
-        'id': 'wifi',
-        'color': Colors.blue
-      },
-      {
-        'icon': Icons.speed,
-        'label': 'Consumo',
-        'id': 'consumo',
-        'color': Colors.orange
-      },
-      {
-        'icon': Icons.build_circle_outlined,
-        'label': 'Suporte',
-        'id': 'suporte',
-        'color': Layout05Theme.secondary
-      },
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 0.8,
-      ),
-      itemCount: actions.length,
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        return GestureDetector(
-          onTap: () => onNavigate?.call(action['id'] as String),
-          child: Column(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: 56,
-                width: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: Layout05Theme.softShadow,
-                ),
-                child: Icon(
-                  action['icon'] as IconData,
-                  color: action['color'] as Color,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                action['label'] as String,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Layout05Theme.textGrey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              const Text('Fatura Atual',
+                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+              Text('R\$ ${amount.toStringAsFixed(2).replaceAll('.', ',')}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold)),
             ],
-          ),
-        );
-      },
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionCard(double speed) {
+    return GestureDetector(
+      onTap: () => widget.onNavigate('network_diagnostic'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: Layout05Theme.glassDecoration,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.speed, color: Layout05Theme.primary),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Velocidade Contratada', style: Layout05Theme.label),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text('${speed.toInt()}',
+                          style: Layout05Theme.heading1.copyWith(fontSize: 24)),
+                      const SizedBox(width: 4),
+                      Text('MEGA',
+                          style: Layout05Theme.label
+                              .copyWith(color: Layout05Theme.primary)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Layout05Theme.textGrey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShortcut(
+      IconData icon, String title, String subtitle, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 110,
+        padding: const EdgeInsets.all(16),
+        decoration: Layout05Theme.solidCardDecoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Layout05Theme.textWhite, size: 28),
+            const Spacer(),
+            Text(title,
+                style: const TextStyle(
+                    color: Layout05Theme.textWhite,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14)),
+            Text(subtitle,
+                style: const TextStyle(
+                    color: Layout05Theme.textGrey, fontSize: 10)),
+          ],
+        ),
+      ),
     );
   }
 }

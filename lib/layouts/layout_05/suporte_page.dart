@@ -54,7 +54,7 @@ class SuportePage extends StatelessWidget {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: Layout05Theme.radiusL,
+                borderRadius: BorderRadius.circular(12),
                 onTap: () {
                   // Ação
                 },

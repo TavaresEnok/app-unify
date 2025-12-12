@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers/configuration_provider.dart';
-// import '../../core/services/financeiro_service.dart'; // TODO: Uncomment when using real service
+import '../../core/services/financeiro_service.dart';
+import '../../core/services/auth_service.dart';
 import 'theme.dart';
 
 class FinanceiroPage extends StatefulWidget {
@@ -16,46 +17,92 @@ class FinanceiroPage extends StatefulWidget {
 class _FinanceiroPageState extends State<FinanceiroPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _invoices = [];
+  String? _errorMessage;
+  FinanceiroService? _financeiroService;
 
   @override
   void initState() {
     super.initState();
-    // Simulate fetching data
-    Future.delayed(const Duration(seconds: 1), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initServiceAndFetch();
+    });
+  }
+
+  Future<void> _initServiceAndFetch() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final configProvider =
+        Provider.of<ConfigurationProvider>(context, listen: false);
+    final user = authService.usuario;
+    final config = configProvider.providerConfig;
+
+    if (user == null || config == null) {
       if (mounted) {
         setState(() {
+          _errorMessage = 'Erro de autenticação ou configuração.';
           _isLoading = false;
-          _invoices = [
-            {
-              'id': '1001',
-              'status': 'open',
-              'valor': 99.90,
-              'vencimento': '10/12/2023',
-              'pixCode':
-                  '00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540510.005802BR5913Empresa Teste6008Sao Paulo62070503***63041D3D',
-              'barCode':
-                  '34191.79001 01043.510047 91020.150008 1 89870000009990',
-              'pdfUrl':
-                  'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-            },
-            {
-              'id': '1002',
-              'status': 'paid',
-              'valor': 99.90,
-              'vencimento': '10/11/2023',
-            },
-          ];
         });
       }
-    });
+      return;
+    }
+
+    try {
+      _financeiroService = FinanceiroService(
+        apiUrl: '${config.apiUrl}/get-invoices', // Correct usage of API URL
+        cpfCnpjUnformatted: user.cpfCnpj,
+        senha: user.senha,
+        sgpParams: {
+          'token': config.config.integrations.apiToken,
+          'app': config.config.integrations.appName,
+          'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
+        },
+      );
+
+      await _fetchInvoices();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erro ao inicializar financeiro: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchInvoices() async {
+    if (_financeiroService == null) return;
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final invoices = await _financeiroService!.fetchInvoices();
+      if (mounted) {
+        setState(() {
+          _invoices = List<Map<String, dynamic>>.from(invoices);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erro ao buscar faturas: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _copyToClipboard(String content, String message) {
     Clipboard.setData(ClipboardData(text: content));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(message), backgroundColor: Layout05Theme.secondary),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(message), backgroundColor: Layout05Theme.secondary),
+      );
+    }
   }
 
   Future<void> _openPdf(String url) async {
@@ -63,17 +110,20 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Não foi possível abrir o PDF'),
-            backgroundColor: Layout05Theme.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Não foi possível abrir o PDF'),
+              backgroundColor: Layout05Theme.error),
+        );
+      }
     }
   }
 
-  void _requestTrustUnlock() {
-    // Call service to unlock
-    showDialog(
+  void _requestTrustUnlock() async {
+    if (_financeiroService == null) return;
+
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Desbloqueio de Confiança', style: Layout05Theme.heading2),
@@ -81,20 +131,12 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
             'Deseja solicitar o desbloqueio provisório da sua conexão?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('CANCELAR',
                 style: TextStyle(color: Layout05Theme.textGrey)),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Call real service here
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Desbloqueio solicitado com sucesso!'),
-                    backgroundColor: Layout05Theme.success),
-              );
-            },
+            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: Layout05Theme.primary),
             child:
@@ -103,6 +145,35 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
         ],
       ),
     );
+
+    if (confirmed == true) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Solicitando desbloqueio...'),
+            backgroundColor: Layout05Theme.primary),
+      );
+
+      try {
+        await _financeiroService!.solicitarDesbloqueioConfianca();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Desbloqueio solicitado com sucesso! Aguarde alguns instantes.'),
+                backgroundColor: Layout05Theme.success),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Erro: $e'),
+                backgroundColor: Layout05Theme.accent),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -114,68 +185,74 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
         backgroundColor: Layout05Theme.background,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
+        iconTheme: const IconThemeData(color: Layout05Theme.textWhite),
       ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Layout05Theme.primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Unlock Card
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 24),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Layout05Theme.primary.withOpacity(0.05),
-                      borderRadius: Layout05Theme.radiusL,
-                      border: Border.all(
-                          color: Layout05Theme.primary.withOpacity(0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.lock_open_rounded,
-                            color: Layout05Theme.primary, size: 32),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Conexão Bloqueada?',
-                                  style: Layout05Theme.heading2
-                                      .copyWith(fontSize: 16)),
-                              const Text('Solicite o desbloqueio em confiança.',
+          : _errorMessage != null
+              ? Center(
+                  child: Text(_errorMessage!,
+                      style: const TextStyle(color: Layout05Theme.error)))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Unlock Card
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Layout05Theme.primary.withOpacity(0.05),
+                          borderRadius:
+                              BorderRadius.circular(Layout05Theme.radiusL),
+                          border: Border.all(
+                              color: Layout05Theme.primary.withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.lock_open_rounded,
+                                color: Layout05Theme.primary, size: 32),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Conexão Bloqueada?',
+                                      style: Layout05Theme.heading2
+                                          .copyWith(fontSize: 16)),
+                                  const Text(
+                                      'Solicite o desbloqueio em confiança.',
+                                      style: TextStyle(
+                                          color: Layout05Theme.textGrey,
+                                          fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: _requestTrustUnlock,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Layout05Theme.primary,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('DESBLOQUEAR',
                                   style: TextStyle(
-                                      color: Layout05Theme.textGrey,
-                                      fontSize: 13)),
-                            ],
-                          ),
+                                      color: Colors.white, fontSize: 12)),
+                            ),
+                          ],
                         ),
-                        ElevatedButton(
-                          onPressed: _requestTrustUnlock,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Layout05Theme.primary,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: const Text('DESBLOQUEAR',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
 
-                  // Invoices List
-                  ..._invoices
-                      .map((fatura) => _buildInvoiceCard(fatura))
-                      .toList(),
-                ],
-              ),
-            ),
+                      // Invoices List
+                      ..._invoices
+                          .map((fatura) => _buildInvoiceCard(fatura))
+                          .toList(),
+                    ],
+                  ),
+                ),
     );
   }
 
@@ -224,7 +301,7 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
                   ),
                 ),
                 Text(
-                  'R\$ ${fatura['valor'].toStringAsFixed(2).replaceAll('.', ',')}',
+                  'R\$ ${(fatura['valor'] ?? 0).toStringAsFixed(2).replaceAll('.', ',')}',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -247,18 +324,18 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
                     icon: Icons.pix,
                     label: 'PIX',
                     onTap: () => _copyToClipboard(
-                        fatura['pixCode'], 'Código Pix copiado!'),
+                        fatura['pixCode'] ?? '', 'Código Pix copiado!'),
                   ),
                   _ActionButton(
                     icon: Icons.qr_code,
                     label: 'CÓDIGO',
                     onTap: () => _copyToClipboard(
-                        fatura['barCode'], 'Código de barras copiado!'),
+                        fatura['barCode'] ?? '', 'Código de barras copiado!'),
                   ),
                   _ActionButton(
                     icon: Icons.picture_as_pdf,
                     label: 'PDF',
-                    onTap: () => _openPdf(fatura['pdfUrl']),
+                    onTap: () => _openPdf(fatura['pdfUrl'] ?? ''),
                   ),
                 ],
               ),

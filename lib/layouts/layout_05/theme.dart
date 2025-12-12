@@ -1,71 +1,102 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class Layout05Theme {
-  // Cores Principais (Estilo Clean/Corporativo Moderno)
-  static const Color primary = Color(0xFF4F46E5); // Indigo vibrante
-  static const Color secondary =
-      Color(0xFF10B981); // Verde esmeralda (Ações positivas)
-  static const Color background =
-      Color(0xFFF8FAFC); // Cinza muito claro (Slate 50)
-  static const Color surface = Colors.white;
+  // --- Colors (Deep Navy & Neon Accents) ---
+  static const Color background = Color(0xFF0F172A); // Slate 900
+  static const Color surface = Color(0xFF1E293B); // Slate 800
+  static const Color primary = Color(0xFF6366F1); // Indigo 500
+  static const Color secondary = Color(0xFF10B981); // Emerald 500
+  static const Color accent = Color(0xFFF43F5E); // Rose 500
 
-  // Textos
+  static const Color textWhite = Color(0xFFF8FAFC);
+  static const Color textGrey = Color(0xFF94A3B8);
+
+  // --- Missing Properties for Compatibility ---
   static const Color textDark = Color(0xFF1E293B); // Slate 800
-  static const Color textGrey = Color(0xFF64748B); // Slate 500
+  static const Color error = Color(0xFFEF4444); // Red 500
+  static const Color success = Color(0xFF10B981); // Emerald 500
+  static const Color warning = Color(0xFFF59E0B); // Amber 500
 
-  // Status
-  static const Color error = Color(0xFFEF4444); // Vermelho suave
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color success = Color(0xFF10B981);
+  // --- Gradients ---
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
-  // Sombras e Bordas
-  static List<BoxShadow> get cardShadow => [
-        BoxShadow(
-          color: const Color(0xFF64748B).withOpacity(0.08),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
-          spreadRadius: 0,
-        ),
-      ];
+  static const LinearGradient glassGradient = LinearGradient(
+    colors: [
+      Color(0x1AFFFFFF), // White 10%
+      Color(0x05FFFFFF), // White 2%
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
-  static List<BoxShadow> get softShadow => [
-        BoxShadow(
-          color: const Color(0xFF64748B).withOpacity(0.05),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
+  // --- Glassmorphism ---
+  static BoxDecoration glassDecoration = BoxDecoration(
+    gradient: glassGradient,
+    borderRadius: BorderRadius.circular(24),
+    border: Border.all(color: Colors.white.withOpacity(0.1)),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.2),
+        blurRadius: 16,
+        spreadRadius: 0,
+        offset: const Offset(0, 8),
+      ),
+    ],
+  );
 
-  static BorderRadius get radiusXL => BorderRadius.circular(24);
-  static BorderRadius get radiusL => BorderRadius.circular(16);
-  static BorderRadius get radiusM => BorderRadius.circular(12);
+  static BoxDecoration solidCardDecoration = BoxDecoration(
+    color: surface,
+    borderRadius: BorderRadius.circular(24),
+    border: Border.all(color: Colors.white.withOpacity(0.05)),
+  );
 
-  // Decorações Prontas
   static BoxDecoration get cardDecoration => BoxDecoration(
-        color: surface,
-        borderRadius: radiusL,
-        boxShadow: cardShadow,
+        color: surface, // Changed to surface for dark theme consistency
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       );
 
-  // Tipografia Personalizada
-  static TextStyle get heading1 => const TextStyle(
+  // --- Typography (Inter) ---
+  static TextStyle get heading1 => GoogleFonts.inter(
         fontSize: 28,
-        fontWeight: FontWeight.w800,
-        color: textDark,
-        letterSpacing: -0.5,
-        fontFamily: 'Inter', // Assumindo fonte padrão ou sistema
+        fontWeight: FontWeight.bold,
+        color: textWhite,
+        height: 1.2,
       );
 
-  static TextStyle get heading2 => const TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.w700,
-        color: textDark,
-        letterSpacing: -0.5,
+  static TextStyle get heading2 => GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: textWhite,
       );
 
-  static TextStyle get bodyText => const TextStyle(
-        fontSize: 16,
+  static TextStyle get bodyText => GoogleFonts.inter(
+        fontSize: 14,
         color: textGrey,
         height: 1.5,
       );
+
+  static TextStyle get label => GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: textGrey,
+        letterSpacing: 0.5,
+      );
+
+  // --- Constants ---
+  static const double radiusM = 16.0;
+  static const double radiusL = 24.0;
+  static const double padding = 20.0;
 }
