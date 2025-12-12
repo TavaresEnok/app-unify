@@ -58,7 +58,7 @@ export default function AppearanceSettings() {
                             <SelectItem value="layout_05">Layout 05 - Neo Digital (Futurista)</SelectItem>
                             <SelectItem value="layout_06">Layout 06 - Premium Dark (Recomendado)</SelectItem>
                             <SelectItem value="layout_07">Layout 07 - Clean Light</SelectItem>
-                            <SelectItem value="layout_04">Layout 04 – Premium Futurista</SelectItem>
+
                         </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
