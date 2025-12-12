@@ -55,7 +55,6 @@ export default function AppearanceSettings() {
                         <SelectContent>
                             <SelectItem value="layout_02">Layout 02 - Clássico (Gradiente Roxo)</SelectItem>
                             <SelectItem value="layout_03">Layout 03 - Minimalista</SelectItem>
-                            <SelectItem value="layout_04">Layout 04 - Cyber Wave</SelectItem>
                             <SelectItem value="layout_05">Layout 05 - Neo Digital</SelectItem>
                             <SelectItem value="layout_06">Layout 06 - Premium Dark (Recomendado)</SelectItem>
                             <SelectItem value="layout_07">Layout 07 - Clean Light</SelectItem>
