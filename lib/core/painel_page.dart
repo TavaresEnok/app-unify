@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../layout_selector.dart';
+import '../layouts/layout_05/theme.dart'; // Import Layout05 Theme
 import 'providers/configuration_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/auth_service.dart';
@@ -79,12 +80,54 @@ class _PainelPageState extends State<PainelPage> {
     );
   }
 
-  AppBar _buildAppBar(BuildContext context, String layoutType) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, String layoutType) {
     // Cores baseadas no layout
     final isDarkLayout = layoutType == 'layout_06';
+    final isNeumorphic = layoutType == 'layout_05'; // Soft UI Check
+
     final isOnDashboard = _currentPage == 'dashboard';
     final pageName = _pageNames[_currentPage] ?? 'Dashboard';
 
+    // Custom Neumorphic AppBar
+    if (isNeumorphic) {
+      return AppBar(
+        backgroundColor: Layout05Theme.background,
+        elevation: 0,
+        centerTitle: true,
+        leading: isOnDashboard
+            ? Builder(
+                builder: (context) => IconButton(
+                      icon: const Icon(Icons.menu_rounded,
+                          color: Layout05Theme.textDark),
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ))
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    size: 20, color: Layout05Theme.textDark),
+                onPressed: () => setState(() => _currentPage = 'dashboard'),
+              ),
+        title: Text(pageName,
+            style:
+                Layout05Theme.heading2.copyWith(color: Layout05Theme.textDark)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded,
+                color: Layout05Theme.textDark),
+            onPressed: () => setState(() => _currentPage = 'notifications'),
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: Colors.white,
+            height: 1,
+            // Slight separation line/shadow simulation if desired, or leave empty for "Seamless"
+          ),
+        ),
+      );
+    }
+
+    // Default Material AppBar (Layout 06, etc.)
     return AppBar(
       // Back button when not on dashboard
       leading: isOnDashboard
@@ -155,11 +198,114 @@ class _PainelPageState extends State<PainelPage> {
     );
   }
 
-  Drawer _buildDrawer(BuildContext context, Usuario usuario,
+  Widget _buildDrawer(BuildContext context, Usuario usuario,
       AuthService authService, String layoutType) {
     final isDarkLayout = layoutType == 'layout_06';
+    final isNeumorphic = layoutType == 'layout_05'; // Soft UI Check
     final primaryColor = Theme.of(context).primaryColor;
 
+    if (isNeumorphic) {
+      return Drawer(
+        backgroundColor: Layout05Theme.background,
+        elevation: 0,
+        // We use a container to apply border if needed or just let it be flat
+        child: Column(
+          children: [
+            // User Header - Neumorphic
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+              color: Layout05Theme.background,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: Layout05Theme.neumorphicDecoration
+                        .copyWith(shape: BoxShape.circle),
+                    child: CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Layout05Theme.primary,
+                      child: Text(
+                        usuario.nome.isNotEmpty
+                            ? usuario.nome[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(usuario.nome,
+                            style:
+                                Layout05Theme.heading2.copyWith(fontSize: 16)),
+                        Text(usuario.plano,
+                            style:
+                                Layout05Theme.bodyText.copyWith(fontSize: 12)),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+            const Divider(color: Colors.white, height: 1),
+            // Menu Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildNeumorphicMenuItem(
+                      'dashboard', 'Início', Icons.grid_view_rounded),
+                  _buildNeumorphicMenuItem(
+                      'invoices', 'Faturas', Icons.receipt_long_rounded),
+                  _buildNeumorphicMenuItem(
+                      'wifi', 'Meu Wi-Fi', Icons.wifi_rounded),
+                  _buildNeumorphicMenuItem(
+                      'network_diagnostic', 'Diagnóstico', Icons.speed_rounded),
+                  _buildNeumorphicMenuItem(
+                      'support', 'Suporte', Icons.headset_mic_rounded),
+                  const SizedBox(height: 24),
+                  const Divider(color: Colors.white),
+                  const SizedBox(height: 24),
+                  _buildNeumorphicMenuItem(
+                      'logout', 'Sair', Icons.logout_rounded, isLogout: true,
+                      onTap: () async {
+                    final shouldLogout = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: Layout05Theme.background,
+                        title: Text('Sair', style: Layout05Theme.heading2),
+                        content: Text('Deseja realmente sair?',
+                            style: Layout05Theme.bodyText),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: Text('Cancelar',
+                                  style: TextStyle(
+                                      color: Layout05Theme.textGrey))),
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Sim, Sair',
+                                  style:
+                                      TextStyle(color: Layout05Theme.error))),
+                        ],
+                      ),
+                    );
+                    if (shouldLogout == true) authService.logout();
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Default Drawer
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -294,6 +440,32 @@ class _PainelPageState extends State<PainelPage> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNeumorphicMenuItem(String id, String label, IconData icon,
+      {bool isLogout = false, VoidCallback? onTap}) {
+    final isSelected = _currentPage == id;
+    final color = isLogout
+        ? Layout05Theme.error
+        : (isSelected ? Layout05Theme.primary : Layout05Theme.textGrey);
+
+    // "Pressed" state for selected item
+    final decoration =
+        isSelected ? Layout05Theme.neumorphicPressedDecoration : null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: decoration, // If not selected, it's flat/transparent
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: Icon(icon, color: color),
+        title: Text(label,
+            style: TextStyle(
+                color: isLogout ? Layout05Theme.error : Layout05Theme.textDark,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+        onTap: onTap ?? () => _navigateToPage(id),
       ),
     );
   }
