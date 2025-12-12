@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 // Imports dos Dashboards
 import 'layouts/layout_02/dashboard_page.dart' as l02;
-// Layout 04 - Aurora (Glassmorphic)
-import 'layouts/layout_04/aurora_main_page.dart' as l04;
 import 'layouts/layout_03/dashboard_page.dart' as l03;
 import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
@@ -11,56 +9,48 @@ import 'layouts/layout_07/dashboard_page.dart' as l07;
 // Imports dos Logins
 import 'layouts/layout_02/login_page.dart' as l02_login;
 import 'layouts/layout_03/login_page.dart' as l03_login;
-// Layout 04 usa o login do layout_06 (Aurora foca no painel)
 import 'layouts/layout_06/login_page.dart' as l06_login;
 import 'layouts/layout_07/login_page.dart' as l07_login;
 
 // Imports do Financeiro
 import 'layouts/layout_02/financeiro_page.dart' as l02_fin;
 import 'layouts/layout_03/financeiro_page.dart' as l03_fin;
-import 'layouts/layout_04/financeiro_page.dart' as l04_fin;
 import 'layouts/layout_06/financeiro_page.dart' as l06_fin;
 import 'layouts/layout_07/financeiro_page.dart' as l07_fin;
 
 // Imports do Suporte
 import 'layouts/layout_02/suporte_page.dart' as l02_sup;
 import 'layouts/layout_03/suporte_page.dart' as l03_sup;
-import 'layouts/layout_04/suporte_page.dart' as l04_sup;
 import 'layouts/layout_06/suporte_page.dart' as l06_sup;
 import 'layouts/layout_07/suporte_page.dart' as l07_sup;
 
 // Imports do Diagnóstico
 import 'layouts/layout_02/diagnostico_page.dart' as l02_diag;
 import 'layouts/layout_03/diagnostico_page.dart' as l03_diag;
-import 'layouts/layout_04/diagnostico_page.dart' as l04_diag;
 import 'layouts/layout_06/diagnostico_page.dart' as l06_diag;
 import 'layouts/layout_07/diagnostico_page.dart' as l07_diag;
 
 // Imports do Consumo
 import 'layouts/layout_02/consumo_page.dart' as l02_cons;
 import 'layouts/layout_03/consumo_page.dart' as l03_cons;
-import 'layouts/layout_04/consumo_page.dart' as l04_cons;
 import 'layouts/layout_06/consumo_page.dart' as l06_cons;
 import 'layouts/layout_07/consumo_page.dart' as l07_cons;
 
 // Imports do Meu IP
 import 'layouts/layout_02/meu_ip_page.dart' as l02_ip;
 import 'layouts/layout_03/meu_ip_page.dart' as l03_ip;
-import 'layouts/layout_04/my_ip_page.dart' as l04_ip;
 import 'layouts/layout_06/meu_ip_page.dart' as l06_ip;
 import 'layouts/layout_07/meu_ip_page.dart' as l07_ip;
 
 // Imports do FAQ
 import 'layouts/layout_02/faq_page.dart' as l02_faq;
 import 'layouts/layout_03/faq_page.dart' as l03_faq;
-import 'layouts/layout_04/faq_page.dart' as l04_faq;
 import 'layouts/layout_06/faq_page.dart' as l06_faq;
 import 'layouts/layout_07/faq_page.dart' as l07_faq;
 
 // Imports do Contrato
 import 'layouts/layout_02/contrato_page.dart' as l02_cont;
 import 'layouts/layout_03/contrato_page.dart' as l03_cont;
-import 'layouts/layout_04/contrato_page.dart' as l04_cont;
 import 'layouts/layout_06/contrato_page.dart' as l06_cont;
 import 'layouts/layout_07/contrato_page.dart' as l07_cont;
 
@@ -130,10 +120,6 @@ class LayoutSelector {
           invoiceColor: invoiceColor,
           actionColor: actionColor,
         );
-
-      case 'layout_04':
-        // Aurora layout - uses AuroraMainPage which has its own navigation
-        return const l04.AuroraMainPage();
 
       case 'layout_06':
         return l06.ProviderDashboardPage(
@@ -206,8 +192,7 @@ class LayoutSelector {
         return const l02_fin.FinanceiroPage();
       case 'layout_03':
         return const l03_fin.FinanceiroPage();
-      case 'layout_04':
-        return const l04_fin.FinanceiroPage();
+
       case 'layout_06':
         return const l06_fin.FinanceiroPage();
       case 'layout_07':
@@ -224,8 +209,7 @@ class LayoutSelector {
         return const l02_sup.SuportePage();
       case 'layout_03':
         return const l03_sup.SuportePage();
-      case 'layout_04':
-        return const l04_sup.SuportePage();
+
       case 'layout_06':
         return const l06_sup.SuportePage();
       case 'layout_07':
@@ -242,8 +226,7 @@ class LayoutSelector {
         return const l02_diag.DiagnosticoPage();
       case 'layout_03':
         return const l03_diag.DiagnosticoPage();
-      case 'layout_04':
-        return const l04_diag.DiagnosticoPage();
+
       case 'layout_06':
         return const l06_diag.DiagnosticoPage();
       case 'layout_07':
@@ -260,8 +243,7 @@ class LayoutSelector {
         return const l02_cons.ConsumoPage();
       case 'layout_03':
         return const l03_cons.ConsumoPage();
-      case 'layout_04':
-        return const l04_cons.ConsumoPage();
+
       case 'layout_06':
         return const l06_cons.ConsumoPage();
       case 'layout_07':
@@ -278,8 +260,7 @@ class LayoutSelector {
         return const l02_ip.MeuIpPage();
       case 'layout_03':
         return const l03_ip.MeuIpPage();
-      case 'layout_04':
-        return const l04_ip.MyIpPage();
+
       case 'layout_06':
         return const l06_ip.MeuIpPage();
       case 'layout_07':
@@ -296,8 +277,7 @@ class LayoutSelector {
         return const l02_faq.FaqPage();
       case 'layout_03':
         return const l03_faq.FaqPage();
-      case 'layout_04':
-        return const l04_faq.FaqPage();
+
       case 'layout_06':
         return const l06_faq.FaqPage();
       case 'layout_07':
@@ -314,8 +294,7 @@ class LayoutSelector {
         return const l02_cont.ContratoPage();
       case 'layout_03':
         return const l03_cont.ContratoPage();
-      case 'layout_04':
-        return const l04_cont.ContratoPage();
+
       case 'layout_06':
         return const l06_cont.ContratoPage();
       case 'layout_07':
@@ -336,11 +315,6 @@ class LayoutSelector {
       'id': 'layout_03',
       'name': 'Minimalista',
       'description': 'Cards brancos, ações rápidas'
-    },
-    {
-      'id': 'layout_04',
-      'name': 'Aurora',
-      'description': 'Glassmorphism futurista com neon'
     },
     {
       'id': 'layout_06',

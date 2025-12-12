@@ -63,11 +63,7 @@ class _PainelPageState extends State<PainelPage> {
     final configProvider = Provider.of<ConfigurationProvider>(context);
     final usuario = authService.usuario;
 
-    // TEMPORARY: Force layout_04 for testing - REMOVE THIS LINE AFTER TESTING!
-    // final layoutType = 'layout_04';
     final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
-
-    print('[DEBUG] layoutType from config = $layoutType');
 
     if (usuario == null) {
       // Não deveria acontecer, mas por segurança
@@ -75,28 +71,6 @@ class _PainelPageState extends State<PainelPage> {
         body: Center(child: Text('Erro: Usuário não autenticado')),
       );
     }
-
-    // Layout 04 (Aurora) has its own complete navigation system (AuroraMainPage)
-    // So we return it directly without the common wrapper
-    if (layoutType == 'layout_04') {
-      print('[DEBUG] ====== LAYOUT 04 AURORA DETECTED ======');
-      print('[DEBUG] layoutType = $layoutType');
-      return LayoutSelector.getDashboard(
-        layoutType: layoutType,
-        customerName: usuario.nome,
-        planName: usuario.plano,
-        connectionStatus: usuario.status,
-        billAmount: _parseBillAmount(usuario.valorFatura),
-        billDueDate: _parseBillDate(usuario.vencimentoFatura),
-        usedGb: 50.0,
-        totalGb: 100.0,
-        downloadMbps: 100.0,
-        uploadMbps: 50.0,
-        onNavigate: (page) {}, // Aurora handles its own navigation
-      );
-    }
-
-    print('[DEBUG] Using standard layout: $layoutType');
 
     return Scaffold(
       appBar: _buildAppBar(context, layoutType),
