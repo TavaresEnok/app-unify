@@ -1,5 +1,4 @@
 // LAYOUT 04 - AURORA - MY IP PAGE
-// Design: Simple IP display with neon effect
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,156 +13,142 @@ class MyIpPage extends StatefulWidget {
 }
 
 class _MyIpPageState extends State<MyIpPage> {
-  String _ipAddress = 'Carregando...';
-  bool _isLoading = true;
+  String _ip = 'Carregando...';
+  bool _copied = false;
 
   @override
   void initState() {
     super.initState();
-    _loadIpAddress();
+    _fetchIp();
   }
 
-  Future<void> _loadIpAddress() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchIp() async {
     try {
       final interfaces = await NetworkInterface.list();
       for (var interface in interfaces) {
         for (var addr in interface.addresses) {
           if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
-            setState(() {
-              _ipAddress = addr.address;
-              _isLoading = false;
-            });
+            setState(() => _ip = addr.address);
             return;
           }
         }
       }
-      setState(() {
-        _ipAddress = 'Não disponível';
-        _isLoading = false;
-      });
+      setState(() => _ip = 'Não encontrado');
     } catch (e) {
-      setState(() {
-        _ipAddress = 'Erro ao obter IP';
-        _isLoading = false;
-      });
+      setState(() => _ip = 'Erro ao buscar IP');
     }
   }
 
   void _copyIp() {
-    Clipboard.setData(ClipboardData(text: _ipAddress));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            const Text('IP copiado!'),
-          ],
-        ),
-        backgroundColor: AuroraColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    Clipboard.setData(ClipboardData(text: _ip));
+    setState(() => _copied = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return AuroraBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
           backgroundColor: Colors.transparent,
-          title: ShaderMask(
-            shaderCallback: (bounds) =>
-                AuroraColors.primaryGradient.createShader(bounds),
-            child: const Text('Meu IP',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-          centerTitle: true,
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: GlassCard(
-              glowColor: AuroraColors.neonCyan,
-              padding: const EdgeInsets.all(32),
+          elevation: 0,
+          pinned: true,
+          expandedHeight: 100,
+          automaticallyImplyLeading: false,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Container(
+              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      gradient: AuroraColors.primaryGradient,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AuroraColors.neonCyan.withOpacity(0.5),
-                          blurRadius: 30,
-                          spreadRadius: 5,
-                        ),
-                      ],
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: const [
+                  Text(
+                    'Meu IP',
+                    style: TextStyle(
+                      color: AuroraColors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: const Icon(Icons.language,
-                        color: Colors.white, size: 50),
-                  ),
-                  const SizedBox(height: 32),
-                  const Text(
-                    'Seu endereço IP',
-                    style: TextStyle(color: AuroraColors.textSecondary),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_isLoading)
-                    SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation(AuroraColors.neonCyan),
-                      ),
-                    )
-                  else
-                    ShaderMask(
-                      shaderCallback: (bounds) =>
-                          AuroraColors.primaryGradient.createShader(bounds),
-                      child: Text(
-                        _ipAddress,
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      NeonButton(
-                        text: 'Copiar',
-                        icon: Icons.copy,
-                        onPressed: _copyIp,
-                      ),
-                      const SizedBox(width: 16),
-                      NeonButton(
-                        text: 'Atualizar',
-                        icon: Icons.refresh,
-                        isOutlined: true,
-                        onPressed: _loadIpAddress,
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
           ),
         ),
-      ),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              AuroraCard(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AuroraColors.primary.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.public_rounded,
+                          color: AuroraColors.primary, size: 40),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Seu endereço IP',
+                      style: TextStyle(
+                          color: AuroraColors.textSecondary, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _ip,
+                      style: const TextStyle(
+                        color: AuroraColors.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: AuroraButton(
+                        label: _copied ? 'Copiado!' : 'Copiar IP',
+                        icon: _copied ? Icons.check : Icons.copy,
+                        onPressed: _copyIp,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              AuroraCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Sobre o IP',
+                      style: TextStyle(
+                        color: AuroraColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'O endereço IP é um identificador único que permite que seu dispositivo se comunique com outros na internet. Ele é atribuído pelo seu provedor de internet.',
+                      style: TextStyle(
+                          color: AuroraColors.textSecondary, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,11 +1,10 @@
-// LAYOUT 04 - AURORA - DIAGNOSTICO PAGE (FIXED)
-// Design: Network diagnostics with neon indicators (simplified)
+// LAYOUT 04 - AURORA - DIAGNOSTICO PAGE
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
 import '../../core/services/onu_wifi_service.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/providers/configuration_provider.dart';
 import 'aurora_theme.dart';
 
 class DiagnosticoPage extends StatefulWidget {
@@ -15,137 +14,234 @@ class DiagnosticoPage extends StatefulWidget {
   State<DiagnosticoPage> createState() => _DiagnosticoPageState();
 }
 
-class _DiagnosticoPageState extends State<DiagnosticoPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  OnuWifiService? _onuWifiService;
+class _DiagnosticoPageState extends State<DiagnosticoPage> {
+  bool _isLoading = true;
+  String? _error;
   OnuData? _onuData;
-  bool _isLoadingOnu = false;
-  String? _onuError;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat();
+    _fetchData();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _initService();
-  }
+  Future<void> _fetchData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-  void _initService() {
-    final configProvider = context.read<ConfigurationProvider>();
-    final authService = context.read<AuthService>();
-    final config = configProvider.providerConfig;
-    final usuario = authService.usuario;
+    try {
+      final authService = context.read<AuthService>();
+      final configProvider = context.read<ConfigurationProvider>();
 
-    if (config != null && usuario != null && _onuWifiService == null) {
-      _onuWifiService = OnuWifiService(
+      final usuario = authService.usuario;
+      final config = configProvider.providerConfig;
+
+      if (usuario == null || config == null) {
+        throw Exception('Configuração não disponível');
+      }
+
+      final service = OnuWifiService(
         apiUrl: config.apiUrl,
-        cpfCnpj: usuario.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
-        senha: usuario.senha ?? '',
+        cpfCnpj: usuario.cpfCnpj,
         sgpParams: {
           'token': config.config.integrations.apiToken,
           'app': config.config.integrations.appName,
           'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
         },
       );
-      _loadOnuData();
-    }
-  }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadOnuData() async {
-    if (_onuWifiService == null) return;
-
-    setState(() {
-      _isLoadingOnu = true;
-      _onuError = null;
-    });
-
-    try {
-      final data = await _onuWifiService!.fetchOnuSignal();
-      setState(() => _onuData = data);
+      final data = await service.fetchOnuSignal();
+      setState(() {
+        _onuData = data;
+        _isLoading = false;
+      });
     } catch (e) {
-      setState(() => _onuError = e.toString());
-    } finally {
-      setState(() => _isLoadingOnu = false);
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AuroraBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
+    return CustomScrollView(
+      slivers: [
+        // Header
+        SliverAppBar(
           backgroundColor: Colors.transparent,
-          title: ShaderMask(
-            shaderCallback: (bounds) =>
-                AuroraColors.primaryGradient.createShader(bounds),
-            child: const Text('Diagnóstico',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
+          elevation: 0,
+          pinned: true,
+          expandedHeight: 100,
+          automaticallyImplyLeading: false,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Container(
+              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: const [
+                  Text(
+                    'Diagnóstico ONU',
+                    style: TextStyle(
+                      color: AuroraColors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          centerTitle: true,
         ),
-        body: RefreshIndicator(
-          color: AuroraColors.neonCyan,
-          backgroundColor: AuroraColors.surface,
-          onRefresh: _loadOnuData,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
+
+        // Content
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              if (_isLoading)
+                const _LoadingState()
+              else if (_error != null)
+                _ErrorState(error: _error!, onRetry: _fetchData)
+              else if (_onuData != null)
+                _OnuInfo(onu: _onuData!, onRefresh: _fetchData)
+              else
+                const _EmptyState(),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(40),
+        child: CircularProgressIndicator(color: AuroraColors.primary),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+
+  const _ErrorState({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 40),
+        const Icon(Icons.error_outline, color: AuroraColors.error, size: 48),
+        const SizedBox(height: 16),
+        const Text(
+          'Erro ao carregar dados',
+          style: TextStyle(
+              color: AuroraColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          error,
+          style: const TextStyle(color: AuroraColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        AuroraButton(label: 'Tentar novamente', onPressed: onRetry),
+      ],
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: const [
+        SizedBox(height: 40),
+        Icon(Icons.router_outlined, color: AuroraColors.textMuted, size: 64),
+        SizedBox(height: 16),
+        Text(
+          'Nenhum dado de ONU disponível',
+          style: TextStyle(color: AuroraColors.textSecondary, fontSize: 16),
+        ),
+      ],
+    );
+  }
+}
+
+class _OnuInfo extends StatelessWidget {
+  final OnuData onu;
+  final VoidCallback onRefresh;
+
+  const _OnuInfo({required this.onu, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    final signalValue = onu.signalRx ?? 0;
+    final isGoodSignal = signalValue > -25 && signalValue < 0;
+
+    return Column(
+      children: [
+        // Status Card
+        AuroraCard(
+          padding: const EdgeInsets.all(20),
+          child: Row(
             children: [
-              // ONU Card
-              _buildOnuCard(),
-
-              const SizedBox(height: 20),
-
-              // Quick Info Cards
-              _buildQuickInfoGrid(),
-
-              const SizedBox(height: 20),
-
-              // Speed Test Button
-              GlassCard(
-                glowColor: AuroraColors.neonCyan,
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: (isGoodSignal
+                          ? AuroraColors.success
+                          : AuroraColors.warning)
+                      .withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  onu.isOnline
+                      ? Icons.check_circle_rounded
+                      : Icons.warning_rounded,
+                  color: onu.isOnline
+                      ? AuroraColors.success
+                      : AuroraColors.warning,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    NeonIconBadge(
-                        icon: Icons.speed,
-                        color: AuroraColors.neonCyan,
-                        size: 56),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Teste de Velocidade',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AuroraColors.textPrimary),
-                    ),
-                    const SizedBox(height: 8),
                     Text(
-                      'Verifique a velocidade da sua conexão',
-                      style: TextStyle(color: AuroraColors.textSecondary),
+                      onu.isOnline ? 'ONU Online' : 'ONU Offline',
+                      style: const TextStyle(
+                        color: AuroraColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    NeonButton(
-                      text: 'Iniciar Speed Test',
-                      icon: Icons.play_arrow,
-                      onPressed: () {
-                        // Navigate to speed test page
-                        Navigator.of(context).pushNamed('/speed-test');
-                      },
+                    const SizedBox(height: 4),
+                    Text(
+                      isGoodSignal
+                          ? 'Sinal dentro do esperado'
+                          : 'Sinal fora do ideal',
+                      style: const TextStyle(
+                          color: AuroraColors.textSecondary, fontSize: 14),
                     ),
                   ],
                 ),
@@ -153,218 +249,99 @@ class _DiagnosticoPageState extends State<DiagnosticoPage>
             ],
           ),
         ),
-      ),
-    );
-  }
+        const SizedBox(height: 16),
 
-  Widget _buildOnuCard() {
-    if (_isLoadingOnu) {
-      return GlassCard(
-        child: Center(
+        // Signal Details
+        AuroraCard(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 50,
-                height: 50,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(AuroraColors.neonCyan),
+              const Text(
+                'Detalhes do Sinal',
+                style: TextStyle(
+                  color: AuroraColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Carregando ONU...',
-                  style: TextStyle(color: AuroraColors.textSecondary)),
+              _InfoRow(
+                  label: 'Sinal RX',
+                  value: '${onu.signalRx?.toStringAsFixed(2) ?? '-'} dBm',
+                  icon: Icons.signal_cellular_alt),
+              _InfoRow(
+                  label: 'Sinal TX',
+                  value: '${onu.signalTx?.toStringAsFixed(2) ?? '-'} dBm',
+                  icon: Icons.signal_cellular_alt),
+              _InfoRow(label: 'Modelo', value: onu.model, icon: Icons.router),
+              _InfoRow(
+                  label: 'Status',
+                  value: onu.connectionStatus,
+                  icon: Icons.power),
+              _InfoRow(
+                  label: 'OLT',
+                  value: onu.oltName ?? 'OLT ${onu.oltId}',
+                  icon: Icons.hub,
+                  isLast: true),
             ],
           ),
         ),
-      );
-    }
+        const SizedBox(height: 16),
 
-    if (_onuError != null || _onuData == null) {
-      return GlassCard(
-        child: Column(
-          children: [
-            NeonIconBadge(
-                icon: Icons.router, color: AuroraColors.textMuted, size: 56),
-            const SizedBox(height: 16),
-            Text('ONU não encontrada',
-                style: TextStyle(color: AuroraColors.textSecondary)),
-            const SizedBox(height: 16),
-            NeonButton(
-                text: 'Tentar novamente',
-                icon: Icons.refresh,
-                isOutlined: true,
-                onPressed: _loadOnuData),
-          ],
+        // Refresh Button
+        SizedBox(
+          width: double.infinity,
+          child: AuroraButton(
+            label: 'Atualizar Dados',
+            icon: Icons.refresh_rounded,
+            onPressed: onRefresh,
+            isOutlined: true,
+          ),
         ),
-      );
-    }
-
-    final signalColor =
-        _onuData!.isSignalGood ? AuroraColors.success : AuroraColors.error;
-    final statusColor =
-        _onuData!.isOnline ? AuroraColors.success : AuroraColors.error;
-
-    return GlassCard(
-      glowColor: statusColor,
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: statusColor
-                                .withOpacity(0.3 + 0.2 * _controller.value),
-                            blurRadius: 20,
-                            spreadRadius: _onuData!.isOnline ? 2 : 0,
-                          ),
-                        ],
-                      ),
-                      child: Icon(Icons.router, color: statusColor, size: 28),
-                    );
-                  },
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ONU ${_onuData!.model}',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AuroraColors.textPrimary),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                  color: statusColor, shape: BoxShape.circle)),
-                          const SizedBox(width: 6),
-                          Text(_onuData!.connectionStatus,
-                              style: TextStyle(
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: signalColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: signalColor.withOpacity(0.5)),
-                  ),
-                  child: Text(_onuData!.signalQuality,
-                      style: TextStyle(
-                          color: signalColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12)),
-                ),
-              ],
-            ),
-          ),
-
-          Container(height: 1, color: AuroraColors.glassBorder),
-
-          // Signal Values
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                    child: _buildSignalIndicator('RX',
-                        _onuData!.signalRxDisplay, AuroraColors.neonCyan)),
-                Container(
-                    width: 1, height: 50, color: AuroraColors.glassBorder),
-                Expanded(
-                    child: _buildSignalIndicator('TX',
-                        _onuData!.signalTxDisplay, AuroraColors.neonPurple)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSignalIndicator(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(label,
-            style: TextStyle(color: AuroraColors.textMuted, fontSize: 12)),
-        const SizedBox(height: 8),
-        Text(value,
-            style: TextStyle(
-                fontSize: 24, fontWeight: FontWeight.bold, color: color)),
       ],
     );
   }
+}
 
-  Widget _buildQuickInfoGrid() {
-    return Row(
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool isLast;
+
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
       children: [
-        Expanded(
-          child: GlassCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                NeonIconBadge(
-                    icon: Icons.wifi, color: AuroraColors.success, size: 40),
-                const SizedBox(height: 12),
-                const Text('Wi-Fi',
-                    style: TextStyle(
-                        color: AuroraColors.textPrimary,
-                        fontWeight: FontWeight.bold)),
-                Text('Conectado',
-                    style:
-                        TextStyle(fontSize: 12, color: AuroraColors.success)),
-              ],
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, color: AuroraColors.textMuted, size: 20),
+              const SizedBox(width: 12),
+              Text(label,
+                  style: const TextStyle(color: AuroraColors.textSecondary)),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  value.isEmpty ? '-' : value,
+                  style: const TextStyle(
+                      color: AuroraColors.textPrimary,
+                      fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.end,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: GlassCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                NeonIconBadge(
-                    icon: Icons.timer,
-                    color: AuroraColors.neonPurple,
-                    size: 40),
-                const SizedBox(height: 12),
-                const Text('Latência',
-                    style: TextStyle(
-                        color: AuroraColors.textPrimary,
-                        fontWeight: FontWeight.bold)),
-                Text('< 20ms',
-                    style: TextStyle(
-                        fontSize: 12, color: AuroraColors.neonPurple)),
-              ],
-            ),
-          ),
-        ),
+        if (!isLast) Divider(color: AuroraColors.border, height: 1),
       ],
     );
   }

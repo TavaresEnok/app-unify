@@ -1,216 +1,139 @@
 // LAYOUT 04 - AURORA - FAQ PAGE
-// Design: Expandable FAQ with glassmorphic cards
 
 import 'package:flutter/material.dart';
 import 'aurora_theme.dart';
 
-class FaqPage extends StatefulWidget {
+class FaqPage extends StatelessWidget {
   const FaqPage({super.key});
 
   @override
-  State<FaqPage> createState() => _FaqPageState();
-}
-
-class _FaqPageState extends State<FaqPage> {
-  int? _expandedIndex;
-
-  final List<Map<String, String>> _faqItems = [
-    {
-      'question': 'Como faço para pagar minha fatura?',
-      'answer':
-          'Você pode pagar via PIX usando o código disponível na sua fatura, através do boleto bancário, ou em nosso app. O pagamento é confirmado automaticamente.',
-    },
-    {
-      'question': 'O que fazer se minha internet estiver lenta?',
-      'answer':
-          'Primeiro, reinicie seu roteador/ONU. Se o problema persistir, faça um speed test no nosso app. Se a velocidade estiver abaixo do contratado, entre em contato conosco.',
-    },
-    {
-      'question': 'Como reiniciar minha ONU?',
-      'answer':
-          'Desconecte o cabo de energia da ONU, aguarde 30 segundos e reconecte. Aguarde cerca de 2 minutos para a conexão ser restabelecida.',
-    },
-    {
-      'question': 'Posso mudar meu plano de internet?',
-      'answer':
-          'Sim! Você pode solicitar upgrade ou downgrade do seu plano entrando em contato com nosso suporte. A mudança é feita sem custos adicionais.',
-    },
-    {
-      'question': 'Como obter a 2ª via do meu boleto?',
-      'answer':
-          'No app, acesse a seção Faturas e clique em "Ver boleto" na fatura desejada. Você também pode copiar o código de barras ou o código PIX.',
-    },
-    {
-      'question': 'O que é o desbloqueio por confiança?',
-      'answer':
-          'É uma opção para liberar sua internet por 24 horas caso você tenha uma fatura vencida. Isso dá tempo para você efetuar o pagamento.',
-    },
-    {
-      'question': 'Qual a velocidade do meu plano?',
-      'answer':
-          'A velocidade do seu plano está indicada no contrato e também aparece no seu app. Use o Speed Test para verificar se está recebendo a velocidade contratada.',
-    },
-    {
-      'question': 'Como entro em contato com o suporte?',
-      'answer':
-          'Você pode nos contatar via WhatsApp, telefone ou e-mail. Acesse a seção Suporte no app para ver todas as opções de contato.',
-    },
-  ];
-
-  @override
   Widget build(BuildContext context) {
-    return AuroraBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
+    final faqs = [
+      _FaqItem(
+        question: 'Como pago minha fatura?',
+        answer:
+            'Você pode pagar via PIX, boleto bancário ou cartão de crédito através do app.',
+      ),
+      _FaqItem(
+        question: 'Minha internet está lenta, o que fazer?',
+        answer:
+            'Primeiro, reinicie seu roteador. Se o problema persistir, faça um diagnóstico de rede no app.',
+      ),
+      _FaqItem(
+        question: 'Como altero meu plano?',
+        answer:
+            'Entre em contato com nosso suporte pelo WhatsApp ou telefone para solicitar alteração de plano.',
+      ),
+      _FaqItem(
+        question: 'Qual a velocidade do meu plano?',
+        answer:
+            'Você pode verificar a velocidade contratada na página inicial ou na seção de consumo.',
+      ),
+      _FaqItem(
+        question: 'Como faço um teste de velocidade?',
+        answer:
+            'Acesse a opção "Speed Test" no menu para testar a velocidade da sua conexão.',
+      ),
+    ];
+
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
           backgroundColor: Colors.transparent,
-          title: ShaderMask(
-            shaderCallback: (bounds) =>
-                AuroraColors.primaryGradient.createShader(bounds),
-            child: const Text('FAQ',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-          centerTitle: true,
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            // Header
-            GlassCard(
+          elevation: 0,
+          pinned: true,
+          expandedHeight: 100,
+          automaticallyImplyLeading: false,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Container(
+              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
               child: Column(
-                children: [
-                  NeonIconBadge(
-                      icon: Icons.help_outline,
-                      color: AuroraColors.neonCyan,
-                      size: 64),
-                  const SizedBox(height: 16),
-                  const Text(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: const [
+                  Text(
                     'Perguntas Frequentes',
                     style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AuroraColors.textPrimary),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Encontre respostas para suas dúvidas',
-                    style: TextStyle(color: AuroraColors.textSecondary),
-                    textAlign: TextAlign.center,
+                      color: AuroraColors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // FAQ Items
-            ...List.generate(_faqItems.length, (index) => _buildFaqItem(index)),
-
-            const SizedBox(height: 100),
-          ],
+          ),
         ),
-      ),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _FaqCard(faq: faqs[index]),
+              ),
+              childCount: faqs.length,
+            ),
+          ),
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildFaqItem(int index) {
-    final item = _faqItems[index];
-    final isExpanded = _expandedIndex == index;
+class _FaqItem {
+  final String question;
+  final String answer;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: GlassCard(
-        glowColor: isExpanded ? AuroraColors.neonCyan.withOpacity(0.5) : null,
-        padding: EdgeInsets.zero,
-        child: Column(
-          children: [
-            // Question
-            InkWell(
-              onTap: () {
-                setState(() {
-                  _expandedIndex = isExpanded ? null : index;
-                });
-              },
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AuroraColors.neonCyan.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            color: AuroraColors.neonCyan,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        item['question']!,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: isExpanded
-                              ? AuroraColors.neonCyan
-                              : AuroraColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    AnimatedRotation(
-                      turns: isExpanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        Icons.keyboard_arrow_down,
-                        color: isExpanded
-                            ? AuroraColors.neonCyan
-                            : AuroraColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+  _FaqItem({required this.question, required this.answer});
+}
 
-            // Answer
-            AnimatedCrossFade(
-              firstChild: const SizedBox.shrink(),
-              secondChild: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AuroraColors.neonCyan.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AuroraColors.neonCyan.withOpacity(0.2)),
-                  ),
-                  child: Text(
-                    item['answer']!,
-                    style: TextStyle(
-                      color: AuroraColors.textSecondary,
-                      height: 1.5,
-                    ),
+class _FaqCard extends StatefulWidget {
+  final _FaqItem faq;
+
+  const _FaqCard({required this.faq});
+
+  @override
+  State<_FaqCard> createState() => _FaqCardState();
+}
+
+class _FaqCardState extends State<_FaqCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AuroraCard(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.faq.question,
+                  style: const TextStyle(
+                    color: AuroraColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              crossFadeState: isExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 200),
+              Icon(
+                _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                color: AuroraColors.textMuted,
+              ),
+            ],
+          ),
+          if (_expanded) ...[
+            const SizedBox(height: 12),
+            Text(
+              widget.faq.answer,
+              style: const TextStyle(
+                  color: AuroraColors.textSecondary, fontSize: 14),
             ),
           ],
-        ),
+        ],
       ),
     );
   }

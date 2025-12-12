@@ -1,8 +1,8 @@
 // LAYOUT 04 - AURORA - SPEED TEST PAGE
-// Design: Futuristic speed test with animated gauge
 
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
+import 'dart:async';
+import 'dart:math';
 import 'aurora_theme.dart';
 
 class SpeedTestPage extends StatefulWidget {
@@ -12,351 +12,242 @@ class SpeedTestPage extends StatefulWidget {
   State<SpeedTestPage> createState() => _SpeedTestPageState();
 }
 
-class _SpeedTestPageState extends State<SpeedTestPage>
-    with TickerProviderStateMixin {
-  late AnimationController _gaugeController;
-  late AnimationController _pulseController;
+class _SpeedTestPageState extends State<SpeedTestPage> {
   bool _isRunning = false;
+  bool _completed = false;
+  double _progress = 0;
   double _downloadSpeed = 0;
   double _uploadSpeed = 0;
   int _ping = 0;
-  String _status = 'Pronto para testar';
 
-  @override
-  void initState() {
-    super.initState();
-    _gaugeController = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    );
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 1),
-      vsync: this,
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _gaugeController.dispose();
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _startTest() async {
-    if (_isRunning) return;
-
+  void _startTest() async {
     setState(() {
       _isRunning = true;
+      _completed = false;
+      _progress = 0;
       _downloadSpeed = 0;
       _uploadSpeed = 0;
       _ping = 0;
-      _status = 'Testando ping...';
     });
 
-    _gaugeController.repeat();
+    // Simulate speed test
+    final random = Random();
 
-    // Simulate ping test
-    await Future.delayed(const Duration(seconds: 1));
+    // Ping
+    await Future.delayed(const Duration(milliseconds: 500));
     setState(() {
-      _ping = 12 + math.Random().nextInt(10);
-      _status = 'Testando download...';
+      _ping = 10 + random.nextInt(15);
+      _progress = 0.2;
     });
 
-    // Simulate download test
-    for (int i = 0; i <= 20; i++) {
-      await Future.delayed(const Duration(milliseconds: 150));
+    // Download
+    for (int i = 0; i < 10; i++) {
+      await Future.delayed(const Duration(milliseconds: 200));
       setState(() {
-        _downloadSpeed = 50 + (i * 2.5) + math.Random().nextDouble() * 5;
+        _downloadSpeed = 80 + random.nextDouble() * 20;
+        _progress = 0.2 + (i * 0.04);
       });
     }
 
-    setState(() => _status = 'Testando upload...');
-
-    // Simulate upload test
-    for (int i = 0; i <= 20; i++) {
-      await Future.delayed(const Duration(milliseconds: 150));
+    // Upload
+    for (int i = 0; i < 10; i++) {
+      await Future.delayed(const Duration(milliseconds: 200));
       setState(() {
-        _uploadSpeed = 50 + (i * 2.5) + math.Random().nextDouble() * 5;
+        _uploadSpeed = 40 + random.nextDouble() * 15;
+        _progress = 0.6 + (i * 0.04);
       });
     }
 
-    _gaugeController.stop();
     setState(() {
       _isRunning = false;
-      _status = 'Teste concluído';
+      _completed = true;
+      _progress = 1.0;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return AuroraBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
           backgroundColor: Colors.transparent,
-          title: ShaderMask(
-            shaderCallback: (bounds) =>
-                AuroraColors.primaryGradient.createShader(bounds),
-            child: const Text('Speed Test',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-          centerTitle: true,
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            // Main Gauge Card
-            GlassCard(
-              glowColor: _isRunning ? AuroraColors.neonCyan : null,
-              padding: const EdgeInsets.all(32),
+          elevation: 0,
+          pinned: true,
+          expandedHeight: 100,
+          automaticallyImplyLeading: false,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Container(
+              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
               child: Column(
-                children: [
-                  // Animated Gauge
-                  SizedBox(
-                    width: 200,
-                    height: 200,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Background ring
-                        AnimatedBuilder(
-                          animation: _gaugeController,
-                          builder: (context, child) {
-                            return CustomPaint(
-                              size: const Size(200, 200),
-                              painter: _SpeedGaugePainter(
-                                progress:
-                                    _isRunning ? _gaugeController.value : 0.5,
-                                isRunning: _isRunning,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: const [
+                  Text(
+                    'Teste de Velocidade',
+                    style: TextStyle(
+                      color: AuroraColors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              // Main Speed Display
+              AuroraCard(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    // Speed Indicator
+                    SizedBox(
+                      width: 180,
+                      height: 180,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 180,
+                            height: 180,
+                            child: CircularProgressIndicator(
+                              value: _isRunning
+                                  ? _progress
+                                  : (_completed ? 1.0 : 0.0),
+                              strokeWidth: 8,
+                              backgroundColor: AuroraColors.border,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _completed
+                                    ? AuroraColors.success
+                                    : AuroraColors.primary,
                               ),
-                            );
-                          },
-                        ),
-                        // Center display
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ShaderMask(
-                              shaderCallback: (bounds) => AuroraColors
-                                  .primaryGradient
-                                  .createShader(bounds),
-                              child: Text(
-                                _downloadSpeed.toStringAsFixed(1),
+                            ),
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _completed
+                                    ? _downloadSpeed.toStringAsFixed(1)
+                                    : (_isRunning ? '...' : '0'),
                                 style: const TextStyle(
+                                  color: AuroraColors.textPrimary,
                                   fontSize: 48,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
                                 ),
                               ),
-                            ),
-                            const Text(
-                              'Mbps',
-                              style:
-                                  TextStyle(color: AuroraColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Status
-                  AnimatedBuilder(
-                    animation: _pulseController,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity:
-                            _isRunning ? 0.5 + 0.5 * _pulseController.value : 1,
-                        child: Text(
-                          _status,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _isRunning
-                                ? AuroraColors.neonCyan
-                                : AuroraColors.textSecondary,
+                              const Text(
+                                'Mbps',
+                                style: TextStyle(
+                                    color: AuroraColors.textSecondary,
+                                    fontSize: 16),
+                              ),
+                            ],
                           ),
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Start Button
-                  NeonButton(
-                    text: _isRunning ? 'Testando...' : 'Iniciar Teste',
-                    icon: _isRunning ? Icons.hourglass_top : Icons.play_arrow,
-                    isLoading: _isRunning,
-                    onPressed: _isRunning ? null : _startTest,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Results
-            Row(
-              children: [
-                Expanded(
-                  child: _buildResultCard(
-                    'Download',
-                    _downloadSpeed > 0
-                        ? '${_downloadSpeed.toStringAsFixed(1)} Mbps'
-                        : '---',
-                    Icons.arrow_downward,
-                    AuroraColors.neonCyan,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildResultCard(
-                    'Upload',
-                    _uploadSpeed > 0
-                        ? '${_uploadSpeed.toStringAsFixed(1)} Mbps'
-                        : '---',
-                    Icons.arrow_upward,
-                    AuroraColors.neonPurple,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildResultCard(
-              'Latência (Ping)',
-              _ping > 0 ? '$_ping ms' : '---',
-              Icons.timer,
-              AuroraColors.success,
-            ),
-
-            const SizedBox(height: 24),
-
-            // Server Info
-            GlassCard(
-              child: Row(
-                children: [
-                  Icon(Icons.cloud, color: AuroraColors.neonCyan),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Servidor',
-                            style: TextStyle(
-                                color: AuroraColors.textMuted, fontSize: 12)),
-                        Text('São Paulo, BR',
-                            style: TextStyle(
-                                color: AuroraColors.textPrimary,
-                                fontWeight: FontWeight.w600)),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  Icon(Icons.signal_cellular_alt, color: AuroraColors.success),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                    const SizedBox(height: 32),
 
-  Widget _buildResultCard(
-      String label, String value, IconData icon, Color color) {
-    return GlassCard(
-      glowColor: color.withOpacity(0.5),
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(color: color.withOpacity(0.4), blurRadius: 15),
+                    // Start Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: AuroraButton(
+                        label: _isRunning ? 'Testando...' : 'Iniciar Teste',
+                        icon: _isRunning
+                            ? Icons.hourglass_top
+                            : Icons.play_arrow_rounded,
+                        onPressed: _isRunning ? () {} : _startTest,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_completed) ...[
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ResultCard(
+                        label: 'Download',
+                        value: '${_downloadSpeed.toStringAsFixed(1)} Mbps',
+                        icon: Icons.download_rounded,
+                        color: AuroraColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ResultCard(
+                        label: 'Upload',
+                        value: '${_uploadSpeed.toStringAsFixed(1)} Mbps',
+                        icon: Icons.upload_rounded,
+                        color: AuroraColors.secondary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ResultCard(
+                        label: 'Ping',
+                        value: '$_ping ms',
+                        icon: Icons.network_ping_rounded,
+                        color: AuroraColors.success,
+                      ),
+                    ),
+                  ],
+                ),
               ],
-            ),
-            child: Icon(icon, color: color, size: 24),
+
+              const SizedBox(height: 80),
+            ]),
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: color),
-          ),
-          Text(label,
-              style:
-                  TextStyle(color: AuroraColors.textSecondary, fontSize: 13)),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _SpeedGaugePainter extends CustomPainter {
-  final double progress;
-  final bool isRunning;
+class _ResultCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
 
-  _SpeedGaugePainter({required this.progress, required this.isRunning});
+  const _ResultCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 10;
-
-    // Background arc
-    final bgPaint = Paint()
-      ..color = AuroraColors.glassBorder
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      math.pi * 0.75,
-      math.pi * 1.5,
-      false,
-      bgPaint,
-    );
-
-    // Gradient arc
-    if (isRunning) {
-      final gradient = SweepGradient(
-        startAngle: math.pi * 0.75,
-        endAngle: math.pi * 0.75 + math.pi * 1.5,
-        colors: const [
-          AuroraColors.neonCyan,
-          AuroraColors.neonPurple,
-          AuroraColors.neonPink,
+  Widget build(BuildContext context) {
+    return AuroraCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AuroraColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+                color: AuroraColors.textSecondary, fontSize: 11),
+          ),
         ],
-      );
-
-      final progressPaint = Paint()
-        ..shader = gradient
-            .createShader(Rect.fromCircle(center: center, radius: radius))
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        math.pi * 0.75,
-        math.pi * 1.5 * progress,
-        false,
-        progressPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SpeedGaugePainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.isRunning != isRunning;
+      ),
+    );
   }
 }

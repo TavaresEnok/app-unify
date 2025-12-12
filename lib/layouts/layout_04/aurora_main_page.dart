@@ -1,5 +1,5 @@
 // LAYOUT 04 - AURORA - MAIN NAVIGATION WRAPPER
-// Provides bottom navigation for Aurora layout pages
+// Design: Clean bottom navigation with gradient background
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,18 +28,6 @@ class _AuroraMainPageState extends State<AuroraMainPage> {
   late String _currentPage;
   int _bottomNavIndex = 0;
 
-  final List<Map<String, dynamic>> _bottomNavItems = [
-    {'id': 'dashboard', 'icon': Icons.home_rounded, 'label': 'Home'},
-    {
-      'id': 'financeiro',
-      'icon': Icons.receipt_long_rounded,
-      'label': 'Faturas'
-    },
-    {'id': 'diagnostico', 'icon': Icons.router_rounded, 'label': 'ONU'},
-    {'id': 'suporte', 'icon': Icons.headset_mic_rounded, 'label': 'Suporte'},
-    {'id': 'more', 'icon': Icons.menu_rounded, 'label': 'Mais'},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -49,20 +37,29 @@ class _AuroraMainPageState extends State<AuroraMainPage> {
   void _navigateTo(String pageId) {
     setState(() {
       _currentPage = pageId;
-      // Update bottom nav index if it's a main page
-      final idx = _bottomNavItems.indexWhere((item) => item['id'] == pageId);
-      if (idx >= 0 && idx < 4) {
-        _bottomNavIndex = idx;
+      // Update bottom nav index
+      switch (pageId) {
+        case 'dashboard':
+          _bottomNavIndex = 0;
+          break;
+        case 'financeiro':
+          _bottomNavIndex = 1;
+          break;
+        case 'diagnostico':
+          _bottomNavIndex = 2;
+          break;
+        case 'suporte':
+          _bottomNavIndex = 3;
+          break;
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AuroraColors.background,
+    return AuroraScaffold(
       body: _buildCurrentPage(),
-      bottomNavigationBar: _buildBottomNavBar(),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -91,70 +88,104 @@ class _AuroraMainPageState extends State<AuroraMainPage> {
     }
   }
 
-  Widget _buildBottomNavBar() {
+  Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
         color: AuroraColors.surface,
         border: Border(
-          top: BorderSide(color: AuroraColors.glassBorder, width: 1),
+          top: BorderSide(color: AuroraColors.border, width: 1),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_bottomNavItems.length, (index) {
-              final item = _bottomNavItems[index];
-              final isSelected = _bottomNavIndex == index;
-
-              if (item['id'] == 'more') {
-                return _buildMoreButton();
-              }
-
-              return _buildNavItem(
-                icon: item['icon'],
-                label: item['label'],
-                isSelected: isSelected,
-                onTap: () {
-                  setState(() => _bottomNavIndex = index);
-                  _navigateTo(item['id']);
-                },
-              );
-            }),
+            children: [
+              _NavItem(
+                icon: Icons.home_rounded,
+                label: 'Home',
+                isSelected: _bottomNavIndex == 0,
+                onTap: () => _navigateTo('dashboard'),
+              ),
+              _NavItem(
+                icon: Icons.receipt_long_rounded,
+                label: 'Faturas',
+                isSelected: _bottomNavIndex == 1,
+                onTap: () => _navigateTo('financeiro'),
+              ),
+              _NavItem(
+                icon: Icons.router_rounded,
+                label: 'ONU',
+                isSelected: _bottomNavIndex == 2,
+                onTap: () => _navigateTo('diagnostico'),
+              ),
+              _NavItem(
+                icon: Icons.headset_mic_rounded,
+                label: 'Suporte',
+                isSelected: _bottomNavIndex == 3,
+                onTap: () => _navigateTo('suporte'),
+              ),
+              _MoreButton(onNavigate: _navigateTo, onLogout: _handleLogout),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    final color = isSelected ? AuroraColors.neonCyan : AuroraColors.textMuted;
+  void _handleLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AuroraColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sair',
+            style: TextStyle(color: AuroraColors.textPrimary)),
+        content: const Text('Deseja realmente sair?',
+            style: TextStyle(color: AuroraColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AuroraColors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<AuthService>().logout();
+            },
+            child:
+                const Text('Sair', style: TextStyle(color: AuroraColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    return GestureDetector(
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isSelected ? AuroraColors.primary : AuroraColors.textMuted;
+
+    return InkWell(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AuroraColors.neonCyan.withOpacity(0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -173,42 +204,48 @@ class _AuroraMainPageState extends State<AuroraMainPage> {
       ),
     );
   }
+}
 
-  Widget _buildMoreButton() {
+class _MoreButton extends StatelessWidget {
+  final void Function(String) onNavigate;
+  final VoidCallback onLogout;
+
+  const _MoreButton({required this.onNavigate, required this.onLogout});
+
+  @override
+  Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      offset: const Offset(0, -200),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      offset: const Offset(0, -220),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: AuroraColors.surface,
       onSelected: (value) {
         if (value == 'logout') {
-          _handleLogout();
+          onLogout();
         } else {
-          _navigateTo(value);
+          onNavigate(value);
         }
       },
       itemBuilder: (context) => [
-        _buildPopupItem('consumo', Icons.data_usage_rounded, 'Consumo'),
-        _buildPopupItem('speed_test', Icons.speed_rounded, 'Speed Test'),
-        _buildPopupItem('meu_ip', Icons.language_rounded, 'Meu IP'),
-        _buildPopupItem('faq', Icons.help_outline_rounded, 'FAQ'),
-        _buildPopupItem('contrato', Icons.description_rounded, 'Contrato'),
+        _buildMenuItem('consumo', Icons.data_usage_rounded, 'Consumo'),
+        _buildMenuItem('speed_test', Icons.speed_rounded, 'Speed Test'),
+        _buildMenuItem('meu_ip', Icons.public_rounded, 'Meu IP'),
+        _buildMenuItem('faq', Icons.help_outline_rounded, 'FAQ'),
+        _buildMenuItem('contrato', Icons.description_rounded, 'Contrato'),
         const PopupMenuDivider(),
-        _buildPopupItem('logout', Icons.logout_rounded, 'Sair',
+        _buildMenuItem('logout', Icons.logout_rounded, 'Sair',
             isDestructive: true),
       ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.menu_rounded, color: AuroraColors.textMuted, size: 24),
-            const SizedBox(height: 4),
+          children: const [
+            Icon(Icons.more_horiz_rounded,
+                color: AuroraColors.textMuted, size: 24),
+            SizedBox(height: 4),
             Text(
               'Mais',
-              style: TextStyle(
-                color: AuroraColors.textMuted,
-                fontSize: 11,
-              ),
+              style: TextStyle(color: AuroraColors.textMuted, fontSize: 11),
             ),
           ],
         ),
@@ -216,7 +253,7 @@ class _AuroraMainPageState extends State<AuroraMainPage> {
     );
   }
 
-  PopupMenuItem<String> _buildPopupItem(
+  PopupMenuItem<String> _buildMenuItem(
       String value, IconData icon, String label,
       {bool isDestructive = false}) {
     final color = isDestructive ? AuroraColors.error : AuroraColors.textPrimary;
@@ -227,34 +264,6 @@ class _AuroraMainPageState extends State<AuroraMainPage> {
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 12),
           Text(label, style: TextStyle(color: color)),
-        ],
-      ),
-    );
-  }
-
-  void _handleLogout() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AuroraColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Sair',
-            style: TextStyle(color: AuroraColors.textPrimary)),
-        content: const Text('Deseja realmente sair?',
-            style: TextStyle(color: AuroraColors.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancelar',
-                style: TextStyle(color: AuroraColors.textMuted)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.read<AuthService>().logout();
-            },
-            child: Text('Sair', style: TextStyle(color: AuroraColors.error)),
-          ),
         ],
       ),
     );

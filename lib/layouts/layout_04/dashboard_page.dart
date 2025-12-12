@@ -1,42 +1,15 @@
 // LAYOUT 04 - AURORA - DASHBOARD PAGE
-// Design: Futuristic glassmorphic dashboard with animated stats
+// Design: Clean gradient dashboard following layout_06/07 patterns
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/providers/configuration_provider.dart';
 import 'aurora_theme.dart';
 
-class DashboardPage extends StatefulWidget {
+class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
-
-  @override
-  State<DashboardPage> createState() => _DashboardPageState();
-}
-
-class _DashboardPageState extends State<DashboardPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
-    );
-    _animController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,467 +18,419 @@ class _DashboardPageState extends State<DashboardPage>
     final usuario = authService.usuario;
     final config = configProvider.providerConfig;
 
-    return AuroraBackground(
-      child: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: CustomScrollView(
-            slivers: [
-              // Header
-              SliverToBoxAdapter(
-                child: _buildHeader(context, usuario?.nome ?? 'Cliente',
-                    config?.name ?? 'Provedor'),
-              ),
+    final customerName = usuario?.nome ?? 'Cliente';
+    final planName = usuario?.plano ?? 'Plano';
+    final status = usuario?.status ?? 'Ativo';
+    final isActive = status.toLowerCase() == 'ativo';
 
-              // Stats Grid
-              SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.1,
+    return CustomScrollView(
+      slivers: [
+        // Header
+        _AuroraHeader(
+          customerName: customerName,
+          planName: planName,
+          status: status,
+          isActive: isActive,
+          onMenuTap: () => Scaffold.of(context).openDrawer(),
+        ),
+
+        // Content
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              // Fatura Card
+              _BillCard(
+                amount: double.tryParse(usuario?.valorFatura ?? '0') ?? 0,
+                dueDate: _parseDate(usuario?.vencimentoFatura),
+              ),
+              const SizedBox(height: 16),
+
+              // Stats Row
+              Row(
+                children: [
+                  Expanded(
+                    child: AuroraStatCard(
+                      title: 'Seu Plano',
+                      value: planName,
+                      subtitle: '∞ Ilimitado',
+                      icon: Icons.speed_rounded,
+                      accentColor: AuroraColors.primary,
+                    ),
                   ),
-                  delegate: SliverChildListDelegate([
-                    _buildAnimatedCard(
-                        0,
-                        NeonStatCard(
-                          title: 'Seu Plano',
-                          value: usuario?.plano ?? '100 Mega',
-                          subtitle: '∞ Ilimitado',
-                          icon: Icons.speed,
-                          accentColor: AuroraColors.neonCyan,
-                        )),
-                    _buildAnimatedCard(
-                        1,
-                        NeonStatCard(
-                          title: 'Conexão',
-                          value: 'Online',
-                          subtitle: 'Fibra Óptica',
-                          icon: Icons.wifi,
-                          accentColor: AuroraColors.success,
-                        )),
-                    _buildAnimatedCard(
-                        2,
-                        NeonStatCard(
-                          title: 'Faturas',
-                          value: 'Em dia',
-                          subtitle: 'Nenhuma pendente',
-                          icon: Icons.receipt_long,
-                          accentColor: AuroraColors.neonPurple,
-                        )),
-                    _buildAnimatedCard(
-                        3,
-                        NeonStatCard(
-                          title: 'Suporte',
-                          value: '24/7',
-                          subtitle: 'Atendimento',
-                          icon: Icons.headset_mic,
-                          accentColor: AuroraColors.neonPink,
-                        )),
-                  ]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AuroraStatCard(
+                      title: 'Conexão',
+                      value: isActive ? 'Online' : 'Offline',
+                      subtitle: 'Fibra Óptica',
+                      icon: Icons.wifi_rounded,
+                      accentColor:
+                          isActive ? AuroraColors.success : AuroraColors.error,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Quick Actions Title
+              const Text(
+                'Acesso Rápido',
+                style: TextStyle(
+                  color: AuroraColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 16),
 
-              // Quick Actions Section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Ações Rápidas',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AuroraColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildQuickActionsRow(context),
-                    ],
-                  ),
-                ),
-              ),
+              // Quick Actions Grid
+              const _QuickActionsGrid(),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SizedBox(height: 24),
 
-              // Recent Activity
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Atividade Recente',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AuroraColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildActivityList(),
-                    ],
-                  ),
-                ),
-              ),
+              // Support Card
+              const _SupportCard(),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
+              const SizedBox(height: 80),
+            ]),
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildHeader(
-      BuildContext context, String userName, String providerName) {
-    final firstName = userName.split(' ').first;
+  DateTime _parseDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return DateTime.now();
+    try {
+      return DateFormat('dd/MM/yyyy').parse(dateStr);
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+}
+
+class _AuroraHeader extends StatelessWidget {
+  final String customerName;
+  final String planName;
+  final String status;
+  final bool isActive;
+  final VoidCallback onMenuTap;
+
+  const _AuroraHeader({
+    required this.customerName,
+    required this.planName,
+    required this.status,
+    required this.isActive,
+    required this.onMenuTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final firstName = customerName.split(' ').first;
     final hour = DateTime.now().hour;
     String greeting = 'Bom dia';
     if (hour >= 12 && hour < 18) greeting = 'Boa tarde';
     if (hour >= 18) greeting = 'Boa noite';
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return SliverAppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      pinned: true,
+      expandedHeight: 140,
+      automaticallyImplyLeading: false,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$greeting,',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AuroraColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  ShaderMask(
-                    shaderCallback: (bounds) =>
-                        AuroraColors.primaryGradient.createShader(bounds),
-                    child: Text(
-                      firstName,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Notification & Profile
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildIconButton(Icons.notifications_outlined, () {}),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: AuroraColors.primaryGradient,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AuroraColors.neonCyan.withOpacity(0.4),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Speed Indicator Card
-          GlassCard(
-            padding: const EdgeInsets.all(20),
-            glowColor: AuroraColors.neonCyan,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: AuroraColors.success,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AuroraColors.success.withOpacity(0.6),
-                                  blurRadius: 10,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Conexão Estável',
-                            style: TextStyle(
-                              color: AuroraColors.success,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        '$greeting,',
+                        style: const TextStyle(
+                          color: AuroraColors.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          _buildSpeedIndicator(
-                              '↓', '98.5', 'Mbps', AuroraColors.neonCyan),
-                          const SizedBox(width: 24),
-                          _buildSpeedIndicator(
-                              '↑', '98.2', 'Mbps', AuroraColors.neonPurple),
-                          const SizedBox(width: 24),
-                          _buildSpeedIndicator(
-                              '◉', '12', 'ms', AuroraColors.success),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        firstName,
+                        style: const TextStyle(
+                          color: AuroraColors.textPrimary,
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AuroraColors.neonCyan.withOpacity(0.3),
-                        AuroraColors.neonCyan.withOpacity(0.0),
-                      ],
-                    ),
+                  Row(
+                    children: [
+                      _HeaderIconButton(
+                        icon: Icons.notifications_outlined,
+                        onTap: () {},
+                      ),
+                      const SizedBox(width: 8),
+                      _HeaderIconButton(
+                        icon: Icons.menu_rounded,
+                        onTap: onMenuTap,
+                      ),
+                    ],
                   ),
-                  child: Icon(
-                    Icons.signal_wifi_4_bar,
-                    color: AuroraColors.neonCyan,
-                    size: 40,
-                  ),
-                ),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              AuroraStatusBadge(
+                text: status,
+                color: isActive ? AuroraColors.success : AuroraColors.error,
+                icon: isActive ? Icons.check_circle : Icons.error,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildSpeedIndicator(
-      String arrow, String value, String unit, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          arrow,
-          style: TextStyle(color: color, fontSize: 16),
-        ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AuroraColors.textPrimary,
-              ),
-            ),
-            const SizedBox(width: 2),
-            Text(
-              unit,
-              style: TextStyle(
-                fontSize: 12,
-                color: AuroraColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
 
-  Widget _buildIconButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: AuroraColors.glassWhite,
-          shape: BoxShape.circle,
-          border: Border.all(color: AuroraColors.glassBorder),
+          color: AuroraColors.surfaceLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AuroraColors.border),
         ),
         child: Icon(icon, color: AuroraColors.textPrimary, size: 22),
       ),
     );
   }
+}
 
-  Widget _buildAnimatedCard(int index, Widget child) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 400 + (index * 100)),
-      curve: Curves.easeOutBack,
-      builder: (context, value, _) {
-        return Transform.scale(
-          scale: value,
-          child: Opacity(opacity: value, child: child),
-        );
-      },
-    );
-  }
+class _BillCard extends StatelessWidget {
+  final double amount;
+  final DateTime dueDate;
 
-  Widget _buildQuickActionsRow(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-            child: _buildQuickAction(
-                'Faturas', Icons.receipt_long, AuroraColors.neonPurple)),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _buildQuickAction(
-                'Suporte', Icons.headset_mic, AuroraColors.neonCyan)),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _buildQuickAction(
-                'Speed Test', Icons.speed, AuroraColors.neonPink)),
-      ],
-    );
-  }
+  const _BillCard({required this.amount, required this.dueDate});
 
-  Widget _buildQuickAction(String label, IconData icon, Color color) {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+  @override
+  Widget build(BuildContext context) {
+    final isOverdue = dueDate.isBefore(DateTime.now());
+    final formattedAmount =
+        NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$').format(amount);
+    final formattedDate = DateFormat("d 'de' MMMM", 'pt_BR').format(dueDate);
+
+    return AuroraCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          NeonIconBadge(icon: icon, color: color, size: 48),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              const AuroraIconBox(
+                icon: Icons.receipt_long_rounded,
+                color: AuroraColors.secondary,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Sua Fatura',
+                  style: TextStyle(
+                    color: AuroraColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              AuroraStatusBadge(
+                text: isOverdue ? 'Vencida' : 'Em dia',
+                color: isOverdue ? AuroraColors.error : AuroraColors.success,
+                icon: isOverdue
+                    ? Icons.warning_amber_rounded
+                    : Icons.check_circle_outline,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           Text(
-            label,
+            formattedAmount,
             style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
               color: AuroraColors.textPrimary,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Vencimento: $formattedDate',
+            style: const TextStyle(
+              color: AuroraColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: AuroraButton(
+                  label: 'Pagar agora',
+                  icon: Icons.payment_rounded,
+                  onPressed: () {},
+                ),
+              ),
+              const SizedBox(width: 12),
+              AuroraButton(
+                label: 'Ver faturas',
+                onPressed: () {},
+                isOutlined: true,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildActivityList() {
-    final activities = [
-      {
-        'title': 'Fatura paga',
-        'time': 'Há 2 dias',
-        'icon': Icons.check_circle,
-        'color': AuroraColors.success
-      },
-      {
-        'title': 'Speed test realizado',
-        'time': 'Há 5 dias',
-        'icon': Icons.speed,
-        'color': AuroraColors.neonCyan
-      },
-      {
-        'title': 'Login no app',
-        'time': 'Há 1 semana',
-        'icon': Icons.login,
-        'color': AuroraColors.neonPurple
-      },
+class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = [
+      _QuickAction(
+          icon: Icons.receipt_long_rounded,
+          label: 'Faturas',
+          color: AuroraColors.secondary),
+      _QuickAction(
+          icon: Icons.data_usage_rounded,
+          label: 'Consumo',
+          color: AuroraColors.primary),
+      _QuickAction(
+          icon: Icons.support_agent_rounded,
+          label: 'Suporte',
+          color: AuroraColors.warning),
+      _QuickAction(
+          icon: Icons.router_rounded,
+          label: 'ONU',
+          color: AuroraColors.success),
+      _QuickAction(
+          icon: Icons.speed_rounded,
+          label: 'Speed Test',
+          color: AuroraColors.error),
+      _QuickAction(
+          icon: Icons.public_rounded,
+          label: 'Meu IP',
+          color: AuroraColors.primary),
     ];
 
-    return GlassCard(
-      padding: const EdgeInsets.all(0),
-      child: Column(
-        children: activities.asMap().entries.map((entry) {
-          final index = entry.key;
-          final activity = entry.value;
-          final isLast = index == activities.length - 1;
-
-          return Column(
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: actions.length,
+      itemBuilder: (context, index) {
+        final action = actions[index];
+        return AuroraCard(
+          onTap: () {},
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: (activity['color'] as Color).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        activity['icon'] as IconData,
-                        color: activity['color'] as Color,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            activity['title'] as String,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AuroraColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            activity['time'] as String,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AuroraColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: AuroraColors.textMuted,
-                    ),
-                  ],
+              AuroraIconBox(icon: action.icon, color: action.color, size: 44),
+              const SizedBox(height: 10),
+              Text(
+                action.label,
+                style: const TextStyle(
+                  color: AuroraColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
+                textAlign: TextAlign.center,
               ),
-              if (!isLast)
-                Divider(height: 1, color: AuroraColors.glassBorder, indent: 72),
             ],
-          );
-        }).toList(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  _QuickAction({required this.icon, required this.label, required this.color});
+}
+
+class _SupportCard extends StatelessWidget {
+  const _SupportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AuroraCard(
+      child: Row(
+        children: [
+          const AuroraIconBox(
+            icon: Icons.warning_amber_rounded,
+            color: AuroraColors.warning,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Problemas técnicos?',
+                  style: TextStyle(
+                    color: AuroraColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Faça um diagnóstico automático',
+                  style: TextStyle(
+                    color: AuroraColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () {},
+            child: const Text(
+              'Iniciar',
+              style: TextStyle(
+                  color: AuroraColors.primary, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
