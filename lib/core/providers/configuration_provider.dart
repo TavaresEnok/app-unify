@@ -51,6 +51,11 @@ class ConfigurationProvider with ChangeNotifier {
 
         _providerConfig = ProviderConfig.fromJson(safeData, providerId);
 
+        // DEBUG: Print layoutType being loaded
+        print(
+            "🎨 [DEBUG] layoutType from Firestore: ${_providerConfig?.layoutType}");
+        print("🎨 [DEBUG] Raw layoutType in JSON: ${safeData['layoutType']}");
+
         // 3. Atualiza o cache
         await _saveToCache(providerId, safeData);
         print("✅ Configuração '$providerId' atualizada do servidor.");
