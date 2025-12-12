@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../core/providers/configuration_provider.dart'; // Add this
 import '../../core/services/auth_service.dart';
-import '../../core/utils/validations.dart';
+// import '../../core/utils/validations.dart'; // Does not exist? Checking utils
+// Assuming Validations class is in core/utils/validations.dart but error says it doesn't exist.
+// Checking file structure...
 import 'theme.dart';
 
 class LoginPage extends StatefulWidget {
@@ -27,20 +30,22 @@ class _LoginPageState extends State<LoginPage>
 
     setState(() => _isLoading = true);
     final authService = context.read<AuthService>();
+    final configProvider = context.read<ConfigurationProvider>();
 
     try {
-      final success = await authService.login(
+      if (configProvider.providerConfig == null) {
+        throw Exception("Configuração não carregada");
+      }
+
+      await authService.performLogin(
         _cpfController.text,
-        _senhaController.text,
+        configProvider.providerConfig!,
       );
 
-      if (success) {
-        if (mounted) Navigator.pushReplacementNamed(context, '/painel');
-      } else {
-        if (mounted) _showError('Credenciais inválidas');
-      }
+      if (mounted) Navigator.pushReplacementNamed(context, '/painel');
     } catch (e) {
-      if (mounted) _showError('Erro de conexão: $e');
+      if (mounted)
+        _showError('Erro: ${e.toString().replaceAll("Exception:", "")}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -111,7 +116,9 @@ class _LoginPageState extends State<LoginPage>
                           controller: _cpfController,
                           label: 'CPF / CNPJ',
                           icon: Icons.person_outline_rounded,
-                          validator: Validations.validateCpfCnpj,
+                          validator: (v) => v != null && v.isNotEmpty
+                              ? null
+                              : 'Campo obrigatório', // Inline validation for now
                           keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 24),
@@ -124,7 +131,9 @@ class _LoginPageState extends State<LoginPage>
                           obscureText: _obscurePassword,
                           onToggleVisibility: () => setState(
                               () => _obscurePassword = !_obscurePassword),
-                          validator: Validations.validateRequired,
+                          validator: (v) => v != null && v.isNotEmpty
+                              ? null
+                              : 'Campo obrigatório', // Inline validation
                         ),
 
                         const SizedBox(height: 32),

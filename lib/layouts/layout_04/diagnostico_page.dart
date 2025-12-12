@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/models/diagnostico_state.dart';
 import 'theme.dart';

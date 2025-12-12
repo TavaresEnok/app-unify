@@ -5,18 +5,21 @@ import 'layouts/layout_02/dashboard_page.dart' as l02;
 import 'layouts/layout_03/dashboard_page.dart' as l03;
 import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
+import 'layouts/layout_04/dashboard_page.dart' as l04;
 
 // Imports dos Logins
 import 'layouts/layout_02/login_page.dart' as l02_login;
 import 'layouts/layout_03/login_page.dart' as l03_login;
 import 'layouts/layout_06/login_page.dart' as l06_login;
 import 'layouts/layout_07/login_page.dart' as l07_login;
+import 'layouts/layout_04/login_page.dart' as l04_login;
 
 // Imports do Financeiro
 import 'layouts/layout_02/financeiro_page.dart' as l02_fin;
 import 'layouts/layout_03/financeiro_page.dart' as l03_fin;
 import 'layouts/layout_06/financeiro_page.dart' as l06_fin;
 import 'layouts/layout_07/financeiro_page.dart' as l07_fin;
+import 'layouts/layout_04/financeiro_page.dart' as l04_fin;
 
 // Imports do Suporte
 import 'layouts/layout_02/suporte_page.dart' as l02_sup;
@@ -29,6 +32,7 @@ import 'layouts/layout_02/diagnostico_page.dart' as l02_diag;
 import 'layouts/layout_03/diagnostico_page.dart' as l03_diag;
 import 'layouts/layout_06/diagnostico_page.dart' as l06_diag;
 import 'layouts/layout_07/diagnostico_page.dart' as l07_diag;
+import 'layouts/layout_04/diagnostico_page.dart' as l04_diag;
 
 // Imports do Consumo
 import 'layouts/layout_02/consumo_page.dart' as l02_cons;
@@ -62,6 +66,7 @@ import 'layouts/layout_05/meu_ip_page.dart' as l05_ip;
 import 'layouts/layout_05/faq_page.dart' as l05_faq;
 import 'layouts/layout_05/contrato_page.dart' as l05_cont;
 import 'layouts/layout_05/wifi_page.dart' as l05_wifi;
+import 'layouts/layout_04/wifi_page.dart' as l04_wifi;
 
 import 'layouts/layout_06/contrato_page.dart' as l06_cont;
 import 'layouts/layout_07/contrato_page.dart' as l07_cont;
@@ -133,6 +138,9 @@ class LayoutSelector {
           actionColor: actionColor,
         );
 
+      case 'layout_04':
+        return l04.DashboardPage(onNavigate: onNavigate);
+
       case 'layout_05':
         return l05.DashboardPage(
           customerName: customerName,
@@ -202,8 +210,7 @@ class LayoutSelector {
       case 'layout_05':
         return const l05_login.LoginPage();
       case 'layout_04':
-        // Layout 04 Aurora uses layout_06 login
-        return const l06_login.LoginPage();
+        return const l04_login.LoginPage();
       case 'layout_06':
         return const l06_login.LoginPage();
       case 'layout_07':
@@ -228,6 +235,8 @@ class LayoutSelector {
         return const l06_fin.FinanceiroPage();
       case 'layout_07':
         return const l07_fin.FinanceiroPage();
+      case 'layout_04':
+        return const l04_fin.FinanceiroPage();
       default:
         return const l06_fin.FinanceiroPage();
     }
@@ -268,6 +277,8 @@ class LayoutSelector {
         return const l06_diag.DiagnosticoPage();
       case 'layout_07':
         return const l07_diag.DiagnosticoPage();
+      case 'layout_04':
+        return const l04_diag.DiagnosticoPage();
       default:
         return const l06_diag.DiagnosticoPage();
     }
@@ -358,6 +369,8 @@ class LayoutSelector {
     switch (layoutType) {
       case 'layout_05':
         return const l05_wifi.WifiPage();
+      case 'layout_04':
+        return const l04_wifi.WifiPage();
       default:
         // Se outros layouts não tiverem WifiPage, retornar placeholder ou Layout 05 como fallback
         return const Center(
@@ -376,6 +389,11 @@ class LayoutSelector {
       'id': 'layout_03',
       'name': 'Minimalista',
       'description': 'Cards brancos, ações rápidas'
+    },
+    {
+      'id': 'layout_04',
+      'name': 'Aurora Connect',
+      'description': 'Glassmorphism com gradientes animados'
     },
     {
       'id': 'layout_05',

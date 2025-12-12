@@ -35,7 +35,7 @@ class DashboardPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                            "Olá, ${usuario?.nome?.split(' ').first ?? 'Cliente'}",
+                            "Olá, ${usuario?.nome.split(' ').first ?? 'Cliente'}",
                             style: Layout04Theme.heading1),
                         const SizedBox(height: 4),
                         Text("Tudo certo com sua conexão",
@@ -59,7 +59,7 @@ class DashboardPage extends StatelessWidget {
                         radius: 24,
                         backgroundColor: Colors.white.withOpacity(0.1),
                         child: Text(
-                          usuario?.nome?.substring(0, 1) ?? "C",
+                          usuario?.nome.substring(0, 1) ?? "C",
                           style: const TextStyle(
                               color: Colors.white, fontWeight: FontWeight.bold),
                         ),

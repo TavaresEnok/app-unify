@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/providers/configuration_provider.dart';
 import 'theme.dart';
 
 class FinanceiroPage extends StatelessWidget {
