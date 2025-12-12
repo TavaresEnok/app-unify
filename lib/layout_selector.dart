@@ -51,6 +51,17 @@ import 'layouts/layout_07/faq_page.dart' as l07_faq;
 // Imports do Contrato
 import 'layouts/layout_02/contrato_page.dart' as l02_cont;
 import 'layouts/layout_03/contrato_page.dart' as l03_cont;
+// Imports do Layout 05
+import 'layouts/layout_05/dashboard_page.dart' as l05;
+import 'layouts/layout_05/login_page.dart' as l05_login;
+import 'layouts/layout_05/financeiro_page.dart' as l05_fin;
+import 'layouts/layout_05/suporte_page.dart' as l05_sup;
+import 'layouts/layout_05/diagnostico_page.dart' as l05_diag;
+import 'layouts/layout_05/consumo_page.dart' as l05_cons;
+import 'layouts/layout_05/meu_ip_page.dart' as l05_ip;
+import 'layouts/layout_05/faq_page.dart' as l05_faq;
+import 'layouts/layout_05/contrato_page.dart' as l05_cont;
+
 import 'layouts/layout_06/contrato_page.dart' as l06_cont;
 import 'layouts/layout_07/contrato_page.dart' as l07_cont;
 
@@ -121,6 +132,20 @@ class LayoutSelector {
           actionColor: actionColor,
         );
 
+      case 'layout_05':
+        return l05.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+        );
+
       case 'layout_06':
         return l06.ProviderDashboardPage(
           customerName: customerName,
@@ -173,6 +198,8 @@ class LayoutSelector {
         return const l02_login.LoginPage();
       case 'layout_03':
         return const l03_login.LoginPage();
+      case 'layout_05':
+        return const l05_login.LoginPage();
       case 'layout_04':
         // Layout 04 Aurora uses layout_06 login
         return const l06_login.LoginPage();
@@ -193,6 +220,9 @@ class LayoutSelector {
       case 'layout_03':
         return const l03_fin.FinanceiroPage();
 
+      case 'layout_05':
+        return const l05_fin.FinanceiroPage();
+
       case 'layout_06':
         return const l06_fin.FinanceiroPage();
       case 'layout_07':
@@ -209,6 +239,9 @@ class LayoutSelector {
         return const l02_sup.SuportePage();
       case 'layout_03':
         return const l03_sup.SuportePage();
+
+      case 'layout_05':
+        return const l05_sup.SuportePage();
 
       case 'layout_06':
         return const l06_sup.SuportePage();
@@ -227,6 +260,9 @@ class LayoutSelector {
       case 'layout_03':
         return const l03_diag.DiagnosticoPage();
 
+      case 'layout_05':
+        return const l05_diag.DiagnosticoPage();
+
       case 'layout_06':
         return const l06_diag.DiagnosticoPage();
       case 'layout_07':
@@ -243,6 +279,9 @@ class LayoutSelector {
         return const l02_cons.ConsumoPage();
       case 'layout_03':
         return const l03_cons.ConsumoPage();
+
+      case 'layout_05':
+        return const l05_cons.ConsumoPage();
 
       case 'layout_06':
         return const l06_cons.ConsumoPage();
@@ -261,6 +300,9 @@ class LayoutSelector {
       case 'layout_03':
         return const l03_ip.MeuIpPage();
 
+      case 'layout_05':
+        return const l05_ip.MeuIpPage();
+
       case 'layout_06':
         return const l06_ip.MeuIpPage();
       case 'layout_07':
@@ -278,6 +320,9 @@ class LayoutSelector {
       case 'layout_03':
         return const l03_faq.FaqPage();
 
+      case 'layout_05':
+        return const l05_faq.FaqPage();
+
       case 'layout_06':
         return const l06_faq.FaqPage();
       case 'layout_07':
@@ -294,6 +339,9 @@ class LayoutSelector {
         return const l02_cont.ContratoPage();
       case 'layout_03':
         return const l03_cont.ContratoPage();
+
+      case 'layout_05':
+        return const l05_cont.ContratoPage();
 
       case 'layout_06':
         return const l06_cont.ContratoPage();
@@ -315,6 +363,11 @@ class LayoutSelector {
       'id': 'layout_03',
       'name': 'Minimalista',
       'description': 'Cards brancos, ações rápidas'
+    },
+    {
+      'id': 'layout_05',
+      'name': 'Neo Digital',
+      'description': 'Estilo futurista com efeitos neon e vidro'
     },
     {
       'id': 'layout_06',
