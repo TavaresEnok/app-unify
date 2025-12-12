@@ -4,7 +4,7 @@ import '../../core/services/auth_service.dart';
 import 'theme.dart';
 
 class DashboardPage extends StatelessWidget {
-  final Function(int) onNavigate;
+  final Function(String) onNavigate;
 
   const DashboardPage({super.key, required this.onNavigate});
 
@@ -131,7 +131,8 @@ class DashboardPage extends StatelessWidget {
                       icon: Icons.receipt_long_rounded,
                       label: "Segunda Via",
                       color: Layout04Theme.neonCyan,
-                      onTap: () => onNavigate(2), // Financeiro
+                      onTap: () =>
+                          onNavigate('invoices'), // Mapped to 'invoices'
                     ),
                     _buildShortcutCard(
                       icon: Icons.speed_rounded,
@@ -143,13 +144,13 @@ class DashboardPage extends StatelessWidget {
                       icon: Icons.wifi_tethering,
                       label: "Meu Wi-Fi",
                       color: Layout04Theme.neonPink,
-                      onTap: () => onNavigate(1), // Wifi
+                      onTap: () => onNavigate('wifi'), // Mapped to 'wifi'
                     ),
                     _buildShortcutCard(
                       icon: Icons.headset_mic_rounded,
                       label: "Suporte",
                       color: Colors.white,
-                      onTap: () => onNavigate(3), // Suporte
+                      onTap: () => onNavigate('support'), // Mapped to 'support'
                     ),
                   ],
                 ),
