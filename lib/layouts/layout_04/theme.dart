@@ -1,87 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Layout 04 - Cyber Wave Theme
-/// Glassmorphism + Vibrant Gradients + Neon Accents
 class Layout04Theme {
-  // === COLORS ===
+  // --- Colors ---
+  static const Color background = Color(0xFF101010); // Deep matte black
+  static const Color surface = Color(0xFF1C1C1E); // Dark grey surface
+  static const Color surfaceHighlight =
+      Color(0xFF2C2C2E); // Lighter grey for interactions
+  static const Color secondarySurface = Color(0xFF252525); // Secondary surface
 
-  // Background
-  static const Color background = Color(0xFF0A0E27);
-  static const Color backgroundLight = Color(0xFF12162E);
+  static const Color primary = Color(0xFF5E5CE6); // Modern Violet/Indigo
+  static const Color primaryVariant = Color(0xFF7D7AFF);
 
-  // Primary Gradient Colors
-  static const Color primaryCyan = Color(0xFF00D9FF);
-  static const Color primaryPurple = Color(0xFF7B2FFF);
-  static const Color primaryPink = Color(0xFFFF2E97);
+  static const Color accent = Color(0xFF0A84FF); // Bright Blue for stats/links
+  static const Color success = Color(0xFF32D74B); // iOS Green
+  static const Color warning = Color(0xFFFFD60A); // iOS Yellow
+  static const Color error = Color(0xFFFF453A); // iOS Red
 
-  // Accent Colors
-  static const Color neonGreen = Color(0xFF00FF88);
-  static const Color neonRed = Color(0xFFFF3366);
-  static const Color neonYellow = Color(0xFFFFD600);
-
-  // Text Colors
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB0B8D4);
-  static const Color textTertiary = Color(0xFF6B7399);
+  static const Color textSecondary = Color(0xFF8E8E93); // Light Grey
+  static const Color textTertiary = Color(0xFF636366); // Darker Grey
+  static const Color border = Color(0xFF3A3A3C); // Subtle border
 
-  // Glass/Frosted Colors
-  static const Color glassWhite = Color(0x1AFFFFFF); // 10% white
-  static const Color glassBorder = Color(0x33FFFFFF); // 20% white
-
-  // Status Colors
-  static const Color success = neonGreen;
-  static const Color error = neonRed;
-  static const Color warning = neonYellow;
-  static const Color info = primaryCyan;
-
-  // === GRADIENTS ===
-
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primaryCyan, primaryPurple],
+  // --- Gradients (Subtle) ---
+  // Using minimal gradients, mostly formatting utility
+  static LinearGradient primaryGradient = const LinearGradient(
+    colors: [primary, primaryVariant],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  static const LinearGradient secondaryGradient = LinearGradient(
-    colors: [primaryPurple, primaryPink],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  static const LinearGradient accentGradient = LinearGradient(
-    colors: [primaryCyan, primaryPink],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  static const LinearGradient backgroundGradient = LinearGradient(
-    colors: [
-      Color(0xFF0A0E27),
-      Color(0xFF12162E),
-      Color(0xFF1A1F3A),
-    ],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  // === TEXT STYLES ===
-
-  static TextStyle get heading1 => GoogleFonts.outfit(
+  // --- Text Styles ---
+  static TextStyle get heading1 => GoogleFonts.inter(
         fontSize: 32,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700, // Bold
         color: textPrimary,
         letterSpacing: -0.5,
       );
 
-  static TextStyle get heading2 => GoogleFonts.outfit(
+  static TextStyle get heading2 => GoogleFonts.inter(
         fontSize: 24,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w600, // SemiBold
         color: textPrimary,
-        letterSpacing: -0.3,
+        letterSpacing: -0.5,
       );
 
-  static TextStyle get heading3 => GoogleFonts.outfit(
+  static TextStyle get heading3 => GoogleFonts.inter(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: textPrimary,
@@ -89,129 +53,108 @@ class Layout04Theme {
 
   static TextStyle get bodyLarge => GoogleFonts.inter(
         fontSize: 16,
-        fontWeight: FontWeight.normal,
+        fontWeight: FontWeight.w400,
         color: textPrimary,
       );
 
   static TextStyle get bodyMedium => GoogleFonts.inter(
         fontSize: 14,
-        fontWeight: FontWeight.normal,
+        fontWeight: FontWeight.w400,
         color: textSecondary,
       );
 
   static TextStyle get bodySmall => GoogleFonts.inter(
         fontSize: 12,
-        fontWeight: FontWeight.normal,
-        color: textTertiary,
-      );
-
-  static TextStyle get buttonText => GoogleFonts.inter(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: textPrimary,
-        letterSpacing: 0.5,
+        fontWeight: FontWeight.w400,
+        color: textSecondary,
       );
 
   static TextStyle get caption => GoogleFonts.inter(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: textTertiary,
+        letterSpacing: 0.5,
       );
 
-  // === DECORATIONS ===
+  static TextStyle get buttonText => GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      );
 
-  /// Glass Card Decoration with blur effect
-  static BoxDecoration glassCard({
-    double borderRadius = 20,
-    Color? customColor,
-  }) {
-    return BoxDecoration(
-      color: customColor ?? glassWhite,
-      borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(
-        color: glassBorder,
-        width: 1.5,
+  // --- Decoration Helpers ---
+
+  // Standard Card Style
+  static BoxDecoration cardDecoration = BoxDecoration(
+    color: surface,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.2),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
       ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.3),
-          blurRadius: 20,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    );
-  }
-
-  /// Neon Glow Button Decoration
-  static BoxDecoration neonButton({
-    Gradient? gradient,
-    double borderRadius = 16,
-  }) {
-    return BoxDecoration(
-      gradient: gradient ?? primaryGradient,
-      borderRadius: BorderRadius.circular(borderRadius),
-      boxShadow: [
-        BoxShadow(
-          color: primaryCyan.withOpacity(0.5),
-          blurRadius: 20,
-          offset: const Offset(0, 5),
-        ),
-        BoxShadow(
-          color: primaryPurple.withOpacity(0.3),
-          blurRadius: 30,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    );
-  }
-
-  /// Status Badge Decoration
-  static BoxDecoration statusBadge(Color color) {
-    return BoxDecoration(
-      color: color.withOpacity(0.15),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(
-        color: color.withOpacity(0.4),
-        width: 1,
-      ),
-    );
-  }
-
-  /// Shimmer effect for loading states
-  static BoxDecoration shimmerDecoration = BoxDecoration(
-    gradient: LinearGradient(
-      colors: [
-        glassWhite,
-        Colors.white.withOpacity(0.3),
-        glassWhite,
-      ],
-      stops: const [0.0, 0.5, 1.0],
-    ),
+    ],
   );
 
-  // === SHAPES ===
+  // Active / Highlighted Card
+  static BoxDecoration activeCardDecoration = BoxDecoration(
+    color: surfaceHighlight,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: primary.withOpacity(0.3), width: 1),
+  );
 
-  static RoundedRectangleBorder cardShape({double radius = 20}) {
-    return RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(radius),
+  // Simple Input Decoration
+  static InputDecoration inputDecoration(String label, {IconData? icon}) {
+    return InputDecoration(
+      filled: true,
+      fillColor: surface,
+      labelText: label,
+      labelStyle: bodyMedium,
+      prefixIcon:
+          icon != null ? Icon(icon, color: textSecondary, size: 20) : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: border, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: error, width: 1),
+      ),
     );
   }
 
-  // === SHADOWS ===
+  // Primary Button Style
+  static ButtonStyle primaryButtonStyle = ElevatedButton.styleFrom(
+    backgroundColor: primary,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    shadowColor: Colors.transparent,
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    textStyle: buttonText,
+  );
 
-  static List<BoxShadow> get cardShadow => [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.3),
-          blurRadius: 20,
-          offset: const Offset(0, 10),
-        ),
-      ];
-
-  static List<BoxShadow> neonGlow(Color color) => [
-        BoxShadow(
-          color: color.withOpacity(0.5),
-          blurRadius: 20,
-          spreadRadius: 2,
-        ),
-      ];
+  // Secondary / Outline Button Style
+  static ButtonStyle outlineButtonStyle = OutlinedButton.styleFrom(
+    foregroundColor: textPrimary,
+    side: const BorderSide(color: border),
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    textStyle: buttonText.copyWith(fontSize: 14),
+  );
 }
