@@ -1,0 +1,311 @@
+import { useState } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
+import { Plus, Save, Eye, Trash2, GripVertical, BarChart3, Image as ImageIcon, Grid3x3, TrendingUp, Smartphone, ChevronUp, ChevronDown } from 'lucide-react';
+
+type WidgetType = 'stats_card' | 'banner' | 'action_grid' | 'carousel' | 'chart' | 'announcements' | 'quick_pay' | 'speed_test' | 'usage_meter';
+
+interface Widget {
+  id: string;
+  type: WidgetType;
+  position: number;
+  visible: boolean;
+  title?: string;
+  config: any;
+}
+
+const widgetIcons: Record<WidgetType, any> = {
+  stats_card: BarChart3,
+  banner: ImageIcon,
+  action_grid: Grid3x3,
+  carousel: ImageIcon,
+  chart: TrendingUp,
+  announcements: BarChart3,
+  quick_pay: BarChart3,
+  speed_test: TrendingUp,
+  usage_meter: BarChart3,
+};
+
+const widgetLabels: Record<WidgetType, string> = {
+  stats_card: 'Card de Estatísticas',
+  banner: 'Banner Promocional',
+  action_grid: 'Grid de Ações',
+  carousel: 'Carrossel',
+  chart: 'Gráfico',
+  announcements: 'Avisos',
+  quick_pay: 'Pagamento Rápido',
+  speed_test: 'Teste de Velocidade',
+  usage_meter: 'Medidor de Consumo',
+};
+
+export default function DashboardBuilder() {
+  const { config, setConfig, saveConfig, isSaving } = useSettings();
+  const [widgets, setWidgets] = useState<Widget[]>(config.dashboard?.widgets || []);
+  const [editingWidget, setEditingWidget] = useState<Widget | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const addWidget = (type: WidgetType) => {
+    const newWidget: Widget = {
+      id: `widget_${Date.now()}`,
+      type,
+      position: widgets.length + 1,
+      visible: true,
+      title: widgetLabels[type],
+      config: getDefaultConfig(type),
+    };
+    setWidgets([...widgets, newWidget]);
+    setEditingWidget(newWidget);
+    toast.success('Widget adicionado!');
+  };
+
+  const deleteWidget = (id: string) => {
+    if (confirm('Remover este widget?')) {
+      setWidgets(widgets.filter((w) => w.id !== id));
+      toast.success('Widget removido!');
+    }
+  };
+
+  const moveWidget = (id: string, direction: 'up' | 'down') => {
+    const index = widgets.findIndex(w => w.id === id);
+    if (index === -1) return;
+    
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= widgets.length) return;
+    
+    const newWidgets = [...widgets];
+    [newWidgets[index], newWidgets[newIndex]] = [newWidgets[newIndex], newWidgets[index]];
+    
+    // Atualiza posições
+    newWidgets.forEach((w, i) => w.position = i + 1);
+    setWidgets(newWidgets);
+  };
+
+  const updateWidget = (updatedWidget: Widget) => {
+    setWidgets(widgets.map((w) => (w.id === updatedWidget.id ? updatedWidget : w)));
+    setEditingWidget(null);
+    toast.success('Widget atualizado!');
+  };
+
+  const handleSave = async () => {
+    setConfig({ ...config, dashboard: { ...config.dashboard, widgets } });
+    await saveConfig();
+    toast.success('Dashboard salvo com sucesso!');
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Grid3x3 className="h-8 w-8" />
+            Dashboard Builder
+          </h2>
+          <p className="text-muted-foreground">Monte o dashboard perfeito para seus clientes</p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
+            <Eye className="h-4 w-4 mr-2" />
+            {showPreview ? 'Esconder' : 'Preview'}
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? 'Salvando...' : 'Salvar Dashboard'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Widgets List */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Widgets Ativos ({widgets.length})</CardTitle>
+              <CardDescription>Use as setas para reordenar</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {widgets.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Grid3x3 className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>Nenhum widget adicionado</p>
+                  <p className="text-sm">Use o painel ao lado para adicionar widgets</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {widgets.map((widget, index) => {
+                    const Icon = widgetIcons[widget.type];
+                    return (
+                      <Card key={widget.id} className={widget.visible ? '' : 'opacity-50'}>
+                        <CardContent className="p-4 flex items-center gap-4">
+                          <div className="flex flex-col gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveWidget(widget.id, 'up')}
+                              disabled={index === 0}
+                              className="h-6 w-6 p-0"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveWidget(widget.id, 'down')}
+                              disabled={index === widgets.length - 1}
+                              className="h-6 w-6 p-0"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <Icon className="h-5 w-5" />
+
+                          <div className="flex-1">
+                            <p className="font-medium">{widget.title || widgetLabels[widget.type]}</p>
+                            <p className="text-sm text-muted-foreground">Posição: {widget.position}</p>
+                          </div>
+
+                          <Badge variant={widget.visible ? 'default' : 'secondary'}>
+                            {widget.visible ? 'Visível' : 'Oculto'}
+                          </Badge>
+
+                          <Button variant="ghost" size="sm" onClick={() => setEditingWidget(widget)}>
+                            Editar
+                          </Button>
+
+                          <Button variant="ghost" size="sm" onClick={() => deleteWidget(widget.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Add Widgets Panel */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Adicionar Widget</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(Object.entries(widgetLabels) as [WidgetType, string][]).map(([type, label]) => {
+                const Icon = widgetIcons[type];
+                return (
+                  <Button
+                    key={type}
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => addWidget(type)}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    {label}
+                  </Button>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {/* Preview */}
+          {showPreview && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Preview Mobile
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full aspect-[9/19.5] border-4 border-gray-800 rounded-3xl overflow-hidden bg-gray-900">
+                  <div className="h-full overflow-auto bg-white p-4 space-y-3">
+                    {widgets
+                      .filter((w) => w.visible)
+                      .sort((a, b) => a.position - b.position)
+                      .map((widget) => (
+                        <div
+                          key={widget.id}
+                          className="p-4 bg-gray-100 rounded-lg border text-center text-sm"
+                        >
+                          {widget.title || widgetLabels[widget.type]}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Widget Editor Modal */}
+      {editingWidget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto">
+            <CardHeader>
+              <CardTitle>Editar {widgetLabels[editingWidget.type]}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Título do Widget</Label>
+                <Input
+                  value={editingWidget.title || ''}
+                  onChange={(e) => setEditingWidget({ ...editingWidget, title: e.target.value })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label>Visível</Label>
+                <Switch
+                  checked={editingWidget.visible}
+                  onCheckedChange={(checked) => setEditingWidget({ ...editingWidget, visible: checked })}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="text-sm text-muted-foreground">
+                Configurações específicas do widget serão implementadas em breve...
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button onClick={() => updateWidget(editingWidget)} className="flex-1">
+                  Salvar Alterações
+                </Button>
+                <Button variant="outline" onClick={() => setEditingWidget(null)}>
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getDefaultConfig(type: WidgetType): any {
+  switch (type) {
+    case 'stats_card':
+      return { showInvoice: true, showConnection: true, showPlan: true };
+    case 'banner':
+      return { imageUrl: '', height: 150, borderRadius: 16 };
+    case 'action_grid':
+      return { columns: 3, showLabels: true, iconSize: 32, actions: [] };
+    case 'chart':
+      return { chartType: 'line', period: 7, height: 200 };
+    default:
+      return {};
+  }
+}

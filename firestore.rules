@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Permite que Super Admins e Provider Admins leiam e escrevam nos seus próprios dados
+    match /provedores/{providerId}/{document=**} {
+      allow read, write: if request.auth != null && (request.auth.token.superAdmin == true || request.auth.token.providerId == providerId);
+    }
+    
+    match /clientes/{clientId} {
+      // Permite leitura e escrita por qualquer usuário autenticado (ajustar se necessário)
+    	allow read, write: if request.auth != null;
+    }
+
+    // --- NOVAS REGRAS PARA O NOSSO SISTEMA DE GATILHOS ---
+    
+    // Permite que qualquer usuário autenticado crie um "pedido" para si mesmo.
+    // A segurança é verificada pelo UID.
+    match /function_requests/{requestId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.requesterUid;
+      // Nenhuma outra operação é permitida
+      allow read, update, delete: if false;
+    }
+    
+    // Permite que qualquer usuário autenticado leia uma "resposta".
+    // A segurança real vem do fato de que o ID do documento é aleatório e só o solicitante o conhece.
+    match /function_responses/{responseId} {
+      allow read: if request.auth != null;
+      // Nenhuma outra operação é permitida por clientes
+      allow create, update, delete: if false;
+    }
+    
+    // Regras para o sistema de Tickets
+    match /tickets/{ticketId}/{document=**} {
+      // Permite ler/escrever se for Super Admin ou se for o dono do ticket
+      allow read, write: if request.auth != null && (request.auth.token.superAdmin == true || get(/databases/$(database)/documents/tickets/$(ticketId)).data.providerId == request.auth.token.providerId);
+    }
+  }
+}

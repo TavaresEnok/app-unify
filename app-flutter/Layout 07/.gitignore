@@ -1,0 +1,17 @@
+# Arquivos de Build e Cache
+.dart_tool/
+.idea/
+.vscode/
+build/
+
+# Arquivos de dependências (serão baixados pelo 'pub get')
+# Nota: Não estamos ignorando o pubspec.lock, pois ele é importante!
+
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos de IDE e logs
+*.iml
+*.metadata
+*.log

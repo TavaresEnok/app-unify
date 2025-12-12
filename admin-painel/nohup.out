@@ -1,0 +1,20 @@
+nohup: ignoring input
+
+> admin-painel@0.0.0 dev
+> vite --host --host
+
+
+  VITE v5.4.20  ready in 594 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://45.176.56.70:5173/
+  ➜  Network: http://172.18.0.1:5173/
+npm error Missing script: "start"
+npm error
+npm error Did you mean one of these?
+npm error   npm star # Mark your favorite packages
+npm error   npm stars # View packages marked as favorites
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /root/.npm/_logs/2025-11-23T23_54_30_121Z-debug-0.log

@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Serviço do Painel de Administração (React/Vite)
+  admin_panel:
+    build: 
+      context: ./admin-painel
+      dockerfile: Dockerfile
+      # Variáveis de ambiente VITE que o Dockerfile precisa (use $VITE_... para injetar do seu .env)
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    container_name: admin_panel
+    ports:
+      - "9135:80" # Mapeia a porta 80 do container para a 9135 do host
+    restart: always
+
+  # Serviço da API de Ponte (Bridge)
+  api_bridge:
+    build:
+      context: ./api-service
+      dockerfile: Dockerfile
+    container_name: api_bridge
+    ports:
+      - "9136:9136" # Mapeia a porta 9136 para o host
+    restart: always

@@ -1,0 +1,19 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Regra para todos os ficheiros dentro da pasta de um provedor
+    match /providers/{providerId}/{allPaths=**} {
+
+      // Qualquer pessoa pode ler as imagens (necessário para o app Flutter)
+      allow read: if true;
+
+      // Apenas Super Admins ou o Admin do provedor correto podem escrever (upload, update, delete)
+      allow write: if request.auth != null &&
+                    (request.auth.token.superAdmin == true || request.auth.token.providerId == providerId) &&
+                    request.resource.size < 5 * 1024 * 1024 && // Limite de 5MB
+                    request.resource.contentType.matches('image/(jpeg|png|webp)'); // Apenas imagens
+    }
+  }
+}

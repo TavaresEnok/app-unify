@@ -1,0 +1,213 @@
+﻿Analyzing Layout 06...                                          
+
+   info - The file name 'DownDetectorPage.dart' isn't a lower_case_with_underscores identifier - lib\DownDetectorPage.dart:1:1 - file_names
+warning - Unused import: 'models/provider_config.dart' - lib\abrir_chamado_page.dart:8:8 - unused_import
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\abrir_chamado_page.dart:66:13 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\configuration_provider.dart:56:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\configuration_provider.dart:61:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\configuration_provider.dart:67:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\configuration_provider.dart:83:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\configuration_provider.dart:86:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\configuration_provider.dart:96:7 - avoid_print
+warning - The value of the field '_webViewController' isn't used - lib\consumo.dart:22:27 - unused_field
+warning - Unused import: 'models/provider_config.dart' - lib\consumo_page.dart:10:8 - unused_import
+   info - Parameter 'key' could be a super parameter - lib\consumo_page.dart:18:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\consumo_page.dart:148:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\consumo_page.dart:150:71 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\consumo_page.dart:242:15 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\consumo_page.dart:245:29 - prefer_const_constructors
+   info - Don't invoke 'print' in production code - lib\core\locator.dart:33:3 - avoid_print
+warning - Unused import: 'shared/theme/app_text_styles.dart' - lib\dashboard_page.dart:6:8 - unused_import
+warning - The value of the local variable 'primaryColor' isn't used - lib\dashboard_page.dart:26:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:131:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:156:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:191:173 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:253:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:288:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:290:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:465:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:467:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_page.dart:491:93 - deprecated_member_use
+warning - Unused import: 'dart:async' - lib\diagnostico_page.dart:1:8 - unused_import
+warning - Unused import: 'package:app_provedor/models/provider_config.dart' - lib\diagnostico_page.dart:2:8 - unused_import
+   info - Parameter 'key' could be a super parameter - lib\diagnostico_page.dart:20:9 - use_super_parameters
+   info - The prefix 'pdfLib' isn't a lower_case_with_underscores identifier - lib\diagnostico_pdf_generator.dart:9:34 - library_prefixes
+   info - 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion - lib\diagnostico_pdf_generator.dart:69:66 - deprecated_member_use
+warning - The value of the local variable 'lightTextStyle' isn't used - lib\diagnostico_pdf_generator.dart:135:11 - unused_local_variable
+   info - Use 'const' with the constructor to improve performance - lib\diagnostico_pdf_generator.dart:169:68 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\diagnostico_pdf_generator.dart:170:87 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\diagnostico_pdf_generator.dart:184:68 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\diagnostico_pdf_generator.dart:499:32 - prefer_const_constructors
+   info - Unnecessary use of string interpolation - lib\diagnostico_pdf_generator.dart:570:31 - unnecessary_string_interpolations
+   info - Unnecessary use of string interpolation - lib\diagnostico_pdf_generator.dart:584:31 - unnecessary_string_interpolations
+warning - Unused import: 'dart:math' - lib\diagnostico_service.dart:4:8 - unused_import
+   info - Statements in an if should be enclosed in a block - lib\diagnostico_service.dart:178:43 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\diagnostico_service.dart:179:51 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\diagnostico_service.dart:180:44 - curly_braces_in_flow_control_structures
+warning - The left operand can't be null, so the right operand is never executed - lib\diagnostico_service.dart:262:40 - dead_null_aware_expression
+   info - Unnecessary braces in a string interpolation - lib\diagnostico_service.dart:337:13 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\diagnostico_service.dart:342:41 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\diagnostico_service.dart:343:35 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\diagnostico_service.dart:344:40 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\diagnostico_service.dart:345:37 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\diagnostico_service.dart:346:26 - unnecessary_brace_in_string_interps
+   info - Don't invoke 'print' in production code - lib\diagnostico_service.dart:372:11 - avoid_print
+warning - The value of the local variable 'speedTestUrl' isn't used - lib\diagnostico_service.dart:422:12 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dicas_uteis_card.dart:17:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dicas_uteis_card.dart:47:51 - deprecated_member_use
+warning - Unused import: 'models/provider_config.dart' - lib\faq_page.dart:5:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\faq_page.dart:40:78 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\financeiro.dart:18:9 - use_super_parameters
+warning - The declaration '_showErrorDialog' isn't referenced - lib\financeiro.dart:71:8 - unused_element
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\financeiro.dart:196:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\financeiro.dart:267:64 - deprecated_member_use
+warning - Unused import: 'package:app_provedor/models/provider_config.dart' - lib\financeiro_page.dart:11:8 - unused_import
+warning - Unused import: 'shared/widgets/app_page.dart' - lib\financeiro_page.dart:15:8 - unused_import
+   info - Use 'const' with the constructor to improve performance - lib\financeiro_page.dart:89:23 - prefer_const_constructors
+warning - The value of the local variable 'textTheme' isn't used - lib\financeiro_page.dart:207:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\financeiro_page.dart:235:62 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\financeiro_page.dart:261:110 - prefer_const_constructors
+   info - Parameter 'key' could be a super parameter - lib\image_slider.dart:13:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\image_slider.dart:21:3 - library_private_types_in_public_api
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\image_slider.dart:84:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\image_slider.dart:84:70 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\image_slider.dart:84:101 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\image_slider.dart:92:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\image_slider.dart:140:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\image_slider.dart:142:92 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\local_notification_service.dart:19:55 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\local_notification_service.dart:20:18 - prefer_const_constructors
+   info - Don't use 'BuildContext's across async gaps - lib\login_page.dart:52:25 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\login_page.dart:90:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\login_page.dart:116:29 - use_build_context_synchronously
+warning - The value of the local variable 'theme' isn't used - lib\login_page.dart:130:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\login_page.dart:217:74 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\login_page.dart:219:57 - deprecated_member_use
+warning - Unused import: 'models/provider_config.dart' - lib\main.dart:16:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\main.dart:63:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:67:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:91:18 - avoid_print
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\main.dart:162:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:168:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:170:52 - deprecated_member_use
+warning - Unused import: 'package:app_provedor/shared/widgets/app_loading.dart' - lib\meu_ip_page.dart:5:8 - unused_import
+warning - Unused import: 'package:app_provedor/shared/widgets/app_error.dart' - lib\meu_ip_page.dart:6:8 - unused_import
+   info - Parameter 'key' could be a super parameter - lib\meu_ip_page.dart:12:9 - use_super_parameters
+   info - Don't invoke 'print' in production code - lib\models\fatura.dart:40:9 - avoid_print
+warning - Unused import: 'package:app_provedor/models/provider_config.dart' - lib\notificacoes.dart:3:8 - unused_import
+warning - Unused import: 'package:url_launcher/url_launcher.dart' - lib\page_mapper.dart:5:8 - unused_import
+warning - Unused import: 'package:app_provedor/models/provider_config.dart' - lib\page_mapper.dart:6:8 - unused_import
+   info - Don't use 'BuildContext's across async gaps - lib\page_mapper.dart:33:24 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\page_mapper.dart:34:20 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\page_mapper.dart:36:24 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\page_mapper.dart:37:26 - use_build_context_synchronously
+   info - 'tachometerAlt' is deprecated and shouldn't be used. Use "gaugeHigh" instead - lib\page_mapper.dart:100:128 - deprecated_member_use
+   info - 'questionCircle' is deprecated and shouldn't be used. Use "circleQuestion" instead - lib\page_mapper.dart:101:110 - deprecated_member_use
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\painel.dart:68:5 - prefer_conditional_assignment
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\painel.dart:220:35 - deprecated_member_use
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\painel.dart:250:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:251:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:255:48 - deprecated_member_use
+warning - The value of the local variable 'theme' isn't used - lib\painel.dart:316:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:322:29 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:324:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:327:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:504:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:600:20 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\painel.dart:603:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\promessa_pagamento.dart:181:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\promessa_pagamento.dart:183:41 - deprecated_member_use
+warning - Unused import: 'dart:io' - lib\providers\abrir_chamado_provider.dart:1:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:85:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:109:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\consumo_service.dart:23:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\consumo_service.dart:40:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\consumo_service.dart:49:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\consumo_service.dart:50:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\consumo_service.dart:61:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\consumo_service.dart:64:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\consumo_service.dart:68:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\financeiro_service.dart:21:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\financeiro_service.dart:37:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\financeiro_service.dart:47:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\financeiro_service.dart:59:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\financeiro_service.dart:62:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\financeiro_service.dart:65:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\login_service.dart:21:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\login_service.dart:37:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\login_service.dart:45:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\login_service.dart:46:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\login_service.dart:65:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\login_service.dart:68:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\login_service.dart:71:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\meu_ip_service.dart:14:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\meu_ip_service.dart:19:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\meu_ip_service.dart:27:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\meu_ip_service.dart:30:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\promessa_service.dart:21:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\promessa_service.dart:34:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\promessa_service.dart:42:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\promessa_service.dart:43:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\promessa_service.dart:55:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\promessa_service.dart:58:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\promessa_service.dart:61:7 - avoid_print
+warning - Unused import: 'package:http/http.dart' - lib\services\suporte_service.dart:4:8 - unused_import
+warning - Unused import: 'dart:convert' - lib\services\suporte_service.dart:5:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\services\suporte_service.dart:49:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\suporte_service.dart:99:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\theme\app_colors.dart:9:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\theme\app_colors.dart:10:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\theme\app_colors.dart:16:51 - deprecated_member_use
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\shared\theme\app_theme.dart:13:7 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\theme\app_theme.dart:66:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\theme\app_theme.dart:67:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\dashboard_card.dart:22:33 - deprecated_member_use
+warning - Unused import: 'package:url_launcher/url_launcher.dart' - lib\shared\widgets\troubleshooter_card.dart:5:8 - unused_import
+   info - Parameter 'key' could be a super parameter - lib\shared\widgets\troubleshooter_card.dart:29:9 - use_super_parameters
+warning - The value of the local variable 'speedResult' isn't used - lib\shared\widgets\troubleshooter_card.dart:39:13 - unused_local_variable
+   info - Unnecessary use of 'toList' in a spread - lib\shared\widgets\troubleshooter_card.dart:170:83 - unnecessary_to_list_in_spreads
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\shared\widgets\troubleshooter_card.dart:197:32 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\skeleton_container.dart:10:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\speed_test_page.dart:12:9 - use_super_parameters
+   info - The private field _downloadHistory could be 'final' - lib\speed_test_page.dart:28:16 - prefer_final_fields
+   info - The private field _uploadHistory could be 'final' - lib\speed_test_page.dart:29:16 - prefer_final_fields
+   info - Use 'const' with the constructor to improve performance - lib\speed_test_page.dart:154:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\speed_test_page.dart:155:23 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\speed_test_page.dart:157:26 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\speed_test_page.dart:181:16 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\speed_test_page.dart:185:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\speed_test_page.dart:185:50 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\speed_test_page.dart:213:98 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\suporte.dart:72:32 - deprecated_member_use
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\theme\app_theme.dart:12:7 - deprecated_member_use
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\theme\app_theme.dart:18:39 - deprecated_member_use
+  error - The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'.  - lib\theme\app_theme.dart:35:18 - argument_type_not_assignable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_theme.dart:37:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_theme.dart:39:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_theme.dart:68:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_theme.dart:69:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_theme.dart:78:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_theme.dart:81:54 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\utils.dart:16:5 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\app_card.dart:31:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\app_card.dart:34:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\glass_card.dart:22:62 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\glass_card.dart:35:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\section_header.dart:31:35 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\widgets\skeleton_container.dart:10:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\widgets\skeleton_loading.dart:4:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\widgets\skeleton_loading.dart:7:3 - library_private_types_in_public_api
+   info - The imported package 'speed_test_dart' isn't a dependency of the importing package - lib\widgets\speedtest_ookla_section.dart:4:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:speed_test_dart/speed_test_dart.dart' - lib\widgets\speedtest_ookla_section.dart:4:8 - uri_does_not_exist
+   info - The imported package 'speed_test_dart' isn't a dependency of the importing package - lib\widgets\speedtest_ookla_section.dart:5:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:speed_test_dart/classes/classes.dart' - lib\widgets\speedtest_ookla_section.dart:5:8 - uri_does_not_exist
+  error - The method 'SpeedTestDart' isn't defined for the type '_SpeedtestOoklaSectionState' - lib\widgets\speedtest_ookla_section.dart:15:18 - undefined_method
+  error - Undefined class 'Server' - lib\widgets\speedtest_ookla_section.dart:19:3 - undefined_class
+  error - The name 'Server' isn't a type, so it can't be used as a type argument - lib\widgets\speedtest_ookla_section.dart:24:15 - non_type_as_type_argument
+   info - 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated after v3.18.0-0.1.pre - lib\widgets\speedtest_ookla_section.dart:100:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\speedtest_ookla_section.dart:100:59 - deprecated_member_use
+   info - 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated after v3.18.0-0.1.pre - lib\widgets\speedtest_ookla_section.dart:183:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\speedtest_ookla_section.dart:183:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\status_chip.dart:21:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\status_chip.dart:23:41 - deprecated_member_use
+

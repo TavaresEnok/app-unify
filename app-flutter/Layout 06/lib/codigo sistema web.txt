@@ -1,0 +1,2955 @@
+root@app:~/painel-provedores-projeto/admin-painel# echo "=============== INÍCIO DO DOSSIÊ DE CÓDIGO DO PAINEL ==============="
+
+echo "--- Arquivo: src/contexts/AuthContext.tsx ---"
+cat src/contexts/AuthContext.tsx
+
+echo "--- Arquivo: src/contexts/SettingsContext.tsx ---"
+cat src/contexts/SettingsContext.tsx
+
+echo "--- Arquivo: src/hooks/useApi.ts ---"
+cat src/hooks/useApi.ts
+
+echo "--- Arquivo: src/components/RichTextEditor.tsx (Novo) ---"
+cat src/components/RichTextEditor.tsx
+
+echo "--- Arquivo: src/components/dialogs/AddEditContactDialog.tsx ---"
+cat src/components/dialogs/AddEditContactDialog.tsx
+
+echo "--- Arquivo: src/pages/App.tsx ---"
+cat src/pages/App.tsx
+
+echo "--- Arquivo: src/pages/DashboardPage.tsx ---"
+cat src/pages/DashboardPage.tsx
+
+echo "--- Arquivo: src/pages/ProviderDetailPage.tsx ---"
+cat src/pages/ProviderDetailPage.tsx
+
+echo "--- Arquivo: src/pages/TicketDetailPage.tsx ---"
+cat src/pages/TicketDetailPage.tsx
+
+echo "--- Arquivo: src/pages/provider/ProviderClientsPage.tsx ---"
+cat src/pages/provider/ProviderClientsPage.tsx
+
+echo "--- Arquivo: src/pages/provider/ClientDetailPage.tsx ---"
+cat src/pages/provider/ClientDetailPage.tsx
+
+echo "--- Arquivo: src/pages/provider-settings/AppearanceSettings.tsx ---"
+cat src/pages/provider-settings/AppearanceSettings.tsx
+
+echo "--- Arquivo: src/pages/provider-settings/CarouselSettings.tsx ---"
+cat src/pages/provider-settings/CarouselSettings.tsx
+
+echo "--- Arquivo: src/pages/provider-settings/IntegrationsSettings.tsx ---"
+cat src/pages/provider-settings/IntegrationsSettings.tsx
+
+echo "=============== FIM DO DOSSIÊ DE CÓDIGO DO PAINEL ==============="" ---"--"
+=============== INÍCIO DO DOSSIÊ DE CÓDIGO DO PAINEL ===============
+--- Arquivo: src/contexts/AuthContext.tsx ---
+import React, { useContext, useState, useEffect } from 'react'; 
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/firebase/config';
+import { Loader2 } from 'lucide-react';
+
+interface AuthContextType {
+    user: User | null;
+    userRole: 'superAdmin' | 'providerAdmin' | null;
+    providerId: string | null; 
+    loading: boolean;
+}
+
+const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<User | null>(null);
+    const [userRole, setUserRole] = useState<'superAdmin' | 'providerAdmin' | null>(null);
+    const [providerId, setProviderId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                await currentUser.getIdToken(true); 
+                const tokenResult = await currentUser.getIdTokenResult();
+                
+                setUser(currentUser);
+                if (tokenResult.claims.superAdmin) {
+                    setUserRole('superAdmin');
+                    setProviderId(null);
+                } else if (tokenResult.claims.providerId) {
+                    setUserRole('providerAdmin');
+                    setProviderId(tokenResult.claims.providerId as string);
+                } else {
+                    setUserRole(null);
+                    setProviderId(null);
+                }
+            } else {
+                setUser(null);
+                setUserRole(null);
+                setProviderId(null);
+            }
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
+
+    return (
+        <AuthContext.Provider value={{ user, userRole, providerId, loading }}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
+
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
+};
+--- Arquivo: src/contexts/SettingsContext.tsx ---
+import { createContext, useState, useEffect, ReactNode, useCallback, useContext } from 'react'; 
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from '@/firebase/config';
+import { useApi } from '@/hooks/useApi';
+
+// =========================================================
+// INTERFACES CORRIGIDAS (EXPORTADAS)
+// =========================================================
+
+export interface ProviderConfig {
+  themeColor?: string;
+  secondaryColor?: string;
+  logoUrl?: string;
+  features?: { [key: string]: boolean };
+  tips?: any[];
+  faq?: any[];
+  imageCarousel?: any[];
+  menuConfig?: { order: string[], items: Record<string, any> };
+  supportContacts?: any[];
+  loginQuote?: string;
+  termsOfUse?: string; 
+  [key: string]: any; 
+}
+
+export interface ProviderData {
+  name: string;
+  config: ProviderConfig;
+  details: { [key: string]: any };
+  [key: string]: any;
+}
+
+interface SettingsContextType {
+  config: ProviderConfig;
+  // O tipo é ajustado para suportar atualizações parciais
+  setConfig: React.Dispatch<React.SetStateAction<any>>; 
+  loading: boolean;
+  saveConfig: () => Promise<void>;
+  isSaving: boolean;
+  providerId: string; 
+  provider: ProviderData | null; 
+}
+
+// =========================================================
+
+export const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+export function SettingsProvider({ children, providerId }: { children: ReactNode, providerId: string }) {
+  const [config, setConfig] = useState<ProviderConfig>({}); 
+  const [initialConfig, setInitialConfig] = useState<ProviderConfig>({}); 
+  const [provider, setProvider] = useState<ProviderData | null>(null); 
+  const [loading, setLoading] = useState(true);
+  
+  const { callFunction, loading: isSaving } = useApi();
+
+  useEffect(() => {
+    setLoading(true);
+    const providerDocRef = doc(db, 'provedores', providerId);
+    
+    const unsubscribe = onSnapshot(providerDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as ProviderData;
+        setConfig(data.config || {});
+        setInitialConfig(data.config || {});
+        setProvider(data); 
+      } else {
+        console.error("Provedor não encontrado!");
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Erro ao carregar configurações:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [providerId]);
+
+  const saveConfig = useCallback(async () => {
+    if (JSON.stringify(config) === JSON.stringify(initialConfig)) {
+      return;
+    }
+    
+    await callFunction('UPDATE_PROVIDER_CONFIG', {
+      providerId,
+      config,
+    });
+    setInitialConfig(config);
+  }, [config, initialConfig, providerId, callFunction]);
+
+  return (
+    <SettingsContext.Provider value={{ 
+        config, 
+        setConfig, 
+        loading, 
+        saveConfig, 
+        isSaving, 
+        providerId, 
+        provider 
+    }}>
+      {children}
+    </SettingsContext.Provider>
+  );
+}
+
+export const useSettings = () => {
+    const context = useContext(SettingsContext);
+    if (context === undefined) {
+        throw new Error('useSettings must be used within a SettingsProvider');
+    }
+    return context;
+};
+--- Arquivo: src/hooks/useApi.ts ---
+import { useState } from 'react';
+import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
+import { db } from '@/firebase/config';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from "sonner";
+
+// Lista de todas as ações possíveis
+type ApiAction = 
+  | 'UPDATE_PROVIDER_CONFIG'
+  | 'SEND_SCOPED_NOTIFICATION' 
+  | 'SEND_SCOPED_NOTIFICATION_SEGMENTED' 
+  | 'SGP_API_PROXY'
+  | 'GET_DASHBOARD_DATA'
+  | 'LIST_ADMIN_USERS'
+  | 'CREATE_PROVIDER'
+  | 'DELETE_PROVIDER'
+  | 'UPDATE_PROVIDER_DETAILS'
+  | 'CREATE_ADMIN_USER'
+  | 'DELETE_ADMIN_USER'
+  | 'SET_SUPER_ADMIN_BY_EMAIL'
+  | 'GET_PROVIDER_DASHBOARD_DATA'
+  | 'GET_ALL_TICKETS'
+  | 'GET_PROVIDER_TICKETS'
+  | 'CREATE_TICKET'
+  | 'REPLY_TO_TICKET'
+  | 'UPDATE_TICKET_STATUS'
+  | 'DELETE_TICKET'
+  | 'LIST_PROVIDER_CLIENTS'
+  | 'DELETE_CLIENT'
+  | 'GET_CLIENT_DETAILS'
+  | 'BACKUP_PROVIDER_CONFIG'
+  | 'LIST_PROVIDER_BACKUPS'
+  | 'RESTORE_PROVIDER_CONFIG'
+  | 'DELETE_PROVIDER_BACKUP';
+
+export function useApi() {
+  const { user, userRole, providerId: authProviderId } = useAuth(); 
+  const [loading, setLoading] = useState(false);
+
+  const callFunction = <T extends object>(type: ApiAction, payload: T): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      if (!user) {
+        toast.error("Erro de autenticação", { description: "Utilizador não encontrado. Por favor, faça login novamente." });
+        reject(new Error("Utilizador não autenticado."));
+        return;
+      }
+
+      setLoading(true);
+      const requestId = doc(collection(db, 'function_requests')).id;
+      const requestDocRef = doc(db, 'function_requests', requestId);
+      const responseDocRef = doc(db, 'function_responses', requestId);
+
+      const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          unsubscribe();
+          setLoading(false);
+          const response = docSnap.data();
+          if (response.error) {
+            toast.error("Erro no servidor", { description: response.error });
+            reject(new Error(response.error));
+          } else {
+            // Evita toast de sucesso para GETs
+            if (type.startsWith('GET_') || type.startsWith('LIST_')) {
+                resolve(response.result);
+            } else {
+                toast.success("Sucesso!", { description: response.result?.message || "Operação concluída." });
+                resolve(response.result);
+            }
+          }
+        }
+      });
+
+      // ===== LÓGICA DE INJEÇÃO DE providerId (SEGURANÇA) =====
+      let finalPayload: any = { ...payload, requesterUid: user.uid };
+
+      // Se o usuário for um admin de provedor, FORÇA o providerId do token dele.
+      if (userRole === 'providerAdmin' && authProviderId) {
+        finalPayload.providerId = authProviderId;
+      }
+      // ===================================
+
+      setDoc(requestDocRef, {
+        type,
+        createdAt: serverTimestamp(),
+        payload: finalPayload,
+      }).catch(error => {
+        unsubscribe();
+        setLoading(false);
+        toast.error("Erro ao solicitar a operação", { description: error.message });
+        reject(error);
+      });
+    });
+  };
+
+  return { callFunction, loading };
+}
+--- Arquivo: src/components/RichTextEditor.tsx (Novo) ---
+import React from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
+interface RichTextEditorProps {
+    value: string;
+    onChange: (value: string) => void;
+}
+
+export default function RichTextEditor({ value, onChange }: RichTextEditorProps) {
+    const modules = {
+        toolbar: [
+            [{ 'header': [1, 2, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['link'],
+            ['clean']
+        ],
+    };
+
+    return (
+        <div style={{ height: '200px' }}>
+            <ReactQuill 
+                theme="snow" 
+                value={value} 
+                onChange={onChange} 
+                modules={modules}
+                style={{ height: '160px' }} 
+            />
+        </div>
+    );
+}
+--- Arquivo: src/components/dialogs/AddEditContactDialog.tsx ---
+import React, { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2, Phone, Mail, MapPin } from "lucide-react"; 
+import { toast } from 'sonner';
+
+interface Contact {
+  id: string;
+  name: string;
+  type: 'phone' | 'email' | 'address';
+  value: string;
+}
+
+interface AddEditContactDialogProps {
+  contact?: Contact;
+  onSave: (contact: Omit<Contact, 'id'>, id?: string) => void;
+  onDelete?: (id: string) => void;
+}
+
+export default function AddEditContactDialog({ contact, onSave, onDelete }: AddEditContactDialogProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [type, setType] = useState<'phone' | 'email' | 'address'>('phone');
+  const [value, setValue] = useState('');
+
+  const isEdit = !!contact;
+
+  useEffect(() => {
+    if (isEdit && contact) {
+      setName(contact.name);
+      setType(contact.type);
+      setValue(contact.value);
+    } else {
+      setName('');
+      setType('phone');
+      setValue('');
+    }
+  }, [contact, isEdit, isOpen]);
+
+  const handleSave = () => {
+    if (!name || !value) {
+      toast.error("Nome e Valor são obrigatórios.");
+      return;
+    }
+    onSave({ name, type, value }, contact?.id);
+    setIsOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (contact && onDelete) {
+      onDelete(contact.id);
+      setIsOpen(false);
+    }
+  };
+
+  const getIcon = (type: 'phone' | 'email' | 'address') => {
+    switch (type) {
+      case 'phone': return <Phone className="h-4 w-4" />;
+      case 'email': return <Mail className="h-4 w-4" />;
+      case 'address': return <MapPin className="h-4 w-4" />;
+      default: return null;
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant={isEdit ? "ghost" : "default"} size={isEdit ? "icon" : "default"}>
+          {isEdit ? getIcon(contact!.type) : "Adicionar Contato"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar Contato" : "Novo Contato"}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">Nome</Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="type" className="text-right">Tipo</Label>
+            <Select value={type} onValueChange={(v) => setType(v as 'phone' | 'email' | 'address')}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Selecione o Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="phone">Telefone / WhatsApp</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="address">Endereço</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="value" className="text-right">Valor</Label>
+            <Input id="value" value={value} onChange={(e) => setValue(e.target.value)} className="col-span-3" />
+          </div>
+        </div>
+        <DialogFooter className="flex-row justify-between">
+          {isEdit && (
+            <Button variant="destructive" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4 mr-2" /> Apagar
+            </Button>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave}>{isEdit ? "Salvar Alterações" : "Adicionar"}</Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+--- Arquivo: src/pages/App.tsx ---
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import MainLayout from "@/components/MainLayout";
+import DashboardPage from "@/pages/DashboardPage";
+import ProvidersPage from "@/pages/ProvidersPage";
+import ProviderDetailPage from "@/pages/ProviderDetailPage";
+import UsersPage from "@/pages/UsersPage";
+import LoginPage from "@/pages/LoginPage";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import ProviderSettingsLayout from "@/components/ProviderSettingsLayout";
+import AppearanceSettings from "@/pages/provider-settings/AppearanceSettings";
+import FeaturesSettings from "@/pages/provider-settings/FeaturesSettings";
+import SupportSettings from "@/pages/provider-settings/SupportSettings";
+import CarouselSettings from "@/pages/provider-settings/CarouselSettings";
+import TipsSettings from "@/pages/provider-settings/TipsSettings";
+import FaqSettings from "@/pages/provider-settings/FaqSettings";
+import ImagesIconsSettings from "@/pages/provider-settings/ImagesIconsSettings";
+import MessagesSettings from "@/pages/provider-settings/MessagesSettings";
+import SocialNetworksSettings from "@/pages/provider-settings/SocialNetworksSettings";
+import OtherSettings from "@/pages/provider-settings/OtherSettings";
+import BackupSettings from "@/pages/provider-settings/BackupSettings";
+import IntegrationsSettings from "@/pages/provider-settings/IntegrationsSettings";
+import PersonalizedTextsSettings from "@/pages/provider-settings/PersonalizedTextsSettings"; 
+// Certifique-se de que todos estes arquivos existem e exportam o componente default:
+import ProviderDashboardPage from "./pages/provider/ProviderDashboardPage"; 
+import NotificationSenderPage from "./pages/provider/NotificationSenderPage"; 
+import ProviderClientsPage from "./pages/provider/ProviderClientsPage"; 
+import ClientDetailPage from "./pages/provider/ClientDetailPage"; 
+import AdminTicketsPage from "./pages/AdminTicketsPage"; 
+import ProviderTicketsPage from "./pages/provider/ProviderTicketsPage"; 
+import TicketDetailPage from "./pages/TicketDetailPage"; 
+import MyCompanyPage from "./pages/provider/MyCompanyPage"; 
+import MenusSettingsPage from "./pages/provider-settings/MenusSettingsPage"; 
+
+function PostLoginRedirect() {
+    const { userRole } = useAuth();
+    if (userRole === 'superAdmin') return <Navigate to="/dashboard" replace />;
+    if (userRole === 'providerAdmin') return <Navigate to="/provedor/dashboard" replace />;
+    return <Navigate to="/login" replace />;
+}
+
+const ProviderSettingsRoutes = (
+  <Route element={<ProviderSettingsLayout />}>
+    <Route index element={<Navigate to="appearance" replace />} />
+    <Route path="appearance" element={<AppearanceSettings />} />
+    <Route path="images" element={<ImagesIconsSettings />} />
+    <Route path="menus" element={<MenusSettingsPage />} />
+    <Route path="features" element={<FeaturesSettings />} />
+    <Route path="integrations" element={<IntegrationsSettings />} />
+    <Route path="support" element={<SupportSettings />} />
+    <Route path="carousel" element={<CarouselSettings />} />
+    <Route path="social" element={<SocialNetworksSettings />} />
+    <Route path="tips" element={<TipsSettings />} />
+    <Route path="faq" element={<FaqSettings />} />
+    <Route path="messages" element={<MessagesSettings />} />
+    <Route path="other" element={<OtherSettings />} />
+    <Route path="backup" element={<BackupSettings />} />
+    <Route path="texts" element={<PersonalizedTextsSettings />} /> 
+  </Route>
+);
+
+export default function App() {
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<ProtectedRoute><PostLoginRedirect /></ProtectedRoute>} />
+
+          <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+              {/* Rotas do Super Admin */}
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="provedores" element={<ProvidersPage />} />
+              <Route path="utilizadores" element={<UsersPage />} />
+              <Route path="tickets" element={<AdminTicketsPage />} />
+              <Route path="tickets/:ticketId" element={<TicketDetailPage />} />
+
+              <Route path="provedores/:providerId" element={<ProviderDetailPage />}>
+                  {ProviderSettingsRoutes}
+              </Route>
+
+              {/* Rotas do Portal do Provedor */}
+              <Route path="provedor/dashboard" element={<ProviderDashboardPage />} />
+              <Route path="provedor/notificacoes" element={<NotificationSenderPage />} />
+              <Route path="provedor/clientes" element={<ProviderClientsPage />} />
+              <Route path="provedor/clientes/:clientId" element={<ClientDetailPage />} />
+              <Route path="provedor/minha-empresa" element={<MyCompanyPage />} />
+              <Route path="provedor/tickets" element={<ProviderTicketsPage />} />
+              <Route path="provedor/tickets/:ticketId" element={<TicketDetailPage />} />
+
+              <Route path="provedor/personalizacao" element={<ProviderDetailPage />}>
+                {ProviderSettingsRoutes}
+              </Route>
+          </Route>
+        </Routes>
+      </AuthProvider>
+      <Toaster />
+    </ThemeProvider>
+  );
+}
+--- Arquivo: src/pages/DashboardPage.tsx ---
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from "sonner";
+import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
+import { db } from '@/firebase/config';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Server, Users, Bell, MessageSquare } from "lucide-react";
+import ClientsChart from '@/components/ClientsChart';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
+// Imports de 'date-fns' (format e ptBR) removidos - TS6133
+
+interface ChartData { name: string; clientes: number; }
+interface RecentTicket {
+    id: string;
+    subject: string;
+    providerName: string;
+    status: 'Aberto' | 'Em Andamento' | 'Fechado';
+    updatedAt: { _seconds: number; _nanoseconds: number; };
+}
+
+export default function DashboardPage() {
+    const { userRole, user } = useAuth();
+    const navigate = useNavigate();
+    const [stats, setStats] = useState({ providerCount: 0, clientCount: 0, notificationCount: 0, openTicketsCount: 0 });
+    const [chartData, setChartData] = useState<ChartData[]>([]);
+    const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (userRole !== 'superAdmin' || !user) {
+            setLoading(false);
+            return;
+        }
+
+        const requestId = doc(collection(db, 'function_requests')).id;
+        const responseDocRef = doc(db, 'function_responses', requestId);
+
+        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const response = docSnap.data();
+                if (response.result) {
+                    const data = response.result;
+                    setStats(data.stats);
+                    setChartData(data.chartData);
+                    setRecentTickets(data.recentTickets || []);
+                } else if (response.error) {
+                    toast.error(`Erro no Dashboard: ${response.error}`);
+                }
+                setLoading(false);
+                unsubscribe();
+            }
+        });
+
+        const triggerFunction = async () => {
+            try {
+                const requestDocRef = doc(db, 'function_requests', requestId);
+                await setDoc(requestDocRef, {
+                    type: 'GET_DASHBOARD_DATA',
+                    requesterUid: user.uid,
+                    createdAt: serverTimestamp(),
+                });
+            } catch (error: any) {
+                toast.error(`Falha ao solicitar dados (Verifique Regras do Firestore): ${error.message}`);
+                setLoading(false);
+                unsubscribe();
+            }
+        };
+
+        triggerFunction();
+        return () => unsubscribe();
+    }, [userRole, user]);
+
+    const getStatusVariant = (status: RecentTicket['status']) => {
+        switch (status) {
+            case 'Aberto': return 'default';
+            case 'Em Andamento': return 'secondary';
+            case 'Fechado': return 'outline';
+            default: return 'default';
+        }
+    };
+    
+    if (loading) {
+        return <DashboardSkeleton />;
+    }
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total de Provedores</CardTitle>
+                        <Server className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.providerCount}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total de Clientes (App)</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.clientCount}</div>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Tickets Abertos</CardTitle>
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.openTicketsCount}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Notificações Enviadas (24h)</CardTitle>
+                        <Bell className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.notificationCount}</div>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="xl:col-span-1">
+                    <CardHeader>
+                        <CardTitle>Clientes por Provedor</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ClientsChart data={chartData} />
+                    </CardContent>
+                </Card>
+                 <Card className="xl:col-span-1">
+                    <CardHeader>
+                        <CardTitle>Atividade Recente de Tickets</CardTitle>
+                        <CardDescription>Os últimos 5 tickets atualizados.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Assunto</TableHead>
+                                    <TableHead>Provedor</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {recentTickets.map((ticket) => (
+                                    <TableRow key={ticket.id} className="cursor-pointer" onClick={() => navigate(`/tickets/${ticket.id}`)}>
+                                        <TableCell className="font-medium">{ticket.subject}</TableCell>
+                                        <TableCell>{ticket.providerName}</TableCell>
+                                        <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+};
+--- Arquivo: src/pages/ProviderDetailPage.tsx ---
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, Outlet, useNavigate } from 'react-router-dom';
+import { doc, onSnapshot, setDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/firebase/config';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+// [CORRIGIDO] Importa as interfaces exportadas do SettingsContext
+import { SettingsContext, ProviderData, ProviderConfig } from '@/contexts/SettingsContext'; 
+import { useAuth } from '@/contexts/AuthContext';
+
+export default function ProviderDetailPage() {
+    const { providerId: providerIdFromParams } = useParams<{ providerId: string }>();
+    const { user, userRole, providerId: providerIdFromAuth } = useAuth();
+    const navigate = useNavigate();
+
+    // Garante que o Admin de Provedor só veja o seu próprio ID
+    const providerId = userRole === 'superAdmin' ? providerIdFromParams : providerIdFromAuth;
+
+    const [provider, setProvider] = useState<ProviderData | null>(null);
+    const [config, setConfig] = useState<ProviderConfig>({});
+    const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (!providerId) {
+            toast.error("ID do provedor não identificado.");
+            setLoading(false);
+            return;
+        }
+
+        const docRef = doc(db, "provedores", providerId);
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data() as ProviderData;
+                setProvider(data);
+                setConfig(data.config || {});
+            } else {
+                toast.error("Provedor não encontrado.");
+                if (userRole === 'superAdmin') navigate('/provedores');
+            }
+            setLoading(false);
+        }, (error) => {
+            toast.error(`Erro ao buscar provedor: ${error.message}`);
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, [providerId, navigate, userRole]);
+
+    const handleSave = useCallback(async () => {
+        if (!providerId || !user) return;
+        setIsSaving(true);
+        const toastId = toast.loading("Salvando configurações...");
+        const requestId = doc(collection(db, 'function_requests')).id;
+        const responseDocRef = doc(db, 'function_responses', requestId);
+
+        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                unsubscribe();
+                const response = docSnap.data();
+                if (response.result) {
+                    toast.success("Configurações salvas com sucesso!", { id: toastId });
+                } else {
+                    toast.error(`Erro ao salvar: ${response.error}`, { id: toastId });
+                }
+                setIsSaving(false);
+            }
+        });
+
+        try {
+            await setDoc(doc(db, 'function_requests', requestId), {
+                type: 'UPDATE_PROVIDER_CONFIG',
+                requesterUid: user.uid,
+                createdAt: serverTimestamp(),
+                // O providerId é usado aqui para que a Cloud Function saiba qual documento atualizar.
+                payload: { providerId, config, requesterUid: user.uid }
+            });
+        } catch (error: any) {
+            toast.error(`Erro ao solicitar a gravação: ${error.message}`);
+            setIsSaving(false);
+            unsubscribe();
+        }
+    }, [providerId, user, config]);
+
+    if (loading) {
+        return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+    }
+
+    if (!provider) {
+        return <div className="text-center p-8"><h2 className="text-xl font-semibold text-destructive">Não foi possível carregar os dados.</h2></div>;
+    }
+
+    // [CORREÇÃO TS2322]: Garante que providerId é uma string antes de passar para o value
+    const providerIdString = providerId ?? 'firebase'; 
+
+    return (
+        // O valor do provedor agora inclui todos os estados e métodos necessários
+        <SettingsContext.Provider value={{ config, setConfig, providerId: providerIdString, provider, loading, saveConfig: handleSave, isSaving }}>
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-3xl font-bold">Personalização: {provider.name}</h1>
+                    <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}                        Salvar Alterações
+                    </Button>
+                </div>
+                <Outlet />
+            </div>
+        </SettingsContext.Provider>
+    );
+}
+--- Arquivo: src/pages/TicketDetailPage.tsx ---
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { doc, collection, onSnapshot, query, orderBy, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/firebase/config';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+// Import de { Skeleton } removido - TS6133
+
+interface Message {
+    id: string;
+    senderEmail: string;
+    message?: string;
+    imageUrl?: string;
+    timestamp: { seconds: number; nanoseconds: number };
+}
+
+interface Ticket {
+    id: string;
+    subject: string;
+    status: 'Aberto' | 'Em Andamento' | 'Fechado';
+    createdBy: string;
+    providerName: string;
+    updatedAt: { seconds: number; nanoseconds: number };
+}
+
+const formatTimestamp = (timestamp: { seconds: number; nanoseconds: number }) => {
+    const date = new Date(timestamp.seconds * 1000);
+    return date.toLocaleString('pt-BR');
+};
+
+export default function TicketDetailPage() {
+    const { ticketId } = useParams<{ ticketId: string }>();
+    const navigate = useNavigate();
+    const { user, userRole } = useAuth();
+    const [ticket, setTicket] = useState<Ticket | null>(null);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [isSending, setIsSending] = useState(false);
+
+    const ticketRef = useMemo(() => {
+        if (!ticketId) return null;
+        return doc(db, 'tickets', ticketId);
+    }, [ticketId]);
+
+    // 1. Fetch Ticket Data and Messages
+    useEffect(() => {
+        if (!ticketRef) return;
+
+        const unsubscribeTicket = onSnapshot(ticketRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
+            } else {
+                toast.error("Ticket não encontrado.");
+                setTicket(null);
+            }
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching ticket:", error);
+            setLoading(false);
+            toast.error("Erro ao carregar detalhes do ticket.");
+        });
+
+        const messagesCollectionRef = collection(ticketRef, 'messages');
+        const q = query(messagesCollectionRef, orderBy('timestamp', 'asc'));
+
+        const unsubscribeMessages = onSnapshot(q, (snapshot) => {
+            const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+            setMessages(msgs);
+        }, (error) => {
+            console.error("Error fetching messages:", error);
+            toast.error("Erro ao carregar mensagens.");
+        });
+
+        return () => {
+            unsubscribeTicket();
+            unsubscribeMessages();
+        };
+    }, [ticketRef]);
+
+
+    // 2. Reply Logic
+    const handleReply = useCallback(async () => {
+        if (!ticketId || !user || !newMessage.trim()) return;
+
+        setIsSending(true);
+        const requestId = doc(collection(db, 'function_requests')).id;
+        const responseDocRef = doc(db, 'function_responses', requestId);
+
+        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                unsubscribe();
+                const response = docSnap.data();
+                if (response.result) {
+                    setNewMessage('');
+                    // Messages update automatically via onSnapshot
+                } else {
+                    toast.error(`Erro ao enviar resposta: ${response.error}`);
+                }
+                setIsSending(false);
+            }
+        });
+
+        try {
+            await setDoc(doc(db, 'function_requests', requestId), {
+                type: 'REPLY_TO_TICKET',
+                requesterUid: user.uid,
+                createdAt: serverTimestamp(),
+                payload: {
+                    ticketId,
+                    message: newMessage.trim(),
+                    userEmail: user.email,
+                    isSuperAdmin: userRole === 'superAdmin',
+                }
+            });
+        } catch (error: any) {
+            toast.error(`Falha ao solicitar a resposta: ${error.message}`);
+            setIsSending(false);
+            unsubscribe();
+        }
+    }, [ticketId, user, newMessage, userRole]);
+
+    // 3. Status Update Logic
+    const handleUpdateStatus = useCallback(async (newStatus: 'Aberto' | 'Em Andamento' | 'Fechado') => {
+        if (!ticketId || !user || !ticket || ticket.status === newStatus) return;
+
+        const toastId = toast.loading(`A mudar status para ${newStatus}...`);
+        const requestId = doc(collection(db, 'function_requests')).id;
+        const responseDocRef = doc(db, 'function_responses', requestId);
+
+        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                unsubscribe();
+                const response = docSnap.data();
+                if (response.result) {
+                    toast.success(response.result.message, { id: toastId });
+                } else {
+                    toast.error(`Erro ao atualizar status: ${response.error}`, { id: toastId });
+                }
+            }
+        });
+
+        try {
+            await setDoc(doc(db, 'function_requests', requestId), {
+                type: 'UPDATE_TICKET_STATUS',
+                requesterUid: user.uid,
+                createdAt: serverTimestamp(),
+                payload: {
+                    ticketId,
+                    status: newStatus,
+                }
+            });
+        } catch (error: any) {
+            toast.error(`Falha ao solicitar atualização de status: ${error.message}`, { id: toastId });
+            unsubscribe();
+        }
+    }, [ticketId, user, ticket]);
+
+
+    const getStatusVariant = (status: Ticket['status']) => {
+        switch (status) {
+            case 'Aberto': return 'default';
+            case 'Em Andamento': return 'secondary';
+            case 'Fechado': return 'outline';
+            default: return 'default';
+        }
+    };
+
+    if (loading) {
+        return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>;
+    }
+
+    if (!ticket) {
+        return <div className="text-center p-8">Ticket não encontrado ou foi apagado.</div>;
+    }
+
+    return (
+        <div className="flex flex-col gap-6 h-full">
+            <div className="flex items-center justify-between">
+                <Button variant="outline" onClick={() => navigate(-1)} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" /> Voltar
+                </Button>
+                <div className="flex gap-2">
+                    {ticket.status !== 'Em Andamento' && <Button variant="secondary" onClick={() => handleUpdateStatus('Em Andamento')}>Iniciar Trabalho</Button>}
+                    {ticket.status !== 'Fechado' && <Button variant="destructive" onClick={() => handleUpdateStatus('Fechado')}>Fechar Ticket</Button>}
+                </div>
+            </div>
+
+            <Card className="flex-shrink-0">
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                        {ticket.subject}
+                        <Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge>
+                    </CardTitle>
+                    <CardDescription>ID: {ticket.id} | Provedor: {ticket.providerName} | Cliente: {ticket.createdBy}</CardDescription>
+                </CardHeader>
+            </Card>
+
+            <Card className="flex-1 min-h-0 flex flex-col">
+                <CardHeader>
+                    <CardTitle>Histórico de Mensagens</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto space-y-4">
+                    {messages.map((msg) => (
+                        <div key={msg.id} className={`p-3 rounded-lg max-w-[80%] ${msg.senderEmail === user?.email ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted text-muted-foreground mr-auto'}`}>
+                            <p className="text-xs font-semibold mb-1">
+                                {msg.senderEmail === user?.email ? 'Você' : ticket.createdBy}
+                                <span className="ml-2 font-normal text-[10px] opacity-70">{formatTimestamp(msg.timestamp)}</span>
+                            </p>
+                            {msg.message && <p className="text-sm">{msg.message}</p>}
+                            {msg.imageUrl && (
+                                <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                                    <img src={msg.imageUrl} alt="Anexo" className="max-w-full h-auto rounded-md shadow-md cursor-pointer" />
+                                    <p className="text-xs mt-1 underline">Ver Imagem</p>
+                                </a>
+                            )}
+                        </div>
+                    ))}
+                </CardContent>
+                <div className="p-4 border-t">
+                    <Textarea
+                        placeholder="Digite sua resposta aqui..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        rows={3}
+                        disabled={isSending || ticket.status === 'Fechado'}
+                    />
+                    <div className="flex justify-end mt-3">
+                        <Button onClick={handleReply} disabled={isSending || ticket.status === 'Fechado' || !newMessage.trim()}>
+                            {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Enviar Resposta"}
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+        </div>
+    );
+}
+--- Arquivo: src/pages/provider/ProviderClientsPage.tsx ---
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
+import { db } from '@/firebase/config';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, UserX, Search, RefreshCw } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+
+interface SgpClient {
+    id: number;
+    nome: string;
+    cpfcnpj: string;
+    contratos: { id: number; status: string }[];
+}
+
+const ITEMS_PER_PAGE = 25;
+
+// Hook para "atrasar" a busca e não fazer uma requisição a cada tecla digitada
+function useDebounce(value: string, delay: number) {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+    return debouncedValue;
+}
+
+export default function ProviderClientsPage() {
+    const navigate = useNavigate();
+    const { user, providerId } = useAuth();
+    const [clients, setClients] = useState<SgpClient[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalClients, setTotalClients] = useState(0);
+
+    const debouncedSearchTerm = useDebounce(searchTerm, 300); // Aguarda 300ms após o usuário parar de digitar
+    const pageCount = Math.ceil(totalClients / ITEMS_PER_PAGE);
+
+    const callProxy = useCallback(async (action: 'sync' | 'get', page = 1, search = '') => {
+        if (!providerId || !user) return;
+
+        const isSyncAction = action === 'sync';
+        if (isSyncAction) {
+            setIsSyncing(true);
+            toast.info("Iniciando sincronização... Isso pode levar vários minutos. Por favor, aguarde.");
+        } else {
+            setLoading(true);
+        }
+
+        const offset = (page - 1) * ITEMS_PER_PAGE;
+        const requestId = doc(collection(db, 'function_requests')).id;
+        const responseDocRef = doc(db, 'function_responses', requestId);
+
+        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                unsubscribe();
+                const response = docSnap.data();
+
+                if (response.error) {
+                    toast.error(isSyncAction ? "Falha na sincronização" : "Falha ao carregar clientes", { description: response.error });
+                } else if (response.result) {
+                    if (isSyncAction) {
+                        toast.success("Sincronização concluída!", { description: `${response.result.count} clientes foram salvos.` });
+                        setSearchTerm(''); // Limpa a busca após sincronizar
+                        setCurrentPage(1);
+                        callProxy('get', 1, ''); // Recarrega a primeira página
+                    } else {
+                        setClients(response.result.clientes || []);
+                        setTotalClients(response.result.paginacao?.total || 0);
+                    }
+                }
+                setLoading(false);
+                setIsSyncing(false);
+            }
+        });
+
+        try {
+            await setDoc(doc(db, 'function_requests', requestId), {
+                type: 'SGP_API_PROXY',
+                requesterUid: user.uid,
+                createdAt: serverTimestamp(),
+                payload: {
+                    providerId,
+                    requesterUid: user.uid,
+                    action: action,
+                    params: isSyncAction ? {
+                        limit: 100,
+                        offset: 0,
+                        contrato_status: 1,
+                        omitir_titulos: 1
+                    } : {
+                        limit: ITEMS_PER_PAGE,
+                        offset: offset,
+                        searchTerm: search
+                    }
+                }
+            });
+        } catch (error: any) {
+            toast.error("Erro ao disparar a função.", { description: error.message });
+            setLoading(false);
+            setIsSyncing(false);
+            unsubscribe();
+        }
+    }, [providerId, user]);
+
+    // Efeito para buscar os clientes do cache ao carregar ou mudar de página/busca
+    useEffect(() => {
+        if (!isSyncing) {
+            callProxy('get', currentPage, debouncedSearchTerm);
+        }
+    }, [currentPage, debouncedSearchTerm, callProxy, isSyncing]);
+
+    // Handler para o input de busca
+    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(event.target.value);
+        setCurrentPage(1); // Volta para a primeira página sempre que uma nova busca é feita
+    };
+
+    if (loading && clients.length === 0) {
+        return (
+            <div className="flex flex-col justify-center items-center h-full text-center">
+                <Loader2 className="animate-spin h-8 w-8 mb-4" />
+                <p className="text-lg font-semibold">Carregando clientes do cache...</p>
+            </div>
+        );
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <CardTitle>Clientes Ativos (SGP)</CardTitle>
+                        <CardDescription>
+                            {totalClients > 0 ? `Encontrados ${totalClients} clientes no total.` : "Nenhum cliente sincronizado."}
+                        </CardDescription>
+                    </div>
+                    <div className="flex w-full sm:w-auto items-center gap-4">
+                        <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder={`Pesquisar em ${totalClients} clientes...`}
+                                className="pl-8 w-full"
+                                value={searchTerm}
+                                onChange={handleSearchChange}
+                            />
+                        </div>
+                        <Button onClick={() => callProxy('sync')} disabled={isSyncing} variant="outline">
+                            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
+                            Sincronizar
+                        </Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /></div>
+                ) : clients.length === 0 ? (
+                    <EmptyState
+                        icon={UserX}
+                        title={searchTerm ? "Nenhum resultado para sua busca" : "Nenhum Cliente no Cache"}
+                        description={searchTerm ? `Não foram encontrados clientes com o termo "${searchTerm}". Limpe a busca para ver todos.` : "Clique em 'Sincronizar' para buscar os dados do SGP."}
+                    />
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>ID</TableHead>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>CPF/CNPJ</TableHead>
+                                <TableHead>Contratos</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {clients.map((client) => (
+                                <TableRow 
+                                    key={client.id} 
+                                    className="cursor-pointer hover:bg-muted" 
+                                    // CORREÇÃO: Passa o CPF/CNPJ (ID do documento no Firestore)
+                                    onClick={() => navigate(`/provedor/clientes/${client.cpfcnpj}`)}
+                                >
+                                    <TableCell>{client.id}</TableCell>
+                                    <TableCell className="font-medium">{client.nome}</TableCell>
+                                    <TableCell>{client.cpfcnpj}</TableCell>
+                                    <TableCell>{client.contratos && client.contratos.map((c: any) => c.id).join(', ')}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+            {pageCount > 1 && (
+                <CardFooter className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                        Página {currentPage} de {pageCount}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || loading}>Anterior</Button>
+                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount || loading}>Próxima</Button>
+                    </div>
+                </CardFooter>
+            )}
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider/ClientDetailPage.tsx ---
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useApi } from '@/hooks/useApi';
+import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, ArrowLeft, UserCircle, AlertTriangle } from 'lucide-react';
+
+interface ClientData {
+    id: string; // ID interno do SGP
+    nome: string;
+    cpfcnpj: string;
+    userStatus: string; // Inferido do contrato retornado pelo proxy
+    userPlan: string;
+    providerId: string;
+    contratos?: any[];
+    [key: string]: any; 
+}
+
+export default function ClientDetailPage() {
+    // Espera o ID interno do SGP na URL (ex: 407)
+    const { clientId: sgpClientId } = useParams<{ clientId: string }>(); 
+    const navigate = useNavigate();
+    const { user, userRole, providerId } = useAuth();
+    const { callFunction, loading } = useApi();
+    const [client, setClient] = useState<ClientData | null>(null);
+    const [isLoadingClient, setIsLoadingClient] = useState(true);
+
+    // 1. Fetch Client Details (Via Proxy SGP, para obter detalhes do cache)
+    useEffect(() => {
+        // Se o painel não sabe de qual provedor é, ou o ID do cliente está faltando
+        if (!sgpClientId || !providerId || !user) {
+            setIsLoadingClient(false);
+            return;
+        }
+
+        const fetchDetails = async () => {
+            try {
+                // Chamamos o proxy para buscar do CACHE SQLite usando o ID INTERNO do SGP
+                const result = await callFunction('SGP_API_PROXY', {
+                    providerId: providerId,
+                    action: 'get_single', // Ação para buscar cliente único no cache (Proxy ROTA 3)
+                    params: { 
+                        clientId: sgpClientId // Passamos o ID interno do SGP
+                    }
+                });
+                
+                if (result && result.cpfcnpj) {
+                    // O resultado do proxy é um objeto cliente (id, nome, cpfcnpj, contratos)
+                    // Tentamos inferir status/plano do primeiro contrato, se disponível no cache.
+                    const firstContract = result.contratos?.[0] || {};
+
+                    setClient({
+                         ...result,
+                         id: sgpClientId, // ID SGP
+                         providerId: providerId,
+                         userStatus: firstContract.contratoStatusDisplay || 'N/A',
+                         userPlan: firstContract.servico_plano || 'N/A',
+                         // Garantir que a chave cpfcnpj está lá
+                         cpfcnpj: result.cpfcnpj,
+                         // O campo 'contratos' já vem no result.
+                    });
+                } else {
+                    toast.error("Cliente não encontrado no cache.");
+                }
+            } catch (error: any) {
+                toast.error(error.message || "Falha ao carregar detalhes do cliente do cache SGP.");
+            } finally {
+                setIsLoadingClient(false);
+            }
+        };
+
+        fetchDetails();
+    }, [sgpClientId, user, providerId, callFunction]);
+
+    const handleDeleteClient = async () => {
+        // A exclusão de cliente envolve a remoção do documento na coleção 'clientes' do Firestore,
+        // cujo ID é o CPF/CNPJ (limpo), e não o ID SGP. 
+        // O cliente.cpfcnpj está no formato que veio do cache SGP (pode ter formatação ou não).
+
+        if (!client || !window.confirm(`Tem certeza que deseja apagar o cliente ${client.nome}? Isso só remove o registro do app/FCM/cache.`)) {
+            return;
+        }
+        
+        // CORREÇÃO DE SEGURANÇA: Limpar o CPF/CNPJ antes de tentar apagar o documento do Firestore
+        const cleanCpfCnpj = client.cpfcnpj ? client.cpfcnpj.replace(/[^0-9]/g, '') : null;
+
+        if (!cleanCpfCnpj) {
+             toast.error("Não foi possível apagar: CPF/CNPJ inválido.");
+             return;
+        }
+
+        try {
+            await callFunction('DELETE_CLIENT', {
+                // Ao apagar, passamos o CPF/CNPJ limpo (ID do documento no Firestore)
+                clientId: cleanCpfCnpj, 
+                providerId: client.providerId, 
+            });
+            
+            navigate('/provedor/clientes');
+        } catch (error: any) {
+             // O toast de erro já é tratado no useApi
+        }
+    };
+    
+
+    if (isLoadingClient || loading) {
+        return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>;
+    }
+
+    if (!client) {
+        return (
+            <Card>
+                <CardHeader><CardTitle>Cliente Não Encontrado</CardTitle></CardHeader>
+                <CardContent className="flex flex-col items-center gap-4">
+                    <AlertTriangle className="h-12 w-12 text-destructive" />
+                    <p>O ID do cliente {sgpClientId} é inválido ou não foi encontrado no cache local.</p>
+                    <Button onClick={() => navigate(-1)}>Voltar</Button>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    // O ID na URL é o ID SGP, mas o CPF/CNPJ formatado é exibido
+    const clientCpfCnpjDisplay = client.cpfcnpj || 'N/A';
+    const isSuperAdmin = userRole === 'superAdmin';
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+                <Button variant="outline" onClick={() => navigate(-1)} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" /> Voltar
+                </Button>
+                <Button variant="destructive" onClick={handleDeleteClient} disabled={loading}>
+                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Apagar Cliente (App/FCM)"}
+                </Button>
+            </div>
+
+            <Card>
+                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+                    <UserCircle className="h-6 w-6 mr-3 text-primary" />
+                    <CardTitle className="text-2xl">{client.nome}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">CPF/CNPJ</p>
+                            <p className="font-bold">{clientCpfCnpjDisplay}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Status</p>
+                            <p className={`font-bold ${client.userStatus === 'Ativo' ? 'text-green-500' : 'text-red-500'}`}>{client.userStatus}</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Plano</p>
+                            <p className="font-bold">{client.userPlan}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">ID SGP / Provedor</p>
+                            <p className="font-bold">{client.id} / {client.providerId} {isSuperAdmin && `(${client.providerId})`}</p>
+                        </div>
+                    </div>
+
+                    <h3 className="text-xl font-semibold mt-4 border-t pt-4">Dados Técnicos (Cache SGP)</h3>
+                    
+                    <Card className="bg-muted/50 p-4">
+                        <pre className="text-xs overflow-auto max-h-[300px]">
+                            {JSON.stringify(client.contratos || client, null, 2)}
+                        </pre>
+                    </Card>
+
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+--- Arquivo: src/pages/provider-settings/AppearanceSettings.tsx ---
+import { useContext, useState, useEffect } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Upload } from 'lucide-react'; 
+import { toast } from 'sonner';
+// Import de { Trash2 } removido - TS6133
+
+export default function AppearanceSettings() {
+    const context = useContext(SettingsContext);
+    if (!context) return null;
+
+    const { config, setConfig } = context;
+
+    const [localThemeColor, setLocalThemeColor] = useState(config.themeColor || '#673AB7');
+    const [localSecondaryColor, setLocalSecondaryColor] = useState(config.secondaryColor || '#9575CD');
+    const [localLogoUrl, setLocalLogoUrl] = useState(config.logoUrl || '');
+    
+    useEffect(() => {
+        setLocalThemeColor(config.themeColor || '#673AB7');
+        setLocalSecondaryColor(config.secondaryColor || '#9575CD');
+        setLocalLogoUrl(config.logoUrl || '');
+    }, [config]);
+
+    // Função para atualizar localmente e no contexto
+    const handleColorChange = (key: keyof ProviderConfig, value: string) => {
+        if (key === 'themeColor') setLocalThemeColor(value);
+        if (key === 'secondaryColor') setLocalSecondaryColor(value);
+
+        // Atualiza o contexto global para que o botão salvar detecte a mudança
+        setConfig((prev: any) => ({ ...prev, [key]: value }));
+    };
+
+    const handleSaveLogo = () => {
+        // Lógica de upload de logo simulada
+        if (localLogoUrl.startsWith('http')) {
+            setConfig((prev: any) => ({ ...prev, logoUrl: localLogoUrl }));
+            toast.success("URL do logo atualizada. Clique em 'Salvar Alterações' no topo.");
+        } else {
+            toast.error("Por favor, insira uma URL de imagem válida.");
+        }
+    };
+    
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Aparência (Cores e Logo)</CardTitle>
+                <CardDescription>
+                    Personalize o esquema de cores e o logotipo do aplicativo móvel.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    {/* Cor Primária */}
+                    <div className="space-y-2">
+                        <Label htmlFor="themeColor">Cor Principal</Label>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="themeColor"
+                                type="color"
+                                value={localThemeColor}
+                                onChange={(e) => handleColorChange('themeColor', e.target.value)}
+                                className="w-12 h-10 p-0 cursor-pointer"
+                            />
+                            <Input
+                                type="text"
+                                value={localThemeColor}
+                                onChange={(e) => handleColorChange('themeColor', e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    {/* Cor Secundária */}
+                    <div className="space-y-2">
+                        <Label htmlFor="secondaryColor">Cor Secundária (Gradiente)</Label>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="secondaryColor"
+                                type="color"
+                                value={localSecondaryColor}
+                                onChange={(e) => handleColorChange('secondaryColor', e.target.value)}
+                                className="w-12 h-10 p-0 cursor-pointer"
+                            />
+                            <Input
+                                type="text"
+                                value={localSecondaryColor}
+                                onChange={(e) => handleColorChange('secondaryColor', e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="logoUrl">URL do Logotipo</Label>
+                    <div className="flex gap-2">
+                        <Input
+                            id="logoUrl"
+                            placeholder="https://suaempresa.com/logo.png"
+                            value={localLogoUrl}
+                            onChange={(e) => setLocalLogoUrl(e.target.value)}
+                        />
+                        <Button onClick={handleSaveLogo}>
+                            <Upload className="h-4 w-4 mr-2" /> Salvar URL
+                        </Button>
+                    </div>
+                    {localLogoUrl && (
+                        <div className="mt-4 p-4 border rounded-md">
+                            <p className="text-sm font-medium mb-2">Pré-visualização:</p>
+                            <img src={localLogoUrl} alt="Logo Preview" className="max-h-12 w-auto" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider-settings/CarouselSettings.tsx ---
+import { useContext, useState, useEffect } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { PlusCircle, Trash2, Upload, Loader2, Image, Link } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function CarouselSettings() {
+    const context = useContext(SettingsContext);
+    if (!context) return null;
+
+    const { config, setConfig, isSaving } = context;
+
+    // Estado local para a lista de URLs de imagens do carrossel
+    const [localImages, setLocalImages] = useState<string[]>(config.imageCarousel || []);
+    const [newImageUrl, setNewImageUrl] = useState('');
+
+    useEffect(() => {
+        setLocalImages(config.imageCarousel || []);
+    }, [config.imageCarousel]);
+
+    // Função interna para atualizar o contexto e o estado local
+    const updateAndSave = (updatedImages: string[]) => {
+        setLocalImages(updatedImages);
+        
+        // Atualiza o contexto, aninhando a nova configuração de carrossel
+        // CORRIGIDO: Tipagem do prev para resolver TS7006
+        setConfig((prev: ProviderConfig) => ({ ...prev, imageCarousel: updatedImages }));
+    };
+
+    const handleAddImage = () => {
+        const url = newImageUrl.trim();
+        if (!url || !url.startsWith('http')) {
+            toast.error("Por favor, insira uma URL de imagem válida (deve começar com http/https).");
+            return;
+        }
+
+        const updatedImages = [...localImages, url];
+        updateAndSave(updatedImages);
+        setNewImageUrl('');
+        toast.success("Imagem adicionada. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+
+    // CORRIGIDO: Tipagem do index e _ para resolver TS7006 nas funções internas
+    const handleRemoveImage = (indexToRemove: number) => {
+        const updatedImages = localImages.filter((_, index) => index !== indexToRemove);
+        updateAndSave(updatedImages);
+        toast.warning("Imagem removida. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Carrossel de Imagens</CardTitle>
+                <CardDescription>
+                    Gerencie a lista de imagens que aparecerão no carrossel da tela inicial do aplicativo.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                
+                {/* Adicionar Nova Imagem */}
+                <div className="flex gap-2">
+                    <Input
+                        placeholder="Insira a URL da imagem (Ex: https://meusite.com/promo.jpg)"
+                        value={newImageUrl}
+                        onChange={(e) => setNewImageUrl(e.target.value)}
+                        disabled={isSaving}
+                    />
+                    <Button onClick={handleAddImage} disabled={isSaving || !newImageUrl.trim()}>
+                        <PlusCircle className="h-4 w-4 mr-2" /> Adicionar
+                    </Button>
+                </div>
+
+                {/* Lista de Imagens Atuais */}
+                {localImages.length > 0 && (
+                    <div className="space-y-4 pt-4 border-t">
+                        <Label className="text-base font-semibold flex items-center gap-2">
+                            <Image className="h-5 w-5" /> Imagens Atuais ({localImages.length})
+                        </Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* CORRIGIDO: Tipagem do image e index para resolver TS7006 */}
+                            {localImages.map((image: string, index: number) => (
+                                <div key={index} className="relative group overflow-hidden rounded-lg border bg-muted">
+                                    <img 
+                                        src={image} 
+                                        alt={`Carrossel Imagem ${index + 1}`} 
+                                        className="w-full h-32 object-cover transition-transform duration-300 group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button 
+                                            variant="destructive" 
+                                            size="icon" 
+                                            onClick={() => handleRemoveImage(index)} 
+                                            disabled={isSaving}
+                                            className="h-8 w-8"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <a href={image} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 text-white/80 hover:text-white">
+                                        <Link className="h-4 w-4" />
+                                    </a>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {localImages.length === 0 && (
+                    <p className="text-sm text-muted-foreground pt-4">Nenhuma imagem configurada ainda.</p>
+                )}
+                
+                <Button disabled={isSaving} className="mt-4">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Aplicar Carrossel (Salvar Localmente)"}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider-settings/IntegrationsSettings.tsx ---
+import { useContext, useState, useEffect } from 'react';
+import { SettingsContext } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Save, Loader2, Link } from 'lucide-react';
+import { toast } from 'sonner';
+// Import de { ProviderConfig } removido - TS6133
+
+export default function IntegrationsSettings() {
+    const context = useContext(SettingsContext);
+    if (!context) return null;
+
+    const { config, setConfig, isSaving } = context;
+
+    // Acessa as configurações aninhadas no contexto
+    const [localApiToken, setLocalApiToken] = useState(config.integrations?.apiToken || '');
+    const [localAppName, setLocalAppName] = useState(config.integrations?.appName || '');
+
+    useEffect(() => {
+        setLocalApiToken(config.integrations?.apiToken || '');
+        setLocalAppName(config.integrations?.appName || '');
+    }, [config]);
+
+    const handleSaveIntegration = () => {
+        const newIntegrations = {
+            apiToken: localApiToken.trim(),
+            appName: localAppName.trim(),
+        };
+
+        // Atualiza o contexto, aninhando a nova configuração de integrações
+        // Isso será persistido no Firestore sob config.integrations quando o botão "Salvar Alterações" no ProviderDetailPage for pressionado.
+        setConfig((prev: any) => ({
+            ...prev,
+            integrations: newIntegrations,
+        }));
+        
+        toast.info("Configurações atualizadas localmente. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Integrações SGP</CardTitle>
+                <CardDescription>
+                    Configure o token e o nome do aplicativo necessários para sincronizar clientes e acessar dados do SGP.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                
+                <div className="space-y-2">
+                    <Label htmlFor="apiToken">Token da API do SGP</Label>
+                    <Input
+                        id="apiToken"
+                        placeholder="Insira o seu token de API do SGP"
+                        value={localApiToken}
+                        onChange={(e) => setLocalApiToken(e.target.value)}
+                        disabled={isSaving}
+                    />
+                    <p className="text-sm text-muted-foreground">Chave secreta fornecida pelo seu sistema SGP.</p>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="appName">Nome do Aplicativo (App Name)</Label>
+                    <Input
+                        id="appName"
+                        placeholder="Ex: VIBE_TELECOM"
+                        value={localAppName}
+                        onChange={(e) => setLocalAppName(e.target.value)}
+                        disabled={isSaving}
+                    />
+                    <p className="text-sm text-muted-foreground">Nome da sua aplicação cadastrada no SGP.</p>
+                </div>
+
+                <Button onClick={handleSaveIntegration} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Aplicar Configurações
+                </Button>
+                
+                <div className="flex items-center text-sm text-muted-foreground pt-4 border-t">
+                    <Link className="h-4 w-4 mr-2" />
+                    As integrações entrarão em vigor após salvar as alterações no painel.
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider-settings/PersonalizedTextsSettings.tsx ---
+import { useContext, useState, useEffect } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import RichTextEditor from '@/components/RichTextEditor'; 
+// Import de { toast } removido - TS6133
+
+// Textos padrão para inicialização
+const defaultTexts = {
+  loginQuote: "Acesse sua conta para gerenciar seus serviços e faturas.",
+  termsOfUse: "<p>Estes são os termos de uso padrão. Por favor, edite-os no painel.</p>"
+};
+
+export default function PersonalizedTextsSettings() {
+  const context = useContext(SettingsContext);
+  if (!context) return null;
+
+  // setConfig é necessário para atualizar o contexto (TS6133 resolvido, pois é usado em handleUpdate)
+  const { config, setConfig } = context; 
+  const [localConfig, setLocalConfig] = useState<ProviderConfig>(config);
+
+  useEffect(() => {
+    // Sincroniza o estado local com o estado global ao carregar a página
+    setLocalConfig(config);
+  }, [config]);
+
+  // Função genérica de atualização local (CORRIGE TS7006 - implicitly has an 'any' type)
+  const handleUpdate = (key: keyof ProviderConfig, value: string) => {
+    setLocalConfig((prevConfig: ProviderConfig) => {
+      // Cria a nova configuração mesclando a anterior
+      const newConfig = { ...prevConfig, [key]: value };
+      
+      // Atualiza o contexto global para que o botão salvar detecte a mudança
+      setConfig((prev: any) => ({ // Tipagem explícita para o prev
+          ...prev, 
+          [key]: value 
+      }));
+      
+      return newConfig;
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Textos Personalizados</CardTitle>
+        <CardDescription>
+          Configure mensagens de boas-vindas, textos de rodapé e termos legais do aplicativo.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Campo 1: Citação da tela de Login (Texto simples) */}
+        <div className="space-y-2">
+          <Label htmlFor="loginQuote">Citação da Tela de Login</Label>
+          <Input 
+            id="loginQuote"
+            placeholder={defaultTexts.loginQuote}
+            value={localConfig.loginQuote || ''}
+            onChange={(e) => handleUpdate('loginQuote', e.target.value)}
+          />
+          <p className="text-sm text-muted-foreground">Exibido abaixo do título principal na tela de login.</p>
+        </div>
+
+        {/* Campo 2: Termos de Serviço (Rich Text) */}
+        <div className="space-y-2">
+          <Label>Termos de Serviço (HTML/Rich Text)</Label>
+          <RichTextEditor
+            value={localConfig.termsOfUse || defaultTexts.termsOfUse}
+            onChange={(value) => handleUpdate('termsOfUse', value)} 
+          />
+          <p className="text-sm text-muted-foreground">O texto que aparece na seção "Termos de Serviço" (pode conter formatação HTML).</p>
+        </div>
+        
+      </CardContent>
+    </Card>
+  );
+}
+--- Arquivo: src/pages/provider-settings/SocialNetworksSettings.tsx ---
+import { useContext, useState, useEffect } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Save, Loader2, Instagram, Facebook, Globe, MessageCircle } from 'lucide-react'; // Whatsapp substituído por MessageCircle
+import { toast } from 'sonner';
+
+export default function SocialNetworksSettings() {
+    const context = useContext(SettingsContext);
+    if (!context) return null;
+
+    const { config, setConfig, isSaving } = context;
+
+    const [localInstagram, setLocalInstagram] = useState(config.socialNetworks?.instagram || '');
+    const [localFacebook, setLocalFacebook] = useState(config.socialNetworks?.facebook || '');
+    const [localWebsite, setLocalWebsite] = useState(config.socialNetworks?.website || '');
+    const [localWhatsapp, setLocalWhatsapp] = useState(config.socialNetworks?.whatsapp || '');
+
+    useEffect(() => {
+        setLocalInstagram(config.socialNetworks?.instagram || '');
+        setLocalFacebook(config.socialNetworks?.facebook || '');
+        setLocalWebsite(config.socialNetworks?.website || '');
+        setLocalWhatsapp(config.socialNetworks?.whatsapp || '');
+    }, [config]);
+
+    // Função para salvar localmente e atualizar o contexto
+    const handleSaveSocial = () => {
+        const newSocialNetworks = {
+            instagram: localInstagram.trim(),
+            facebook: localFacebook.trim(),
+            website: localWebsite.trim(),
+            whatsapp: localWhatsapp.trim(),
+        };
+
+        // Atualiza o contexto, aninhando a nova configuração de redes sociais
+        setConfig((prevConfig: ProviderConfig) => ({
+            ...prevConfig,
+            socialNetworks: newSocialNetworks,
+        }));
+        
+        toast.info("Links de redes sociais salvos localmente. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Redes Sociais e Links</CardTitle>
+                <CardDescription>
+                    Adicione links diretos para as redes sociais da sua empresa.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                
+                <div className="space-y-2">
+                    <Label htmlFor="instagram">Link do Instagram</Label>
+                    <div className="flex items-center gap-2">
+                        <Instagram className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                            id="instagram"
+                            placeholder="Ex: https://instagram.com/seuperfil"
+                            value={localInstagram}
+                            onChange={(e) => setLocalInstagram(e.target.value)}
+                            disabled={isSaving}
+                        />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="facebook">Link do Facebook</Label>
+                    <div className="flex items-center gap-2">
+                        <Facebook className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                            id="facebook"
+                            placeholder="Ex: https://facebook.com/seuperfil"
+                            value={localFacebook}
+                            onChange={(e) => setLocalFacebook(e.target.value)}
+                            disabled={isSaving}
+                        />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="website">Link do Site</Label>
+                    <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                            id="website"
+                            placeholder="Ex: https://www.seuprovedor.com"
+                            value={localWebsite}
+                            onChange={(e) => setLocalWebsite(e.target.value)}
+                            disabled={isSaving}
+                        />
+                    </div>
+                </div>
+                
+                <div className="space-y-2">
+                    <Label htmlFor="whatsapp">Número de Contato/WhatsApp</Label>
+                    <div className="flex items-center gap-2">
+                        <MessageCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" /> 
+                        <Input
+                            id="whatsapp"
+                            placeholder="Ex: +5511987654321"
+                            value={localWhatsapp}
+                            onChange={(e) => setLocalWhatsapp(e.target.value)}
+                            disabled={isSaving}
+                        />
+                    </div>
+                </div>
+
+                <Button onClick={handleSaveSocial} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Aplicar Links
+                </Button>
+                
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider-settings/SupportSettings.tsx ---
+import { useContext, useState, useEffect, useCallback } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Loader2, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import AddEditContactDialog from '@/components/dialogs/AddEditContactDialog';
+
+interface SupportContact {
+    id: string;
+    name: string;
+    type: 'phone' | 'email' | 'address';
+    value: string;
+}
+
+export default function SupportSettings() {
+    const context = useContext(SettingsContext);
+    if (!context) return null;
+
+    const { config, setConfig, isSaving } = context;
+
+    const [localContacts, setLocalContacts] = useState<SupportContact[]>(config.supportContacts || []);
+
+    useEffect(() => {
+        setLocalContacts(config.supportContacts || []);
+    }, [config.supportContacts]);
+
+    // Função interna para atualizar o contexto e o estado local
+    const updateAndSave = (updatedContacts: SupportContact[]) => {
+        setLocalContacts(updatedContacts);
+        
+        // Atualiza o contexto
+        // CORRIGIDO: Tipagem do prev para resolver TS7006
+        setConfig((prev: ProviderConfig) => ({ ...prev, supportContacts: updatedContacts }));
+    };
+
+    // CORRIGIDO: Assinatura da função para corresponder ao AddEditContactDialog
+    const handleSaveContact = (contact: Omit<SupportContact, 'id'>, id?: string) => {
+        if (id) {
+            // Edição
+            const updatedContacts = localContacts.map(c => 
+                c.id === id ? { ...c, ...contact } : c
+            );
+            updateAndSave(updatedContacts);
+            toast.success("Contato atualizado. Salve no topo para confirmar.");
+        } else {
+            // Adição
+            const newContact: SupportContact = { id: `contact-${Date.now()}`, ...contact };
+            const updatedContacts = [...localContacts, newContact];
+            updateAndSave(updatedContacts);
+            toast.success("Contato adicionado. Salve no topo para confirmar.");
+        }
+    };
+
+    const handleRemoveContact = (id: string) => {
+        const updatedContacts = localContacts.filter(c => c.id !== id);
+        updateAndSave(updatedContacts);
+        toast.warning("Contato removido. Salve no topo para confirmar.");
+    };
+    
+    // Mapeia o tipo para um ícone
+    const getIcon = (type: 'phone' | 'email' | 'address') => {
+        switch (type) {
+            case 'phone': return <Phone className="h-5 w-5 text-green-600" />;
+            case 'email': return <Mail className="h-5 w-5 text-red-600" />;
+            case 'address': return <MapPin className="h-5 w-5 text-blue-600" />;
+            default: return null;
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Contatos de Suporte</CardTitle>
+                    <CardDescription>
+                        Gerencie os telefones, emails e endereços exibidos na tela de suporte do app.
+                    </CardDescription>
+                </div>
+                {/* CORRIGIDO: O diálogo recebe a função de salvar com a tipagem correta */}
+                <AddEditContactDialog onSave={handleSaveContact} />
+            </CardHeader>
+            <CardContent>
+                {localContacts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum contato configurado ainda.</p>
+                ) : (
+                    <div className="space-y-4">
+                        <Label className="text-base font-semibold">Lista de Contatos</Label>
+                        <div className="grid gap-4">
+                            {localContacts.map((contact) => (
+                                <div key={contact.id} className="flex items-center justify-between p-3 border rounded-md">
+                                    <div className="flex items-center gap-4">
+                                        {getIcon(contact.type)}
+                                        <div>
+                                            <p className="font-medium">{contact.name}</p>
+                                            <p className="text-sm text-muted-foreground">{contact.value}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {/* Diálogo de Edição */}
+                                        <AddEditContactDialog 
+                                            contact={contact} 
+                                            onSave={handleSaveContact} 
+                                            onDelete={handleRemoveContact}
+                                        />
+                                        <Button 
+                                            variant="destructive" 
+                                            size="icon" 
+                                            onClick={() => handleRemoveContact(contact.id)}
+                                            disabled={isSaving}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/AdminTicketsPage.tsx ---
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { doc, setDoc, onSnapshot, serverTimestamp, collection, Timestamp } from "firebase/firestore";
+import { db } from '@/firebase/config';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Search, MessageSquareOff, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import EmptyState from '@/components/EmptyState.tsx';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button';
+
+interface Ticket {
+    id: string;
+    subject: string;
+    providerName: string;
+    status: 'Aberto' | 'Em Andamento' | 'Fechado';
+    updatedAt?: Timestamp;
+}
+
+export default function AdminTicketsPage() {
+    const navigate = useNavigate();
+    const { user, userRole } = useAuth();
+    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('Todos');
+
+    const fetchTickets = useCallback(() => {
+        if (userRole !== 'superAdmin' || !user) { setLoading(false); return () => {}; }
+        setLoading(true);
+        const requestId = doc(collection(db, 'function_requests')).id;
+        const responseDocRef = doc(db, 'function_responses', requestId);
+        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const response = docSnap.data();
+                if (response.result?.tickets) { setTickets(response.result.tickets); } 
+                else if (response.error) { toast.error(`Erro ao buscar tickets: ${response.error}`); }
+                setLoading(false);
+                unsubscribe();
+            }
+        });
+        const triggerFunction = async () => {
+            try {
+                await setDoc(doc(db, 'function_requests', requestId), { type: 'GET_ALL_TICKETS', requesterUid: user.uid, createdAt: serverTimestamp() });
+            } catch (error: any) {
+                toast.error(`Falha ao solicitar tickets: ${error.message}`);
+                setLoading(false);
+                unsubscribe();
+            }
+        };
+        triggerFunction();
+        return unsubscribe;
+    }, [userRole, user]);
+
+    useEffect(() => {
+        const unsubscribe = fetchTickets();
+        return () => { if (unsubscribe) unsubscribe(); };
+    }, [fetchTickets]);
+
+    const handleDelete = async (ticketId: string) => {
+        if (!user) return;
+        const toastId = toast.loading("Apagando ticket...");
+        const requestId = doc(collection(db, 'function_requests')).id;
+        try {
+            await setDoc(doc(db, 'function_requests', requestId), {
+                type: 'DELETE_TICKET',
+                requesterUid: user.uid,
+                createdAt: serverTimestamp(),
+                payload: { ticketId }
+            });
+            // A remoção da UI será tratada pelo listener em tempo real, mas podemos ser otimistas
+            setTickets(prevTickets => prevTickets.filter(t => t.id !== ticketId));
+            toast.success("Ticket apagado.", { id: toastId });
+        } catch (error: any) {
+            toast.error(`Falha ao apagar ticket: ${error.message}`, { id: toastId });
+        }
+    };
+
+    const filteredTickets = useMemo(() => {
+        return tickets.filter(ticket => {
+            const matchesStatus = statusFilter === 'Todos' || ticket.status === statusFilter;
+            const matchesSearch = (ticket.subject?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || (ticket.providerName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+            return matchesStatus && matchesSearch;
+        });
+    }, [tickets, searchTerm, statusFilter]);
+    
+    const getStatusVariant = (status: Ticket['status']) => {
+        switch (status) {
+            case 'Aberto': return 'default';
+            case 'Em Andamento': return 'secondary';
+            case 'Fechado': return 'outline';
+            default: return 'default';
+        }
+    };
+
+    if (loading) { return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin h-8 w-8" /></div>; }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Todos os Tickets</CardTitle>
+                <CardDescription>Gerencie e responda a todos os tickets de suporte da plataforma.</CardDescription>
+                <div className="flex flex-col sm:flex-row items-center gap-4 mt-4">
+                    <div className="relative w-full flex-1">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input type="search" placeholder="Pesquisar por assunto ou provedor..." className="pl-8 w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por status" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Todos">Todos os Status</SelectItem>
+                            <SelectItem value="Aberto">Aberto</SelectItem>
+                            <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                            <SelectItem value="Fechado">Fechado</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {filteredTickets.length === 0 ? (
+                    <EmptyState icon={MessageSquareOff} title="Nenhum ticket encontrado" description="Não há tickets que correspondam aos filtros atuais." />                ) : (
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Assunto</TableHead><TableHead>Provedor</TableHead><TableHead>Última Atualização</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {filteredTickets.map((ticket) => (
+                                <TableRow key={ticket.id}>
+                                    <TableCell className="cursor-pointer" onClick={() => navigate(`/tickets/${ticket.id}`)}><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
+                                    <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/tickets/${ticket.id}`)}>{ticket.subject}</TableCell>
+                                    <TableCell className="cursor-pointer" onClick={() => navigate(`/tickets/${ticket.id}`)}>{ticket.providerName}</TableCell>                                    <TableCell className="cursor-pointer" onClick={() => navigate(`/tickets/${ticket.id}`)}>
+                                        {ticket.updatedAt ? format(ticket.updatedAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Data inválida'}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Tem a certeza absoluta?</AlertDialogTitle>
+                                                    <AlertDialogDescription>Esta ação não pode ser desfeita. Isto irá apagar permanentemente o ticket e todas as suas mensagens.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDelete(ticket.id)}>Sim, apagar ticket</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                  _  </AlertDialog>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider/ProviderTicketsPage.tsx ---
+import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useApi } from '@/hooks/useApi';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from '@/components/ui/badge';
+import { Loader2, MessageSquare, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button'; // <--- IMPORT CORRIGIDO
+import AddTicketDialog from '@/components/AddTicketDialog';
+import EmptyState from '@/components/EmptyState';
+
+interface Ticket {
+    id: string;
+    subject: string;
+    createdBy: string; // Email do cliente ou CPF/CNPJ
+    status: 'Aberto' | 'Em Andamento' | 'Fechado';
+    updatedAt: { seconds: number; nanoseconds: number };
+}
+
+const ITEMS_PER_PAGE = 10;
+
+export default function ProviderTicketsPage() {
+    const navigate = useNavigate();
+    // userRole e loading removidos daqui para resolver TS6133, pois são usados no useApi
+    const { user, providerId } = useAuth(); 
+    const { callFunction, loading: isApiLoading } = useApi();
+    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [isLoadingTickets, setIsLoadingTickets] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const fetchTickets = async () => {
+        if (!providerId || !user) {
+            setIsLoadingTickets(false);
+            return;
+        }
+        setIsLoadingTickets(true);
+        try {
+            const result = await callFunction('GET_PROVIDER_TICKETS', { providerId });
+            const formattedTickets: Ticket[] = (result?.tickets || []).map((t: any) => ({
+                ...t,
+                id: t.id,
+                // Garantir o updatedAt no formato esperado
+            }));
+            setTickets(formattedTickets);
+        } catch (error) {
+            toast.error("Falha ao carregar a lista de tickets.");
+        } finally {
+            setIsLoadingTickets(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTickets();
+    }, [providerId, user, callFunction]);
+
+    const filteredTickets = useMemo(() => tickets.filter(t =>
+        t.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.createdBy.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [tickets, searchTerm]);
+
+    const pageCount = Math.ceil(filteredTickets.length / ITEMS_PER_PAGE);
+    const paginatedTickets = filteredTickets.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    const getStatusVariant = (status: Ticket['status']) => {
+        switch (status) {
+            case 'Aberto': return 'default';
+            case 'Em Andamento': return 'secondary';
+            case 'Fechado': return 'outline';
+            default: return 'default';
+        }
+    };
+    
+    // Simulação da busca do nome do provedor (necessário para a prop providerName do AddTicketDialog)
+    // Em um cenário real, você buscaria isso do Firestore ou do AuthContext.
+    const mockProviderName = "Nome do Provedor"; 
+    
+    if (isLoadingTickets) {
+        return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <CardTitle>Tickets de Suporte</CardTitle>
+                        <CardDescription>Gerencie as solicitações de suporte dos seus clientes.</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Pesquisar por assunto ou cliente..."
+                                className="pl-8 w-full"
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            />
+                        </div>
+                        {/* CORRIGIDO: Passando providerName e onTicketCreated */}
+                        <AddTicketDialog 
+                            providerName={mockProviderName} 
+                            onTicketCreated={fetchTickets} 
+                        />
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {filteredTickets.length === 0 ? (
+                    <EmptyState
+                        icon={MessageSquare}
+                        title="Nenhum ticket encontrado"
+                        description="Nenhum ticket corresponde à sua pesquisa ou a lista está vazia."
+                    />
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>ID</TableHead>
+                                <TableHead>Assunto</TableHead>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="text-right">Última Atualização</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedTickets.map((ticket) => (
+                                <TableRow 
+                                    key={ticket.id} 
+                                    className="cursor-pointer hover:bg-muted/50" 
+                                    onClick={() => navigate(`/provedor/tickets/${ticket.id}`)}
+                                >
+                                    <TableCell className="font-medium text-xs text-muted-foreground">{ticket.id.substring(0, 8)}</TableCell>
+                                    <TableCell className="font-medium">{ticket.subject}</TableCell>
+                                    <TableCell>{ticket.createdBy}</TableCell>
+                                    <TableCell className="text-center">
+                                        <Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {ticket.updatedAt ? new Date(ticket.updatedAt.seconds * 1000).toLocaleString('pt-BR') : 'N/A'}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+            {filteredTickets.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t">
+                    <span className="text-sm text-muted-foreground">A exibir {paginatedTickets.length} de {filteredTickets.length} tickets.</span>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
+                        <span className="text-sm">Página {currentPage} de {pageCount > 0 ? pageCount : 1}</span>
+                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount || pageCount === 0}>Próxima</Button>
+                    </div>
+                </div>
+            )}
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider-settings/MenusSettingsPage.tsx ---
+import { useState, useContext, useEffect } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { GripVertical, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Switch } from "@/components/ui/switch";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import AddMenuItemDialog from '@/components/AddMenuItemDialog';
+
+interface MenuItem {
+  id: string;
+  name: string;
+  type: 'internal' | 'external_link';
+  url?: string;
+  enabled: boolean;
+}
+
+const defaultMenuItems: Omit<MenuItem, 'enabled'>[] = [
+  { id: 'notifications', name: 'Notificações', type: 'internal' },
+  { id: 'invoices', name: 'Faturas', type: 'internal' },
+  { id: 'payment_promise', name: 'Promessa de Pagamento', type: 'internal' },
+  { id: 'speed_test', name: 'Teste de Velocidade', type: 'internal' },
+  { id: 'internet_usage', name: 'Consumo de Internet', type: 'internal' },
+  { id: 'support', name: 'Suporte', type: 'internal' },
+];
+
+function SortableRow({ item, index, onToggle, onRemove }: { item: MenuItem; index: number; onToggle: (id: string, enabled: boolean) => void; onRemove: (id: string) => void; }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id });
+    const style = { transform: CSS.Transform.toString(transform), transition };
+
+    return (
+        <TableRow ref={setNodeRef} style={style}>
+            <TableCell className="cursor-grab w-[50px]" {...attributes} {...listeners}>                <GripVertical className="h-5 w-5 text-muted-foreground" />
+            </TableCell>
+            <TableCell className="w-[100px]">{index + 1}</TableCell>
+            <TableCell className="font-medium">{item.name}</TableCell>
+            <TableCell>{item.type === 'external_link' ? `Link: ${item.url}` : 'Função do App'}</TableCell>
+            <TableCell className="text-right w-[150px]">
+                <div className="flex items-center justify-end gap-4">
+                  {item.type === 'external_link' && (
+                    <Button variant="ghost" size="icon" onClick={() => onRemove(item.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                  <Switch
+                      checked={item.enabled}
+                      onCheckedChange={(checked) => onToggle(item.id, checked)}
+                  />
+                </div>
+            </TableCell>
+        </TableRow>
+    );
+}
+
+export default function MenusSettingsPage() {
+    const context = useContext(SettingsContext);
+    const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+    useEffect(() => {
+        const savedConfig = context?.config?.menuConfig as { order: string[], items: Record<string, MenuItem> } | undefined;
+
+        if (savedConfig?.order && savedConfig?.items) {
+            const allItems: MenuItem[] = savedConfig.order.map(id => {
+                const savedItem = savedConfig.items[id];
+                const defaultItem = defaultMenuItems.find(d => d.id === id);
+                return {
+                    id: id,
+                    name: savedItem.name || defaultItem?.name || 'Item Desconhecido',
+                    type: savedItem.type || defaultItem?.type || 'internal',
+                    url: savedItem.url,
+                    enabled: savedItem.enabled,
+                };
+            }).filter(item => defaultMenuItems.some(d => d.id === item.id) || item.type === 'external_link');
+            
+            defaultMenuItems.forEach(defaultItem => {
+                if (!allItems.some(item => item.id === defaultItem.id)) {
+                    allItems.push({ ...defaultItem, enabled: true });
+                }
+            });
+            
+            setMenuItems(allItems);
+        } else {
+            setMenuItems(defaultMenuItems.map(item => ({ ...item, enabled: true })));
+        }
+    }, [context?.config?.menuConfig]);
+    
+    // Função para atualizar localmente e sincronizar com o contexto
+    const updateAndSave = (newItems: MenuItem[]) => {
+      setMenuItems(newItems);
+      if (context) {
+          const newConfig = {
+              order: newItems.map(item => item.id),
+              items: newItems.reduce((acc, item) => {
+                  const itemToSave: any = {
+                      name: item.name,
+                      type: item.type,
+                      enabled: item.enabled,
+                  };
+                  if (item.type === 'external_link') {
+                    itemToSave.url = item.url;
+                  }
+                  acc[item.id] = itemToSave;
+                  return acc;
+              }, {} as Record<string, Omit<MenuItem, 'id'>>)
+          };
+          // CORRIGIDO: Tipagem do prev para resolver TS7006
+          context.setConfig((prev: ProviderConfig) => ({ ...prev, menuConfig: newConfig }));
+      }
+    };
+
+    const handleAddItem = (name: string, url: string) => {
+      const newItem: MenuItem = {
+        id: `external_${Date.now()}`,
+        name: name,
+        type: 'external_link',
+        url: url,
+        enabled: true,
+      };
+      const updatedItems = [...menuItems, newItem];
+      updateAndSave(updatedItems);
+      toast.success(`'${name}' adicionado. Clique em 'Salvar Alterações'.`);
+    };
+
+    const handleRemoveItem = (id: string) => {
+      const updatedItems = menuItems.filter(item => item.id !== id);
+      updateAndSave(updatedItems);
+      toast.warning("Item removido. Clique em 'Salvar Alterações'.");
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const oldIndex = menuItems.findIndex(item => item.id === active.id);
+            const newIndex = menuItems.findIndex(item => item.id === over.id);
+            const reorderedItems = arrayMove(menuItems, oldIndex, newIndex);
+            updateAndSave(reorderedItems);
+            toast.info("Ordem do menu atualizada. Clique em 'Salvar Alterações'.");
+        }
+    };
+
+    const handleToggle = (id: string, enabled: boolean) => {
+        const updatedItems = menuItems.map(item =>
+            item.id === id ? { ...item, enabled } : item
+        );
+        updateAndSave(updatedItems);
+        toast.info(`'${updatedItems.find(i => i.id === id)?.name}' ${enabled ? 'ativado' : 'desativado'}. Clique em 'Salvar Alterações'.`);
+    };
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Menus</CardTitle>
+                    <CardDescription>
+                        Arraste para reordenar, adicione ou desative os itens do menu do seu aplicativo.
+                    </CardDescription>
+                </div>
+                <AddMenuItemDialog onAddItem={handleAddItem} />
+            </CardHeader>
+            <CardContent>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[50px]"></TableHead>
+                                <TableHead className="w-[100px]">Ordem</TableHead>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead className="text-right w-[150px]">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <SortableContext items={menuItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                {menuItems.map((item, index) => (
+                                    <SortableRow key={item.id} item={item} index={index} onToggle={handleToggle} onRemove={handleRemoveItem} />
+                                ))}
+                            </SortableContext>
+                        </TableBody>
+                    </Table>
+                </DndContext>
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider-settings/TipsSettings.tsx ---
+import { useContext, useState, useEffect, useCallback } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2, Lightbulb, PlusCircle, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface Tip {
+    id: string;
+    content: string;
+}
+
+export default function TipsSettings() {
+    const context = useContext(SettingsContext);
+    if (!context) return null;
+
+    const { config, setConfig, isSaving } = context;
+
+    // Converte o array de tips para um estado local
+    const [localTips, setLocalTips] = useState<Tip[]>(() => {
+        return (config.tips || []).map((content: string, index: number) => ({
+            id: `tip-${index}-${Math.random()}`,
+            content
+        }));
+    });
+    const [newTipContent, setNewTipContent] = useState('');
+
+    useEffect(() => {
+        // Sincroniza o estado local com o estado global ao carregar a página
+        setLocalTips((config.tips || []).map((content: string, index: number) => ({
+            id: `tip-${index}-${Math.random()}`,
+            content
+        })));
+    }, [config.tips]);
+
+    // Função interna para atualizar o contexto e o estado local
+    const updateAndSave = (updatedTips: Tip[]) => {
+        setLocalTips(updatedTips);
+        
+        const contentArray = updatedTips.map(t => t.content);
+        // Atualiza o contexto, aninhando a nova configuração de tips
+        // CORRIGIDO: Tipagem do prev para resolver TS7006
+        setConfig((prev: ProviderConfig) => ({ ...prev, tips: contentArray }));
+    };
+
+    const handleAddTip = () => {
+        if (!newTipContent.trim()) {
+            toast.error("O conteúdo da dica não pode estar vazio.");
+            return;
+        }
+
+        const newTip: Tip = { id: `tip-${Date.now()}`, content: newTipContent.trim() };
+        const updatedTips = [...localTips, newTip];
+
+        updateAndSave(updatedTips);
+        setNewTipContent('');
+        toast.success("Dica adicionada. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+
+    const handleRemoveTip = (id: string) => {
+        const updatedTips = localTips.filter(tip => tip.id !== id);
+        updateAndSave(updatedTips);
+        toast.warning("Dica removida. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+    
+    // Função para aplicar as alterações (apenas notifica, pois o setConfig já foi chamado)
+    const handleApplyChanges = useCallback(() => {
+        toast.success("Configurações de dicas aplicadas. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    }, []);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Dicas Úteis (Carrossel)</CardTitle>
+                <CardDescription>
+                    Gerencie a lista de mensagens curtas exibidas no carrossel de dicas da tela inicial do aplicativo.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                
+                {/* Adicionar Nova Dica */}
+                <div className="flex gap-2">
+                    <Input
+                        placeholder="Adicione uma nova dica útil (ex: Verifique o cabo de rede!)"
+                        value={newTipContent}
+                        onChange={(e) => setNewTipContent(e.target.value)}
+                        disabled={isSaving}
+                    />
+                    <Button onClick={handleAddTip} disabled={isSaving || !newTipContent.trim()}>
+                        <PlusCircle className="h-4 w-4 mr-2" /> Adicionar
+                    </Button>
+                </div>
+
+                {/* Lista de Dicas Atuais */}
+                {localTips.length > 0 && (
+                    <div className="space-y-3 pt-4 border-t">
+                        <Label className="text-base font-semibold">Dicas Atuais ({localTips.length})</Label>
+                        {localTips.map((tip) => (
+                            <div key={tip.id} className="flex items-start gap-3 p-3 border rounded-md bg-muted/50">
+                                <Lightbulb className="h-5 w-5 mt-1 text-yellow-500 flex-shrink-0" />
+                                <span className="flex-1 text-sm">{tip.content}</span>
+                                <Button 
+                                    variant="destructive" 
+                                    size="icon" 
+                                    onClick={() => handleRemoveTip(tip.id)} 
+                                    disabled={isSaving}
+                                    className="h-7 w-7 flex-shrink-0"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                
+                {localTips.length === 0 && (
+                    <p className="text-sm text-muted-foreground pt-4">Nenhuma dica configurada ainda.</p>
+                )}
+                
+                <Button onClick={handleApplyChanges} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Aplicar Dicas (Salvar Localmente)"}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+--- Arquivo: src/pages/provider-settings/FaqSettings.tsx ---
+import { useContext, useState, useEffect, useCallback } from 'react';
+import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2, HelpCircle, PlusCircle, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
+interface FaqItem {
+    id: string;
+    question: string;
+    answer: string;
+}
+
+export default function FaqSettings() {
+    const context = useContext(SettingsContext);
+    if (!context) return null;
+
+    const { config, setConfig, isSaving } = context;
+
+    // Converte o objeto/array de faqs para um estado local
+    const [localFaqs, setLocalFaqs] = useState<FaqItem[]>(() => {
+        // Assume que 'config.faq' é um array de { question: string, answer: string }
+        return (config.faq || []).map((item: { question: string, answer: string }, index: number) => ({
+            id: `faq-${index}-${Math.random()}`,
+            question: item.question,
+            answer: item.answer,
+        }));
+    });
+    const [newQuestion, setNewQuestion] = useState('');
+    const [newAnswer, setNewAnswer] = useState('');
+
+    useEffect(() => {
+        // Sincroniza o estado local com o estado global ao carregar a página
+        setLocalFaqs((config.faq || []).map((item: { question: string, answer: string }, index: number) => ({
+            id: `faq-${index}-${Math.random()}`,
+            question: item.question,
+            answer: item.answer,
+        })));
+    }, [config.faq]);
+
+    // Função interna para atualizar o contexto e o estado local
+    const updateAndSave = (updatedFaqs: FaqItem[]) => {
+        setLocalFaqs(updatedFaqs);
+        
+        // Mapeia para o formato de salvamento (apenas question e answer)
+        const contentArray = updatedFaqs.map(t => ({ question: t.question, answer: t.answer }));
+        
+        // Atualiza o contexto, aninhando a nova configuração de faqs
+        // CORRIGIDO: Tipagem do prev para resolver TS7006
+        setConfig((prev: ProviderConfig) => ({ ...prev, faq: contentArray }));
+    };
+
+    const handleAddFaq = () => {
+        if (!newQuestion.trim() || !newAnswer.trim()) {
+            toast.error("A pergunta e a resposta são obrigatórias.");
+            return;
+        }
+
+        const newFaq: FaqItem = { id: `faq-${Date.now()}`, question: newQuestion.trim(), answer: newAnswer.trim() };
+        const updatedFaqs = [...localFaqs, newFaq];
+
+        updateAndSave(updatedFaqs);
+        setNewQuestion('');
+        setNewAnswer('');
+        toast.success("FAQ adicionada. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+
+    const handleRemoveFaq = (id: string) => {
+        const updatedFaqs = localFaqs.filter(faq => faq.id !== id);
+        updateAndSave(updatedFaqs);
+        toast.warning("FAQ removida. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    };
+    
+    // Função para aplicar as alterações (apenas notifica, pois o setConfig já foi chamado)
+    const handleApplyChanges = useCallback(() => {
+        toast.success("Configurações de FAQ aplicadas. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    }, []);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Perguntas Frequentes (FAQ)</CardTitle>
+                <CardDescription>
+                    Gerencie a lista de perguntas e respostas exibidas na seção de ajuda do aplicativo.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                
+                {/* Adicionar Nova FAQ */}
+                <div className="space-y-4 pt-4 pb-6 border-b">
+                    <Label className="text-base font-semibold">Adicionar Nova FAQ</Label>
+                    <Input
+                        placeholder="Pergunta"
+                        value={newQuestion}
+                        onChange={(e) => setNewQuestion(e.target.value)}
+                        disabled={isSaving}
+                    />
+                    <Input
+                        placeholder="Resposta"
+                        value={newAnswer}
+                        onChange={(e) => setNewAnswer(e.target.value)}
+                        disabled={isSaving}
+                    />
+                    <Button onClick={handleAddFaq} disabled={isSaving || !newQuestion.trim() || !newAnswer.trim()}>
+                        <PlusCircle className="h-4 w-4 mr-2" /> Adicionar FAQ
+                    </Button>
+                </div>
+
+                {/* Lista de FAQs Atuais */}
+                {localFaqs.length > 0 && (
+                    <div className="space-y-3 pt-4">
+                        <Label className="text-base font-semibold">FAQs Atuais ({localFaqs.length})</Label>
+                        <Accordion type="single" collapsible className="w-full">
+                            {localFaqs.map((faq) => (
+                                <AccordionItem key={faq.id} value={faq.id}>
+                                    <AccordionTrigger className="font-medium text-left">
+                                        <div className="flex items-center gap-2">
+                                            <HelpCircle className="h-4 w-4 text-primary" />
+                                            {faq.question}
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="flex items-start gap-4">
+                                        <p className="flex-1 text-sm text-muted-foreground pt-1">{faq.answer}</p>
+                                        <Button 
+                                            variant="destructive" 
+                                            size="icon" 
+                                            onClick={() => handleRemoveFaq(faq.id)} 
+                                            disabled={isSaving}
+                                            className="h-7 w-7 flex-shrink-0"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    </div>
+                )}
+                
+                {localFaqs.length === 0 && (
+                    <p className="text-sm text-muted-foreground pt-4">Nenhuma FAQ configurada ainda.</p>
+                )}
+                
+                <Button onClick={handleApplyChanges} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Aplicar FAQ (Salvar Localmente)"}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+=============== FIM DO DOSSIÊ DE CÓDIGO DO PAINEL ===============
