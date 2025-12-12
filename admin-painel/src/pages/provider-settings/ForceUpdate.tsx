@@ -1,15 +1,15 @@
 // src/pages/provider-settings/ForceUpdate.tsx
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { 
-  Card, CardContent, CardHeader, CardTitle, CardDescription 
+import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+// import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Save, AlertTriangle, CheckCircle2, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -162,10 +162,11 @@ export default function ForceUpdate() {
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="p-4 rounded-lg bg-orange-50 border border-orange-200">
+          <p className="text-sm text-orange-800">
+            {error}
+          </p>
+        </div>
       )}
 
       <Card>
@@ -236,12 +237,12 @@ export default function ForceUpdate() {
           </div>
 
           {versionWarning && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
+            <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-sm text-red-800 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
                 A versão mínima não pode ser maior que a última versão
-              </AlertDescription>
-            </Alert>
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
