@@ -175,6 +175,7 @@ class LayoutSelector {
           onNavigate: onNavigate,
         );
 
+      // Layout 04 removed
       default:
         // Layout 06 como padrão (mais moderno)
         return l06.ProviderDashboardPage(
@@ -199,6 +200,7 @@ class LayoutSelector {
         return const l02_login.LoginPage();
       case 'layout_03':
         return const l03_login.LoginPage();
+      // Layout 04 login removed
       case 'layout_05':
         return const l05_login.LoginPage();
       case 'layout_06':
@@ -217,7 +219,7 @@ class LayoutSelector {
         return const l02_fin.FinanceiroPage();
       case 'layout_03':
         return const l03_fin.FinanceiroPage();
-
+      // Layout 04 financeiro removed
       case 'layout_05':
         return const l05_fin.FinanceiroPage();
 
@@ -237,7 +239,7 @@ class LayoutSelector {
         return const l02_sup.SuportePage();
       case 'layout_03':
         return const l03_sup.SuportePage();
-
+      // Layout 04 suporte removed
       case 'layout_05':
         return const l05_sup.SuportePage();
 
@@ -257,7 +259,7 @@ class LayoutSelector {
         return const l02_diag.DiagnosticoPage();
       case 'layout_03':
         return const l03_diag.DiagnosticoPage();
-
+      // Layout 04 diagnostico removed
       case 'layout_05':
         return const l05_diag.DiagnosticoPage();
 
@@ -277,7 +279,7 @@ class LayoutSelector {
         return const l02_cons.ConsumoPage();
       case 'layout_03':
         return const l03_cons.ConsumoPage();
-
+      // Layout 04 consumo removed
       case 'layout_05':
         return const l05_cons.ConsumoPage();
 
@@ -297,7 +299,7 @@ class LayoutSelector {
         return const l02_ip.MeuIpPage();
       case 'layout_03':
         return const l03_ip.MeuIpPage();
-
+      // Layout 04 meu_ip removed
       case 'layout_05':
         return const l05_ip.MeuIpPage();
 
@@ -317,7 +319,7 @@ class LayoutSelector {
         return const l02_faq.FaqPage();
       case 'layout_03':
         return const l03_faq.FaqPage();
-
+      // Layout 04 faq removed
       case 'layout_05':
         return const l05_faq.FaqPage();
 
@@ -337,7 +339,7 @@ class LayoutSelector {
         return const l02_cont.ContratoPage();
       case 'layout_03':
         return const l03_cont.ContratoPage();
-
+      // Layout 04 contrato removed
       case 'layout_05':
         return const l05_cont.ContratoPage();
 
@@ -353,6 +355,7 @@ class LayoutSelector {
   /// Retorna o widget de Wifi correto para o layout especificado
   static Widget getWifiPage({required String layoutType}) {
     switch (layoutType) {
+      // Layout 04 wifi removed
       case 'layout_05':
         return const l05_wifi.WifiPage();
       default:
