@@ -116,10 +116,10 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
         backgroundColor: Layout05Theme.background,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textWhite),
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _scanning ? null : _runDiagnostics,
           ),
         ],
@@ -133,22 +133,29 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                height: 150,
-                width: 150,
-                child: CircularProgressIndicator(
-                  strokeWidth: 4,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      Layout05Theme.primary.withOpacity(0.5)),
+          Container(
+            height: 160,
+            width: 160,
+            decoration: Layout05Theme.neumorphicDecoration
+                .copyWith(shape: BoxShape.circle),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const SizedBox(
+                  height: 140,
+                  width: 140,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 6,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Layout05Theme.primary),
+                  ),
                 ),
-              ),
-              const Icon(Icons.router, size: 48, color: Layout05Theme.primary),
-            ],
+                Icon(Icons.router_rounded,
+                    size: 56, color: Layout05Theme.textGrey),
+              ],
+            ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 48),
           Text('Analisando sua conexão...', style: Layout05Theme.heading2),
           const SizedBox(height: 12),
           Text(
@@ -177,30 +184,39 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
     final color = _getSignalColor(signal);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           // Main Status Card
           Container(
-            padding: const EdgeInsets.all(24),
-            decoration: Layout05Theme.glassDecoration,
+            padding: const EdgeInsets.all(32),
+            decoration: Layout05Theme.neumorphicDecoration,
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.wifi_tethering, size: 48, color: color),
+                      color: Layout05Theme.background,
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Colors.white,
+                            offset: Offset(-3, -3),
+                            blurRadius: 5),
+                        BoxShadow(
+                            color: Color(0x19000000),
+                            offset: Offset(3, 3),
+                            blurRadius: 5),
+                      ]),
+                  child: Icon(Icons.wifi_tethering, size: 56, color: color),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 Text(
                   _getSignalStatus(signal),
                   style: TextStyle(
-                      color: color, fontSize: 24, fontWeight: FontWeight.bold),
+                      color: color, fontSize: 28, fontWeight: FontWeight.bold),
                 ),
-                Text('Sinal Óptico', style: Layout05Theme.bodyText),
+                Text('Sinal Óptico Real', style: Layout05Theme.bodyText),
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -222,33 +238,35 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.5,
+            crossAxisSpacing: 20,
+            mainAxisSpacing: 20,
+            childAspectRatio: 1.4,
             children: [
-              _buildDetailCard(Icons.device_hub, 'Modelo', _onuData!.model),
-              _buildDetailCard(Icons.thermostat, 'Temperatura',
+              _buildDetailCard(
+                  Icons.device_hub_rounded, 'Modelo', _onuData!.model),
+              _buildDetailCard(Icons.thermostat_rounded, 'Temperatura',
                   '${_onuData!.temperature ?? "N/A"}°C'),
-              _buildDetailCard(
-                  Icons.bolt, 'Voltagem', '${_onuData!.voltage ?? "N/A"}V'),
-              _buildDetailCard(
-                  Icons.info_outline, 'Status', _onuData!.connectionStatus),
+              _buildDetailCard(Icons.bolt_rounded, 'Voltagem',
+                  '${_onuData!.voltage ?? "N/A"}V'),
+              _buildDetailCard(Icons.info_outline_rounded, 'Status',
+                  _onuData!.connectionStatus),
             ],
           ),
 
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 56,
             child: ElevatedButton.icon(
               onPressed: _runDiagnostics,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               label: const Text('REFAZER TESTE'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Layout05Theme.primary,
                 foregroundColor: Colors.white,
+                elevation: 5,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(16)),
               ),
             ),
           ),
@@ -261,8 +279,10 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
     return Column(
       children: [
         Text(label, style: Layout05Theme.label),
-        const SizedBox(height: 4),
-        Text(value, style: Layout05Theme.heading2),
+        const SizedBox(height: 8),
+        Text(value,
+            style:
+                Layout05Theme.heading2.copyWith(color: Layout05Theme.textDark)),
       ],
     );
   }
@@ -270,20 +290,20 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
   Widget _buildDetailCard(IconData icon, String label, String value) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: Layout05Theme.glassDecoration, // Using glass for details too
+      decoration: Layout05Theme.flatDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: Layout05Theme.textGrey),
+              Icon(icon, size: 20, color: Layout05Theme.textGrey),
               const SizedBox(width: 8),
-              Text(label, style: Layout05Theme.label),
+              Text(label, style: Layout05Theme.label.copyWith(fontSize: 11)),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(value, style: Layout05Theme.heading2.copyWith(fontSize: 16)),
+          const SizedBox(height: 12),
+          Text(value, style: Layout05Theme.heading2.copyWith(fontSize: 14)),
         ],
       ),
     );

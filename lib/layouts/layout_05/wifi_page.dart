@@ -194,7 +194,7 @@ class _WifiPageState extends State<WifiPage> {
         backgroundColor: Layout05Theme.background,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textWhite),
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
       body: _isLoading
           ? const Center(
@@ -205,20 +205,30 @@ class _WifiPageState extends State<WifiPage> {
                       style: const TextStyle(color: Layout05Theme.error),
                       textAlign: TextAlign.center))
               : ListView.builder(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
                   itemCount: _networks.length,
                   itemBuilder: (context, index) {
                     final network = _networks[index];
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: Layout05Theme.cardDecoration,
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: Layout05Theme.neumorphicDecoration,
                       child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
+                        contentPadding: const EdgeInsets.all(20),
                         leading: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Layout05Theme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            color: Layout05Theme.background,
+                            shape: BoxShape.circle,
+                            boxShadow: const [
+                              BoxShadow(
+                                  color: Colors.white,
+                                  offset: Offset(-2, -2),
+                                  blurRadius: 3),
+                              BoxShadow(
+                                  color: Color(0x11000000),
+                                  offset: Offset(2, 2),
+                                  blurRadius: 3),
+                            ],
                           ),
                           child: Icon(
                             network.frequency.contains('5')
@@ -235,12 +245,28 @@ class _WifiPageState extends State<WifiPage> {
                                 color: Layout05Theme.textDark)),
                         subtitle: Text(
                             '${network.frequency} - ${network.enabled ? 'Ativo' : 'Inativo'}',
-                            style: Layout05Theme.bodyText
-                                .copyWith(color: Layout05Theme.textGrey)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit_outlined,
-                              color: Layout05Theme.textGrey),
-                          onPressed: () => _showEditDialog(network),
+                            style:
+                                Layout05Theme.bodyText.copyWith(fontSize: 13)),
+                        trailing: Container(
+                          decoration: BoxDecoration(
+                            color: Layout05Theme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: const [
+                              BoxShadow(
+                                  color: Colors.white,
+                                  offset: Offset(-3, -3),
+                                  blurRadius: 5),
+                              BoxShadow(
+                                  color: Color(0x1FA3B1C6),
+                                  offset: Offset(3, 3),
+                                  blurRadius: 5),
+                            ],
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.edit_rounded,
+                                color: Layout05Theme.textGrey),
+                            onPressed: () => _showEditDialog(network),
+                          ),
                         ),
                       ),
                     );

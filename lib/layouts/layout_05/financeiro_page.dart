@@ -185,7 +185,7 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
         backgroundColor: Layout05Theme.background,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textWhite),
+        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
       ),
       body: _isLoading
           ? const Center(
@@ -195,21 +195,15 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
                   child: Text(_errorMessage!,
                       style: const TextStyle(color: Layout05Theme.error)))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Unlock Card
                       Container(
-                        margin: const EdgeInsets.only(bottom: 24),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Layout05Theme.primary.withOpacity(0.05),
-                          borderRadius:
-                              BorderRadius.circular(Layout05Theme.radiusL),
-                          border: Border.all(
-                              color: Layout05Theme.primary.withOpacity(0.2)),
-                        ),
+                        margin: const EdgeInsets.only(bottom: 32),
+                        padding: const EdgeInsets.all(24),
+                        decoration: Layout05Theme.neumorphicDecoration,
                         child: Row(
                           children: [
                             const Icon(Icons.lock_open_rounded,
@@ -220,8 +214,9 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('Conexão Bloqueada?',
-                                      style: Layout05Theme.heading2
-                                          .copyWith(fontSize: 16)),
+                                      style: Layout05Theme.heading2.copyWith(
+                                          fontSize: 16,
+                                          color: Layout05Theme.textDark)),
                                   const Text(
                                       'Solicite o desbloqueio em confiança.',
                                       style: TextStyle(
@@ -234,13 +229,17 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
                               onPressed: _requestTrustUnlock,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Layout05Theme.primary,
-                                elevation: 0,
+                                elevation: 5,
+                                shadowColor:
+                                    Layout05Theme.primary.withOpacity(0.4),
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
-                              child: const Text('DESBLOQUEAR',
+                              child: const Text('LIBERAR',
                                   style: TextStyle(
-                                      color: Colors.white, fontSize: 12)),
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -261,22 +260,33 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
     final color = isOpen ? Layout05Theme.warning : Layout05Theme.success;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: Layout05Theme.cardDecoration,
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: Layout05Theme.neumorphicDecoration,
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
+                      color: Layout05Theme.background,
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Colors.white,
+                            offset: Offset(-2, -2),
+                            blurRadius: 4),
+                        BoxShadow(
+                            color: Color(0x19000000),
+                            offset: Offset(2, 2),
+                            blurRadius: 4),
+                      ]),
                   child: Icon(
-                    isOpen ? Icons.receipt_long : Icons.check_circle,
+                    isOpen
+                        ? Icons.receipt_long_rounded
+                        : Icons.check_circle_rounded,
                     color: color,
                   ),
                 ),
@@ -312,28 +322,24 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
           ),
           if (isOpen)
             Container(
-              decoration: BoxDecoration(
-                border: Border(
-                    top: BorderSide(color: Colors.grey.withOpacity(0.1))),
-              ),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _ActionButton(
-                    icon: Icons.pix,
+                    icon: Icons.pix_rounded,
                     label: 'PIX',
                     onTap: () => _copyToClipboard(
                         fatura['pixCode'] ?? '', 'Código Pix copiado!'),
                   ),
                   _ActionButton(
-                    icon: Icons.qr_code,
+                    icon: Icons.qr_code_rounded,
                     label: 'CÓDIGO',
                     onTap: () => _copyToClipboard(
                         fatura['barCode'] ?? '', 'Código de barras copiado!'),
                   ),
                   _ActionButton(
-                    icon: Icons.picture_as_pdf,
+                    icon: Icons.picture_as_pdf_rounded,
                     label: 'PDF',
                     onTap: () => _openPdf(fatura['pdfUrl'] ?? ''),
                   ),
@@ -358,18 +364,20 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: Layout05Theme.flatDecoration,
         child: Column(
           children: [
-            Icon(icon, color: Layout05Theme.primary, size: 20),
-            const SizedBox(height: 4),
+            Icon(icon, color: Layout05Theme.textDark, size: 24),
+            const SizedBox(height: 8),
             Text(label,
                 style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Layout05Theme.primary)),
+                    color: Layout05Theme.textGrey)),
           ],
         ),
       ),
