@@ -69,12 +69,16 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
       });
     }
 
+    print('[DiagnosticoPage] _runDiagnostics START');
     try {
       // Simulate at least 2 seconds for visual effect if real call is too fast
       final minTime = Future.delayed(const Duration(seconds: 2));
+      print('[DiagnosticoPage] Calling fetchOnuSignal...');
       final dataTask = _onuService!.fetchOnuSignal();
 
       await Future.wait([minTime, dataTask]).then((results) {
+        print(
+            '[DiagnosticoPage] Future completed. Result type: ${results[1].runtimeType}');
         if (mounted) {
           setState(() {
             _onuData = results[1] as OnuData;
@@ -82,7 +86,9 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
           });
         }
       });
-    } catch (e) {
+    } catch (e, stack) {
+      print('[DiagnosticoPage] ERROR: $e');
+      print('[DiagnosticoPage] STACK: $stack');
       if (mounted) {
         setState(() {
           // Check if it's a known error or generic
