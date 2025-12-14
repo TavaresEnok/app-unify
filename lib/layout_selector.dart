@@ -33,17 +33,9 @@ import 'layouts/layout_05/faq_page.dart' as l05_faq;
 import 'layouts/layout_05/contrato_page.dart' as l05_cont;
 import 'layouts/layout_05/wifi_page.dart' as l05_wifi;
 
-// Imports do FAQ (ainda separados - podem ter diferenças de estilo)
-import 'layouts/layout_02/faq_page.dart' as l02_faq;
-import 'layouts/layout_03/faq_page.dart' as l03_faq;
-import 'layouts/layout_06/faq_page.dart' as l06_faq;
-import 'layouts/layout_07/faq_page.dart' as l07_faq;
-
-// Imports do Contrato (ainda separados)
-import 'layouts/layout_02/contrato_page.dart' as l02_cont;
-import 'layouts/layout_03/contrato_page.dart' as l03_cont;
-import 'layouts/layout_06/contrato_page.dart' as l06_cont;
-import 'layouts/layout_07/contrato_page.dart' as l07_cont;
+// Imports do FAQ e Contrato (também compartilhados)
+import 'core/pages/shared_faq_page.dart' as shared_faq;
+import 'core/pages/shared_contrato_page.dart' as shared_cont;
 
 /// Classe utilitária que seleciona o layout correto baseado na configuração
 /// carregada do Firestore (campo `layoutType`).
@@ -259,39 +251,31 @@ class LayoutSelector {
     }
   }
 
-  /// Retorna o widget de FAQ correto para o layout especificado
+  /// Retorna o widget de FAQ - COMPARTILHADO entre layouts
   static Widget getFaqPage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_02':
-        return const l02_faq.FaqPage();
-      case 'layout_03':
-        return const l03_faq.FaqPage();
       case 'layout_05':
         return const l05_faq.FaqPage();
+      case 'layout_02':
+      case 'layout_03':
       case 'layout_06':
-        return const l06_faq.FaqPage();
       case 'layout_07':
-        return const l07_faq.FaqPage();
       default:
-        return const l06_faq.FaqPage();
+        return const shared_faq.FaqPage();
     }
   }
 
-  /// Retorna o widget de Contrato correto para o layout especificado
+  /// Retorna o widget de Contrato - COMPARTILHADO entre layouts
   static Widget getContratoPage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_02':
-        return const l02_cont.ContratoPage();
-      case 'layout_03':
-        return const l03_cont.ContratoPage();
       case 'layout_05':
         return const l05_cont.ContratoPage();
+      case 'layout_02':
+      case 'layout_03':
       case 'layout_06':
-        return const l06_cont.ContratoPage();
       case 'layout_07':
-        return const l07_cont.ContratoPage();
       default:
-        return const l06_cont.ContratoPage();
+        return const shared_cont.ContratoPage();
     }
   }
 
