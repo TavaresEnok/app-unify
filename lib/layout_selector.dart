@@ -1,59 +1,29 @@
 import 'package:flutter/material.dart';
 
-// Imports dos Dashboards
+// Imports dos Dashboards (diferentes por layout)
 import 'layouts/layout_02/dashboard_page.dart' as l02;
 import 'layouts/layout_03/dashboard_page.dart' as l03;
+import 'layouts/layout_05/dashboard_page.dart' as l05;
 import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
 
-// Imports dos Logins
+// Imports dos Logins (diferentes por layout)
 import 'layouts/layout_02/login_page.dart' as l02_login;
 import 'layouts/layout_03/login_page.dart' as l03_login;
+import 'layouts/layout_05/login_page.dart' as l05_login;
 import 'layouts/layout_06/login_page.dart' as l06_login;
 import 'layouts/layout_07/login_page.dart' as l07_login;
 
-// Imports do Financeiro
-import 'layouts/layout_02/financeiro_page.dart' as l02_fin;
-import 'layouts/layout_03/financeiro_page.dart' as l03_fin;
-import 'layouts/layout_06/financeiro_page.dart' as l06_fin;
-import 'layouts/layout_07/financeiro_page.dart' as l07_fin;
+// ============================================
+// PÁGINAS COMPARTILHADAS (idênticas entre layouts 02/03/06/07)
+// ============================================
+import 'core/pages/shared_financeiro_page.dart' as shared_fin;
+import 'core/pages/shared_suporte_page.dart' as shared_sup;
+import 'core/pages/shared_diagnostico_page.dart' as shared_diag;
+import 'core/pages/shared_consumo_page.dart' as shared_cons;
+import 'core/pages/shared_meu_ip_page.dart' as shared_ip;
 
-// Imports do Suporte
-import 'layouts/layout_02/suporte_page.dart' as l02_sup;
-import 'layouts/layout_03/suporte_page.dart' as l03_sup;
-import 'layouts/layout_06/suporte_page.dart' as l06_sup;
-import 'layouts/layout_07/suporte_page.dart' as l07_sup;
-
-// Imports do Diagnóstico
-import 'layouts/layout_02/diagnostico_page.dart' as l02_diag;
-import 'layouts/layout_03/diagnostico_page.dart' as l03_diag;
-import 'layouts/layout_06/diagnostico_page.dart' as l06_diag;
-import 'layouts/layout_07/diagnostico_page.dart' as l07_diag;
-
-// Imports do Consumo
-import 'layouts/layout_02/consumo_page.dart' as l02_cons;
-import 'layouts/layout_03/consumo_page.dart' as l03_cons;
-import 'layouts/layout_06/consumo_page.dart' as l06_cons;
-import 'layouts/layout_07/consumo_page.dart' as l07_cons;
-
-// Imports do Meu IP
-import 'layouts/layout_02/meu_ip_page.dart' as l02_ip;
-import 'layouts/layout_03/meu_ip_page.dart' as l03_ip;
-import 'layouts/layout_06/meu_ip_page.dart' as l06_ip;
-import 'layouts/layout_07/meu_ip_page.dart' as l07_ip;
-
-// Imports do FAQ
-import 'layouts/layout_02/faq_page.dart' as l02_faq;
-import 'layouts/layout_03/faq_page.dart' as l03_faq;
-import 'layouts/layout_06/faq_page.dart' as l06_faq;
-import 'layouts/layout_07/faq_page.dart' as l07_faq;
-
-// Imports do Contrato
-import 'layouts/layout_02/contrato_page.dart' as l02_cont;
-import 'layouts/layout_03/contrato_page.dart' as l03_cont;
-// Imports do Layout 05
-import 'layouts/layout_05/dashboard_page.dart' as l05;
-import 'layouts/layout_05/login_page.dart' as l05_login;
+// Layout 05 tem implementações próprias
 import 'layouts/layout_05/financeiro_page.dart' as l05_fin;
 import 'layouts/layout_05/suporte_page.dart' as l05_sup;
 import 'layouts/layout_05/diagnostico_page.dart' as l05_diag;
@@ -63,6 +33,15 @@ import 'layouts/layout_05/faq_page.dart' as l05_faq;
 import 'layouts/layout_05/contrato_page.dart' as l05_cont;
 import 'layouts/layout_05/wifi_page.dart' as l05_wifi;
 
+// Imports do FAQ (ainda separados - podem ter diferenças de estilo)
+import 'layouts/layout_02/faq_page.dart' as l02_faq;
+import 'layouts/layout_03/faq_page.dart' as l03_faq;
+import 'layouts/layout_06/faq_page.dart' as l06_faq;
+import 'layouts/layout_07/faq_page.dart' as l07_faq;
+
+// Imports do Contrato (ainda separados)
+import 'layouts/layout_02/contrato_page.dart' as l02_cont;
+import 'layouts/layout_03/contrato_page.dart' as l03_cont;
 import 'layouts/layout_06/contrato_page.dart' as l06_cont;
 import 'layouts/layout_07/contrato_page.dart' as l07_cont;
 
@@ -132,6 +111,7 @@ class LayoutSelector {
           invoiceColor: invoiceColor,
           actionColor: actionColor,
         );
+
       case 'layout_05':
         return l05.DashboardPage(
           customerName: customerName,
@@ -174,7 +154,6 @@ class LayoutSelector {
           onNavigate: onNavigate,
         );
 
-      // Layout 04 removed
       default:
         // Layout 06 como padrão (mais moderno)
         return l06.ProviderDashboardPage(
@@ -210,98 +189,73 @@ class LayoutSelector {
     }
   }
 
-  /// Retorna o widget de Financeiro (Faturas) correto para o layout especificado
+  /// Retorna o widget de Financeiro (Faturas) - COMPARTILHADO entre layouts
   static Widget getFinanceiroPage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_02':
-        return const l02_fin.FinanceiroPage();
-      case 'layout_03':
-        return const l03_fin.FinanceiroPage();
       case 'layout_05':
         return const l05_fin.FinanceiroPage();
-
+      case 'layout_02':
+      case 'layout_03':
       case 'layout_06':
-        return const l06_fin.FinanceiroPage();
       case 'layout_07':
-        return const l07_fin.FinanceiroPage();
       default:
-        return const l06_fin.FinanceiroPage();
+        return const shared_fin.FinanceiroPage();
     }
   }
 
-  /// Retorna o widget de Suporte correto para o layout especificado
+  /// Retorna o widget de Suporte - COMPARTILHADO entre layouts
   static Widget getSuportePage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_02':
-        return const l02_sup.SuportePage();
-      case 'layout_03':
-        return const l03_sup.SuportePage();
       case 'layout_05':
         return const l05_sup.SuportePage();
-
+      case 'layout_02':
+      case 'layout_03':
       case 'layout_06':
-        return const l06_sup.SuportePage();
       case 'layout_07':
-        return const l07_sup.SuportePage();
       default:
-        return const l06_sup.SuportePage();
+        return const shared_sup.SuportePage();
     }
   }
 
-  /// Retorna o widget de Diagnóstico correto para o layout especificado
+  /// Retorna o widget de Diagnóstico - COMPARTILHADO entre layouts
   static Widget getDiagnosticoPage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_02':
-        return const l02_diag.DiagnosticoPage();
-      case 'layout_03':
-        return const l03_diag.DiagnosticoPage();
       case 'layout_05':
         return const l05_diag.DiagnosticoPage();
-
+      case 'layout_02':
+      case 'layout_03':
       case 'layout_06':
-        return const l06_diag.DiagnosticoPage();
       case 'layout_07':
-        return const l07_diag.DiagnosticoPage();
       default:
-        return const l06_diag.DiagnosticoPage();
+        return const shared_diag.DiagnosticoPage();
     }
   }
 
-  /// Retorna o widget de Consumo correto para o layout especificado
+  /// Retorna o widget de Consumo - COMPARTILHADO entre layouts
   static Widget getConsumoPage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_02':
-        return const l02_cons.ConsumoPage();
-      case 'layout_03':
-        return const l03_cons.ConsumoPage();
       case 'layout_05':
         return const l05_cons.ConsumoPage();
-
+      case 'layout_02':
+      case 'layout_03':
       case 'layout_06':
-        return const l06_cons.ConsumoPage();
       case 'layout_07':
-        return const l07_cons.ConsumoPage();
       default:
-        return const l06_cons.ConsumoPage();
+        return const shared_cons.ConsumoPage();
     }
   }
 
-  /// Retorna o widget de Meu IP correto para o layout especificado
+  /// Retorna o widget de Meu IP - COMPARTILHADO entre layouts
   static Widget getMeuIpPage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_02':
-        return const l02_ip.MeuIpPage();
-      case 'layout_03':
-        return const l03_ip.MeuIpPage();
       case 'layout_05':
         return const l05_ip.MeuIpPage();
-
+      case 'layout_02':
+      case 'layout_03':
       case 'layout_06':
-        return const l06_ip.MeuIpPage();
       case 'layout_07':
-        return const l07_ip.MeuIpPage();
       default:
-        return const l06_ip.MeuIpPage();
+        return const shared_ip.MeuIpPage();
     }
   }
 
@@ -312,10 +266,8 @@ class LayoutSelector {
         return const l02_faq.FaqPage();
       case 'layout_03':
         return const l03_faq.FaqPage();
-      // Layout 04 faq removed
       case 'layout_05':
         return const l05_faq.FaqPage();
-
       case 'layout_06':
         return const l06_faq.FaqPage();
       case 'layout_07':
@@ -332,10 +284,8 @@ class LayoutSelector {
         return const l02_cont.ContratoPage();
       case 'layout_03':
         return const l03_cont.ContratoPage();
-      // Layout 04 contrato removed
       case 'layout_05':
         return const l05_cont.ContratoPage();
-
       case 'layout_06':
         return const l06_cont.ContratoPage();
       case 'layout_07':
