@@ -107,60 +107,53 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
   }
 
   Future<TraceHop> _pingWithTtl(String target, int ttl) async {
-    // Ping command options:
-    // -c 1: Count 1
-    // -t <ttl>: Set TTL (Linux/Android)
-    // -W 2: Timeout 2 seconds
-
-    // Note: 'ping' behavior might vary slightly by Android version/ROM,
-    // but '-t' is standard for TTL on linux-based ping.
-
+    final stopwatch = Stopwatch()..start();
     ProcessResult? result;
     try {
       result = await Process.run(
           'ping', ['-c', '1', '-t', '$ttl', '-W', '2', target]);
     } catch (e) {
+      stopwatch.stop();
       return TraceHop(
-          hop: ttl, ip: "Erro", time: "", status: "Falha ao executar ping");
+          hop: ttl, ip: "Erro", time: "", status: "Falha ao executar");
     }
+    stopwatch.stop();
 
     final output = result.stdout.toString();
-
-    // Parse output
-    // Case 1: TTL Exceeded (Intermediate Hop)
-    // "From 192.168.1.1: icmp_seq=1 Time to live exceeded"
-    // Case 2: Reply (Target Reached)
-    // "64 bytes from 8.8.8.8: icmp_seq=1 ttl=118 time=14.2 ms"
-    // Case 3: Timeout/Unreachable
+    // print("DEBUG: TTL $ttl Output: $output"); // Uncomment for debugging
 
     String ip = "*";
-    String time = "*";
-    String status = "Timeout";
+    String time = "${stopwatch.elapsedMilliseconds} ms";
+    // Default time is wall-clock time (RTT approx)
 
-    if (output.contains("Time to live exceeded")) {
-      status = "Salto Interm. (TTL Expirado)";
-      // Extract IP from "From 1.2.3.4"
+    String status = "Sem Resposta";
+
+    if (output.contains("Time to live exceeded") ||
+        output.contains("exceeded")) {
+      // checking for "exceeded" covers generic case
+      status = "Salto $ttl"; // Cleaner status
       final match = RegExp(r"From\s+([0-9\.]+)(?::| )").firstMatch(output);
       if (match != null) {
         ip = match.group(1) ?? "*";
       }
-      // Time isn't usually valid for TTL exceeded in standard ping output unless parsing detailed ICMP,
-      // often it just says 'Time to live exceeded' without RTT.
-      // We can try to assume it took 'some' time but ping doesn't always show it for errors.
-      // Let's check if there is 'time=' anywhere.
     } else if (output.contains("bytes from")) {
       status = "Alcançado";
-      // Extract IP
       final matchIp = RegExp(r"from\s+([0-9\.]+)(?::| )").firstMatch(output);
       if (matchIp != null) ip = matchIp.group(1) ?? target;
 
-      // Extract Time
+      // Try to parse exact ping time, fallback to stopwatch
       final matchTime = RegExp(r"time=([0-9\.]+)").firstMatch(output);
-      if (matchTime != null) time = "${matchTime.group(1)} ms";
+      if (matchTime != null) {
+        time = "${matchTime.group(1)} ms";
+      }
+    } else if (output.contains("100% packet loss")) {
+      time = "*";
+      status = "Esgotado";
     }
 
-    if (ip == "*" && output.contains("100% packet loss")) {
-      return TraceHop(hop: ttl, ip: "*", time: "*", status: "Sem Resposta");
+    if (ip == "*" && status == "Sem Resposta") {
+      status = "Tempo Esgotado";
+      time = "*";
     }
 
     return TraceHop(hop: ttl, ip: ip, time: time, status: status);
@@ -279,7 +272,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
               itemCount: _hops.length,
               itemBuilder: (context, index) {
                 final hop = _hops[index];
