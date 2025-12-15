@@ -132,6 +132,18 @@ app.get('/admin/tickets', verifyToken, async (req, res) => {
   }
 });
 
+// --- ENDPOINTS DE USUÁRIOS ---
+
+app.get('/admin/users', verifyToken, async (req, res) => {
+  try {
+    const snapshot = await admin.firestore().collection('users').orderBy('email').limit(100).get();
+    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ data: users });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
 app.get('/admin/tickets/:id/messages', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;

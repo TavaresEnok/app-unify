@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/providers/providers.dart';
 
-class UsersListPage extends StatefulWidget {
+class UsersListPage extends ConsumerStatefulWidget {
   const UsersListPage({super.key});
 
   @override
-  State<UsersListPage> createState() => _UsersListPageState();
+  ConsumerState<UsersListPage> createState() => _UsersListPageState();
 }
 
-class _UsersListPageState extends State<UsersListPage> {
+class _UsersListPageState extends ConsumerState<UsersListPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
+    final usersAsync = ref.watch(usersListProvider);
+
     return Column(
       children: [
         // Premium Search Bar
@@ -63,60 +66,56 @@ class _UsersListPageState extends State<UsersListPage> {
 
         // List
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .orderBy('email')
-                .limit(100)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final users =
-                  snapshot.data?.docs.where((doc) {
-                    if (_searchQuery.isEmpty) return true;
-                    final data = doc.data() as Map<String, dynamic>;
-                    final email = (data['email'] ?? '')
-                        .toString()
-                        .toLowerCase();
-                    final name = (data['name'] ?? '').toString().toLowerCase();
-                    return email.contains(_searchQuery) ||
-                        name.contains(_searchQuery);
-                  }).toList() ??
-                  [];
-
-              if (users.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.people_outline,
-                        size: 64,
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Nenhum usuário encontrado',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(20),
-                itemCount: users.length,
-                itemBuilder: (context, index) {
-                  final user = users[index];
-                  final data = user.data() as Map<String, dynamic>;
-                  return _buildUserCard(context, data, user.id);
-                },
-              );
+          child: RefreshIndicator(
+            onRefresh: () async {
+              return ref.refresh(usersListProvider.future);
             },
+            child: usersAsync.when(
+              data: (usersData) {
+                final users = usersData.where((user) {
+                  if (_searchQuery.isEmpty) return true;
+                  final email = (user['email'] ?? '').toString().toLowerCase();
+                  final name = (user['name'] ?? '').toString().toLowerCase();
+                  return email.contains(_searchQuery) ||
+                      name.contains(_searchQuery);
+                }).toList();
+
+                if (users.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Nenhum usuário encontrado',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final user = users[index];
+                    return _buildUserCard(context, user, user['id'] ?? '');
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) =>
+                  Center(child: Text('Erro ao carregar usuários: $error')),
+            ),
           ),
         ),
       ],

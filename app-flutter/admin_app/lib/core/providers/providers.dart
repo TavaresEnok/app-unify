@@ -5,6 +5,7 @@ import '../notifiers/auth_notifier.dart';
 import '../services/api_service.dart';
 import '../repositories/provider_repository.dart';
 import '../repositories/ticket_repository.dart';
+import '../repositories/user_repository.dart';
 
 // Repositories
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -22,6 +23,11 @@ final ticketRepositoryProvider = Provider<TicketRepository>((ref) {
   return TicketRepository(apiService);
 });
 
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  return UserRepository(apiService);
+});
+
 // Data Providers
 final providersListProvider = FutureProvider((ref) {
   final repository = ref.watch(providerRepositoryProvider);
@@ -31,6 +37,11 @@ final providersListProvider = FutureProvider((ref) {
 final ticketsListProvider = FutureProvider((ref) {
   final repository = ref.watch(ticketRepositoryProvider);
   return repository.getTickets();
+});
+
+final usersListProvider = FutureProvider((ref) {
+  final repository = ref.watch(userRepositoryProvider);
+  return repository.getUsers();
 });
 
 final dashboardStatsProvider = FutureProvider((ref) {

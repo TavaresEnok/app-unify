@@ -156,6 +156,20 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/admin/users'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data['data']);
+    } else {
+      throw Exception(_parseError(response));
+    }
+  }
+
   String _parseError(http.Response response) {
     try {
       final body = jsonDecode(response.body);
