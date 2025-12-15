@@ -58,12 +58,12 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     setState(() {
       _isRunning = true;
       _hops.clear();
-      _currentStatus = "Iniciando Rota (Max 6 saltos)...";
+      _currentStatus = "Iniciando Rota (Max 10 saltos)...";
     });
 
     FocusScope.of(context).unfocus();
 
-    for (int ttl = 1; ttl <= 6; ttl++) {
+    for (int ttl = 1; ttl <= 10; ttl++) {
       if (!_isRunning) break;
 
       setState(() {
@@ -101,7 +101,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     setState(() {
       _isRunning = false;
       if (_currentStatus.startsWith("Testando")) {
-        _currentStatus = "Finalizado (Limite de 6 saltos).";
+        _currentStatus = "Finalizado (Limite de 10 saltos).";
       }
     });
   }
@@ -272,7 +272,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 180),
               itemCount: _hops.length,
               itemBuilder: (context, index) {
                 final hop = _hops[index];
