@@ -284,6 +284,9 @@ class LayoutSelector {
     switch (layoutType) {
       case 'layout_05':
         return const l05_wifi.WifiPage();
+      // Enable WifiPage for Layout 02 too, reusing Layout 05's implementation
+      case 'layout_02':
+        return const l05_wifi.WifiPage();
       default:
         return const Center(
             child: Text('Funcionalidade não disponível neste layout'));

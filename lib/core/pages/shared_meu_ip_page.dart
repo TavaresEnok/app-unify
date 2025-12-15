@@ -91,52 +91,57 @@ class _MeuIpPageState extends State<MeuIpPage> {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: DashboardCard(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.language, size: 48, color: primaryColor),
-              const SizedBox(height: 16),
-              Text("Seu IP Público é:", style: textTheme.bodyMedium),
-              const SizedBox(height: 8),
-              Text(
-                ipData['ip'] ?? 'Não encontrado',
-                style: textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold, color: primaryColor),
+        child: Column(
+          children: [
+            DashboardCard(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.language, size: 48, color: primaryColor),
+                  const SizedBox(height: 16),
+                  Text("Seu IP Público é:", style: textTheme.bodyMedium),
+                  const SizedBox(height: 8),
+                  Text(
+                    ipData['ip'] ?? 'Não encontrado',
+                    style: textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.bold, color: primaryColor),
+                  ),
+                  const Divider(height: 40),
+                  _buildInfoRow(context,
+                      icon: Icons.location_city,
+                      title: "Localização",
+                      value:
+                          "${ipData['city'] ?? 'N/A'}, ${ipData['region'] ?? 'N/A'}"),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(context,
+                      icon: Icons.public,
+                      title: "País",
+                      value: ipData['country'] ?? 'N/A'),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(context,
+                      icon: Icons.router,
+                      title: "Provedor",
+                      value: ipData['org'] ?? 'Não encontrado'),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(context,
+                      icon: Icons.access_time,
+                      title: "Fuso Horário",
+                      value: ipData['timezone'] ?? 'N/A'),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _retry,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Atualizar'),
+                    ),
+                  ),
+                ],
               ),
-              const Divider(height: 40),
-              _buildInfoRow(context,
-                  icon: Icons.location_city,
-                  title: "Localização",
-                  value:
-                      "${ipData['city'] ?? 'N/A'}, ${ipData['region'] ?? 'N/A'}"),
-              const SizedBox(height: 12),
-              _buildInfoRow(context,
-                  icon: Icons.public,
-                  title: "País",
-                  value: ipData['country'] ?? 'N/A'),
-              const SizedBox(height: 12),
-              _buildInfoRow(context,
-                  icon: Icons.router,
-                  title: "Provedor",
-                  value: ipData['org'] ?? 'Não encontrado'),
-              const SizedBox(height: 12),
-              _buildInfoRow(context,
-                  icon: Icons.access_time,
-                  title: "Fuso Horário",
-                  value: ipData['timezone'] ?? 'N/A'),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _retry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Atualizar'),
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 180), // Padding for BottomNav
+          ],
         ),
       ),
     );

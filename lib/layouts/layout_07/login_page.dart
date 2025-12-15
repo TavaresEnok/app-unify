@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/services/auth_service.dart';
 import '../../core/services/biometric_service.dart';
-import '../../core/providers/configuration_provider.dart';
+import '../../core/providers/providers.dart';
 import '../../core/utils/color_utils.dart';
 
-/// LoginPage para Layout 07 - Refatorado para usar AuthService
-class LoginPage extends StatefulWidget {
+/// LoginPage para Layout 07 - Refatorado para usar Riverpod
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
+class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _cpfController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -62,11 +61,13 @@ class _LoginPageState extends State<LoginPage>
     final cpfInput = overrideCpf ?? _cpfController.text;
 
     try {
-      final configProvider = context.read<ConfigurationProvider>();
+      final configProvider = ref.read(configurationProvider);
       final providerConfig = configProvider.providerConfig;
       if (providerConfig == null) throw Exception('Configuração não carregada');
 
-      await context.read<AuthService>().performLogin(cpfInput, providerConfig);
+      await ref
+          .read(authNotifierProvider.notifier)
+          .login(cpfInput, configProvider.providerConfig!);
 
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/painel');
@@ -76,7 +77,8 @@ class _LoginPageState extends State<LoginPage>
       }
     } catch (e) {
       if (mounted) {
-        _showErrorDialog('Erro no Login', e.toString().replaceFirst("Exception: ", ""));
+        _showErrorDialog(
+            'Erro no Login', e.toString().replaceFirst("Exception: ", ""));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -110,7 +112,7 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    final configProvider = Provider.of<ConfigurationProvider>(context);
+    final configProvider = ref.watch(configurationProvider);
 
     if (configProvider.isLoading || configProvider.providerConfig == null) {
       return const Scaffold(
@@ -123,14 +125,16 @@ class _LoginPageState extends State<LoginPage>
     final secondaryColor = config.secondaryColor;
     final logoUrl = config.logoUrl;
 
-    final primaryColor = themeColor != null ? hexToColor(themeColor) : const Color(0xFF673AB7);
-    final gradientSecondary = secondaryColor != null ? hexToColor(secondaryColor) : const Color(0xFF9575CD);
+    final primaryColor = hexToColor(themeColor);
+    final gradientSecondary = secondaryColor != null
+        ? hexToColor(secondaryColor)
+        : const Color(0xFF9575CD);
 
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [primaryColor, gradientSecondary.withOpacity(0.8)],
+            colors: [primaryColor, gradientSecondary.withValues(alpha: 0.8)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -160,29 +164,33 @@ class _LoginPageState extends State<LoginPage>
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             shadows: [
-                              const Shadow(blurRadius: 10, color: Colors.black26)
+                              const Shadow(
+                                  blurRadius: 10, color: Colors.black26)
                             ])),
                     const SizedBox(height: 8),
                     Text('Acesse com seu CPF ou CNPJ',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(fontSize: 16, color: Colors.white70)),
+                        style: GoogleFonts.inter(
+                            fontSize: 16, color: Colors.white70)),
                     const SizedBox(height: 48),
                     Form(
                       key: _formKey,
                       child: TextFormField(
                         controller: _cpfController,
-                        style: const TextStyle(color: Colors.white, fontSize: 18),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 18),
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           labelText: 'CPF / CNPJ',
-                          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                          labelStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7)),
                           filled: true,
-                          fillColor: Colors.white.withOpacity(0.1),
+                          fillColor: Colors.white.withValues(alpha: 0.1),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none),
                           prefixIcon: Icon(Icons.person_outline,
-                              color: Colors.white.withOpacity(0.7)),
+                              color: Colors.white.withValues(alpha: 0.7)),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -195,7 +203,8 @@ class _LoginPageState extends State<LoginPage>
                     const SizedBox(height: 32),
                     _isLoading
                         ? const Center(
-                            child: CircularProgressIndicator(color: Colors.white))
+                            child:
+                                CircularProgressIndicator(color: Colors.white))
                         : ElevatedButton(
                             onPressed: _handleLogin,
                             style: ElevatedButton.styleFrom(
@@ -215,10 +224,12 @@ class _LoginPageState extends State<LoginPage>
                       const SizedBox(height: 24),
                       TextButton.icon(
                         onPressed: _handleBiometricLogin,
-                        icon: const Icon(Icons.fingerprint, size: 24, color: Colors.white),
+                        icon: const Icon(Icons.fingerprint,
+                            size: 24, color: Colors.white),
                         label: Text("Entrar com Biometria",
                             style: GoogleFonts.inter(
-                                color: Colors.white, fontWeight: FontWeight.w600)),
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ],

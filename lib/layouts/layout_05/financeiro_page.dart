@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/providers/configuration_provider.dart';
+import '../../core/providers/providers.dart';
 import '../../core/services/financeiro_service.dart';
-import '../../core/services/auth_service.dart';
 import 'theme.dart';
 
-class FinanceiroPage extends StatefulWidget {
+class FinanceiroPage extends ConsumerStatefulWidget {
   const FinanceiroPage({super.key});
 
   @override
-  State<FinanceiroPage> createState() => _FinanceiroPageState();
+  ConsumerState<FinanceiroPage> createState() => _FinanceiroPageState();
 }
 
-class _FinanceiroPageState extends State<FinanceiroPage> {
+class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _invoices = [];
   String? _errorMessage;
@@ -29,10 +28,9 @@ class _FinanceiroPageState extends State<FinanceiroPage> {
   }
 
   Future<void> _initServiceAndFetch() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final configProvider =
-        Provider.of<ConfigurationProvider>(context, listen: false);
-    final user = authService.usuario;
+    final authState = ref.read(authNotifierProvider);
+    final configProvider = ref.read(configurationProvider);
+    final user = authState.value;
     final config = configProvider.providerConfig;
 
     if (user == null || config == null) {

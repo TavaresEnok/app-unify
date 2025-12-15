@@ -64,7 +64,8 @@ class SuportePage extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: (option['color'] as Color).withOpacity(0.1),
+                        color:
+                            (option['color'] as Color).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

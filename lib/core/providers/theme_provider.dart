@@ -11,7 +11,10 @@ class DynamicThemeProvider with ChangeNotifier {
   DynamicThemeProvider()
       : _currentConfig = ThemeConfig.defaultTheme,
         _lightTheme = _buildTheme(ThemeConfig.defaultTheme, Brightness.light),
-        _darkTheme = _buildTheme(ThemeConfig.defaultTheme, Brightness.dark);
+        _darkTheme = _buildTheme(ThemeConfig.defaultTheme, Brightness.dark) {
+    // Force Light Mode as default initially
+    _themeMode = ThemeMode.light;
+  }
 
   ThemeData get lightTheme => _lightTheme;
   ThemeData get darkTheme => _darkTheme;
@@ -33,7 +36,7 @@ class DynamicThemeProvider with ChangeNotifier {
           _themeMode = ThemeMode.dark;
           break;
         default:
-          _themeMode = ThemeMode.system;
+          _themeMode = ThemeMode.light;
       }
     } else {
       _themeMode = ThemeMode.light;

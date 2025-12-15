@@ -55,7 +55,10 @@ class ProviderDashboardPage extends StatelessWidget {
                           children: [
                             Text(
                               "Olá, $customerName",
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.textPrimary,
                                   ),
@@ -74,7 +77,10 @@ class ProviderDashboardPage extends StatelessWidget {
                                 const SizedBox(width: 6),
                                 Text(
                                   "$planName • $connectionStatus",
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
                                         color: AppColors.textSecondary,
                                       ),
                                 ),
@@ -84,7 +90,8 @@ class ProviderDashboardPage extends StatelessWidget {
                         ),
                         IconButton(
                           onPressed: () {}, // Notificações
-                          icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+                          icon: const Icon(Icons.notifications_outlined,
+                              color: AppColors.textPrimary),
                         )
                       ],
                     ),
@@ -116,10 +123,11 @@ class ProviderDashboardPage extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // AÇÕES RÁPIDAS
-                Text("Acesso Rápido", style: Theme.of(context).textTheme.titleMedium),
+                Text("Acesso Rápido",
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
                 _QuickActionsGrid(onNavigate: onNavigate),
-                
+
                 const SizedBox(height: 20),
                 // TESTE DE VELOCIDADE (Resumo)
                 _SpeedCardSummary(
@@ -127,7 +135,7 @@ class ProviderDashboardPage extends StatelessWidget {
                   upload: uploadMbps,
                   onNavigate: onNavigate,
                 ),
-                
+
                 const SizedBox(height: 80), // Espaço final
               ]),
             ),
@@ -143,7 +151,8 @@ class _BillCard extends StatelessWidget {
   final DateTime dueDate;
   final NavigateToPageCallback onNavigate;
 
-  const _BillCard({required this.amount, required this.dueDate, required this.onNavigate});
+  const _BillCard(
+      {required this.amount, required this.dueDate, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -161,30 +170,37 @@ class _BillCard extends StatelessWidget {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
+                  Icon(Icons.receipt_long_rounded,
+                      color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text(
                     "Sua Fatura",
-                    style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   statusText,
-                  style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold),
                 ),
               )
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$').format(amount),
+            NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$')
+                .format(amount),
             style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w800,
@@ -194,7 +210,8 @@ class _BillCard extends StatelessWidget {
           ),
           Text(
             "Vence dia ${DateFormat("d 'de' MMMM", 'pt_BR').format(dueDate)}",
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            style:
+                const TextStyle(color: AppColors.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -216,7 +233,8 @@ class _UsageCard extends StatelessWidget {
   final double totalGb;
   final NavigateToPageCallback onNavigate;
 
-  const _UsageCard({required this.usedGb, required this.totalGb, required this.onNavigate});
+  const _UsageCard(
+      {required this.usedGb, required this.totalGb, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -260,8 +278,14 @@ class _UsageCard extends StatelessWidget {
                     text: TextSpan(
                       style: const TextStyle(color: AppColors.textPrimary),
                       children: [
-                        TextSpan(text: "${usedGb.toStringAsFixed(1)} GB", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        TextSpan(text: " de ${totalGb.toStringAsFixed(0)} GB", style: const TextStyle(color: AppColors.textSecondary)),
+                        TextSpan(
+                            text: "${usedGb.toStringAsFixed(1)} GB",
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                        TextSpan(
+                            text: " de ${totalGb.toStringAsFixed(0)} GB",
+                            style: const TextStyle(
+                                color: AppColors.textSecondary)),
                       ],
                     ),
                   ),
@@ -320,7 +344,11 @@ class _QuickActionItem extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _QuickActionItem({required this.icon, required this.label, required this.color, required this.onTap});
+  const _QuickActionItem(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -340,7 +368,7 @@ class _QuickActionItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 22),
@@ -348,7 +376,10 @@ class _QuickActionItem extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -362,7 +393,8 @@ class _SpeedCardSummary extends StatelessWidget {
   final double download, upload;
   final NavigateToPageCallback onNavigate;
 
-  const _SpeedCardSummary({required this.download, required this.upload, required this.onNavigate});
+  const _SpeedCardSummary(
+      {required this.download, required this.upload, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -373,9 +405,17 @@ class _SpeedCardSummary extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _SpeedItem(label: "Download", value: download, icon: Icons.arrow_downward, color: AppColors.success),
+            _SpeedItem(
+                label: "Download",
+                value: download,
+                icon: Icons.arrow_downward,
+                color: AppColors.success),
             Container(width: 1, height: 30, color: AppColors.border),
-            _SpeedItem(label: "Upload", value: upload, icon: Icons.arrow_upward, color: AppColors.primary),
+            _SpeedItem(
+                label: "Upload",
+                value: upload,
+                icon: Icons.arrow_upward,
+                color: AppColors.primary),
           ],
         ),
       ),
@@ -389,7 +429,11 @@ class _SpeedItem extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _SpeedItem({required this.label, required this.value, required this.icon, required this.color});
+  const _SpeedItem(
+      {required this.label,
+      required this.value,
+      required this.icon,
+      required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -400,8 +444,16 @@ class _SpeedItem extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
-            Text("${value.toInt()} Mbps", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            Text(label.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.bold)),
+            Text("${value.toInt()} Mbps",
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary)),
           ],
         )
       ],

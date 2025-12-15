@@ -1,17 +1,15 @@
-// Layout 02 - Página de Consumo de Internet (Planos Ilimitados)
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/services/auth_service.dart';
-import '../../core/providers/configuration_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/providers.dart';
 
-class ConsumoPage extends StatefulWidget {
+class ConsumoPage extends ConsumerStatefulWidget {
   const ConsumoPage({super.key});
 
   @override
-  State<ConsumoPage> createState() => _ConsumoPageState();
+  ConsumerState<ConsumoPage> createState() => _ConsumoPageState();
 }
 
-class _ConsumoPageState extends State<ConsumoPage>
+class _ConsumoPageState extends ConsumerState<ConsumoPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -38,9 +36,9 @@ class _ConsumoPageState extends State<ConsumoPage>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final authService = context.watch<AuthService>();
-    final configProvider = context.watch<ConfigurationProvider>();
-    final usuario = authService.usuario;
+    final authState = ref.watch(authNotifierProvider);
+    final configProvider = ref.watch(configurationProvider);
+    final usuario = authState.value;
     final config = configProvider.providerConfig;
 
     return Scaffold(
@@ -70,6 +68,8 @@ class _ConsumoPageState extends State<ConsumoPage>
 
             // Card de benefícios
             _buildBenefitsCard(theme),
+
+            const SizedBox(height: 180), // Padding for BottomNav
           ],
         ),
       ),

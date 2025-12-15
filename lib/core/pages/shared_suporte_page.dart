@@ -1,21 +1,21 @@
 // Layout 02 - Suporte Page
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
+import '../../core/providers/providers.dart';
+
 import '../../core/models/provider_config.dart';
 
-class SuportePage extends StatelessWidget {
+class SuportePage extends ConsumerWidget {
   const SuportePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final configProvider = context.watch<ConfigurationProvider>();
-    final authService = context.read<AuthService>();
-    final providerConfig = configProvider.providerConfig;
-    final usuario = authService.usuario;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(configurationProvider);
+    final authState = ref.read(authNotifierProvider);
+    final providerConfig = config.providerConfig;
+    final usuario = authState.value;
 
     if (providerConfig == null || usuario == null) {
       return const Scaffold(
@@ -31,7 +31,8 @@ class SuportePage extends StatelessWidget {
           const SizedBox(height: 24),
           _buildContactChannelsCard(context, providerConfig),
           const SizedBox(height: 24),
-          _buildTicketCard(context),
+          _buildTicketCard(context, providerConfig),
+          const SizedBox(height: 180), // Padding for BottomNav
         ],
       ),
     );
@@ -188,7 +189,8 @@ class SuportePage extends StatelessWidget {
     );
   }
 
-  Widget _buildTicketCard(BuildContext context) {
+  Widget _buildTicketCard(
+      BuildContext context, ProviderConfig? providerConfig) {
     final theme = Theme.of(context);
 
     return Card(
@@ -205,20 +207,51 @@ class SuportePage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Abra um ticket de suporte para que nossa equipe técnica possa analisar seu caso.',
+              'Entre em contato diretamente com nosso suporte técnico via WhatsApp.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.support_agent),
-                label: const Text('Abrir Chamado'),
+                icon: const Icon(Icons.chat), // Changed icon to chat
+                label:
+                    const Text('Abrir Chamado via WhatsApp'), // Updated label
                 onPressed: () {
-                  // TODO: Navegar para página de abrir chamado
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chamados em breve!')),
-                  );
+                  if (providerConfig == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Erro de configuração.')),
+                    );
+                    return;
+                  }
+
+                  // Find WhatsApp contact
+                  try {
+                    final whatsapp = providerConfig.config.supportContacts
+                        .firstWhere((c) => c.type == 'whatsapp');
+
+                    if (whatsapp.value.isNotEmpty) {
+                      launchUrl(
+                        Uri.parse('https://wa.me/${whatsapp.value}'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } else {
+                      throw Exception('Número vazio');
+                    }
+                  } catch (_) {
+                    // Fallback to first phone or show error
+                    try {
+                      final phone = providerConfig.config.supportContacts
+                          .firstWhere((c) => c.type == 'phone');
+                      launchUrl(Uri.parse('tel:${phone.value}'));
+                    } catch (_) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                                Text('Nenhum canal de suporte encontrado.')),
+                      );
+                    }
+                  }
                 },
               ),
             ),

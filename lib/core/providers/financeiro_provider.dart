@@ -2,8 +2,51 @@
 // DESCRIÇÃO: Provider para gerenciar o estado da tela financeiro.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/fatura.dart';
 import '../services/financeiro_service.dart';
+import '../../core/providers/providers.dart';
+
+// --- RIVERPOD MIGRATION ---
+
+// Provider do Serviço (depende de config e auth)
+final financeiroServiceProvider =
+    Provider.autoDispose<FinanceiroService?>((ref) {
+  final config = ref.watch(configurationProvider).providerConfig;
+  final usuario = ref.watch(authNotifierProvider).value;
+
+  if (config == null || usuario == null) return null;
+
+  return FinanceiroService(
+    apiUrl: '${config.apiUrl}/get-invoices',
+    cpfCnpjUnformatted: usuario.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
+    senha: usuario.senha,
+    sgpParams: {
+      'token': config.config.integrations.apiToken,
+      'app': config.config.integrations.appName,
+      'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
+    },
+  );
+});
+
+// Provider do Estado (ViewModel)
+final financeiroViewModelProvider =
+    ChangeNotifierProvider.autoDispose<FinanceiroProvider>((ref) {
+  final service = ref.watch(financeiroServiceProvider);
+  // Se o serviço não estiver pronto (ex: sem login), retorna provider vazio ou lida com erro
+  // Como estamos dentro do AuthGate, o usuário deve existir.
+  if (service == null) {
+    // Fallback seguro ou lance erro se preferir
+    // Em dev, isso pode acontecer se hot reload perder estado de auth.
+    throw Exception(
+        'Serviço Financeiro não pôde ser inicializado (Login/Config ausente)');
+  }
+
+  final provider = FinanceiroProvider(service);
+  // Auto-fetch ao criar
+  provider.fetchHistory();
+  return provider;
+});
 
 enum FinanceiroState { idle, loading, success, error }
 

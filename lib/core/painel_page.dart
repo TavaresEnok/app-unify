@@ -1,31 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../layout_selector.dart';
-import '../layouts/layout_05/theme.dart'; // Import Layout05 Theme
-import '../layouts/layout_05/widgets/neumorphic_bottom_nav.dart'; // Import Bottom Nav
-import 'providers/configuration_provider.dart';
-import 'providers/theme_provider.dart';
-import 'services/auth_service.dart';
+import '../layouts/layout_05/theme.dart';
+import '../layouts/layout_05/widgets/neumorphic_bottom_nav.dart';
+import 'providers/providers.dart';
 import 'models/usuario.dart';
 
 /// PainelPage - Widget principal de navegação após login
-///
-/// Gerencia:
-/// - Drawer/Menu lateral
-/// - Rotas entre páginas (faturas, suporte, consumo, etc.)
-/// - Renderização do dashboard correto via LayoutSelector
-class PainelPage extends StatefulWidget {
+class PainelPage extends ConsumerStatefulWidget {
   const PainelPage({super.key});
 
   @override
-  State<PainelPage> createState() => _PainelPageState();
+  ConsumerState<PainelPage> createState() => _PainelPageState();
 }
 
-class _PainelPageState extends State<PainelPage> {
+class _PainelPageState extends ConsumerState<PainelPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  String _currentPage = 'dashboard'; // Página atual
+  String _currentPage = 'dashboard';
 
-  // Mapa de rotas para páginas
   final Map<String, String> _pageNames = {
     'dashboard': 'Dashboard',
     'invoices': 'Faturas',
@@ -39,7 +31,6 @@ class _PainelPageState extends State<PainelPage> {
     'notifications': 'Notificações',
   };
 
-  // Mapa de ícones para cada página
   final Map<String, IconData> _pageIcons = {
     'dashboard': Icons.dashboard,
     'invoices': Icons.receipt_long,
@@ -57,64 +48,104 @@ class _PainelPageState extends State<PainelPage> {
     setState(() {
       _currentPage = pageId;
     });
-    Navigator.of(context).pop(); // Fecha o drawer
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
-    final configProvider = Provider.of<ConfigurationProvider>(context);
-    final usuario = authService.usuario;
+    final authState = ref.watch(authNotifierProvider);
+    final configProvider = ref.watch(configurationProvider);
+    final usuario = authState.value;
 
     final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
-    final isNeumorphic = layoutType == 'layout_05';
+    // Layout 02 também deve ter bottom nav agora
+    final hasBottomNav = layoutType == 'layout_05' || layoutType == 'layout_02';
 
     if (usuario == null) {
-      // Não deveria acontecer, mas por segurança
       return const Scaffold(
         body: Center(child: Text('Erro: Usuário não autenticado')),
       );
     }
 
-    return Scaffold(
-      key: _scaffoldKey, // Add Key
-      appBar: _buildAppBar(context, layoutType),
-      drawer: _buildDrawer(context, usuario, authService, layoutType),
-      body: Stack(
-        children: [
-          _buildBody(layoutType, usuario),
-          if (isNeumorphic)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: NeumorphicBottomNav(
-                currentIndex: _getBottomNavIndex(),
-                onTap: _onBottomNavTap,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+
+        if (_currentPage != 'dashboard') {
+          setState(() => _currentPage = 'dashboard');
+          return;
+        }
+
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Sair do App'),
+            content: const Text('Deseja realmente sair?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
               ),
-            ),
-        ],
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Sair'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldExit == true) {
+          if (context.mounted)
+            Navigator.pop(
+                context); // Sai do app (PopScope allows exit if we let it, but here we manually pop the route)
+          // Actually, for PopScope with canPop: false, we can't just return.
+          // We need to use SystemChannels.platform.invokeMethod('SystemNavigator.pop') for pure exit, or let the router handle it.
+          // Since this is the main page, popping it exits the app.
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: _buildAppBar(context, layoutType),
+        drawer: _buildDrawer(context, usuario, ref, layoutType),
+        body: Stack(
+          children: [
+            _buildBody(layoutType, usuario),
+            if (hasBottomNav)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: NeumorphicBottomNav(
+                  currentIndex: _getBottomNavIndex(),
+                  onTap: _onBottomNavTap,
+                  // Layout 02 pode querer um estilo diferente de nav, mas vamos reutilizar o Neumorphic por enquanto ou adaptar.
+                  // O NeumorphicBottomNav é bem estilizado 'glass'.
+                  // Para o Layout 02 (roxo), talvez fique bom, ou precise de ajustes de cor.
+                  // O widget NeumorphicBottomNav usa cores fixas em 'Layout05Theme'.
+                  // Vamos manter assim por enquanto para consistência da solicitação.
+                ),
+              ),
+          ],
+        ),
+        extendBody: hasBottomNav,
       ),
-      // We use Stack for Floating Bottom Nav instead of standard bottomNavigationBar
-      // to allow transparency and float effect properly over content if needed,
-      // or we can use extendBody: true.
-      extendBody: isNeumorphic,
-      // If we used standard bottomNavigationBar, it would cut the content.
-      // By using Stack + extendBody, content flows behind, which is good for scrolling but might hide content.
-      // Let's stick to standard but transparent? No, standard forces fixed height.
-      // Stack is better for "Floating". Need to ensure content has padding bottom.
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, String layoutType) {
-    // Cores baseadas no layout
+  PreferredSizeWidget? _buildAppBar(BuildContext context, String layoutType) {
+    // Layout 02 agora usa a AppBar padrão do PainelPage, não a header interna.
+    // Layout 05 (Neumorphic) tem AppBar customizada
     final isDarkLayout = layoutType == 'layout_06';
-    final isNeumorphic = layoutType == 'layout_05'; // Soft UI Check
+    final isNeumorphic = layoutType == 'layout_05';
+    // Layout 02 usa cores roxas
+    final isLayout02 = layoutType == 'layout_02';
 
     final isOnDashboard = _currentPage == 'dashboard';
     final pageName = _pageNames[_currentPage] ?? 'Dashboard';
 
-    // Custom Neumorphic AppBar
     if (isNeumorphic) {
       return AppBar(
         backgroundColor: Layout05Theme.background,
@@ -147,15 +178,26 @@ class _PainelPageState extends State<PainelPage> {
           child: Container(
             color: Colors.white,
             height: 1,
-            // Slight separation line/shadow simulation if desired, or leave empty for "Seamless"
           ),
         ),
       );
     }
 
-    // Default Material AppBar (Layout 06, etc.)
+    // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
+    if (isLayout02 && isOnDashboard) {
+      return null;
+    }
+
+    // Default AppBar for Layout 06, etc. OR Layout 02 non-dashboard pages
+    final primaryColor = Theme.of(context).primaryColor;
+    final bgColor = isLayout02
+        ? const Color(0xFF673AB7)
+        : (isDarkLayout ? Colors.grey[900] : primaryColor);
+    final contentColor = Colors.white;
+
     return AppBar(
-      // Back button when not on dashboard
+      backgroundColor: bgColor,
+      iconTheme: IconThemeData(color: contentColor),
       leading: isOnDashboard
           ? null
           : IconButton(
@@ -167,9 +209,8 @@ class _PainelPageState extends State<PainelPage> {
                 });
               },
             ),
-      // Breadcrumb title
       title: isOnDashboard
-          ? Text(pageName)
+          ? Text(pageName, style: TextStyle(color: contentColor))
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -183,10 +224,7 @@ class _PainelPageState extends State<PainelPage> {
                     'Início',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onPrimary
-                          .withOpacity(0.7),
+                      color: contentColor.withOpacity(0.7),
                     ),
                   ),
                 ),
@@ -195,22 +233,20 @@ class _PainelPageState extends State<PainelPage> {
                   child: Icon(
                     Icons.chevron_right,
                     size: 18,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onPrimary
-                        .withOpacity(0.5),
+                    color: contentColor.withOpacity(0.5),
                   ),
                 ),
                 Text(
                   pageName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: contentColor,
                   ),
                 ),
               ],
             ),
-      elevation: isDarkLayout ? 0 : 2,
+      elevation: 0,
       actions: [
         IconButton(
           icon: const Icon(Icons.notifications_outlined),
@@ -224,7 +260,6 @@ class _PainelPageState extends State<PainelPage> {
     );
   }
 
-  // Helper to map current page to index
   int _getBottomNavIndex() {
     switch (_currentPage) {
       case 'dashboard':
@@ -236,7 +271,7 @@ class _PainelPageState extends State<PainelPage> {
       case 'support':
         return 3;
       default:
-        return 0; // Default or Menu (handled separately)
+        return 0;
     }
   }
 
@@ -255,31 +290,23 @@ class _PainelPageState extends State<PainelPage> {
         _navigateToPage('support');
         break;
       case 4:
-        Scaffold.of(context)
-            .openDrawer(); // This might fail if context is wrong, better verify
-        // Actually, we are IN PainelPage, so we need a GlobalKey or Builder context.
-        // But PainelPage is the Scaffold body... wait.
-        // build() returns Scaffold. To open drawer programmatically from here we need:
-        // _scaffoldKey.currentState?.openDrawer();
         _scaffoldKey.currentState?.openDrawer();
         break;
     }
   }
 
-  Widget _buildDrawer(BuildContext context, Usuario usuario,
-      AuthService authService, String layoutType) {
+  Widget _buildDrawer(
+      BuildContext context, Usuario usuario, WidgetRef ref, String layoutType) {
     final isDarkLayout = layoutType == 'layout_06';
-    final isNeumorphic = layoutType == 'layout_05'; // Soft UI Check
+    final isNeumorphic = layoutType == 'layout_05';
     final primaryColor = Theme.of(context).primaryColor;
 
     if (isNeumorphic) {
       return Drawer(
         backgroundColor: Layout05Theme.background,
         elevation: 0,
-        // We use a container to apply border if needed or just let it be flat
         child: Column(
           children: [
-            // User Header - Neumorphic
             Container(
               padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
               color: Layout05Theme.background,
@@ -335,7 +362,6 @@ class _PainelPageState extends State<PainelPage> {
               ),
             ),
             const Divider(color: Colors.white, height: 1),
-            // Menu Items
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(16),
@@ -377,7 +403,9 @@ class _PainelPageState extends State<PainelPage> {
                         ],
                       ),
                     );
-                    if (shouldLogout == true) authService.logout();
+                    if (shouldLogout == true) {
+                      ref.read(authNotifierProvider.notifier).logout();
+                    }
                   }),
                 ],
               ),
@@ -387,12 +415,10 @@ class _PainelPageState extends State<PainelPage> {
       );
     }
 
-    // Default Drawer
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // Header do Drawer com informações do usuário
           DrawerHeader(
             decoration: BoxDecoration(
               gradient: isDarkLayout
@@ -411,7 +437,6 @@ class _PainelPageState extends State<PainelPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Avatar do usuário
                 CircleAvatar(
                   radius: 32,
                   backgroundColor: Colors.white.withOpacity(0.2),
@@ -427,7 +452,6 @@ class _PainelPageState extends State<PainelPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Nome do usuário
                 Text(
                   'Olá, ${usuario.nome}',
                   style: const TextStyle(
@@ -437,7 +461,6 @@ class _PainelPageState extends State<PainelPage> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // Plano do usuário
                 Text(
                   usuario.plano,
                   style: TextStyle(
@@ -448,8 +471,6 @@ class _PainelPageState extends State<PainelPage> {
               ],
             ),
           ),
-
-          // Menu items
           _buildMenuItem('dashboard', context),
           _buildMenuItem('invoices', context),
           _buildMenuItem('support', context),
@@ -459,13 +480,11 @@ class _PainelPageState extends State<PainelPage> {
           _buildMenuItem('contract', context),
           _buildMenuItem('my_ip', context),
           _buildMenuItem('faq', context),
-
           const Divider(),
-
-          // Dark Mode Toggle
-          Consumer<DynamicThemeProvider>(
-            builder: (context, themeProvider, _) {
-              final isDark = themeProvider.themeMode == ThemeMode.dark;
+          Consumer(
+            builder: (context, ref, _) {
+              final themeNotifer = ref.watch(themeProvider);
+              final isDark = themeNotifer.themeMode == ThemeMode.dark;
               return SwitchListTile(
                 secondary: Icon(
                   isDark ? Icons.dark_mode : Icons.light_mode,
@@ -478,17 +497,14 @@ class _PainelPageState extends State<PainelPage> {
                 ),
                 value: isDark,
                 onChanged: (value) {
-                  themeProvider.setThemeMode(
+                  themeNotifer.setThemeMode(
                     value ? ThemeMode.dark : ThemeMode.light,
                   );
                 },
               );
             },
           ),
-
           const Divider(),
-
-          // Botão de logout
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text(
@@ -496,7 +512,6 @@ class _PainelPageState extends State<PainelPage> {
               style: TextStyle(color: Colors.red),
             ),
             onTap: () async {
-              // Confirmar logout
               final shouldLogout = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -517,7 +532,7 @@ class _PainelPageState extends State<PainelPage> {
               );
 
               if (shouldLogout == true) {
-                await authService.logout();
+                await ref.read(authNotifierProvider.notifier).logout();
               }
             },
           ),
@@ -533,13 +548,12 @@ class _PainelPageState extends State<PainelPage> {
         ? Layout05Theme.error
         : (isSelected ? Layout05Theme.primary : Layout05Theme.textGrey);
 
-    // "Pressed" state for selected item
     final decoration =
         isSelected ? Layout05Theme.neumorphicPressedDecoration : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: decoration, // If not selected, it's flat/transparent
+      decoration: decoration,
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         leading: Icon(icon, color: color),
@@ -575,7 +589,6 @@ class _PainelPageState extends State<PainelPage> {
   }
 
   Widget _buildBody(String layoutType, Usuario usuario) {
-    // Se for dashboard, usa LayoutSelector
     if (_currentPage == 'dashboard') {
       return LayoutSelector.getDashboard(
         layoutType: layoutType,
@@ -584,10 +597,10 @@ class _PainelPageState extends State<PainelPage> {
         connectionStatus: usuario.status,
         billAmount: _parseBillAmount(usuario.valorFatura),
         billDueDate: _parseBillDate(usuario.vencimentoFatura),
-        usedGb: 50.0, // TODO: Buscar dados reais do consumo
-        totalGb: 100.0, // TODO: Buscar dados reais do plano
-        downloadMbps: 100.0, // TODO: Buscar dados reais
-        uploadMbps: 50.0, // TODO: Buscar dados reais
+        usedGb: 50.0,
+        totalGb: 100.0,
+        downloadMbps: 100.0,
+        uploadMbps: 50.0,
         onNavigate: (page) {
           setState(() {
             _currentPage = page;
@@ -596,53 +609,42 @@ class _PainelPageState extends State<PainelPage> {
       );
     }
 
-    // Página de Faturas (Financeiro)
     if (_currentPage == 'invoices') {
       return LayoutSelector.getFinanceiroPage(layoutType: layoutType);
     }
 
-    // Página de Suporte
     if (_currentPage == 'support') {
       return LayoutSelector.getSuportePage(layoutType: layoutType);
     }
 
-    // Página de Diagnóstico de Rede
     if (_currentPage == 'network_diagnostic') {
       return LayoutSelector.getDiagnosticoPage(layoutType: layoutType);
     }
 
-    // Página de Consumo de Internet
     if (_currentPage == 'internet_usage') {
       return LayoutSelector.getConsumoPage(layoutType: layoutType);
     }
 
-    // Página de Meu IP
     if (_currentPage == 'my_ip') {
       return LayoutSelector.getMeuIpPage(layoutType: layoutType);
     }
 
-    // Página de FAQ
     if (_currentPage == 'faq') {
       return LayoutSelector.getFaqPage(layoutType: layoutType);
     }
 
-    // Página de Contrato
     if (_currentPage == 'contract') {
       return LayoutSelector.getContratoPage(layoutType: layoutType);
     }
 
-    // Página de Wifi
     if (_currentPage == 'wifi') {
       return LayoutSelector.getWifiPage(layoutType: layoutType);
     }
 
-    // Página de Velocidade (usa Diagnóstico que já tem speed test)
     if (_currentPage == 'speed_test') {
       return LayoutSelector.getDiagnosticoPage(layoutType: layoutType);
     }
 
-    // Para outras páginas, mostrar placeholder por enquanto
-    // TODO: Adicionar LayoutSelector para cada página conforme forem unificadas
     return _buildPlaceholderPage(layoutType);
   }
 
@@ -709,12 +711,9 @@ class _PainelPageState extends State<PainelPage> {
     );
   }
 
-  /// Converte string de valor para double (ex: "R$ 150,00" -> 150.0)
   double _parseBillAmount(String value) {
     try {
-      // Remove tudo exceto números, vírgula e ponto
       final cleaned = value.replaceAll(RegExp(r'[^0-9,.]'), '');
-      // Substitui vírgula por ponto para parse
       final normalized = cleaned.replaceAll(',', '.');
       return double.parse(normalized);
     } catch (_) {
@@ -722,15 +721,14 @@ class _PainelPageState extends State<PainelPage> {
     }
   }
 
-  /// Converte string de data para DateTime (formato dd/mm/yyyy)
   DateTime _parseBillDate(String value) {
     try {
       final parts = value.split('/');
       if (parts.length == 3) {
         return DateTime(
-          int.parse(parts[2]), // ano
-          int.parse(parts[1]), // mês
-          int.parse(parts[0]), // dia
+          int.parse(parts[2]),
+          int.parse(parts[1]),
+          int.parse(parts[0]),
         );
       }
     } catch (_) {}

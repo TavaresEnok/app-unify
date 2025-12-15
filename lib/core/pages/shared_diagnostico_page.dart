@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
+import '../../core/providers/providers.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/services/onu_wifi_service.dart';
 import '../../core/models/diagnostico_state.dart';
 import '../../core/widgets/dashboard_card.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/troubleshooter_card.dart';
+import '../../core/utils/pdf_generator_service.dart';
 
-class DiagnosticoPage extends StatefulWidget {
+class DiagnosticoPage extends ConsumerStatefulWidget {
   const DiagnosticoPage({super.key});
 
   @override
-  State<DiagnosticoPage> createState() => _DiagnosticoPageState();
+  ConsumerState<DiagnosticoPage> createState() => _DiagnosticoPageState();
 }
 
-class _DiagnosticoPageState extends State<DiagnosticoPage> {
+class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   late final DiagnosticoService _service;
   OnuWifiService? _onuWifiService;
   bool _serviceInitialized = false;
@@ -37,10 +37,10 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_serviceInitialized) {
-      final providerConfig =
-          context.read<ConfigurationProvider>().providerConfig!;
-      final authService = context.read<AuthService>();
-      final usuario = authService.usuario;
+      final configProvider = ref.read(configurationProvider);
+      final providerConfig = configProvider.providerConfig!;
+      final authState = ref.read(authNotifierProvider);
+      final usuario = authState.value;
 
       _service =
           DiagnosticoService(providerConfig: providerConfig, context: context);
@@ -83,6 +83,17 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Diagnóstico de Rede'),
+            actions: [
+              if (!state.isTesting && state.customDownloadResultMbps > 0)
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  tooltip: 'Compartilhar PDF',
+                  onPressed: () {
+                    final pdfService = PdfGeneratorService();
+                    pdfService.stopAndSharePdf(state);
+                  },
+                ),
+            ],
           ),
           body: Column(children: [
             Container(
@@ -126,7 +137,7 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 160),
               child: AppButton(
                 icon: state.isTesting
                     ? Icons.stop_circle_outlined
@@ -134,9 +145,15 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
                 label: state.isTesting
                     ? "Parar Diagnóstico"
                     : "Iniciar Diagnóstico",
-                onPressed: () => state.isTesting
-                    ? _service.stopAllTests()
-                    : _service.runAllTests(),
+                onPressed: () {
+                  if (state.isTesting) {
+                    _service.stopAllTests();
+                  } else {
+                    _service.runAllTests();
+                    _fetchOnuSignal();
+                    _fetchWifiNetworks();
+                  }
+                },
               ),
             ),
           ]),

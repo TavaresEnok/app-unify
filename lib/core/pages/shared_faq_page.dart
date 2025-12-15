@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/configuration_provider.dart';
+import '../../core/providers/providers.dart';
 
-class FaqPage extends StatelessWidget {
+class FaqPage extends ConsumerWidget {
   const FaqPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final configProvider = Provider.of<ConfigurationProvider>(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final configProvider = ref.watch(configurationProvider);
     final faqList = configProvider.providerConfig?.config.faq ?? [];
     final textTheme = Theme.of(context).textTheme;
 

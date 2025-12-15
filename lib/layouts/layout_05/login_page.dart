@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/services/auth_service.dart';
-import '../../core/providers/configuration_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/providers.dart';
 import '../../core/models/provider_config.dart';
 import 'theme.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final _cpfController = TextEditingController();
   bool _isLoading = false;
   String? _localErrorMessage;
@@ -26,8 +25,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _handleLogin(
-      AuthService authService, ProviderConfig? config) async {
+  Future<void> _handleLogin(ProviderConfig? config) async {
     if (_cpfController.text.isEmpty) {
       setState(() => _localErrorMessage = 'Por favor, digite seu CPF ou CNPJ');
       return;
@@ -44,11 +42,15 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await authService.performLogin(_cpfController.text.trim(), config);
+      await ref
+          .read(authNotifierProvider.notifier)
+          .login(_cpfController.text.trim(), config);
       // Sucesso navega automaticamente via AuthGate
     } catch (e) {
-      setState(
-          () => _localErrorMessage = 'CPF não encontrado ou erro de conexão.');
+      if (mounted) {
+        setState(() =>
+            _localErrorMessage = 'CPF não encontrado ou erro de conexão.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -56,8 +58,8 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
-    final configProvider = context.watch<ConfigurationProvider>();
+    // Config via Riverpod
+    final configProvider = ref.watch(configurationProvider);
     final config = configProvider.providerConfig;
 
     return Scaffold(
@@ -77,13 +79,13 @@ class _LoginPageState extends State<LoginPage> {
                     height: 100,
                     width: 100,
                     decoration: BoxDecoration(
-                      color: Layout05Theme.primary.withOpacity(0.1),
+                      color: Layout05Theme.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: config?.config.logoUrl != null
                         ? Padding(
                             padding: const EdgeInsets.all(20),
-                            child: Image.network(config!.config.logoUrl!),
+                            child: Image.network(config!.config.logoUrl),
                           )
                         : const Icon(Icons.wifi,
                             size: 40, color: Layout05Theme.primary),
@@ -137,7 +139,8 @@ class _LoginPageState extends State<LoginPage> {
                         decoration: InputDecoration(
                           hintText: '000.000.000-00',
                           hintStyle: TextStyle(
-                              color: Layout05Theme.textGrey.withOpacity(0.5)),
+                              color: Layout05Theme.textGrey
+                                  .withValues(alpha: 0.5)),
                           prefixIcon: const Icon(Icons.person_outline_rounded,
                               color: Layout05Theme.textGrey),
                           border: InputBorder.none,
@@ -154,9 +157,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () => _handleLogin(authService, config),
+                    onPressed: _isLoading ? null : () => _handleLogin(config),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Layout05Theme.primary,
                       foregroundColor: Colors.white,
@@ -204,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Layout05Theme.error.withOpacity(0.1),
+                      color: Layout05Theme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(

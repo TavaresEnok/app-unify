@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/services/auth_service.dart';
 import '../../core/services/biometric_service.dart';
-import '../../core/providers/configuration_provider.dart';
+import '../../core/providers/providers.dart';
 import '../../core/widgets/glass_card.dart';
 import '../../core/widgets/app_button.dart';
 
 /// LoginPage para Layout 06 - Premium Dark com GlassCard
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
+class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _cpfController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -73,21 +72,26 @@ class _LoginPageState extends State<LoginPage>
     final cpfInput = overrideCpf ?? _cpfController.text;
 
     try {
-      final configProvider = context.read<ConfigurationProvider>();
+      final configProvider = ref.read(configurationProvider);
       final providerConfig = configProvider.providerConfig;
+
       if (providerConfig == null) throw Exception('Configuração não carregada');
 
-      await context.read<AuthService>().performLogin(cpfInput, providerConfig);
+      await ref
+          .read(authNotifierProvider.notifier)
+          .login(cpfInput, providerConfig);
 
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/painel');
     } on TimeoutException {
       if (mounted) {
-        _showErrorDialog('Tempo Esgotado', 'O servidor demorou muito para responder.');
+        _showErrorDialog(
+            'Tempo Esgotado', 'O servidor demorou muito para responder.');
       }
     } catch (e) {
       if (mounted) {
-        _showErrorDialog('Erro no Login', e.toString().replaceFirst("Exception: ", ""));
+        _showErrorDialog(
+            'Erro no Login', e.toString().replaceFirst("Exception: ", ""));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -104,7 +108,6 @@ class _LoginPageState extends State<LoginPage>
 
   void _showErrorDialog(String title, String message) {
     if (!mounted) return;
-    final theme = Theme.of(context);
 
     showDialog(
       context: context,
@@ -127,18 +130,18 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    final configProvider = Provider.of<ConfigurationProvider>(context);
+    final config = ref.watch(configurationProvider);
     final theme = Theme.of(context);
 
-    if (configProvider.isLoading || configProvider.providerConfig == null) {
+    if (config.isLoading || config.providerConfig == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    final config = configProvider.providerConfig!.config;
-    final logoUrl = config.logoUrl;
-    final loginQuote = config.loginQuote;
+    final providerConfig = config.providerConfig!.config;
+    final logoUrl = providerConfig.logoUrl;
+    final loginQuote = providerConfig.loginQuote;
 
     return Scaffold(
       body: Container(
@@ -208,9 +211,9 @@ class _LoginPageState extends State<LoginPage>
                               decoration: InputDecoration(
                                 hintText: 'CPF ou CNPJ',
                                 hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.4)),
+                                    color: Colors.white.withValues(alpha: 0.4)),
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.05),
+                                fillColor: Colors.white.withValues(alpha: 0.05),
                                 border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide.none),

@@ -1,23 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'firebase_options.dart';
-import 'core/providers/configuration_provider.dart';
-import 'core/services/auth_service.dart';
-import 'core/services/notification_service.dart';
-import 'core/providers/theme_provider.dart';
-import 'core/models/theme_config.dart';
+import 'core/providers/providers.dart';
 import 'core/painel_page.dart';
 import 'layout_selector.dart';
 
 // ========================================
 // CONFIGURAÇÃO DO PROVEDOR
-// Altere este valor para cada build de provedor
 // ========================================
-const String providerId = 'vibe'; // TODO: Carregar de config ou flavor
+const String providerId = 'vibe';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -32,51 +27,43 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ConfigurationProvider()),
-        ChangeNotifierProvider(create: (_) => AuthService()),
-        ChangeNotifierProvider(create: (_) => NotificationService()),
-        ChangeNotifierProxyProvider<ConfigurationProvider,
-            DynamicThemeProvider>(
-          create: (_) => DynamicThemeProvider(),
-          update: (_, configProvider, themeProvider) {
-            final themeConfig = configProvider.providerConfig?.theme;
-            if (themeConfig != null && themeProvider != null) {
-              try {
-                final config = ThemeConfig.fromJson(themeConfig);
-                if (themeProvider.config != config) {
-                  themeProvider.updateFromConfig(config);
-                }
-              } catch (e) {
-                debugPrint('Erro ao processar tema: $e');
-              }
-            }
-            return themeProvider ?? DynamicThemeProvider();
-          },
-        ),
-      ],
-      child: const AppContent(),
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch Theme Provider
+    final themeNotifer = ref.watch(themeProvider);
+
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      title: 'App Provedor',
+      theme: themeNotifer.lightTheme,
+      darkTheme: themeNotifer.darkTheme,
+      themeMode: themeNotifer.themeMode,
+      home: const AppInitializationWrapper(),
     );
   }
 }
 
-class AppContent extends StatefulWidget {
-  const AppContent({super.key});
+class AppInitializationWrapper extends ConsumerStatefulWidget {
+  const AppInitializationWrapper({super.key});
 
   @override
-  State<AppContent> createState() => _AppContentState();
+  ConsumerState<AppInitializationWrapper> createState() =>
+      _AppInitializationWrapperState();
 }
 
-class _AppContentState extends State<AppContent> {
+class _AppInitializationWrapperState
+    extends ConsumerState<AppInitializationWrapper> {
   late final Future<void> _initialization;
 
   @override
@@ -87,95 +74,58 @@ class _AppContentState extends State<AppContent> {
 
   Future<void> _initializeApp() async {
     await FirebaseMessaging.instance.requestPermission();
-
-    // Carregar configuração do provedor
     if (mounted) {
-      await Provider.of<ConfigurationProvider>(context, listen: false)
-          .loadConfig(providerId);
-
-      // Carregar notificações
-      await Provider.of<NotificationService>(context, listen: false)
-          .loadNotifications();
+      // Usamos read aqui pois é uma ação única na inicialização
+      await ref.read(configurationProvider).loadConfig(providerId);
+      await ref.read(notificationProvider).loadNotifications();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<DynamicThemeProvider>(context);
-
-    return Consumer<ConfigurationProvider>(
-      builder: (context, configProvider, child) {
-        return MaterialApp(
-          navigatorKey: navigatorKey,
-          debugShowCheckedModeBanner: false,
-          title: 'App Provedor',
-          theme: themeProvider.lightTheme,
-          darkTheme: themeProvider.darkTheme,
-          themeMode: themeProvider.themeMode,
-          home: FutureBuilder(
-            future: _initialization,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return FatalErrorScreen(error: snapshot.error.toString());
-              }
-              if (snapshot.connectionState == ConnectionState.done) {
-                return const AuthGate();
-              }
-              return const SplashScreen();
-            },
-          ),
-        );
+    return FutureBuilder(
+      future: _initialization,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return FatalErrorScreen(error: snapshot.error.toString());
+        }
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const AuthGate();
+        }
+        return const SplashScreen();
       },
     );
   }
 }
 
-/// Widget que decide entre Login e Painel baseado no estado de autenticação.
-/// Usa o LayoutSelector para escolher o layout correto baseado no `layoutType`.
-class AuthGate extends StatefulWidget {
+class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() => _AuthGateState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(configurationProvider);
+    final authState = ref.watch(authNotifierProvider);
 
-class _AuthGateState extends State<AuthGate> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ConfigurationProvider>(context, listen: false)
-          .loadConfig(providerId);
-    });
-  }
+    if (config.isLoading || authState.isLoading) {
+      return const SplashScreen();
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer2<ConfigurationProvider, AuthService>(
-      builder: (context, configProvider, authService, child) {
-        if (configProvider.isLoading || authService.isLoading) {
-          return const SplashScreen();
-        }
+    if (config.errorMessage != null) {
+      return FatalErrorScreen(error: config.errorMessage!);
+    }
 
-        if (configProvider.errorMessage != null) {
-          return FatalErrorScreen(error: configProvider.errorMessage!);
-        }
+    // Se houve erro no carregamento inicial do auth, consideramos deslogado
+    // ou mostramos erro se for crucial.
+    // Para simplificar, se não temos usuário auth e deu erro, é login.
+    // Mas AsyncNotifier geralmente inicia loading -> data(null) se não tiver user.
 
-        // ====================================================
-        // AQUI ESTÁ A MÁGICA: Seleção dinâmica do layout!
-        // ====================================================
-        final layoutType =
-            configProvider.providerConfig?.layoutType ?? 'layout_06';
+    final layoutType = config.providerConfig?.layoutType ?? 'layout_06';
 
-        if (authService.isAuthenticated) {
-          // Usa o PainelPage que gerencia navegação e usa LayoutSelector internamente
-          return const PainelPage();
-        } else {
-          // Usa o LayoutSelector para escolher a tela de login
-          return LayoutSelector.getLoginPage(layoutType: layoutType);
-        }
-      },
-    );
+    if (authState.value != null) {
+      return const PainelPage();
+    } else {
+      return LayoutSelector.getLoginPage(layoutType: layoutType);
+    }
   }
 }
 

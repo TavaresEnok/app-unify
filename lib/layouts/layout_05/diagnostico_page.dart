@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/providers.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/services/onu_wifi_service.dart';
 import '../../core/models/diagnostico_state.dart';
 import 'theme.dart';
 
-class DiagnosticoPage extends StatefulWidget {
+class DiagnosticoPage extends ConsumerStatefulWidget {
   const DiagnosticoPage({super.key});
 
   @override
-  State<DiagnosticoPage> createState() => _DiagnosticoPageState();
+  ConsumerState<DiagnosticoPage> createState() => _DiagnosticoPageState();
 }
 
-class _DiagnosticoPageState extends State<DiagnosticoPage> {
+class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   late final DiagnosticoService _service;
   OnuWifiService?
       _onuWifiService; // Kept for consistency if needed direct access
@@ -24,10 +23,10 @@ class _DiagnosticoPageState extends State<DiagnosticoPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_serviceInitialized) {
-      final providerConfig =
-          context.read<ConfigurationProvider>().providerConfig!;
-      final authService = context.read<AuthService>();
-      final usuario = authService.usuario;
+      final configProvider = ref.read(configurationProvider);
+      final providerConfig = configProvider.providerConfig!;
+      final authState = ref.read(authNotifierProvider);
+      final usuario = authState.value;
 
       _service =
           DiagnosticoService(providerConfig: providerConfig, context: context);

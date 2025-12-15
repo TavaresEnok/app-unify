@@ -2,83 +2,62 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/models/fatura.dart';
 import '../../core/providers/financeiro_provider.dart';
-import '../../core/services/financeiro_service.dart';
-import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
+import '../../core/providers/providers.dart';
 
-class FinanceiroPage extends StatelessWidget {
+class FinanceiroPage extends ConsumerWidget {
   const FinanceiroPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final configProvider = context.read<ConfigurationProvider>();
-    final authService = context.read<AuthService>();
-    final providerConfig = configProvider.providerConfig;
-    final usuario = authService.usuario;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(configurationProvider);
+    final providerConfig = config.providerConfig;
 
     if (providerConfig == null) {
       return const Scaffold(
           body: Center(child: Text('Configuração não encontrada')));
     }
 
-    final apiUrl = '${providerConfig.apiUrl}/get-invoices';
-    final cpfCnpj = usuario?.cpfCnpj ?? '';
+    final provider = ref.watch(financeiroViewModelProvider);
 
-    return ChangeNotifierProvider(
-      create: (_) => FinanceiroProvider(
-        FinanceiroService(
-          apiUrl: apiUrl,
-          cpfCnpjUnformatted: cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
-          senha: usuario?.senha,
-          sgpParams: {
-            'token': providerConfig.config.integrations.apiToken,
-            'app': providerConfig.config.integrations.appName,
-            'sgpBaseUrl': providerConfig.config.integrations.sgpBaseUrl,
-          },
-        ),
-      )..fetchHistory(),
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
           title: const Text('Faturas'),
           centerTitle: true,
           elevation: 0,
         ),
-        body: Consumer<FinanceiroProvider>(
-          builder: (context, provider, child) {
-            if (provider.state == FinanceiroState.loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        body: Builder(builder: (context) {
+          if (provider.state == FinanceiroState.loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            if (provider.state == FinanceiroState.error) {
-              return _buildErrorState(context, provider);
-            }
+          if (provider.state == FinanceiroState.error) {
+            return _buildErrorState(context, provider);
+          }
 
-            if (provider.invoices.isEmpty) {
-              return _buildEmptyState(context, provider);
-            }
+          if (provider.invoices.isEmpty) {
+            return _buildEmptyState(context, provider);
+          }
 
-            return RefreshIndicator(
-              onRefresh: provider.fetchHistory,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: provider.invoices.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) =>
-                    _buildInvoiceCard(context, provider.invoices[index]),
-              ),
-            );
-          },
-        ),
-      ),
-    );
+          return RefreshIndicator(
+            onRefresh: provider.fetchHistory,
+            child: ListView.separated(
+              padding: const EdgeInsets.only(
+                  left: 16, right: 16, top: 16, bottom: 180),
+              itemCount: provider.invoices.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) =>
+                  _buildInvoiceCard(context, provider.invoices[index], ref),
+            ),
+          );
+        }));
   }
 
   Widget _buildErrorState(BuildContext context, FinanceiroProvider provider) {
@@ -125,7 +104,7 @@ class FinanceiroPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInvoiceCard(BuildContext context, Fatura fatura) {
+  Widget _buildInvoiceCard(BuildContext context, Fatura fatura, WidgetRef ref) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final currencyFormat =
         NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
@@ -152,7 +131,7 @@ class FinanceiroPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2)),
         ],
@@ -189,7 +168,7 @@ class FinanceiroPage extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -289,7 +268,7 @@ class FinanceiroPage extends StatelessWidget {
                   if (fatura.isVencido)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
-                      child: _buildTrustUnlockButton(context, fatura),
+                      child: _buildTrustUnlockButton(context, fatura, ref),
                     ),
                 ],
               ),
@@ -300,7 +279,8 @@ class FinanceiroPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTrustUnlockButton(BuildContext context, Fatura fatura) {
+  Widget _buildTrustUnlockButton(
+      BuildContext context, Fatura fatura, WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -309,7 +289,7 @@ class FinanceiroPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withOpacity(0.3),
+            color: Colors.purple.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -318,7 +298,7 @@ class FinanceiroPage extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _showTrustUnlockDialog(context, fatura),
+          onTap: () => _showTrustUnlockDialog(context, fatura, ref),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -343,7 +323,8 @@ class FinanceiroPage extends StatelessWidget {
     );
   }
 
-  void _showTrustUnlockDialog(BuildContext context, Fatura fatura) {
+  void _showTrustUnlockDialog(
+      BuildContext context, Fatura fatura, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -366,7 +347,7 @@ class FinanceiroPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Row(
@@ -392,7 +373,7 @@ class FinanceiroPage extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _executeTrustUnlock(context, fatura);
+              _executeTrustUnlock(context, fatura, ref);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple,
@@ -405,11 +386,12 @@ class FinanceiroPage extends StatelessWidget {
     );
   }
 
-  void _executeTrustUnlock(BuildContext context, Fatura fatura) async {
-    final configProvider = context.read<ConfigurationProvider>();
-    final authService = context.read<AuthService>();
-    final providerConfig = configProvider.providerConfig;
-    final usuario = authService.usuario;
+  void _executeTrustUnlock(
+      BuildContext context, Fatura fatura, WidgetRef ref) async {
+    final config = ref.read(configurationProvider);
+    final authState = ref.read(authNotifierProvider);
+    final providerConfig = config.providerConfig;
+    final usuario = authState.value;
 
     if (providerConfig == null || usuario == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -521,7 +503,7 @@ class FinanceiroPage extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        side: BorderSide(color: color.withOpacity(0.4)),
+        side: BorderSide(color: color.withValues(alpha: 0.4)),
       ),
     );
   }

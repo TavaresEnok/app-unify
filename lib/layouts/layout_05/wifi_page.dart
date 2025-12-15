@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/onu_wifi_service.dart';
-import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
+import '../../core/providers/providers.dart';
 import 'theme.dart';
 
-class WifiPage extends StatefulWidget {
+class WifiPage extends ConsumerStatefulWidget {
   const WifiPage({super.key});
 
   @override
-  State<WifiPage> createState() => _WifiPageState();
+  ConsumerState<WifiPage> createState() => _WifiPageState();
 }
 
-class _WifiPageState extends State<WifiPage> {
+class _WifiPageState extends ConsumerState<WifiPage> {
   bool _isLoading = true;
   List<WifiNetwork> _networks = [];
   String? _errorMessage;
@@ -27,10 +26,9 @@ class _WifiPageState extends State<WifiPage> {
   }
 
   Future<void> _initServiceAndFetch() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final configProvider =
-        Provider.of<ConfigurationProvider>(context, listen: false);
-    final user = authService.usuario;
+    final authState = ref.read(authNotifierProvider);
+    final configProvider = ref.read(configurationProvider);
+    final user = authState.value;
     final config = configProvider.providerConfig;
 
     if (user == null || config == null) {
@@ -204,74 +202,109 @@ class _WifiPageState extends State<WifiPage> {
                   child: Text(_errorMessage!,
                       style: const TextStyle(color: Layout05Theme.error),
                       textAlign: TextAlign.center))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
-                  itemCount: _networks.length,
-                  itemBuilder: (context, index) {
-                    final network = _networks[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      decoration: Layout05Theme.neumorphicDecoration,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(20),
-                        leading: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Layout05Theme.background,
-                            shape: BoxShape.circle,
-                            boxShadow: const [
-                              BoxShadow(
-                                  color: Colors.white,
-                                  offset: Offset(-2, -2),
-                                  blurRadius: 3),
-                              BoxShadow(
-                                  color: Color(0x11000000),
-                                  offset: Offset(2, 2),
-                                  blurRadius: 3),
-                            ],
+              : _networks.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.wifi_off,
+                              size: 64, color: Layout05Theme.textGrey),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhuma rede Wi-Fi encontrada.',
+                            style: Layout05Theme.heading2
+                                .copyWith(color: Layout05Theme.textDark),
                           ),
-                          child: Icon(
-                            network.frequency.contains('5')
-                                ? Icons.wifi_tethering
-                                : Icons.wifi,
-                            color: Layout05Theme.primary,
-                            size: 28,
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              'O gerenciamento de Wi-Fi pode não estar disponível para o seu equipamento ou contrato.',
+                              textAlign: TextAlign.center,
+                              style: Layout05Theme.bodyText,
+                            ),
                           ),
-                        ),
-                        title: Text(network.ssid,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Layout05Theme.textDark)),
-                        subtitle: Text(
-                            '${network.frequency} - ${network.enabled ? 'Ativo' : 'Inativo'}',
-                            style:
-                                Layout05Theme.bodyText.copyWith(fontSize: 13)),
-                        trailing: Container(
-                          decoration: BoxDecoration(
-                            color: Layout05Theme.background,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: const [
-                              BoxShadow(
-                                  color: Colors.white,
-                                  offset: Offset(-3, -3),
-                                  blurRadius: 5),
-                              BoxShadow(
-                                  color: Color(0x1FA3B1C6),
-                                  offset: Offset(3, 3),
-                                  blurRadius: 5),
-                            ],
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: _fetchNetworks,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Tentar Novamente'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Layout05Theme.primary,
+                              foregroundColor: Colors.white,
+                            ),
                           ),
-                          child: IconButton(
-                            icon: const Icon(Icons.edit_rounded,
-                                color: Layout05Theme.textGrey),
-                            onPressed: () => _showEditDialog(network),
-                          ),
-                        ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+                      itemCount: _networks.length,
+                      itemBuilder: (context, index) {
+                        final network = _networks[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          decoration: Layout05Theme.neumorphicDecoration,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(20),
+                            leading: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Layout05Theme.background,
+                                shape: BoxShape.circle,
+                                boxShadow: const [
+                                  BoxShadow(
+                                      color: Colors.white,
+                                      offset: Offset(-2, -2),
+                                      blurRadius: 3),
+                                  BoxShadow(
+                                      color: Color(0x11000000),
+                                      offset: Offset(2, 2),
+                                      blurRadius: 3),
+                                ],
+                              ),
+                              child: Icon(
+                                network.frequency.contains('5')
+                                    ? Icons.wifi_tethering
+                                    : Icons.wifi,
+                                color: Layout05Theme.primary,
+                                size: 28,
+                              ),
+                            ),
+                            title: Text(network.ssid,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Layout05Theme.textDark)),
+                            subtitle: Text(
+                                '${network.frequency} - ${network.enabled ? 'Ativo' : 'Inativo'}',
+                                style: Layout05Theme.bodyText
+                                    .copyWith(fontSize: 13)),
+                            trailing: Container(
+                              decoration: BoxDecoration(
+                                color: Layout05Theme.background,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: const [
+                                  BoxShadow(
+                                      color: Colors.white,
+                                      offset: Offset(-3, -3),
+                                      blurRadius: 5),
+                                  BoxShadow(
+                                      color: Color(0x1FA3B1C6),
+                                      offset: Offset(3, 3),
+                                      blurRadius: 5),
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.edit_rounded,
+                                    color: Layout05Theme.textGrey),
+                                onPressed: () => _showEditDialog(network),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
     );
   }
 }

@@ -31,7 +31,7 @@ class Layout05Theme {
             blurRadius: 16,
           ),
           BoxShadow(
-            color: const Color(0xFFA3B1C6).withOpacity(0.4),
+            color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
             offset: const Offset(8, 8),
             blurRadius: 16,
           ),
@@ -49,7 +49,7 @@ class Layout05Theme {
             blurRadius: 16,
           ),
           BoxShadow(
-            color: const Color(0xFFA3B1C6).withOpacity(0.4),
+            color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
             offset: const Offset(8, 8),
             blurRadius: 16,
           ),
@@ -62,7 +62,7 @@ class Layout05Theme {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFA3B1C6).withOpacity(0.2),
+            color: const Color(0xFFA3B1C6).withValues(alpha: 0.2),
             offset: const Offset(6, 6),
             blurRadius: 10,
             // inset: true // Requires customized implementation or specialized package,
@@ -71,7 +71,7 @@ class Layout05Theme {
             // For valid Flutter code without extra packages:
           ),
           BoxShadow(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             offset: const Offset(-6, -6),
             blurRadius: 10,
             // inset: true
@@ -103,7 +103,7 @@ class Layout05Theme {
             blurRadius: 8,
           ),
           BoxShadow(
-            color: const Color(0xFFA3B1C6).withOpacity(0.3),
+            color: const Color(0xFFA3B1C6).withValues(alpha: 0.3),
             offset: const Offset(4, 4),
             blurRadius: 8,
           ),

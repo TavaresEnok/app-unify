@@ -13,24 +13,28 @@ class NeumorphicBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Obtém o padding inferior do sistema (safe area)
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
     return Container(
-      padding: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+      // Adiciona o padding do sistema e um extra para garantir que fique acima dos botões do Android
+      padding: EdgeInsets.only(bottom: 30 + bottomPadding, left: 24, right: 24),
       color: Colors.transparent, // Background allows Scaffold color to show
       child: Container(
-        height: 80,
+        height: 70, // Reduzido levemente para 70 para ficar mais compacto
         decoration: BoxDecoration(
           color: Layout05Theme.background,
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
               color: Colors.white,
-              offset: const Offset(-8, -8),
-              blurRadius: 16,
+              offset: const Offset(-4, -4), // Sombras mais suaves
+              blurRadius: 10,
             ),
             BoxShadow(
-              color: const Color(0xFFA3B1C6).withOpacity(0.4),
-              offset: const Offset(8, 8),
-              blurRadius: 16,
+              color: const Color(0xFFA3B1C6).withOpacity(0.3),
+              offset: const Offset(4, 4),
+              blurRadius: 10,
             ),
           ],
         ),
@@ -63,7 +67,7 @@ class NeumorphicBottomNav extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFA3B1C6).withOpacity(0.2),
+                      color: const Color(0xFFA3B1C6).withValues(alpha: 0.2),
                       offset: const Offset(4, 4),
                       blurRadius: 8,
                     ),

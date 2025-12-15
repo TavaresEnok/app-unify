@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/configuration_provider.dart';
-import '../../core/services/auth_service.dart';
+import '../../core/providers/providers.dart';
 import '../../core/widgets/dashboard_card.dart';
 
-class ContratoPage extends StatelessWidget {
+class ContratoPage extends ConsumerWidget {
   const ContratoPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final configProvider = Provider.of<ConfigurationProvider>(context);
-    final authService = Provider.of<AuthService>(context);
-    final usuario = authService.usuario;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final configProvider = ref.watch(configurationProvider);
+    final authState = ref.watch(authNotifierProvider);
+    final usuario = authState.value;
     final textTheme = Theme.of(context).textTheme;
     final primaryColor = Theme.of(context).primaryColor;
 

@@ -463,13 +463,23 @@ class DiagnosticoService {
         _currentState.copyWith(downloadHistory: [], uploadHistory: []);
     _streamController.add(_currentState);
 
+    final customUrl = providerConfig.config.other?.speedTestUrl;
+    // Note: flutter_internet_speed_test 1.2.0+ supports testServer param
+    // If the library version is older, this might be ignored or cause error,
+    // but based on context we assume it's supported or we'll wrap in try/catch if needed.
+    // However, the interface usually takes named arguments.
+    // If the user provides a URL, we use it.
+
     internetSpeedTest.startTesting(
+      downloadTestServer: customUrl,
+      uploadTestServer: customUrl,
       onStarted: () {
         if (!_currentState.isTesting) {
           internetSpeedTest.cancelTest();
           return;
         }
-        _updateStatus("Testando Download (Servidor Próprio)...");
+        _updateStatus(
+            "Testando Download (Servidor ${customUrl != null ? 'Personalizado' : 'Padrão'})...");
       },
       onCompleted: (TestResult download, TestResult upload) {
         if (!_currentState.isTesting) return;

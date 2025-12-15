@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/services/auth_service.dart';
+import '../../core/providers/providers.dart';
 import '../../core/services/biometric_service.dart';
-import '../../core/providers/configuration_provider.dart';
 import '../../core/widgets/app_colors.dart';
 import '../../core/utils/color_utils.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
+class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _cpfController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -77,9 +76,11 @@ class _LoginPageState extends State<LoginPage>
 
     try {
       // A lógica de login agora está centralizada no AuthService
-      final configProvider = context.read<ConfigurationProvider>();
+      final configProvider = ref.read(configurationProvider);
       final providerConfig = configProvider.providerConfig!;
-      await context.read<AuthService>().performLogin(cpfInput, providerConfig);
+      await ref
+          .read(authNotifierProvider.notifier)
+          .login(cpfInput, providerConfig);
 
       // Se sucesso, navega para o painel
       if (!mounted) return;
@@ -120,7 +121,7 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    final configProvider = Provider.of<ConfigurationProvider>(context);
+    final configProvider = ref.watch(configurationProvider);
 
     if (configProvider.isLoading || configProvider.providerConfig == null) {
       return const Scaffold(
@@ -130,13 +131,13 @@ class _LoginPageState extends State<LoginPage>
       );
     }
 
-    final config = configProvider.providerConfig!.config;
-    final logoUrl = config.logoUrl;
-    final loginQuote = config.loginQuote;
+    final providerConfig = configProvider.providerConfig!.config;
+    final logoUrl = providerConfig.logoUrl;
+    final loginQuote = providerConfig.loginQuote;
 
     // --- CORREÇÃO: Obtém a cor customizada dos botões ---
-    final actionColor = config.actionColor != null
-        ? hexToColor(config.actionColor!) // Added ! force unwrap
+    final actionColor = providerConfig.actionColor != null
+        ? hexToColor(providerConfig.actionColor!) // Added ! force unwrap
         : AppColors.primaryBlue;
 
     return Scaffold(
