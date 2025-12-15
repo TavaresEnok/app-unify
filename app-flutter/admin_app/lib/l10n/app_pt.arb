@@ -1,0 +1,16 @@
+{
+  "appTitle": "Admin Blue",
+  "loginTitle": "Bem-vindo de volta",
+  "loginSubtitle": "Faça login para continuar",
+  "emailLabel": "E-mail",
+  "passwordLabel": "Senha",
+  "loginButton": "Entrar",
+  "homeTitle": "Painel",
+  "navProviders": "Provedores",
+  "navUsers": "Usuários",
+  "navTickets": "Tickets",
+  "logoutTitle": "Sair",
+  "logoutMessage": "Deseja realmente sair?",
+  "cancelButton": "Cancelar",
+  "logoutButton": "Sair"
+}

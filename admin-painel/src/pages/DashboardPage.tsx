@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from '@/firebase/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Server, Users, Bell, MessageSquare } from "lucide-react";
 import ClientsChart from '@/components/ClientsChart';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
-import StatsCard from '@/components/StatsCard'; // Novo Componente
+import StatsCard from '@/components/StatsCard';
 
 interface ChartData { name: string; clientes: number; }
 interface RecentTicket {
@@ -35,42 +35,91 @@ export default function DashboardPage() {
             return;
         }
 
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                if (response.result) {
-                    const data = response.result;
-                    setStats(data.stats);
-                    setChartData(data.chartData);
-                    setRecentTickets(data.recentTickets || []);
-                } else if (response.error) {
-                    toast.error(`Erro no Dashboard: ${response.error}`);
-                }
-                setLoading(false);
-                unsubscribe();
-            }
-        });
-
-        const triggerFunction = async () => {
+        const loadDashboardData = async () => {
             try {
-                const requestDocRef = doc(db, 'function_requests', requestId);
-                await setDoc(requestDocRef, {
-                    type: 'GET_DASHBOARD_DATA',
-                    requesterUid: user.uid,
-                    createdAt: serverTimestamp(),
+                // 1. Contar provedores
+                const providersSnapshot = await getDocs(collection(db, 'provedores'));
+                const providerCount = providersSnapshot.size;
+
+                // 2. Preparar dados do gráfico (provedores)
+                const chartDataTemp: ChartData[] = [];
+                providersSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    chartDataTemp.push({
+                        name: data.name || doc.id,
+                        clientes: data.clientCount || 0
+                    });
                 });
-            } catch (error: any) {
-                toast.error(`Falha ao solicitar dados: ${error.message}`);
+                setChartData(chartDataTemp);
+
+                // 3. Contar usuários (clientes)
+                let clientCount = 0;
+                try {
+                    const usersSnapshot = await getDocs(collection(db, 'users'));
+                    clientCount = usersSnapshot.size;
+                } catch (e) {
+                    console.log('Coleção users não existe ou sem permissão');
+                }
+
+                // 4. Contar tickets abertos
+                let openTicketsCount = 0;
+                let recentTicketsTemp: RecentTicket[] = [];
+                try {
+                    const openTicketsQuery = query(
+                        collection(db, 'tickets'),
+                        where('status', 'in', ['Aberto', 'Em Andamento'])
+                    );
+                    const openTicketsSnapshot = await getDocs(openTicketsQuery);
+                    openTicketsCount = openTicketsSnapshot.size;
+
+                    // Tickets recentes
+                    const recentTicketsQuery = query(
+                        collection(db, 'tickets'),
+                        orderBy('updatedAt', 'desc'),
+                        limit(5)
+                    );
+                    const recentTicketsSnapshot = await getDocs(recentTicketsQuery);
+                    recentTicketsTemp = recentTicketsSnapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            subject: data.subject || 'Sem assunto',
+                            providerName: data.providerName || 'Desconhecido',
+                            status: data.status || 'Aberto',
+                            updatedAt: data.updatedAt
+                        };
+                    });
+                } catch (e) {
+                    console.log('Coleção tickets não existe ou sem permissão');
+                }
+                setRecentTickets(recentTicketsTemp);
+
+                // 5. Contar notificações (últimas 24h)
+                let notificationCount = 0;
+                try {
+                    const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
+                    notificationCount = notificationsSnapshot.size;
+                } catch (e) {
+                    console.log('Coleção notifications não existe ou sem permissão');
+                }
+
+                // Atualizar stats
+                setStats({
+                    providerCount,
+                    clientCount,
+                    notificationCount,
+                    openTicketsCount
+                });
+
                 setLoading(false);
-                unsubscribe();
+            } catch (error: any) {
+                console.error('Erro ao carregar dashboard:', error);
+                toast.error(`Erro ao carregar dados: ${error.message}`);
+                setLoading(false);
             }
         };
 
-        triggerFunction();
-        return () => unsubscribe();
+        loadDashboardData();
     }, [userRole, user]);
 
     const getStatusVariant = (status: RecentTicket['status']) => {
@@ -89,28 +138,28 @@ export default function DashboardPage() {
     return (
         <div className="flex flex-col gap-6 fade-in">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatsCard 
-                    title="Total de Provedores" 
-                    value={stats.providerCount} 
-                    icon={Server} 
-                    trend={5} // Simulação
+                <StatsCard
+                    title="Total de Provedores"
+                    value={stats.providerCount}
+                    icon={Server}
+                    trend={5}
                 />
-                <StatsCard 
-                    title="Total de Clientes (App)" 
-                    value={stats.clientCount} 
-                    icon={Users} 
-                    trend={12} // Simulação
+                <StatsCard
+                    title="Total de Clientes (App)"
+                    value={stats.clientCount}
+                    icon={Users}
+                    trend={12}
                 />
-                <StatsCard 
-                    title="Tickets Abertos" 
-                    value={stats.openTicketsCount} 
-                    icon={MessageSquare} 
-                    trend={-2} // Simulação (negativo é bom aqui, mas a cor será vermelha pela lógica padrão, pode ajustar depois)
+                <StatsCard
+                    title="Tickets Abertos"
+                    value={stats.openTicketsCount}
+                    icon={MessageSquare}
+                    trend={-2}
                 />
-                <StatsCard 
-                    title="Notificações (24h)" 
-                    value={stats.notificationCount} 
-                    icon={Bell} 
+                <StatsCard
+                    title="Notificações (24h)"
+                    value={stats.notificationCount}
+                    icon={Bell}
                 />
             </div>
 
@@ -123,7 +172,7 @@ export default function DashboardPage() {
                         <ClientsChart data={chartData} />
                     </CardContent>
                 </Card>
-                 <Card className="xl:col-span-1 shadow-sm">
+                <Card className="xl:col-span-1 shadow-sm">
                     <CardHeader>
                         <CardTitle>Atividade Recente de Tickets</CardTitle>
                         <CardDescription>Os últimos 5 tickets atualizados.</CardDescription>
@@ -138,13 +187,21 @@ export default function DashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {recentTickets.map((ticket) => (
-                                    <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/tickets/${ticket.id}`)}>
-                                        <TableCell className="font-medium">{ticket.subject}</TableCell>
-                                        <TableCell>{ticket.providerName}</TableCell>
-                                        <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
+                                {recentTickets.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                            Nenhum ticket encontrado
+                                        </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : (
+                                    recentTickets.map((ticket) => (
+                                        <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/tickets/${ticket.id}`)}>
+                                            <TableCell className="font-medium">{ticket.subject}</TableCell>
+                                            <TableCell>{ticket.providerName}</TableCell>
+                                            <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

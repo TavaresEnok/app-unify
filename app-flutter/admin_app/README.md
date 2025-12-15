@@ -2,6 +2,13 @@
 
 A new Flutter project.
 
+## Documentação
+
+- [Arquitetura do Sistema](docs/architecture.md)
+- [Guia de Estilo](docs/style_guide.md) (Opcional)
+
+## Instalação
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

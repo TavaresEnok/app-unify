@@ -224,3 +224,108 @@ export const handleUpdateProviderDetailsRequest = onDocumentCreated({
     }
     return null;
 });
+
+// --- 4. FUNÇÃO PARA OBTER DADOS DO DASHBOARD (SuperAdmin) ---
+export const handleGetDashboardDataRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'GET_DASHBOARD_DATA') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+
+    try {
+        if (!requesterUid) {
+            throw new Error("RequesterUID é obrigatório.");
+        }
+
+        // Validação de Permissões - Apenas SuperAdmin
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = user.customClaims?.superAdmin === true;
+
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada. Apenas SuperAdmin.");
+        }
+
+        // Buscar estatísticas
+        const providersSnapshot = await db.collection("provedores").get();
+        const providerCount = providersSnapshot.size;
+
+        // Contar clientes (usuários com providerId)
+        let clientCount = 0;
+        const usersSnapshot = await db.collection("users").get();
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            if (userData.providerId) {
+                clientCount++;
+            }
+        });
+
+        // Contar tickets abertos
+        let openTicketsCount = 0;
+        const ticketsSnapshot = await db.collection("tickets")
+            .where("status", "in", ["Aberto", "Em Andamento"])
+            .get();
+        openTicketsCount = ticketsSnapshot.size;
+
+        // Notificações nas últimas 24h
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        const notificationsSnapshot = await db.collection("notifications")
+            .where("createdAt", ">=", oneDayAgo)
+            .get();
+        const notificationCount = notificationsSnapshot.size;
+
+        // Dados do gráfico (clientes por provedor)
+        const chartData: { name: string; clientes: number }[] = [];
+        for (const providerDoc of providersSnapshot.docs) {
+            const providerData = providerDoc.data();
+            const providerName = providerData.name || providerDoc.id;
+            const clientsInProvider = usersSnapshot.docs.filter(
+                u => u.data().providerId === providerDoc.id
+            ).length;
+            chartData.push({ name: providerName, clientes: clientsInProvider });
+        }
+
+        // Tickets recentes
+        const recentTicketsSnapshot = await db.collection("tickets")
+            .orderBy("updatedAt", "desc")
+            .limit(5)
+            .get();
+
+        const recentTickets = recentTicketsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                subject: data.subject || "Sem assunto",
+                providerName: data.providerName || "Desconhecido",
+                status: data.status || "Aberto",
+                updatedAt: data.updatedAt
+            };
+        });
+
+        logger.info(`Dashboard data: ${providerCount} provedores, ${clientCount} clientes`);
+
+        await writeResponse(responseRef, {
+            result: {
+                stats: {
+                    providerCount,
+                    clientCount,
+                    notificationCount,
+                    openTicketsCount
+                },
+                chartData,
+                recentTickets
+            }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em GET_DASHBOARD_DATA ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});

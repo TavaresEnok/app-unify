@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleUpdateProviderConfigRequest = void 0;
+exports.handleGetDashboardDataRequest = exports.handleUpdateProviderDetailsRequest = exports.handleUpdateProviderConfigRequest = void 0;
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
 const firestore_2 = require("firebase-functions/v2/firestore");
@@ -140,6 +140,169 @@ exports.handleUpdateProviderConfigRequest = (0, firestore_2.onDocumentCreated)({
     }
     catch (error) {
         logger.error(`Erro em UPDATE_PROVIDER_CONFIG ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+// --- 3. FUNÇÃO PARA ATUALIZAR DETALHES DO PROVEDOR (usado pelo EditProviderDialog) ---
+exports.handleUpdateProviderDetailsRequest = (0, firestore_2.onDocumentCreated)({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    var _a, _b, _c, _d, _e;
+    const requestId = event.params.requestId;
+    const requestData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    if (!requestData || requestData.type !== 'UPDATE_PROVIDER_DETAILS') {
+        return null;
+    }
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const providerId = (_b = requestData.payload) === null || _b === void 0 ? void 0 : _b.providerId;
+    const details = ((_c = requestData.payload) === null || _c === void 0 ? void 0 : _c.details) || {};
+    try {
+        if (!providerId || !requesterUid) {
+            throw new Error("ProviderID e RequesterUID são obrigatórios.");
+        }
+        // Validação de Permissões
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = ((_d = user.customClaims) === null || _d === void 0 ? void 0 : _d.superAdmin) === true;
+        const isOwner = ((_e = user.customClaims) === null || _e === void 0 ? void 0 : _e.providerId) === providerId;
+        if (!isSuperAdmin && !isOwner) {
+            throw new Error("Permissão negada.");
+        }
+        const providerRef = db.collection("providers").doc(providerId);
+        // Prepara dados para atualização
+        const updateData = {
+            updatedAt: firestore_1.FieldValue.serverTimestamp()
+        };
+        // Salva nome na raiz
+        if (details.name) {
+            updateData.name = details.name;
+        }
+        // Salva apiUrl na raiz (importante para o app!)
+        if (details.apiUrl) {
+            updateData.apiUrl = details.apiUrl;
+        }
+        // Salva detalhes no objeto 'details'
+        updateData.details = {
+            appName: details.appName || '',
+            apiToken: details.apiToken || '',
+            systemUrl: details.systemUrl || '',
+            systemType: details.systemType || '',
+            apiUrl: details.apiUrl || '',
+            city: details.city || '',
+            state: details.state || '',
+            hasAndroidApp: details.hasAndroidApp || false,
+            hasIosApp: details.hasIosApp || false
+        };
+        // Também salva no objeto 'integrations' para retrocompatibilidade
+        updateData.integrations = {
+            appName: details.appName || '',
+            apiToken: details.apiToken || '',
+            sgpBaseUrl: details.systemUrl || ''
+        };
+        await providerRef.set(updateData, { merge: true });
+        await writeResponse(responseRef, {
+            result: {
+                success: true,
+                message: "Provedor atualizado com sucesso.",
+                providerId
+            }
+        }, requesterUid);
+    }
+    catch (error) {
+        logger.error(`Erro em UPDATE_PROVIDER_DETAILS ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+// --- 4. FUNÇÃO PARA OBTER DADOS DO DASHBOARD (SuperAdmin) ---
+exports.handleGetDashboardDataRequest = (0, firestore_2.onDocumentCreated)({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    var _a, _b;
+    const requestId = event.params.requestId;
+    const requestData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    if (!requestData || requestData.type !== 'GET_DASHBOARD_DATA') {
+        return null;
+    }
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    try {
+        if (!requesterUid) {
+            throw new Error("RequesterUID é obrigatório.");
+        }
+        // Validação de Permissões - Apenas SuperAdmin
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = ((_b = user.customClaims) === null || _b === void 0 ? void 0 : _b.superAdmin) === true;
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada. Apenas SuperAdmin.");
+        }
+        // Buscar estatísticas
+        const providersSnapshot = await db.collection("provedores").get();
+        const providerCount = providersSnapshot.size;
+        // Contar clientes (usuários com providerId)
+        let clientCount = 0;
+        const usersSnapshot = await db.collection("users").get();
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            if (userData.providerId) {
+                clientCount++;
+            }
+        });
+        // Contar tickets abertos
+        let openTicketsCount = 0;
+        const ticketsSnapshot = await db.collection("tickets")
+            .where("status", "in", ["Aberto", "Em Andamento"])
+            .get();
+        openTicketsCount = ticketsSnapshot.size;
+        // Notificações nas últimas 24h
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        const notificationsSnapshot = await db.collection("notifications")
+            .where("createdAt", ">=", oneDayAgo)
+            .get();
+        const notificationCount = notificationsSnapshot.size;
+        // Dados do gráfico (clientes por provedor)
+        const chartData = [];
+        for (const providerDoc of providersSnapshot.docs) {
+            const providerData = providerDoc.data();
+            const providerName = providerData.name || providerDoc.id;
+            const clientsInProvider = usersSnapshot.docs.filter(u => u.data().providerId === providerDoc.id).length;
+            chartData.push({ name: providerName, clientes: clientsInProvider });
+        }
+        // Tickets recentes
+        const recentTicketsSnapshot = await db.collection("tickets")
+            .orderBy("updatedAt", "desc")
+            .limit(5)
+            .get();
+        const recentTickets = recentTicketsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                subject: data.subject || "Sem assunto",
+                providerName: data.providerName || "Desconhecido",
+                status: data.status || "Aberto",
+                updatedAt: data.updatedAt
+            };
+        });
+        logger.info(`Dashboard data: ${providerCount} provedores, ${clientCount} clientes`);
+        await writeResponse(responseRef, {
+            result: {
+                stats: {
+                    providerCount,
+                    clientCount,
+                    notificationCount,
+                    openTicketsCount
+                },
+                chartData,
+                recentTickets
+            }
+        }, requesterUid);
+    }
+    catch (error) {
+        logger.error(`Erro em GET_DASHBOARD_DATA ${requestId}:`, error);
         await writeResponse(responseRef, { error: error.message }, requesterUid);
     }
     return null;
