@@ -72,14 +72,15 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   Future<void> signIn(String email, String password) async {
-    state = const AsyncValue.loading();
+    // Do not set global loading state to prevent AuthGate from rebuilding
+    // and unmounting the LoginPage while it's processing.
+    // state = const AsyncValue.loading();
     try {
       await _repository.signIn(email, password);
       // Listener will update state
     } catch (e) {
-      state = AsyncValue.data(
-        state.value!.copyWith(isLoading: false, error: 'Erro: $e'),
-      );
+      // Re-throw to let the UI (LoginPage) handle the error
+      rethrow;
     }
   }
 
