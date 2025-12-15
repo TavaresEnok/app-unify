@@ -480,7 +480,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           _buildMenuItem('support', context),
           _buildMenuItem('internet_usage', context),
           _buildMenuItem('speed_test', context),
-          _buildMenuItem('speed_test', context),
           _buildMenuItem('network_diagnostic', context),
           _buildMenuItem('trace_route', context),
           _buildMenuItem('contract', context),

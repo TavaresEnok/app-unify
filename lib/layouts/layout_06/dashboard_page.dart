@@ -533,6 +533,8 @@ class _QuickActionsGrid extends StatelessWidget {
       _QuickActionData(
           id: 'speed_test', icon: Icons.speed_rounded, label: 'Speedtest'),
       _QuickActionData(
+          id: 'trace_route', icon: Icons.alt_route_rounded, label: 'Rota'),
+      _QuickActionData(
           id: 'my_ip', icon: Icons.public_rounded, label: 'Meu IP'),
     ];
 
