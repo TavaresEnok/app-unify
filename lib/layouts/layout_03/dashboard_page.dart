@@ -306,6 +306,12 @@ class _CleanActionsRow extends StatelessWidget {
             'label': 'Meu IP',
             'color': const Color(0xFFF97316)
           },
+          {
+            'id': 'trace_route',
+            'icon': Icons.alt_route_rounded,
+            'label': 'Rota',
+            'color': const Color(0xFF7C3AED)
+          },
         ];
 
     return Wrap(

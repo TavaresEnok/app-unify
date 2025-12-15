@@ -333,6 +333,12 @@ class _QuickActionsGrid extends StatelessWidget {
           color: Colors.teal,
           onTap: () => onNavigate('contract'),
         ),
+        _QuickActionItem(
+          icon: Icons.alt_route_rounded,
+          label: "Rota",
+          color: Colors.indigo,
+          onTap: () => onNavigate('trace_route'),
+        ),
       ],
     );
   }

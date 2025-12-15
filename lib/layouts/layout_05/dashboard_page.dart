@@ -107,6 +107,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                                 'network_diagnostic'))), // Changed Route
                     SizedBox(
                         width: width,
+                        child: _buildNeuShortcut(Icons.alt_route_rounded,
+                            'Rota', () => widget.onNavigate('trace_route'))),
+                    SizedBox(
+                        width: width,
                         child: _buildNeuShortcut(Icons.support_agent_rounded,
                             'Suporte', () => widget.onNavigate('support'))),
                   ],
