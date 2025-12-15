@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 
 // Imports dos Dashboards (diferentes por layout)
+// Imports dos Dashboards (diferentes por layout)
 import 'layouts/layout_02/dashboard_page.dart' as l02;
 import 'layouts/layout_03/dashboard_page.dart' as l03;
 import 'layouts/layout_05/dashboard_page.dart' as l05;
-import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_02/login_page.dart' as l02_login;
 import 'layouts/layout_03/login_page.dart' as l03_login;
 import 'layouts/layout_05/login_page.dart' as l05_login;
-import 'layouts/layout_06/login_page.dart' as l06_login;
 import 'layouts/layout_07/login_page.dart' as l07_login;
 
 // ============================================
@@ -115,7 +114,7 @@ class LayoutSelector {
         );
 
       case 'layout_06':
-        return l06.ProviderDashboardPage(
+        return l02.ProviderDashboardPage(
           customerName: customerName,
           planName: planName,
           connectionStatus: connectionStatus,
@@ -126,6 +125,11 @@ class LayoutSelector {
           downloadMbps: downloadMbps,
           uploadMbps: uploadMbps,
           onNavigate: onNavigate,
+          menuItems: menuItems,
+          customCardBg: customCardBg,
+          customCardText: customCardText,
+          invoiceColor: invoiceColor,
+          actionColor: actionColor,
         );
 
       case 'layout_07':
@@ -143,8 +147,8 @@ class LayoutSelector {
         );
 
       default:
-        // Layout 06 como padrão (mais moderno)
-        return l06.ProviderDashboardPage(
+        // Layout 02 como padrão (Clássico Refinado)
+        return l02.ProviderDashboardPage(
           customerName: customerName,
           planName: planName,
           connectionStatus: connectionStatus,
@@ -155,6 +159,11 @@ class LayoutSelector {
           downloadMbps: downloadMbps,
           uploadMbps: uploadMbps,
           onNavigate: onNavigate,
+          menuItems: menuItems,
+          customCardBg: customCardBg,
+          customCardText: customCardText,
+          invoiceColor: invoiceColor,
+          actionColor: actionColor,
         );
     }
   }
@@ -169,11 +178,11 @@ class LayoutSelector {
       case 'layout_05':
         return const l05_login.LoginPage();
       case 'layout_06':
-        return const l06_login.LoginPage();
+        return const l02_login.LoginPage();
       case 'layout_07':
         return const l07_login.LoginPage();
       default:
-        return const l06_login.LoginPage();
+        return const l02_login.LoginPage();
     }
   }
 
@@ -260,11 +269,6 @@ class LayoutSelector {
       'id': 'layout_05',
       'name': 'Neo Digital',
       'description': 'Estilo futurista com efeitos neon e vidro'
-    },
-    {
-      'id': 'layout_06',
-      'name': 'Premium Dark',
-      'description': 'Tema escuro profissional'
     },
     {
       'id': 'layout_07',

@@ -140,7 +140,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   PreferredSizeWidget? _buildAppBar(BuildContext context, String layoutType) {
     // Layout 02 agora usa a AppBar padrão do PainelPage, não a header interna.
     // Layout 05 (Neumorphic) tem AppBar customizada
-    final isDarkLayout = layoutType == 'layout_06';
     final isNeumorphic = layoutType == 'layout_05';
     // Layout 02 usa cores roxas
     final isLayout02 = layoutType == 'layout_02';
@@ -185,16 +184,14 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       );
     }
 
-    // Layout 02 e Layout 06 agora fazem seu próprio header no Dashboard, então escondemos a AppBar principal
-    if ((isLayout02 || isDarkLayout) && isOnDashboard) {
+    // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
+    if (isLayout02 && isOnDashboard) {
       return null;
     }
 
     // Default AppBar for Layout 06, etc. OR Layout 02 non-dashboard pages
     final primaryColor = Theme.of(context).primaryColor;
-    final bgColor = isLayout02
-        ? const Color(0xFF673AB7)
-        : (isDarkLayout ? Colors.grey[900] : primaryColor);
+    final bgColor = isLayout02 ? const Color(0xFF673AB7) : primaryColor;
     final contentColor = Colors.white;
 
     return AppBar(
@@ -299,7 +296,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
   Widget _buildDrawer(
       BuildContext context, Usuario usuario, WidgetRef ref, String layoutType) {
-    final isDarkLayout = layoutType == 'layout_06';
     final isNeumorphic = layoutType == 'layout_05';
     final primaryColor = Theme.of(context).primaryColor;
 
@@ -425,17 +421,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         children: [
           DrawerHeader(
             decoration: BoxDecoration(
-              gradient: isDarkLayout
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        primaryColor.withOpacity(0.8),
-                        primaryColor,
-                      ],
-                    )
-                  : null,
-              color: isDarkLayout ? null : primaryColor,
+              color: primaryColor,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -658,21 +644,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   }
 
   Widget _buildPlaceholderPage(String layoutType) {
-    final isDarkLayout = layoutType == 'layout_06';
-
     return Container(
       decoration: BoxDecoration(
-        gradient: isDarkLayout
-            ? LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.grey[900]!,
-                  Colors.grey[850]!,
-                ],
-              )
-            : null,
-        color: isDarkLayout ? null : Colors.grey[100],
+        color: Colors.grey[100],
       ),
       child: Center(
         child: Column(
@@ -681,7 +655,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
             Icon(
               _pageIcons[_currentPage] ?? Icons.construction,
               size: 80,
-              color: isDarkLayout ? Colors.white54 : Colors.grey[400],
+              color: Colors.grey[400],
             ),
             const SizedBox(height: 24),
             Text(
@@ -689,7 +663,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isDarkLayout ? Colors.white : Colors.grey[800],
+                color: Colors.grey[800],
               ),
             ),
             const SizedBox(height: 8),
@@ -697,7 +671,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               'Esta página será implementada em breve',
               style: TextStyle(
                 fontSize: 16,
-                color: isDarkLayout ? Colors.white70 : Colors.grey[600],
+                color: Colors.grey[600],
               ),
             ),
             const SizedBox(height: 32),
