@@ -26,13 +26,7 @@ import 'core/pages/shared_speed_test_page.dart' as shared_speed;
 import 'core/pages/shared_traceroute_page.dart' as shared_trace;
 
 // Layout 05 tem implementações próprias
-import 'layouts/layout_05/financeiro_page.dart' as l05_fin;
-import 'layouts/layout_05/suporte_page.dart' as l05_sup;
-// import 'layouts/layout_05/diagnostico_page.dart' as l05_diag; // REMOVIDO: Usa shared agora
-import 'layouts/layout_05/consumo_page.dart' as l05_cons;
-import 'layouts/layout_05/meu_ip_page.dart' as l05_ip;
-import 'layouts/layout_05/faq_page.dart' as l05_faq;
-import 'layouts/layout_05/contrato_page.dart' as l05_cont;
+// Layout 05 implementações próprias (Wifi)
 import 'layouts/layout_05/wifi_page.dart' as l05_wifi;
 
 // Imports do FAQ e Contrato (também compartilhados)
@@ -185,72 +179,32 @@ class LayoutSelector {
 
   /// Retorna o widget de Financeiro (Faturas) - COMPARTILHADO entre layouts
   static Widget getFinanceiroPage({required String layoutType}) {
-    switch (layoutType) {
-      case 'layout_05':
-        return const l05_fin.FinanceiroPage();
-      case 'layout_02':
-      case 'layout_03':
-      case 'layout_06':
-      case 'layout_07':
-      default:
-        return const shared_fin.FinanceiroPage();
-    }
+    // Unificado: Todos usam a página compartilhada com lógica completa
+    return const shared_fin.FinanceiroPage();
   }
 
   /// Retorna o widget de Suporte - COMPARTILHADO entre layouts
   static Widget getSuportePage({required String layoutType}) {
-    switch (layoutType) {
-      case 'layout_05':
-        return const l05_sup.SuportePage();
-      case 'layout_02':
-      case 'layout_03':
-      case 'layout_06':
-      case 'layout_07':
-      default:
-        return const shared_sup.SuportePage();
-    }
+    // Unificado: Todos usam a página compartilhada com lógica completa
+    return const shared_sup.SuportePage();
   }
 
   /// Retorna o widget de Diagnóstico - COMPARTILHADO entre layouts
   static Widget getDiagnosticoPage({required String layoutType}) {
-    switch (layoutType) {
-      case 'layout_05': // Unificado para usar a página completa compartilhada
-        return const shared_diag.DiagnosticoPage();
-      case 'layout_02':
-      case 'layout_03':
-      case 'layout_06':
-      case 'layout_07':
-      default:
-        return const shared_diag.DiagnosticoPage();
-    }
+    // Unificado: Todos usam a página compartilhada com lógica completa
+    return const shared_diag.DiagnosticoPage();
   }
 
   /// Retorna o widget de Consumo - COMPARTILHADO entre layouts
   static Widget getConsumoPage({required String layoutType}) {
-    switch (layoutType) {
-      case 'layout_05':
-        return const l05_cons.ConsumoPage();
-      case 'layout_02':
-      case 'layout_03':
-      case 'layout_06':
-      case 'layout_07':
-      default:
-        return const shared_cons.ConsumoPage();
-    }
+    // Unificado: Todos usam a página compartilhada com lógica completa
+    return const shared_cons.ConsumoPage();
   }
 
   /// Retorna o widget de Meu IP - COMPARTILHADO entre layouts
   static Widget getMeuIpPage({required String layoutType}) {
-    switch (layoutType) {
-      case 'layout_05':
-        return const l05_ip.MeuIpPage();
-      case 'layout_02':
-      case 'layout_03':
-      case 'layout_06':
-      case 'layout_07':
-      default:
-        return const shared_ip.MeuIpPage();
-    }
+    // Unificado: Todos usam a página compartilhada com lógica completa
+    return const shared_ip.MeuIpPage();
   }
 
   /// Retorna o widget de Teste de Velocidade - COMPARTILHADO (por enquanto)
@@ -266,30 +220,14 @@ class LayoutSelector {
 
   /// Retorna o widget de FAQ - COMPARTILHADO entre layouts
   static Widget getFaqPage({required String layoutType}) {
-    switch (layoutType) {
-      case 'layout_05':
-        return const l05_faq.FaqPage();
-      case 'layout_02':
-      case 'layout_03':
-      case 'layout_06':
-      case 'layout_07':
-      default:
-        return const shared_faq.FaqPage();
-    }
+    // Unificado: Todos usam a página compartilhada
+    return const shared_faq.FaqPage();
   }
 
   /// Retorna o widget de Contrato - COMPARTILHADO entre layouts
   static Widget getContratoPage({required String layoutType}) {
-    switch (layoutType) {
-      case 'layout_05':
-        return const l05_cont.ContratoPage();
-      case 'layout_02':
-      case 'layout_03':
-      case 'layout_06':
-      case 'layout_07':
-      default:
-        return const shared_cont.ContratoPage();
-    }
+    // Unificado: Todos usam a página compartilhada
+    return const shared_cont.ContratoPage();
   }
 
   /// Retorna o widget de Wifi correto para o layout especificado
