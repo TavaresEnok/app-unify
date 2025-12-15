@@ -3,18 +3,38 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/provider_model.dart';
 
 final apiServiceProvider = Provider((ref) => ApiService());
 
 class ApiService {
-  // Use 10.0.2.2 for Android Emulator to access host's localhost
-  // Use localhost for Web/Linux
-  String get baseUrl {
-    if (kIsWeb) return 'http://localhost:9136';
-    if (Platform.isAndroid) return 'http://10.0.2.2:9136';
-    return 'http://localhost:9136';
+  static const String _baseUrlKey = 'api_base_url';
+
+  // Default URL
+  String _baseUrl = kIsWeb
+      ? 'http://localhost:9136'
+      : (Platform.isAndroid ? 'http://10.0.2.2:9136' : 'http://localhost:9136');
+
+  String get baseUrl => _baseUrl;
+
+  ApiService() {
+    _loadBaseUrl();
+  }
+
+  Future<void> _loadBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString(_baseUrlKey);
+    if (savedUrl != null && savedUrl.isNotEmpty) {
+      _baseUrl = savedUrl;
+    }
+  }
+
+  Future<void> setBaseUrl(String url) async {
+    _baseUrl = url;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_baseUrlKey, url);
   }
 
   String? _token;
@@ -32,11 +52,14 @@ class ApiService {
   // --- Auth ---
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/admin/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
+    await _loadBaseUrl(); // Ensure URL is loaded before request
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/admin/auth/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email, 'password': password}),
+        )
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -50,10 +73,10 @@ class ApiService {
   // --- Providers ---
 
   Future<List<ProviderModel>> getProviders() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/admin/providers'),
-      headers: _headers,
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .get(Uri.parse('$baseUrl/admin/providers'), headers: _headers)
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -66,11 +89,14 @@ class ApiService {
   }
 
   Future<void> saveProvider(ProviderModel provider) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/admin/providers'),
-      headers: _headers,
-      body: jsonEncode(provider.toMap()),
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/admin/providers'),
+          headers: _headers,
+          body: jsonEncode(provider.toMap()),
+        )
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
       throw Exception(_parseError(response));
@@ -80,10 +106,10 @@ class ApiService {
   // --- Tickets ---
 
   Future<List<Map<String, dynamic>>> getTickets() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/admin/tickets'),
-      headers: _headers,
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .get(Uri.parse('$baseUrl/admin/tickets'), headers: _headers)
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -99,15 +125,18 @@ class ApiService {
     String authorId,
     String authorName,
   ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/admin/tickets/$ticketId/reply'),
-      headers: _headers,
-      body: jsonEncode({
-        'message': message,
-        'authorId': authorId,
-        'authorName': authorName,
-      }),
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/admin/tickets/$ticketId/reply'),
+          headers: _headers,
+          body: jsonEncode({
+            'message': message,
+            'authorId': authorId,
+            'authorName': authorName,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
       throw Exception(_parseError(response));
@@ -115,10 +144,13 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getTicketMessages(String ticketId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/admin/tickets/$ticketId/messages'),
-      headers: _headers,
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/admin/tickets/$ticketId/messages'),
+          headers: _headers,
+        )
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -129,11 +161,14 @@ class ApiService {
   }
 
   Future<void> updateTicketStatus(String ticketId, String status) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/admin/tickets/$ticketId'),
-      headers: _headers,
-      body: jsonEncode({'status': status}),
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .patch(
+          Uri.parse('$baseUrl/admin/tickets/$ticketId'),
+          headers: _headers,
+          body: jsonEncode({'status': status}),
+        )
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
       throw Exception(_parseError(response));
@@ -143,10 +178,10 @@ class ApiService {
   // --- Dashboard ---
 
   Future<Map<String, dynamic>> getDashboardStats() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/admin/dashboard'),
-      headers: _headers,
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .get(Uri.parse('$baseUrl/admin/dashboard'), headers: _headers)
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -157,10 +192,10 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getUsers() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/admin/users'),
-      headers: _headers,
-    );
+    await _loadBaseUrl();
+    final response = await http
+        .get(Uri.parse('$baseUrl/admin/users'), headers: _headers)
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);

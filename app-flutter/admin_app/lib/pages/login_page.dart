@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/app_localizations.dart';
 import '../core/providers/providers.dart';
+import '../core/services/api_service.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -127,7 +128,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF1E293B).withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
@@ -139,13 +142,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        AppLocalizations.of(context)!.loginTitle,
-                        style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            AppLocalizations.of(context)!.loginTitle,
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.settings,
+                              color: Colors.grey,
+                            ),
+                            onPressed: _showApiSettingsDialog,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 24),
                       TextField(
@@ -222,6 +237,48 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showApiSettingsDialog() {
+    final apiService = ref.read(apiServiceProvider);
+    final controller = TextEditingController(text: apiService.baseUrl);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Configurar API URL'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Para dispositivo físico, use o IP da sua máquina.\nEx: http://192.168.1.10:9136',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'API Base URL',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await apiService.setBaseUrl(controller.text.trim());
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
       ),
     );
   }
