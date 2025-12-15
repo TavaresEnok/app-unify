@@ -22,6 +22,8 @@ import 'core/pages/shared_suporte_page.dart' as shared_sup;
 import 'core/pages/shared_diagnostico_page.dart' as shared_diag;
 import 'core/pages/shared_consumo_page.dart' as shared_cons;
 import 'core/pages/shared_meu_ip_page.dart' as shared_ip;
+import 'core/pages/shared_speed_test_page.dart' as shared_speed;
+import 'core/pages/shared_traceroute_page.dart' as shared_trace;
 
 // Layout 05 tem implementações próprias
 import 'layouts/layout_05/financeiro_page.dart' as l05_fin;
@@ -249,6 +251,17 @@ class LayoutSelector {
       default:
         return const shared_ip.MeuIpPage();
     }
+  }
+
+  /// Retorna o widget de Teste de Velocidade - COMPARTILHADO (por enquanto)
+  static Widget getSpeedTestPage({required String layoutType}) {
+    // Por enquanto todos usam o shared.
+    // Se no futuro o layout_05 quiser um design diferente, cria-se l05_speed.
+    return const shared_speed.SharedSpeedTestPage();
+  }
+
+  static Widget getTraceRoutePage({required String layoutType}) {
+    return const shared_trace.SharedTraceRoutePage();
   }
 
   /// Retorna o widget de FAQ - COMPARTILHADO entre layouts

@@ -29,6 +29,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     'my_ip': 'Meu IP',
     'faq': 'FAQ',
     'notifications': 'Notificações',
+    'trace_route': 'Rota (Tracert)',
   };
 
   final Map<String, IconData> _pageIcons = {
@@ -38,6 +39,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     'internet_usage': Icons.data_usage,
     'speed_test': Icons.speed,
     'network_diagnostic': Icons.wifi_tethering,
+    'trace_route': Icons.alt_route_rounded,
     'contract': Icons.description,
     'my_ip': Icons.public,
     'faq': Icons.help_outline,
@@ -375,6 +377,8 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                   _buildNeumorphicMenuItem(
                       'network_diagnostic', 'Diagnóstico', Icons.speed_rounded),
                   _buildNeumorphicMenuItem(
+                      'trace_route', 'Rota (Tracert)', Icons.alt_route_rounded),
+                  _buildNeumorphicMenuItem(
                       'support', 'Suporte', Icons.headset_mic_rounded),
                   const SizedBox(height: 24),
                   const Divider(color: Colors.white),
@@ -476,7 +480,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           _buildMenuItem('support', context),
           _buildMenuItem('internet_usage', context),
           _buildMenuItem('speed_test', context),
+          _buildMenuItem('speed_test', context),
           _buildMenuItem('network_diagnostic', context),
+          _buildMenuItem('trace_route', context),
           _buildMenuItem('contract', context),
           _buildMenuItem('my_ip', context),
           _buildMenuItem('faq', context),
@@ -642,7 +648,11 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     }
 
     if (_currentPage == 'speed_test') {
-      return LayoutSelector.getDiagnosticoPage(layoutType: layoutType);
+      return LayoutSelector.getSpeedTestPage(layoutType: layoutType);
+    }
+
+    if (_currentPage == 'trace_route') {
+      return LayoutSelector.getTraceRoutePage(layoutType: layoutType);
     }
 
     return _buildPlaceholderPage(layoutType);

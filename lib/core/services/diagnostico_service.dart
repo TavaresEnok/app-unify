@@ -23,7 +23,9 @@ import 'package:lan_scanner/lan_scanner.dart';
 class PingParams {
   final String host;
   final int count;
-  PingParams({required this.host, required this.count});
+  final bool discardFirst;
+  PingParams(
+      {required this.host, required this.count, this.discardFirst = false});
 }
 
 Future<String> _pingTestRunner(PingParams params) async {
@@ -32,11 +34,24 @@ Future<String> _pingTestRunner(PingParams params) async {
   int packetsReceived = 0;
   StreamSubscription<PingData>? subscription;
 
+  // Se discardFirst for true, pedimos 1 pacote extra para compensar
+  final int totalCount = params.discardFirst ? params.count + 1 : params.count;
+
   final ping = Ping(params.host,
-      count: params.count, timeout: 2, interval: 1, ipv6: false);
+      count: totalCount, timeout: 2, interval: 1, ipv6: false);
+
+  int currentIndex = 0;
 
   subscription = ping.stream.listen((PingData data) {
     if (data.response != null) {
+      final isFirst = currentIndex == 0;
+      currentIndex++;
+
+      if (params.discardFirst && isFirst) {
+        // Ignora o primeiro pacote (warm-up no ARP/Route table)
+        return;
+      }
+
       packetsReceived++;
       final time = data.response!.time?.inMilliseconds;
       if (time != null) {
@@ -44,7 +59,13 @@ Future<String> _pingTestRunner(PingParams params) async {
       }
     }
   }, onDone: () {
+    // Se discardFirst=true, packetsLost calcula baseado no params.count (pois pedimos +1 mas ignoramos 1)
+    // Se recebemos totalCount, packetsReceived será totalCount - 1 (se o primeiro chegou).
+    // Mas simplificando: params.count é o alvo.
+
     int packetsLost = params.count - packetsReceived;
+    if (packetsLost < 0) packetsLost = 0; // Garantia
+
     double lossPercentage = (packetsLost / params.count) * 100;
 
     if (!completer.isCompleted) {
@@ -59,6 +80,7 @@ Future<String> _pingTestRunner(PingParams params) async {
           for (int i = 0; i < latencies.length - 1; i++) {
             totalDiff += (latencies[i] - latencies[i + 1]).abs();
           }
+          // Use (latencies.length - 1) for Jitter calculation
           jitter = totalDiff / (latencies.length - 1);
         }
         completer.complete(
@@ -72,7 +94,7 @@ Future<String> _pingTestRunner(PingParams params) async {
     subscription?.cancel();
   });
 
-  Future.delayed(Duration(seconds: (params.count * 2) + 5), () {
+  Future.delayed(Duration(seconds: (totalCount * 2) + 5), () {
     if (!completer.isCompleted) {
       subscription?.cancel();
       completer.complete('Erro: Teste de ping expirou (Timeout)');
@@ -233,11 +255,13 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runPingTest(String host, String key, {int count = 5}) async {
+  Future<void> _runPingTest(String host, String key,
+      {int count = 5, bool discardFirst = false}) async {
     if (!_currentState.isTesting) return;
     _updateTestState(key, TestStatus.running, "Iniciando...");
     try {
-      final params = PingParams(host: host, count: count);
+      final params =
+          PingParams(host: host, count: count, discardFirst: discardFirst);
       final String result = await compute(_pingTestRunner, params);
       if (!_currentState.isTesting) return;
       if (result.startsWith('Erro')) {
@@ -438,7 +462,9 @@ class DiagnosticoService {
         _currentState.testResultsDisplay['wifiInfo']?['gatewayIp'] as String?;
     if (gatewayIp != null && gatewayIp.isNotEmpty) {
       _updateStatus("Testando ping para o Roteador ($gatewayIp)...");
-      await _runPingTest(gatewayIp, 'pingGateway');
+      // Use 10 pings + discardFirst for router
+      await _runPingTest(gatewayIp, 'pingGateway',
+          count: 10, discardFirst: true);
     } else {
       if (_currentState.isTesting &&
           _currentState.testResultsDisplay['pingGateway']?['status'] !=
@@ -644,11 +670,14 @@ class DiagnosticoService {
       if (!_currentState.isTesting) return;
 
       _updateStatus("Testando ping para Google...");
-      await _runPingTest('8.8.8.8', 'pingGoogle');
+      // 10 pings, keep all for Google
+      await _runPingTest('8.8.8.8', 'pingGoogle', count: 10);
       if (!_currentState.isTesting) return;
 
       _updateStatus("Testando ping para Cloudflare...");
-      await _runPingTest('1.1.1.1', 'pingCloudflare');
+      // 10 pings, keep all for Cloudflare
+      await _runPingTest('1.1.1.1', 'pingCloudflare', count: 10);
+
       if (!_currentState.isTesting) return;
 
       if (hasPermission && _isWifiConnected) {
@@ -682,6 +711,33 @@ class DiagnosticoService {
     } catch (e) {
       if (_currentState.isTesting) {
         _updateStatus("Ocorreu um erro inesperado durante o diagnóstico.");
+      }
+    } finally {
+      if (_currentState.isTesting) {
+        _currentState = _currentState.copyWith(isTesting: false);
+        _streamController.add(_currentState);
+      }
+    }
+  }
+
+  Future<void> runSpeedTestsOnly() async {
+    if (_currentState.isTesting) return;
+    _currentState = DiagnosticoState.initial().copyWith(
+        isTesting: true,
+        geralStatusMessage: "Iniciando teste de velocidade...");
+    _streamController.add(_currentState);
+
+    try {
+      await _runSpeedTestCustom();
+      if (!_currentState.isTesting) return;
+
+      await _runSpeedTestFastCom();
+      if (!_currentState.isTesting) return;
+
+      _updateStatus("Teste de velocidade concluído.");
+    } catch (e) {
+      if (_currentState.isTesting) {
+        _updateStatus("Ocorreu um erro durante o teste.");
       }
     } finally {
       if (_currentState.isTesting) {
