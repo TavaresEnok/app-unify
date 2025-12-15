@@ -28,7 +28,7 @@ import 'core/pages/shared_traceroute_page.dart' as shared_trace;
 // Layout 05 tem implementações próprias
 import 'layouts/layout_05/financeiro_page.dart' as l05_fin;
 import 'layouts/layout_05/suporte_page.dart' as l05_sup;
-import 'layouts/layout_05/diagnostico_page.dart' as l05_diag;
+// import 'layouts/layout_05/diagnostico_page.dart' as l05_diag; // REMOVIDO: Usa shared agora
 import 'layouts/layout_05/consumo_page.dart' as l05_cons;
 import 'layouts/layout_05/meu_ip_page.dart' as l05_ip;
 import 'layouts/layout_05/faq_page.dart' as l05_faq;
@@ -214,8 +214,8 @@ class LayoutSelector {
   /// Retorna o widget de Diagnóstico - COMPARTILHADO entre layouts
   static Widget getDiagnosticoPage({required String layoutType}) {
     switch (layoutType) {
-      case 'layout_05':
-        return const l05_diag.DiagnosticoPage();
+      case 'layout_05': // Unificado para usar a página completa compartilhada
+        return const shared_diag.DiagnosticoPage();
       case 'layout_02':
       case 'layout_03':
       case 'layout_06':
