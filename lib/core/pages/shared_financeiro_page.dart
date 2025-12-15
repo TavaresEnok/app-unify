@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import '../../core/models/fatura.dart';
 import '../../core/providers/financeiro_provider.dart';
 import '../../core/providers/providers.dart';
+import '../../layouts/layout_05/theme.dart';
 
 class FinanceiroPage extends ConsumerWidget {
   const FinanceiroPage({super.key});
@@ -24,14 +25,29 @@ class FinanceiroPage extends ConsumerWidget {
           body: Center(child: Text('Configuração não encontrada')));
     }
 
+    // Determine layout type
+    final layoutType = providerConfig.layoutType;
+    final isLayout05 = layoutType == 'layout_05';
+
     final provider = ref.watch(financeiroViewModelProvider);
+    final themeData = Theme.of(context);
+
+    // Adaptive Properties
+    final backgroundColor =
+        isLayout05 ? Layout05Theme.background : Colors.grey[50];
+    final appBarColor =
+        isLayout05 ? Layout05Theme.background : themeData.primaryColor;
+    final appBarTextColor = isLayout05 ? Layout05Theme.textDark : Colors.white;
+    final appBarIconTheme = IconThemeData(color: appBarTextColor);
 
     return Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: backgroundColor,
         appBar: AppBar(
-          title: const Text('Faturas'),
+          title: Text('Faturas', style: TextStyle(color: appBarTextColor)),
           centerTitle: true,
           elevation: 0,
+          backgroundColor: appBarColor,
+          iconTheme: appBarIconTheme,
         ),
         body: Builder(builder: (context) {
           if (provider.state == FinanceiroState.loading) {
@@ -49,12 +65,11 @@ class FinanceiroPage extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: provider.fetchHistory,
             child: ListView.separated(
-              padding: const EdgeInsets.only(
-                  left: 16, right: 16, top: 16, bottom: 180),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               itemCount: provider.invoices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) =>
-                  _buildInvoiceCard(context, provider.invoices[index], ref),
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, index) => _buildInvoiceCard(
+                  context, provider.invoices[index], ref, isLayout05),
             ),
           );
         }));
@@ -104,7 +119,8 @@ class FinanceiroPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildInvoiceCard(BuildContext context, Fatura fatura, WidgetRef ref) {
+  Widget _buildInvoiceCard(
+      BuildContext context, Fatura fatura, WidgetRef ref, bool isLayout05) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final currencyFormat =
         NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
@@ -116,26 +132,30 @@ class FinanceiroPage extends ConsumerWidget {
     IconData statusIcon = Icons.schedule;
 
     if (fatura.isPago) {
-      statusColor = Colors.green;
+      statusColor = isLayout05 ? Layout05Theme.success : Colors.green;
       statusText = 'Pago';
       statusIcon = Icons.check_circle;
     } else if (fatura.isVencido) {
-      statusColor = Colors.red;
+      statusColor = isLayout05 ? Layout05Theme.error : Colors.red;
       statusText = 'Vencido';
       statusIcon = Icons.error;
     }
 
+    final decoration = isLayout05
+        ? Layout05Theme.neumorphicDecoration
+        : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2)),
+            ],
+          );
+
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2)),
-        ],
-      ),
+      decoration: decoration,
       child: Column(
         children: [
           // Header

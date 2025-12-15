@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers/providers.dart';
 
 import '../../core/models/provider_config.dart';
+import '../../layouts/layout_05/theme.dart';
 
 class SuportePage extends ConsumerWidget {
   const SuportePage({super.key});
@@ -23,26 +24,59 @@ class SuportePage extends ConsumerWidget {
       );
     }
 
+    final layoutType = providerConfig.layoutType;
+    final isLayout05 = layoutType == 'layout_05';
+
+    final theme = Theme.of(context);
+    final backgroundColor =
+        isLayout05 ? Layout05Theme.background : theme.scaffoldBackgroundColor;
+    final appBarColor =
+        isLayout05 ? Layout05Theme.background : theme.primaryColor;
+    final appBarTextColor = isLayout05 ? Layout05Theme.textDark : Colors.white;
+
     return Scaffold(
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        title: Text('Suporte', style: TextStyle(color: appBarTextColor)),
+        backgroundColor: appBarColor,
+        iconTheme: IconThemeData(color: appBarTextColor),
+        elevation: 0,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          _buildConnectionStatusCard(context, usuario.status),
+          _buildConnectionStatusCard(context, usuario.status, isLayout05),
           const SizedBox(height: 24),
-          _buildContactChannelsCard(context, providerConfig),
+          _buildContactChannelsCard(context, providerConfig, isLayout05),
           const SizedBox(height: 24),
-          _buildTicketCard(context, providerConfig),
-          const SizedBox(height: 180), // Padding for BottomNav
+          _buildTicketCard(context, providerConfig, isLayout05),
+          const SizedBox(height: 100), // Padding for BottomNav
         ],
       ),
     );
   }
 
-  Widget _buildConnectionStatusCard(BuildContext context, String status) {
+  Widget _buildConnectionStatusCard(
+      BuildContext context, String status, bool isLayout05) {
     final theme = Theme.of(context);
     final isOk = status.toLowerCase() == 'ativo';
 
-    return Card(
+    final decoration = isLayout05
+        ? Layout05Theme.neumorphicDecoration
+        : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2))
+            ],
+          );
+
+    return Container(
+      decoration: decoration,
+      width: double.infinity,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -52,6 +86,7 @@ class SuportePage extends ConsumerWidget {
               'Status da Conexão',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: isLayout05 ? Layout05Theme.textDark : null,
               ),
             ),
             const SizedBox(height: 16),
@@ -78,6 +113,7 @@ class SuportePage extends ConsumerWidget {
                   status,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: isLayout05 ? Layout05Theme.textDark : null,
                   ),
                 ),
               ],
@@ -87,21 +123,40 @@ class SuportePage extends ConsumerWidget {
               isOk
                   ? 'Sua conexão está funcionando normalmente. Se encontrar problemas, tente nosso diagnóstico.'
                   : 'Detectamos um problema com sua conexão. Verifique suas faturas ou entre em contato.',
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isLayout05 ? Layout05Theme.textGrey : null,
+              ),
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.network_check, size: 20),
-                label: const Text('Diagnóstico de Rede'),
-                onPressed: () {
-                  // TODO: Navegar para diagnóstico
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Diagnóstico em breve!')),
-                  );
-                },
-              ),
+              child: isLayout05
+                  ? ElevatedButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Diagnóstico em breve!')),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Layout05Theme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Diagnóstico de Rede'),
+                    )
+                  : OutlinedButton.icon(
+                      icon: const Icon(Icons.network_check, size: 20),
+                      label: const Text('Diagnóstico de Rede'),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Diagnóstico em breve!')),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -110,13 +165,27 @@ class SuportePage extends ConsumerWidget {
   }
 
   Widget _buildContactChannelsCard(
-      BuildContext context, ProviderConfig providerConfig) {
+      BuildContext context, ProviderConfig providerConfig, bool isLayout05) {
     final theme = Theme.of(context);
     final contacts = providerConfig.config.supportContacts;
 
     if (contacts.isEmpty) return const SizedBox.shrink();
 
-    return Card(
+    final decoration = isLayout05
+        ? Layout05Theme.neumorphicDecoration
+        : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2))
+            ],
+          );
+
+    return Container(
+      decoration: decoration,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -126,17 +195,20 @@ class SuportePage extends ConsumerWidget {
               'Canais de Atendimento',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: isLayout05 ? Layout05Theme.textDark : null,
               ),
             ),
             const SizedBox(height: 16),
-            ...contacts.map((contact) => _buildContactTile(context, contact)),
+            ...contacts.map(
+                (contact) => _buildContactTile(context, contact, isLayout05)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildContactTile(BuildContext context, SupportContactItem contact) {
+  Widget _buildContactTile(
+      BuildContext context, SupportContactItem contact, bool isLayout05) {
     final theme = Theme.of(context);
     IconData icon;
     VoidCallback onTap;
@@ -162,11 +234,17 @@ class SuportePage extends ConsumerWidget {
         onTap = () {};
     }
 
+    final tileDecoration = isLayout05
+        ? Layout05Theme.flatDecoration
+        : BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: tileDecoration,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
@@ -174,13 +252,23 @@ class SuportePage extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(icon, color: theme.colorScheme.primary, size: 24),
+                Icon(icon,
+                    color: isLayout05
+                        ? Layout05Theme.primary
+                        : theme.colorScheme.primary,
+                    size: 24),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: Text(contact.name, style: theme.textTheme.bodyLarge),
+                  child: Text(contact.name,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: isLayout05 ? Layout05Theme.textDark : null,
+                      )),
                 ),
                 Icon(Icons.arrow_forward_ios,
-                    color: theme.colorScheme.onSurfaceVariant, size: 16),
+                    color: isLayout05
+                        ? Layout05Theme.textGrey
+                        : theme.colorScheme.onSurfaceVariant,
+                    size: 16),
               ],
             ),
           ),
@@ -190,10 +278,24 @@ class SuportePage extends ConsumerWidget {
   }
 
   Widget _buildTicketCard(
-      BuildContext context, ProviderConfig? providerConfig) {
+      BuildContext context, ProviderConfig? providerConfig, bool isLayout05) {
     final theme = Theme.of(context);
 
-    return Card(
+    final decoration = isLayout05
+        ? Layout05Theme.neumorphicDecoration
+        : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2))
+            ],
+          );
+
+    return Container(
+      decoration: decoration,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -203,12 +305,15 @@ class SuportePage extends ConsumerWidget {
               'Precisa de Ajuda?',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: isLayout05 ? Layout05Theme.textDark : null,
               ),
             ),
             const SizedBox(height: 16),
             Text(
               'Entre em contato diretamente com nosso suporte técnico via WhatsApp.',
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isLayout05 ? Layout05Theme.textGrey : null,
+              ),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -253,6 +358,15 @@ class SuportePage extends ConsumerWidget {
                     }
                   }
                 },
+                style: isLayout05
+                    ? ElevatedButton.styleFrom(
+                        backgroundColor: Layout05Theme.secondary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      )
+                    : null,
               ),
             ),
           ],
