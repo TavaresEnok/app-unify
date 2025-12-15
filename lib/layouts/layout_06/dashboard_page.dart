@@ -268,9 +268,9 @@ class _BillCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              // ÍCONE BRANCO
-              const Icon(Icons.receipt_long_outlined,
-                  color: Colors.white, size: 20),
+              // ÍCONE PRIMARY
+              Icon(Icons.receipt_long_outlined,
+                  color: Theme.of(context).primaryColor, size: 20),
               const SizedBox(width: 8),
               Text('Sua Fatura',
                   style: textTheme.titleMedium
@@ -298,7 +298,7 @@ class _BillCard extends StatelessWidget {
                 textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 20),
-          Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
+          Divider(color: Colors.grey.withValues(alpha: 0.1), height: 1),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -404,7 +404,7 @@ class _UsageCard extends StatelessWidget {
                           value: value,
                           strokeWidth: 6,
                           valueColor: AlwaysStoppedAnimation<Color>(ringColor),
-                          backgroundColor: Colors.white10,
+                          backgroundColor: Colors.black12,
                           strokeCap: StrokeCap.round,
                         ),
                       ),
@@ -425,7 +425,7 @@ class _UsageCard extends StatelessWidget {
                               ?.copyWith(fontWeight: FontWeight.bold)),
                       Text('de ${totalGb.toStringAsFixed(1)} GB',
                           style: textTheme.bodySmall
-                              ?.copyWith(color: Colors.white60)),
+                              ?.copyWith(color: AppColors.textSecondary)),
                     ],
                   ),
                 ),
@@ -466,7 +466,7 @@ class _SpeedCard extends StatelessWidget {
                         label: 'Download',
                         value: download,
                         icon: Icons.arrow_downward_rounded)),
-                Container(width: 1, height: 30, color: Colors.white10),
+                Container(width: 1, height: 30, color: Colors.black12),
                 Expanded(
                     child: _SpeedNumber(
                         label: 'Upload',
@@ -495,15 +495,15 @@ class _SpeedNumber extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ÍCONE BRANCO
-        Icon(icon, color: Colors.white, size: 20),
+        // ÍCONE PRIMARY
+        Icon(icon, color: Theme.of(context).primaryColor, size: 28),
         const SizedBox(height: 4),
         Text('${value.toInt()} Mega',
             style:
                 textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         Text(label,
             style: textTheme.bodySmall
-                ?.copyWith(fontSize: 10, color: Colors.white38)),
+                ?.copyWith(fontSize: 10, color: AppColors.textSecondary)),
       ],
     );
   }
@@ -580,20 +580,20 @@ class _QuickActionItem extends StatelessWidget {
       onTap: () => onNavigate(data.id),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
+          color: Colors.grey.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ÍCONE BRANCO
-            Icon(data.icon, color: Colors.white, size: 26),
+            // ÍCONE PRIMARY
+            Icon(data.icon, color: Theme.of(context).primaryColor, size: 28),
             const SizedBox(height: 8),
             Text(data.label,
                 textAlign: TextAlign.center,
                 style: textTheme.bodySmall
-                    ?.copyWith(fontSize: 11, fontWeight: FontWeight.w500)),
+                    ?.copyWith(fontSize: 11, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -631,8 +631,8 @@ class _SupportCard extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text('Faça um diagnóstico automático.',
-                    style:
-                        textTheme.bodySmall?.copyWith(color: Colors.white60)),
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary)),
               ],
             ),
           ),

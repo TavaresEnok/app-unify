@@ -185,8 +185,8 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       );
     }
 
-    // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
-    if (isLayout02 && isOnDashboard) {
+    // Layout 02 e Layout 06 agora fazem seu próprio header no Dashboard, então escondemos a AppBar principal
+    if ((isLayout02 || isDarkLayout) && isOnDashboard) {
       return null;
     }
 
