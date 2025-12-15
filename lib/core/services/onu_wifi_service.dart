@@ -160,20 +160,39 @@ class OnuWifiService {
               'sgpBaseUrl': sgpParams['sgpBaseUrl'],
             }),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['data'] != null) {
           return OnuData.fromJson(data['data']);
         }
-        throw Exception('Dados da ONU não encontrados');
+        throw Exception('Dados da ONU não encontrados.');
       } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error']?['message'] ?? 'Erro ao buscar ONU');
+        // Tenta parsear erro do servidor
+        try {
+          final error = json.decode(response.body);
+          throw Exception(error['error']?['message'] ??
+              'Erro no servidor (${response.statusCode})');
+        } catch (_) {
+          throw Exception('Erro no servidor (${response.statusCode})');
+        }
       }
+    } on http.ClientException catch (_) {
+      throw Exception(
+          'Servidor indisponível.\nVerifique se o servidor local está rodando.');
+    } on FormatException catch (_) {
+      throw Exception('Resposta inválida do servidor.');
     } catch (e) {
-      throw Exception('Erro ao buscar sinal da ONU: $e');
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
+        throw Exception('Sem conexão com o servidor local.');
+      }
+      if (e.toString().contains('Timeout')) {
+        throw Exception('Tempo limite excedido ao conectar ao servidor.');
+      }
+      throw Exception(
+          'Erro ao buscar sinal: ${e.toString().replaceAll("Exception:", "").trim()}');
     }
   }
 
@@ -195,7 +214,7 @@ class OnuWifiService {
               'sgpBaseUrl': sgpParams['sgpBaseUrl'],
             }),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -206,11 +225,29 @@ class OnuWifiService {
         }
         return [];
       } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error']?['message'] ?? 'Erro ao buscar WiFi');
+        try {
+          final error = json.decode(response.body);
+          throw Exception(error['error']?['message'] ??
+              'Erro no servidor (${response.statusCode})');
+        } catch (_) {
+          throw Exception('Erro no servidor (${response.statusCode})');
+        }
       }
+    } on http.ClientException catch (_) {
+      throw Exception(
+          'Servidor indisponível.\nVerifique se o servidor local está rodando.');
+    } on FormatException catch (_) {
+      throw Exception('Resposta inválida do servidor.');
     } catch (e) {
-      throw Exception('Erro ao buscar redes WiFi: $e');
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
+        throw Exception('Sem conexão com o servidor local.');
+      }
+      if (e.toString().contains('Timeout')) {
+        throw Exception('Tempo limite excedido ao conectar ao servidor.');
+      }
+      throw Exception(
+          'Erro ao buscar WiFi: ${e.toString().replaceAll("Exception:", "").trim()}');
     }
   }
 
@@ -245,11 +282,24 @@ class OnuWifiService {
         final data = json.decode(response.body);
         return data['success'] == true;
       } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error']?['message'] ?? 'Erro ao atualizar WiFi');
+        try {
+          final error = json.decode(response.body);
+          throw Exception(error['error']?['message'] ??
+              'Erro no servidor (${response.statusCode})');
+        } catch (_) {
+          throw Exception('Erro no servidor (${response.statusCode})');
+        }
       }
+    } on http.ClientException catch (_) {
+      throw Exception(
+          'Servidor indisponível.\nVerifique se o servidor local está rodando.');
     } catch (e) {
-      throw Exception('Erro ao atualizar WiFi: $e');
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
+        throw Exception('Sem conexão com o servidor local.');
+      }
+      throw Exception(
+          'Erro ao atualizar WiFi: ${e.toString().replaceAll("Exception:", "").trim()}');
     }
   }
 }

@@ -558,8 +558,13 @@ class DiagnosticoService {
       },
       onError: (String errorMessage, String speedTestError) {
         if (!_currentState.isTesting) return;
-        _updateTestState(
-            'speedTestCustom', TestStatus.error, "Erro: $errorMessage");
+        String cleanError = errorMessage;
+        if (errorMessage.contains("SocketException") ||
+            errorMessage.contains("Connection refused") ||
+            errorMessage.contains("CONNECTION_ERROR")) {
+          cleanError = "Servidor indisponível.\nVerifique a conexão.";
+        }
+        _updateTestState('speedTestCustom', TestStatus.error, cleanError);
         if (!completer.isCompleted) completer.complete();
       },
     );
