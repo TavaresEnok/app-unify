@@ -386,81 +386,85 @@ class ProviderDashboardPage extends StatelessWidget {
   // Looks like it was used in previous layout, replaced by buttons inside InvoiceSection above.
 
   Widget _buildServiceGrid(BuildContext context, Color primaryColor) {
-    return Column(
+    // Using Wrap to handle any number of items auto-adjusting rows
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
       children: [
-        Row(
-          children: [
-            _buildServiceItem('speed_test', 'Velocidade', Icons.speed,
-                Colors.purple.shade50, Colors.purple),
-            const SizedBox(width: 12),
-            _buildServiceItem('internet_usage', 'Consumo', Icons.data_usage,
-                Colors.blue.shade50, Colors.blue),
-            const SizedBox(width: 12),
-            _buildServiceItem('support', 'Suporte', Icons.support_agent,
-                Colors.orange.shade50, Colors.orange),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _buildServiceItem('my_ip', 'Meu IP', Icons.public,
-                Colors.cyan.shade50, Colors.cyan),
-            const SizedBox(width: 12),
-            _buildServiceItem('faq', 'Dicas', Icons.lightbulb_outline,
-                Colors.yellow.shade50, Colors.orangeAccent),
-            const SizedBox(width: 12),
-            _buildServiceItem('network_diagnostic', 'Conexão',
-                Icons.wifi_tethering, Colors.green.shade50, Colors.green),
-            const SizedBox(width: 12),
-            _buildServiceItem('trace_route', 'Rota', Icons.alt_route_rounded,
-                Colors.purple.shade50, Colors.deepPurple),
-          ],
-        ),
+        _buildServiceItemWrapper(context, 'speed_test', 'Velocidade',
+            Icons.speed, Colors.purple.shade50, Colors.purple),
+        _buildServiceItemWrapper(context, 'internet_usage', 'Consumo',
+            Icons.data_usage, Colors.blue.shade50, Colors.blue),
+        _buildServiceItemWrapper(context, 'support', 'Suporte',
+            Icons.support_agent, Colors.orange.shade50, Colors.orange),
+        _buildServiceItemWrapper(context, 'my_ip', 'Meu IP', Icons.public,
+            Colors.cyan.shade50, Colors.cyan),
+        _buildServiceItemWrapper(
+            context,
+            'faq',
+            'Dicas',
+            Icons.lightbulb_outline,
+            Colors.yellow.shade50,
+            Colors.orangeAccent),
+        _buildServiceItemWrapper(context, 'network_diagnostic', 'Conexão',
+            Icons.wifi_tethering, Colors.green.shade50, Colors.green),
+        _buildServiceItemWrapper(context, 'trace_route', 'Rota',
+            Icons.alt_route_rounded, Colors.purple.shade50, Colors.deepPurple),
       ],
+    );
+  }
+
+  // Wrapper to size items properly within a Wrap (approx 3 items per row)
+  Widget _buildServiceItemWrapper(BuildContext context, String pageId,
+      String label, IconData icon, Color bgColor, Color iconColor) {
+    // Calculate width for 3 items per row minus spacing
+    // Screen width - padding (40) - spacing (12*2) / 3
+    final width = (MediaQuery.of(context).size.width - 40 - 24) / 3;
+    return SizedBox(
+      width: width,
+      child: _buildServiceItem(pageId, label, icon, bgColor, iconColor),
     );
   }
 
   Widget _buildServiceItem(String pageId, String label, IconData icon,
       Color bgColor, Color iconColor) {
-    return Expanded(
-      child: InkWell(
-        onTap: () => onNavigate(pageId),
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              )
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor, size: 28),
+    return InkWell(
+      onTap: () => onNavigate(pageId),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: bgColor,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 12),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700],
-                  fontSize: 13,
-                ),
+              child: Icon(icon, color: iconColor, size: 28),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+                fontSize: 13,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

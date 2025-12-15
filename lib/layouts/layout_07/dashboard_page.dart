@@ -306,8 +306,10 @@ class _QuickActionsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      runSpacing: 16,
+      spacing: 12,
       children: [
         _QuickActionItem(
           icon: Icons.support_agent_rounded,
