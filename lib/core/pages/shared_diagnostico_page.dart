@@ -3,7 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_05/theme.dart';
+import '../../layouts/layout_03/theme.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/services/onu_wifi_service.dart';
 
@@ -97,9 +97,9 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
           appBarColor = const Color(0xFF0A0A0A);
           appBarTextColor = Colors.white;
         } else if (isLayout05) {
-          backgroundColor = Layout05Theme.background;
-          appBarColor = Layout05Theme.background;
-          appBarTextColor = Layout05Theme.textDark;
+          backgroundColor = Layout03Theme.background;
+          appBarColor = Layout03Theme.background;
+          appBarTextColor = Layout03Theme.textDark;
         } else {
           backgroundColor = theme.scaffoldBackgroundColor;
           appBarColor = theme.primaryColor;
@@ -136,7 +136,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   style: textTheme.bodyLarge?.copyWith(
                       color: state.isTesting
                           ? primaryColor
-                          : (isLayout05 ? Layout05Theme.textDark : null)),
+                          : (isLayout05 ? Layout03Theme.textDark : null)),
                   textAlign: TextAlign.center),
             ),
             Expanded(
@@ -372,10 +372,10 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
     final textColor = isDarkLayout
         ? Colors.white
-        : (isLayout05 ? Layout05Theme.textDark : null);
+        : (isLayout05 ? Layout03Theme.textDark : null);
     final subTextColor = isDarkLayout
         ? Colors.white70
-        : (isLayout05 ? Layout05Theme.textGrey : null);
+        : (isLayout05 ? Layout03Theme.textGrey : null);
 
     // Simplification for gauge
     if (isCustomRunning) {
@@ -462,7 +462,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                           color: isDarkLayout
                               ? Colors.white
                               : (isLayout05
-                                  ? Layout05Theme.textDark
+                                  ? Layout03Theme.textDark
                                   : Theme.of(context).primaryColor),
                         )),
                     Text('Mbps',
@@ -583,7 +583,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
       padding: const EdgeInsets.all(8),
       decoration: isLayout05
           ? BoxDecoration(
-              color: Layout05Theme.surface,
+              color: Layout03Theme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.withValues(alpha: 0.1)))
           : BoxDecoration(
@@ -793,7 +793,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
     final textColor = isDarkLayout
         ? Colors.white
-        : (isLayout05 ? Layout05Theme.textDark : null);
+        : (isLayout05 ? Layout03Theme.textDark : null);
 
     return _buildAdaptiveCard(
       isLayout05: isLayout05,
@@ -1249,15 +1249,15 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   }) {
     final textColor = isDarkLayout
         ? Colors.white
-        : (isLayout05 ? Layout05Theme.textDark : null);
+        : (isLayout05 ? Layout03Theme.textDark : null);
     final subTextColor = isDarkLayout
         ? Colors.white70
-        : (isLayout05 ? Layout05Theme.textGrey : null);
+        : (isLayout05 ? Layout03Theme.textGrey : null);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: isLayout05
           ? BoxDecoration(
-              color: Layout05Theme.surface,
+              color: Layout03Theme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                   color: isGood
@@ -1413,7 +1413,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
       padding: const EdgeInsets.all(16),
       decoration: isLayout05
           ? BoxDecoration(
-              color: Layout05Theme.surface,
+              color: Layout03Theme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white), // Subtle border
             )
@@ -1436,17 +1436,17 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: isLayout05 ? Layout05Theme.textDark : null)),
+                  color: isLayout05 ? Layout03Theme.textDark : null)),
           Text(network.frequency,
               style: TextStyle(
-                  color: isLayout05 ? Layout05Theme.textGrey : Colors.grey[600],
+                  color: isLayout05 ? Layout03Theme.textGrey : Colors.grey[600],
                   fontSize: 13)),
         ])),
         IconButton(
           icon: const Icon(Icons.edit),
           onPressed: () => _showEditWifiDialog(context, network),
           tooltip: 'Editar WiFi',
-          color: isLayout05 ? Layout05Theme.primary : null,
+          color: isLayout05 ? Layout03Theme.primary : null,
         ),
       ]),
     );
@@ -1551,7 +1551,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     }
     if (isLayout05) {
       return Container(
-        decoration: Layout05Theme.neumorphicDecoration,
+        decoration: Layout03Theme.neumorphicDecoration,
         padding: const EdgeInsets.all(16),
         child: child,
       );

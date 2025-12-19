@@ -23,7 +23,7 @@ class NeumorphicBottomNav extends StatelessWidget {
       child: Container(
         height: 70, // Reduzido levemente para 70 para ficar mais compacto
         decoration: BoxDecoration(
-          color: Layout05Theme.background,
+          color: Layout03Theme.background,
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             const BoxShadow(
@@ -54,7 +54,7 @@ class NeumorphicBottomNav extends StatelessWidget {
 
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = currentIndex == index;
-    final color = isSelected ? Layout05Theme.primary : Layout05Theme.textGrey;
+    final color = isSelected ? Layout03Theme.primary : Layout03Theme.textGrey;
 
     return GestureDetector(
       onTap: () => onTap(index),
@@ -63,7 +63,7 @@ class NeumorphicBottomNav extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: isSelected
             ? BoxDecoration(
-                color: Layout05Theme.background,
+                color: Layout03Theme.background,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                     BoxShadow(

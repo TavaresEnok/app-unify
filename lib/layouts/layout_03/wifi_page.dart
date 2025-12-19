@@ -116,7 +116,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const Center(
-          child: CircularProgressIndicator(color: Layout05Theme.primary)),
+          child: CircularProgressIndicator(color: Layout03Theme.primary)),
     );
 
     try {
@@ -130,7 +130,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Wi-Fi atualizado com sucesso!'),
-              backgroundColor: Layout05Theme.success),
+              backgroundColor: Layout03Theme.success),
         );
         _fetchNetworks(); // Refresh
       } else {
@@ -141,7 +141,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
       Navigator.pop(context); // Hide loading
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Erro: $e'), backgroundColor: Layout05Theme.error),
+            content: Text('Erro: $e'), backgroundColor: Layout03Theme.error),
       );
     }
   }
@@ -155,7 +155,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
       builder: (context) => AlertDialog(
         title: Text('Editar ${network.frequency}',
             style:
-                Layout05Theme.heading2.copyWith(color: Layout05Theme.textDark)),
+                Layout03Theme.heading2.copyWith(color: Layout03Theme.textDark)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -179,7 +179,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('CANCELAR',
-                style: TextStyle(color: Layout05Theme.textGrey)),
+                style: TextStyle(color: Layout03Theme.textGrey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -188,7 +188,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                   network, ssidController.text, passwordController.text);
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: Layout05Theme.primary),
+                backgroundColor: Layout03Theme.primary),
             child: const Text('SALVAR', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -210,9 +210,9 @@ class _WifiPageState extends ConsumerState<WifiPage> {
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     }
 
     return Scaffold(
@@ -230,11 +230,11 @@ class _WifiPageState extends ConsumerState<WifiPage> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Layout05Theme.primary))
+              child: CircularProgressIndicator(color: Layout03Theme.primary))
           : _errorMessage != null
               ? Center(
                   child: Text(_errorMessage!,
-                      style: const TextStyle(color: Layout05Theme.error),
+                      style: const TextStyle(color: Layout03Theme.error),
                       textAlign: TextAlign.center))
               : _networks.isEmpty
                   ? Center(
@@ -242,12 +242,12 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.wifi_off,
-                              size: 64, color: Layout05Theme.textGrey),
+                              size: 64, color: Layout03Theme.textGrey),
                           const SizedBox(height: 16),
                           Text(
                             'Nenhuma rede Wi-Fi encontrada.',
-                            style: Layout05Theme.heading2
-                                .copyWith(color: Layout05Theme.textDark),
+                            style: Layout03Theme.heading2
+                                .copyWith(color: Layout03Theme.textDark),
                           ),
                           const SizedBox(height: 8),
                           Padding(
@@ -255,7 +255,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                             child: Text(
                               'O gerenciamento de Wi-Fi pode não estar disponível para o seu equipamento ou contrato.',
                               textAlign: TextAlign.center,
-                              style: Layout05Theme.bodyText,
+                              style: Layout03Theme.bodyText,
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -264,7 +264,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                             icon: const Icon(Icons.refresh),
                             label: const Text('Tentar Novamente'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Layout05Theme.primary,
+                              backgroundColor: Layout03Theme.primary,
                               foregroundColor: Colors.white,
                             ),
                           ),
@@ -286,7 +286,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                                       color: const Color(0xFF3A3A3C)
                                           .withValues(alpha: 0.3)),
                                 )
-                              : Layout05Theme.neumorphicDecoration,
+                              : Layout03Theme.neumorphicDecoration,
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(20),
                             leading: Container(
@@ -294,7 +294,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                               decoration: BoxDecoration(
                                 color: isDarkLayout
                                     ? Colors.black.withValues(alpha: 0.3)
-                                    : Layout05Theme.background,
+                                    : Layout03Theme.background,
                                 shape: BoxShape.circle,
                                 boxShadow: const [
                                   BoxShadow(
@@ -313,7 +313,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                                     : Icons.wifi,
                                 color: isDarkLayout
                                     ? const Color(0xFF00D9FF)
-                                    : Layout05Theme.primary,
+                                    : Layout03Theme.primary,
                                 size: 28,
                               ),
                             ),
@@ -323,10 +323,10 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                                     fontSize: 16,
                                     color: isDarkLayout
                                         ? Colors.white
-                                        : Layout05Theme.textDark)),
+                                        : Layout03Theme.textDark)),
                             subtitle: Text(
                                 '${network.frequency} - ${network.enabled ? 'Ativo' : 'Inativo'}',
-                                style: Layout05Theme.bodyText.copyWith(
+                                style: Layout03Theme.bodyText.copyWith(
                                     fontSize: 13,
                                     color:
                                         isDarkLayout ? Colors.white70 : null)),
@@ -334,7 +334,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                               decoration: BoxDecoration(
                                 color: isDarkLayout
                                     ? Colors.transparent
-                                    : Layout05Theme.background,
+                                    : Layout03Theme.background,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: const [
                                   BoxShadow(
@@ -349,7 +349,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                               ),
                               child: IconButton(
                                 icon: const Icon(Icons.edit_rounded,
-                                    color: Layout05Theme.textGrey),
+                                    color: Layout03Theme.textGrey),
                                 onPressed: () => _showEditDialog(network),
                               ),
                             ),

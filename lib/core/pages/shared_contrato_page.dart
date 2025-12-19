@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
 import '../../core/widgets/dashboard_card.dart';
-import '../../layouts/layout_05/theme.dart';
+import '../../layouts/layout_03/theme.dart';
 
 class ContratoPage extends ConsumerWidget {
   const ContratoPage({super.key});
@@ -29,9 +29,9 @@ class ContratoPage extends ConsumerWidget {
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
       appBarColor = theme.primaryColor;
@@ -73,12 +73,12 @@ class ContratoPage extends ConsumerWidget {
                       CircleAvatar(
                         radius: 30,
                         backgroundColor: isLayout05
-                            ? Layout05Theme.primary.withValues(alpha: 0.1)
+                            ? Layout03Theme.primary.withValues(alpha: 0.1)
                             : primaryColor.withValues(alpha: 0.1),
                         child: Icon(Icons.person,
                             size: 32,
                             color: isLayout05
-                                ? Layout05Theme.primary
+                                ? Layout03Theme.primary
                                 : primaryColor),
                       ),
                       const SizedBox(width: 16),
@@ -93,7 +93,7 @@ class ContratoPage extends ConsumerWidget {
                                 color: isDarkLayout
                                     ? Colors.white
                                     : (isLayout05
-                                        ? Layout05Theme.textDark
+                                        ? Layout03Theme.textDark
                                         : null),
                               ),
                             ),
@@ -104,7 +104,7 @@ class ContratoPage extends ConsumerWidget {
                                 color: isDarkLayout
                                     ? const Color(0xFF8E8E93)
                                     : (isLayout05
-                                        ? Layout05Theme.textGrey
+                                        ? Layout03Theme.textGrey
                                         : textTheme.bodySmall?.color),
                               ),
                             ),
@@ -130,7 +130,7 @@ class ContratoPage extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                         color: isDarkLayout
                             ? Colors.white
-                            : (isLayout05 ? Layout05Theme.textDark : null),
+                            : (isLayout05 ? Layout03Theme.textDark : null),
                       )),
                   const Divider(height: 24),
                   _buildInfoRow(context,
@@ -173,7 +173,7 @@ class ContratoPage extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                         color: isDarkLayout
                             ? Colors.white
-                            : (isLayout05 ? Layout05Theme.textDark : null),
+                            : (isLayout05 ? Layout03Theme.textDark : null),
                       )),
                   const Divider(height: 24),
                   _buildInfoRow(context,
@@ -207,7 +207,7 @@ class ContratoPage extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                           color: isDarkLayout
                               ? Colors.white
-                              : (isLayout05 ? Layout05Theme.textDark : null),
+                              : (isLayout05 ? Layout03Theme.textDark : null),
                         )),
                     const Divider(height: 24),
                     _buildInfoRow(context,
@@ -243,7 +243,7 @@ class ContratoPage extends ConsumerWidget {
     }
     if (isLayout05) {
       return Container(
-        decoration: Layout05Theme.neumorphicDecoration,
+        decoration: Layout03Theme.neumorphicDecoration,
         padding: const EdgeInsets.all(16),
         child: child,
       );
@@ -266,14 +266,14 @@ class ContratoPage extends ConsumerWidget {
             color: isDarkLayout
                 ? const Color(0xFF00D9FF)
                 : (isLayout05
-                    ? Layout05Theme.textGrey
+                    ? Layout03Theme.textGrey
                     : textTheme.bodySmall?.color)),
         const SizedBox(width: 12),
         Text('$label:',
             style: textTheme.bodyMedium?.copyWith(
               color: isDarkLayout
                   ? const Color(0xFF8E8E93)
-                  : (isLayout05 ? Layout05Theme.textDark : null),
+                  : (isLayout05 ? Layout03Theme.textDark : null),
             )),
         const Spacer(),
         Text(
@@ -283,7 +283,7 @@ class ContratoPage extends ConsumerWidget {
             color: valueColor ??
                 (isDarkLayout
                     ? Colors.white
-                    : (isLayout05 ? Layout05Theme.textDark : null)),
+                    : (isLayout05 ? Layout03Theme.textDark : null)),
           ),
         ),
       ],

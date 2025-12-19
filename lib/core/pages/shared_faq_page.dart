@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_05/theme.dart';
+import '../../layouts/layout_03/theme.dart';
 
 class FaqPage extends ConsumerWidget {
   const FaqPage({super.key});
@@ -27,9 +27,9 @@ class FaqPage extends ConsumerWidget {
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
       appBarColor = theme.primaryColor;
@@ -133,21 +133,21 @@ class FaqPage extends ConsumerWidget {
                         if (isLayout05) {
                           return Container(
                             margin: const EdgeInsets.symmetric(vertical: 8.0),
-                            decoration: Layout05Theme.neumorphicDecoration,
+                            decoration: Layout03Theme.neumorphicDecoration,
                             child: ExpansionTile(
                               tilePadding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 4),
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              collapsedIconColor: Layout05Theme.textGrey,
-                              iconColor: Layout05Theme.primary,
+                              collapsedIconColor: Layout03Theme.textGrey,
+                              iconColor: Layout03Theme.primary,
                               leading: CircleAvatar(
-                                backgroundColor: Layout05Theme.primary
+                                backgroundColor: Layout03Theme.primary
                                     .withValues(alpha: 0.1),
                                 child: Text(
                                   '${index + 1}',
                                   style: const TextStyle(
-                                    color: Layout05Theme.primary,
+                                    color: Layout03Theme.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -156,7 +156,7 @@ class FaqPage extends ConsumerWidget {
                                 faqItem.question,
                                 style: textTheme.bodyLarge?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: Layout05Theme.textDark,
+                                  color: Layout03Theme.textDark,
                                 ),
                               ),
                               children: [
@@ -164,7 +164,7 @@ class FaqPage extends ConsumerWidget {
                                 const SizedBox(height: 8),
                                 Text(faqItem.answer,
                                     style: textTheme.bodyMedium?.copyWith(
-                                      color: Layout05Theme.textGrey,
+                                      color: Layout03Theme.textGrey,
                                     )),
                               ],
                             ),

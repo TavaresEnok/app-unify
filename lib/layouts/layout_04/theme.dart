@@ -3,7 +3,7 @@ import '../../core/models/theme_config.dart';
 
 /// Layout 06: Premium Light Fintech Theme
 /// Clean, modern light theme with cyan/teal accents
-class Layout06Theme {
+class Layout04Theme {
   // Core Colors (Defaults) - LIGHT THEME
   static const Color background = Color(0xFFF5F7FA); // Light grey-blue
   static const Color surface = Color(0xFFFFFFFF); // Pure White

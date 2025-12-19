@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../layouts/layout_06/widgets/skeleton_financeiro_page.dart';
-import '../../layouts/layout_06/widgets/error_widget.dart';
+import '../../layouts/layout_04/widgets/skeleton_financeiro_page.dart';
+import '../../layouts/layout_04/widgets/error_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
@@ -12,7 +12,7 @@ import 'package:http/http.dart' as http;
 import '../../core/models/fatura.dart';
 import '../../core/providers/financeiro_provider.dart';
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_05/theme.dart';
+import '../../layouts/layout_03/theme.dart';
 
 class FinanceiroPage extends ConsumerStatefulWidget {
   const FinanceiroPage({super.key});
@@ -49,9 +49,9 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = Colors.grey[50]!;
       appBarColor = themeData.primaryColor;
@@ -250,13 +250,13 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     if (fatura.isPago) {
       statusColor = isDarkLayout
           ? const Color(0xFF30D158)
-          : (isLayout05 ? Layout05Theme.success : Colors.green);
+          : (isLayout05 ? Layout03Theme.success : Colors.green);
       statusText = 'Pago';
       statusIcon = Icons.check_circle;
     } else if (fatura.isVencido) {
       statusColor = isDarkLayout
           ? const Color(0xFFFF453A)
-          : (isLayout05 ? Layout05Theme.error : Colors.red);
+          : (isLayout05 ? Layout03Theme.error : Colors.red);
       statusText = 'Vencido';
       statusIcon = Icons.error;
     }
@@ -270,7 +270,7 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
             Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
       );
     } else if (isLayout05) {
-      decoration = Layout05Theme.neumorphicDecoration;
+      decoration = Layout03Theme.neumorphicDecoration;
     } else {
       decoration = BoxDecoration(
         color: Colors.white,

@@ -79,7 +79,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     height: 100,
                     width: 100,
                     decoration: BoxDecoration(
-                      color: Layout05Theme.primary.withValues(alpha: 0.1),
+                      color: Layout03Theme.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: config?.config.logoUrl != null
@@ -88,7 +88,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             child: Image.network(config!.config.logoUrl),
                           )
                         : const Icon(Icons.wifi,
-                            size: 40, color: Layout05Theme.primary),
+                            size: 40, color: Layout03Theme.primary),
                   ),
                 ),
 
@@ -97,14 +97,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // 2. Welcome Text
                 Text(
                   'Bem-vindo de volta',
-                  style: Layout05Theme.heading1,
+                  style: Layout03Theme.heading1,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Acesse sua área de cliente para gerenciar suas faturas e serviços.',
-                  style: Layout05Theme.bodyText
-                      .copyWith(color: Layout05Theme.textGrey),
+                  style: Layout03Theme.bodyText
+                      .copyWith(color: Layout03Theme.textGrey),
                   textAlign: TextAlign.center,
                 ),
 
@@ -119,13 +119,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Layout05Theme.textDark,
+                        color: Layout03Theme.textDark,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: Layout05Theme.background,
+                        color: Layout03Theme.background,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.transparent),
                       ),
@@ -134,15 +134,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Layout05Theme.textDark),
+                            color: Layout03Theme.textDark),
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: '000.000.000-00',
                           hintStyle: TextStyle(
-                              color: Layout05Theme.textGrey
+                              color: Layout03Theme.textGrey
                                   .withValues(alpha: 0.5)),
                           prefixIcon: const Icon(Icons.person_outline_rounded,
-                              color: Layout05Theme.textGrey),
+                              color: Layout03Theme.textGrey),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.all(20),
                         ),
@@ -159,7 +159,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : () => _handleLogin(config),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Layout05Theme.primary,
+                      backgroundColor: Layout03Theme.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shadowColor: Colors.transparent,
@@ -190,11 +190,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text('Funcionalidade Bio-Login em breve!'),
-                            backgroundColor: Layout05Theme.textGrey),
+                            backgroundColor: Layout03Theme.textGrey),
                       );
                     },
                     icon: const Icon(Icons.fingerprint,
-                        size: 40, color: Layout05Theme.primary),
+                        size: 40, color: Layout03Theme.primary),
                     tooltip: 'Entrar com Biometria',
                   ),
                 ),
@@ -205,19 +205,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Layout05Theme.error.withValues(alpha: 0.1),
+                      color: Layout03Theme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
                         const Icon(Icons.error_outline,
-                            color: Layout05Theme.error),
+                            color: Layout03Theme.error),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             _localErrorMessage!,
                             style: const TextStyle(
-                                color: Layout05Theme.error,
+                                color: Layout03Theme.error,
                                 fontWeight: FontWeight.w500),
                           ),
                         ),
@@ -232,7 +232,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Precisa de ajuda? ', style: Layout05Theme.bodyText),
+                    Text('Precisa de ajuda? ', style: Layout03Theme.bodyText),
                     GestureDetector(
                       onTap: () {
                         // TODO: Implementar ação de ajuda se necessário
@@ -240,7 +240,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: const Text(
                         'Fale com o suporte',
                         style: TextStyle(
-                          color: Layout05Theme.primary,
+                          color: Layout03Theme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

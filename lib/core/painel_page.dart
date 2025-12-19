@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../layouts/layout_06/widgets/skeleton_dashboard_page.dart';
+import '../layouts/layout_04/widgets/skeleton_dashboard_page.dart';
 import 'services/diagnostico_service.dart';
 import '../layout_selector.dart';
-import '../layouts/layout_05/theme.dart';
-import '../layouts/layout_05/widgets/neumorphic_bottom_nav.dart';
+import '../layouts/layout_03/theme.dart';
+import '../layouts/layout_03/widgets/neumorphic_bottom_nav.dart';
 import 'providers/providers.dart';
 import 'widgets/offline_banner.dart';
 import 'models/usuario.dart';
@@ -186,28 +186,28 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
     if (isNeumorphic) {
       return AppBar(
-        backgroundColor: Layout05Theme.background,
+        backgroundColor: Layout03Theme.background,
         elevation: 0,
         centerTitle: true,
         leading: isOnDashboard
             ? Builder(
                 builder: (context) => IconButton(
                       icon: const Icon(Icons.menu_rounded,
-                          color: Layout05Theme.textDark),
+                          color: Layout03Theme.textDark),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                     ))
             : IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: Layout05Theme.textDark),
+                    size: 20, color: Layout03Theme.textDark),
                 onPressed: () => setState(() => _currentPage = 'dashboard'),
               ),
         title: Text(pageName,
             style:
-                Layout05Theme.heading2.copyWith(color: Layout05Theme.textDark)),
+                Layout03Theme.heading2.copyWith(color: Layout03Theme.textDark)),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded,
-                color: Layout05Theme.textDark),
+                color: Layout03Theme.textDark),
             onPressed: () => setState(() => _currentPage = 'notifications'),
           ),
         ],
@@ -351,19 +351,19 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
     if (isNeumorphic) {
       return Drawer(
-        backgroundColor: Layout05Theme.background,
+        backgroundColor: Layout03Theme.background,
         elevation: 0,
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
-              color: Layout05Theme.background,
+              color: Layout03Theme.background,
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Layout05Theme.background,
+                      color: Layout03Theme.background,
                       shape: BoxShape.circle,
                       boxShadow: [
                         const BoxShadow(
@@ -380,7 +380,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                     ),
                     child: CircleAvatar(
                       radius: 30,
-                      backgroundColor: Layout05Theme.primary,
+                      backgroundColor: Layout03Theme.primary,
                       child: Text(
                         usuario.nome.isNotEmpty
                             ? usuario.nome[0].toUpperCase()
@@ -399,10 +399,10 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                       children: [
                         Text(usuario.nome,
                             style:
-                                Layout05Theme.heading2.copyWith(fontSize: 16)),
+                                Layout03Theme.heading2.copyWith(fontSize: 16)),
                         Text(usuario.plano,
                             style:
-                                Layout05Theme.bodyText.copyWith(fontSize: 12)),
+                                Layout03Theme.bodyText.copyWith(fontSize: 12)),
                       ],
                     ),
                   )
@@ -435,21 +435,21 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                     final shouldLogout = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        backgroundColor: Layout05Theme.background,
-                        title: Text('Sair', style: Layout05Theme.heading2),
+                        backgroundColor: Layout03Theme.background,
+                        title: Text('Sair', style: Layout03Theme.heading2),
                         content: Text('Deseja realmente sair?',
-                            style: Layout05Theme.bodyText),
+                            style: Layout03Theme.bodyText),
                         actions: [
                           TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
                               child: const Text('Cancelar',
                                   style: TextStyle(
-                                      color: Layout05Theme.textGrey))),
+                                      color: Layout03Theme.textGrey))),
                           TextButton(
                               onPressed: () => Navigator.pop(ctx, true),
                               child: const Text('Sim, Sair',
                                   style:
-                                      TextStyle(color: Layout05Theme.error))),
+                                      TextStyle(color: Layout03Theme.error))),
                         ],
                       ),
                     );
@@ -724,11 +724,11 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       {bool isLogout = false, VoidCallback? onTap}) {
     final isSelected = _currentPage == id;
     final color = isLogout
-        ? Layout05Theme.error
-        : (isSelected ? Layout05Theme.primary : Layout05Theme.textGrey);
+        ? Layout03Theme.error
+        : (isSelected ? Layout03Theme.primary : Layout03Theme.textGrey);
 
     final decoration =
-        isSelected ? Layout05Theme.neumorphicPressedDecoration : null;
+        isSelected ? Layout03Theme.neumorphicPressedDecoration : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -738,7 +738,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         leading: Icon(icon, color: color),
         title: Text(label,
             style: TextStyle(
-                color: isLogout ? Layout05Theme.error : Layout05Theme.textDark,
+                color: isLogout ? Layout03Theme.error : Layout03Theme.textDark,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
         onTap: onTap ?? () => _navigateToPage(id),
       ),
@@ -854,7 +854,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   Widget _buildPlaceholderPage(String layoutType) {
     final isLayout05 = layoutType == 'layout_05';
     final backgroundColor =
-        isLayout05 ? Layout05Theme.background : Colors.grey[100];
+        isLayout05 ? Layout03Theme.background : Colors.grey[100];
 
     return Container(
       decoration: BoxDecoration(
@@ -867,13 +867,13 @@ class _PainelPageState extends ConsumerState<PainelPage> {
             Container(
               padding: isLayout05 ? const EdgeInsets.all(24) : null,
               decoration: isLayout05
-                  ? Layout05Theme.neumorphicDecoration
+                  ? Layout03Theme.neumorphicDecoration
                       .copyWith(shape: BoxShape.circle)
                   : null,
               child: Icon(
                 _pageIcons[_currentPage] ?? Icons.construction,
                 size: 80,
-                color: isLayout05 ? Layout05Theme.textGrey : Colors.grey[400],
+                color: isLayout05 ? Layout03Theme.textGrey : Colors.grey[400],
               ),
             ),
             const SizedBox(height: 24),
@@ -882,7 +882,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isLayout05 ? Layout05Theme.textDark : Colors.grey[800],
+                color: isLayout05 ? Layout03Theme.textDark : Colors.grey[800],
               ),
             ),
             const SizedBox(height: 8),
@@ -890,7 +890,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               'Esta página será implementada em breve',
               style: TextStyle(
                 fontSize: 16,
-                color: isLayout05 ? Layout05Theme.textGrey : Colors.grey[600],
+                color: isLayout05 ? Layout03Theme.textGrey : Colors.grey[600],
               ),
             ),
             const SizedBox(height: 32),
@@ -904,7 +904,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               label: const Text('Voltar ao Dashboard'),
               style: isLayout05
                   ? ElevatedButton.styleFrom(
-                      backgroundColor: Layout05Theme.primary,
+                      backgroundColor: Layout03Theme.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 24, vertical: 12),

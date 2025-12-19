@@ -10,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/dashboard_card.dart';
-import '../../layouts/layout_05/theme.dart';
+import '../../layouts/layout_03/theme.dart';
 
 class SharedTraceRoutePage extends ConsumerStatefulWidget {
   const SharedTraceRoutePage({super.key});
@@ -231,9 +231,9 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
       appBarColor = theme.primaryColor;
@@ -247,7 +247,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
             border: Border.all(
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
-        : (isLayout05 ? Layout05Theme.neumorphicDecoration : null);
+        : (isLayout05 ? Layout03Theme.neumorphicDecoration : null);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -277,7 +277,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
                   )
                 : (isLayout05
                     ? Container(
-                        decoration: Layout05Theme.neumorphicDecoration,
+                        decoration: Layout03Theme.neumorphicDecoration,
                         padding: const EdgeInsets.all(16),
                         child: _buildInputContent(context, isLayout05,
                             isDarkLayout: isDarkLayout),
@@ -354,7 +354,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
                     ? (isDarkLayout
                         ? const Color(0xFF00D9FF)
                         : (isLayout05
-                            ? Layout05Theme.primary
+                            ? Layout03Theme.primary
                             : Theme.of(context).primaryColor))
                     : (isDarkLayout ? const Color(0xFF8E8E93) : Colors.grey))),
         const SizedBox(height: 16),
@@ -432,28 +432,28 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     if (isLayout05) {
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
-        decoration: Layout05Theme.neumorphicDecoration.copyWith(
+        decoration: Layout03Theme.neumorphicDecoration.copyWith(
           borderRadius: BorderRadius.circular(12),
         ),
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: hop.status == "Alcançado"
-                ? Layout05Theme.primary
-                : Layout05Theme.textGrey.withValues(alpha: 0.3),
+                ? Layout03Theme.primary
+                : Layout03Theme.textGrey.withValues(alpha: 0.3),
             child: Text("${hop.hop}",
                 style: TextStyle(
                     color: hop.status == "Alcançado"
                         ? Colors.white
-                        : Layout05Theme.textDark)),
+                        : Layout03Theme.textDark)),
           ),
           title: Text(hop.ip,
               style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Layout05Theme.textDark)),
+                  fontWeight: FontWeight.bold, color: Layout03Theme.textDark)),
           subtitle: Text(hop.status,
-              style: const TextStyle(color: Layout05Theme.textGrey)),
+              style: const TextStyle(color: Layout03Theme.textGrey)),
           trailing: Text(hop.time,
               style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Layout05Theme.textDark)),
+                  fontWeight: FontWeight.bold, color: Layout03Theme.textDark)),
         ),
       );
     }

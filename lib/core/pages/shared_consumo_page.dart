@@ -4,8 +4,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/providers.dart';
 import '../../core/providers/consumo_provider.dart';
-import '../../layouts/layout_05/theme.dart';
-import '../../layouts/layout_06/theme.dart'; // Ensure this exists or mock it if generic
+import '../../layouts/layout_03/theme.dart';
+import '../../layouts/layout_04/theme.dart'; // Ensure this exists or mock it if generic
 
 class ConsumoPage extends ConsumerStatefulWidget {
   const ConsumoPage({super.key});
@@ -58,17 +58,17 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
     Color appBarTextColor;
     if (isLayout06) {
       // Layout 06 Specific Colors
-      backgroundColor = Layout06Theme.background;
-      appBarColor = Layout06Theme.background;
-      appBarTextColor = Layout06Theme.textPrimary;
+      backgroundColor = Layout04Theme.background;
+      appBarColor = Layout04Theme.background;
+      appBarTextColor = Layout04Theme.textPrimary;
     } else if (isDarkLayout) {
       backgroundColor = const Color(0xFF0A0A0A);
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
       appBarColor = theme.primaryColor;
@@ -382,7 +382,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout05Theme.neumorphicDecoration
+            ? Layout03Theme.neumorphicDecoration
             : BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 gradient: LinearGradient(
@@ -501,7 +501,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout05Theme.neumorphicDecoration
+            ? Layout03Theme.neumorphicDecoration
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
@@ -521,7 +521,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 children: [
                   Icon(Icons.speed,
                       color: isLayout05
-                          ? Layout05Theme.primary
+                          ? Layout03Theme.primary
                           : theme.primaryColor),
                   const SizedBox(width: 12),
                   Text(
@@ -530,7 +530,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       fontWeight: FontWeight.bold,
                       color: isDarkLayout
                           ? Colors.white
-                          : (isLayout05 ? Layout05Theme.textDark : null),
+                          : (isLayout05 ? Layout03Theme.textDark : null),
                     ),
                   ),
                 ],
@@ -587,14 +587,14 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
             fontWeight: FontWeight.bold,
             color: isDarkLayout
                 ? Colors.white
-                : (isLayout05 ? Layout05Theme.textDark : null),
+                : (isLayout05 ? Layout03Theme.textDark : null),
           ),
         ),
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
             color: isLayout05
-                ? Layout05Theme.textGrey
+                ? Layout03Theme.textGrey
                 : theme.colorScheme.onSurfaceVariant,
           ),
         ),
@@ -612,7 +612,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout05Theme.neumorphicDecoration
+            ? Layout03Theme.neumorphicDecoration
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
@@ -632,7 +632,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 children: [
                   Icon(Icons.wifi,
                       color: isLayout05
-                          ? Layout05Theme.primary
+                          ? Layout03Theme.primary
                           : theme.primaryColor),
                   const SizedBox(width: 12),
                   Text(
@@ -641,7 +641,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       fontWeight: FontWeight.bold,
                       color: isDarkLayout
                           ? Colors.white
-                          : (isLayout05 ? Layout05Theme.textDark : null),
+                          : (isLayout05 ? Layout03Theme.textDark : null),
                     ),
                   ),
                   const Spacer(),
@@ -724,7 +724,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout05Theme.neumorphicDecoration
+            ? Layout03Theme.neumorphicDecoration
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
@@ -750,7 +750,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       fontWeight: FontWeight.bold,
                       color: isDarkLayout
                           ? Colors.white
-                          : (isLayout05 ? Layout05Theme.textDark : null),
+                          : (isLayout05 ? Layout03Theme.textDark : null),
                     ),
                   ),
                 ],

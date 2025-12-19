@@ -5,7 +5,7 @@ import '../../core/services/meu_ip_service.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_05/theme.dart';
+import '../../layouts/layout_03/theme.dart';
 
 class MeuIpPage extends ConsumerStatefulWidget {
   const MeuIpPage({super.key});
@@ -46,9 +46,9 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
       appBarColor = theme.primaryColor;
@@ -130,7 +130,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout05Theme.neumorphicDecoration
+            ? Layout03Theme.neumorphicDecoration
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -144,7 +144,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
 
     final highlightColor = isDarkLayout
         ? const Color(0xFF00D9FF)
-        : (isLayout05 ? Layout05Theme.primary : primaryColor);
+        : (isLayout05 ? Layout03Theme.primary : primaryColor);
 
     return Center(
       child: SingleChildScrollView(
@@ -163,7 +163,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
                       style: textTheme.bodyMedium?.copyWith(
                         color: isDarkLayout
                             ? const Color(0xFF8E8E93)
-                            : (isLayout05 ? Layout05Theme.textGrey : null),
+                            : (isLayout05 ? Layout03Theme.textGrey : null),
                       )),
                   const SizedBox(height: 8),
                   Text(
@@ -211,7 +211,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
                             icon: const Icon(Icons.refresh),
                             label: const Text('Atualizar'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Layout05Theme.primary,
+                              backgroundColor: Layout03Theme.primary,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
@@ -243,10 +243,10 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
     final textTheme = Theme.of(context).textTheme;
     final color = isDarkLayout
         ? Colors.white
-        : (isLayout05 ? Layout05Theme.textDark : null);
+        : (isLayout05 ? Layout03Theme.textDark : null);
     final iconColor = isDarkLayout
         ? const Color(0xFF00D9FF)
-        : (isLayout05 ? Layout05Theme.primary : textTheme.bodySmall?.color);
+        : (isLayout05 ? Layout03Theme.primary : textTheme.bodySmall?.color);
 
     return Row(
       children: [

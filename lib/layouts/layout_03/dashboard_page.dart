@@ -44,7 +44,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final status = user?.status ?? widget.connectionStatus;
 
     return Scaffold(
-      backgroundColor: Layout05Theme.background, // Soft Grey
+      backgroundColor: Layout03Theme.background, // Soft Grey
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
@@ -80,7 +80,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
               const SizedBox(height: 32),
 
-              Text('Ações Rápidas', style: Layout05Theme.label),
+              Text('Ações Rápidas', style: Layout03Theme.label),
               const SizedBox(height: 16),
 
               // Shortcuts Grid
@@ -133,19 +133,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Olá,',
-                style: Layout05Theme.heading2.copyWith(
-                    color: Layout05Theme.textGrey,
+                style: Layout03Theme.heading2.copyWith(
+                    color: Layout03Theme.textGrey,
                     fontWeight: FontWeight.normal)),
             Text(name.split(' ').first,
-                style: Layout05Theme.heading1
-                    .copyWith(color: Layout05Theme.textDark)),
+                style: Layout03Theme.heading1
+                    .copyWith(color: Layout03Theme.textDark)),
           ],
         ),
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Layout05Theme.background,
+            color: Layout03Theme.background,
             boxShadow: [
               const BoxShadow(
                   color: Colors.white, offset: Offset(-5, -5), blurRadius: 10),
@@ -159,7 +159,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Layout05Theme.primary, // Pop of color
+              color: Layout03Theme.primary, // Pop of color
             ),
             child:
                 const Icon(Icons.person_rounded, color: Colors.white, size: 28),
@@ -172,12 +172,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   Widget _buildNeumorphicStatus(String status) {
     final isOnline =
         status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
-    final color = isOnline ? Layout05Theme.success : Layout05Theme.error;
+    final color = isOnline ? Layout03Theme.success : Layout03Theme.error;
 
     return Container(
       height: 150,
       padding: const EdgeInsets.all(20),
-      decoration: Layout05Theme.neumorphicDecoration,
+      decoration: Layout03Theme.neumorphicDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -186,7 +186,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             padding: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Layout05Theme.background,
+              color: Layout03Theme.background,
               boxShadow: [
                 BoxShadow(
                     color: Colors.white, offset: Offset(-2, -2), blurRadius: 4),
@@ -202,10 +202,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Status', style: Layout05Theme.label),
+              Text('Status', style: Layout03Theme.label),
               const SizedBox(height: 4),
               Text(isOnline ? 'Online' : 'Offline',
-                  style: Layout05Theme.heading2
+                  style: Layout03Theme.heading2
                       .copyWith(fontSize: 18, color: color)),
             ],
           )
@@ -218,7 +218,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return Container(
       height: 150,
       padding: const EdgeInsets.all(20),
-      decoration: Layout05Theme.neumorphicDecoration,
+      decoration: Layout03Theme.neumorphicDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -226,20 +226,20 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           Align(
             alignment: Alignment.topRight,
             child: Text('Vence ${dueDate.day}/${dueDate.month}',
-                style: Layout05Theme.label
-                    .copyWith(fontSize: 11, color: Layout05Theme.primary)),
+                style: Layout03Theme.label
+                    .copyWith(fontSize: 11, color: Layout03Theme.primary)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Fatura', style: Layout05Theme.label),
+              Text('Fatura', style: Layout03Theme.label),
               const SizedBox(height: 4),
               Text('R\$ ${amount.toStringAsFixed(0)}',
-                  style: Layout05Theme.heading2
-                      .copyWith(color: Layout05Theme.textDark, fontSize: 22)),
+                  style: Layout03Theme.heading2
+                      .copyWith(color: Layout03Theme.textDark, fontSize: 22)),
               Text(',${amount.toStringAsFixed(2).split('.')[1]}',
-                  style: Layout05Theme.heading2
-                      .copyWith(color: Layout05Theme.textGrey, fontSize: 16)),
+                  style: Layout03Theme.heading2
+                      .copyWith(color: Layout03Theme.textGrey, fontSize: 16)),
             ],
           )
         ],
@@ -251,27 +251,27 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      decoration: Layout05Theme.neumorphicDecoration,
+      decoration: Layout03Theme.neumorphicDecoration,
       child: Row(
         children: [
-          const Icon(Icons.speed_rounded, color: Layout05Theme.primary, size: 36),
+          const Icon(Icons.speed_rounded, color: Layout03Theme.primary, size: 36),
           const SizedBox(width: 24),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Sua Velocidade', style: Layout05Theme.label),
+                Text('Sua Velocidade', style: Layout03Theme.label),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text('${speed.toInt()}',
-                        style: Layout05Theme.heading1
-                            .copyWith(color: Layout05Theme.textDark)),
+                        style: Layout03Theme.heading1
+                            .copyWith(color: Layout03Theme.textDark)),
                     const SizedBox(width: 4),
                     Text('MEGA',
-                        style: Layout05Theme.label
-                            .copyWith(color: Layout05Theme.primary)),
+                        style: Layout03Theme.label
+                            .copyWith(color: Layout03Theme.primary)),
                   ],
                 ),
               ],
@@ -288,15 +288,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       child: Container(
         height: 100,
         decoration:
-            Layout05Theme.flatDecoration, // Slightly flatter for buttons
+            Layout03Theme.flatDecoration, // Slightly flatter for buttons
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Layout05Theme.textGrey, size: 28),
+            Icon(icon, color: Layout03Theme.textGrey, size: 28),
             const SizedBox(height: 12),
             Text(title,
                 style: const TextStyle(
-                    color: Layout05Theme.textDark,
+                    color: Layout03Theme.textDark,
                     fontWeight: FontWeight.bold,
                     fontSize: 13)),
           ],

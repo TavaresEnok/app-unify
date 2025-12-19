@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers/providers.dart';
 
 import '../../core/models/provider_config.dart';
-import '../../layouts/layout_05/theme.dart';
+import '../../layouts/layout_03/theme.dart';
 import '../../layout_selector.dart';
 
 class SuportePage extends ConsumerWidget {
@@ -38,9 +38,9 @@ class SuportePage extends ConsumerWidget {
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
-      backgroundColor = Layout05Theme.background;
-      appBarColor = Layout05Theme.background;
-      appBarTextColor = Layout05Theme.textDark;
+      backgroundColor = Layout03Theme.background;
+      appBarColor = Layout03Theme.background;
+      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
       appBarColor = theme.primaryColor;
@@ -87,7 +87,7 @@ class SuportePage extends ConsumerWidget {
             Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
       );
     } else if (isLayout05) {
-      decoration = Layout05Theme.neumorphicDecoration;
+      decoration = Layout03Theme.neumorphicDecoration;
     } else {
       decoration = BoxDecoration(
         color: Colors.white,
@@ -117,7 +117,7 @@ class SuportePage extends ConsumerWidget {
               'Status da Conexão',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: isLayout05 ? Layout05Theme.textDark : null,
+                color: isLayout05 ? Layout03Theme.textDark : null,
               ),
             ),
             const SizedBox(height: 16),
@@ -144,7 +144,7 @@ class SuportePage extends ConsumerWidget {
                   status,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isLayout05 ? Layout05Theme.textDark : null,
+                    color: isLayout05 ? Layout03Theme.textDark : null,
                   ),
                 ),
               ],
@@ -155,7 +155,7 @@ class SuportePage extends ConsumerWidget {
                   ? 'Sua conexão está funcionando normalmente. Se encontrar problemas, tente nosso diagnóstico.'
                   : 'Detectamos um problema com sua conexão. Verifique suas faturas ou entre em contato.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isLayout05 ? Layout05Theme.textGrey : null,
+                color: isLayout05 ? Layout03Theme.textGrey : null,
               ),
             ),
             const SizedBox(height: 20),
@@ -177,7 +177,7 @@ class SuportePage extends ConsumerWidget {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Layout05Theme.primary,
+                        backgroundColor: Layout03Theme.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -223,7 +223,7 @@ class SuportePage extends ConsumerWidget {
             Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
       );
     } else if (isLayout05) {
-      decoration = Layout05Theme.neumorphicDecoration;
+      decoration = Layout03Theme.neumorphicDecoration;
     } else {
       decoration = BoxDecoration(
         color: Colors.white,
@@ -251,14 +251,14 @@ class SuportePage extends ConsumerWidget {
               'Precisa de Ajuda?',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: isLayout05 ? Layout05Theme.textDark : null,
+                color: isLayout05 ? Layout03Theme.textDark : null,
               ),
             ),
             const SizedBox(height: 16),
             Text(
               'Entre em contato diretamente com nosso suporte técnico via WhatsApp.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isLayout05 ? Layout05Theme.textGrey : null,
+                color: isLayout05 ? Layout03Theme.textGrey : null,
               ),
             ),
             const SizedBox(height: 20),
@@ -322,7 +322,7 @@ class SuportePage extends ConsumerWidget {
                 },
                 style: isLayout05
                     ? ElevatedButton.styleFrom(
-                        backgroundColor: Layout05Theme.secondary,
+                        backgroundColor: Layout03Theme.secondary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(

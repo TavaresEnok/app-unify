@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../providers/providers.dart';
-import '../../layouts/layout_06/widgets/glass_card.dart';
+import '../../layouts/layout_04/widgets/glass_card.dart';
 
 class SharedNotificationPage extends ConsumerStatefulWidget {
   const SharedNotificationPage({super.key});
