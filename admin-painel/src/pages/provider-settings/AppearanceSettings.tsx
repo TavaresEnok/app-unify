@@ -158,6 +158,38 @@ export default function AppearanceSettings() {
             textColor: '#FFFFFF',
             iconColor: '#00F3FF',
         },
+        layout_12: {
+            themeColor: '#000000',
+            secondaryColor: '#333333',
+            backgroundColor: '#FFFFFF',
+            cardColor: '#FFFFFF',
+            textColor: '#000000',
+            iconColor: '#000000',
+        },
+        layout_13: {
+            themeColor: '#00FFFF',
+            secondaryColor: '#FF00FF',
+            backgroundColor: '#050A14',
+            cardColor: '#101010',
+            textColor: '#FFFFFF',
+            iconColor: '#00FFFF',
+        },
+        layout_14: {
+            themeColor: '#D4AF37',
+            secondaryColor: '#C5A028',
+            backgroundColor: '#101010',
+            cardColor: '#1A1A1A',
+            textColor: '#FFFFFF',
+            iconColor: '#D4AF37',
+        },
+        layout_15: {
+            themeColor: '#6366F1',
+            secondaryColor: '#10B981',
+            backgroundColor: '#F3F4F6',
+            cardColor: '#FFFFFF',
+            textColor: '#1F2937',
+            iconColor: '#6366F1',
+        },
 
     };
 
@@ -220,7 +252,15 @@ export default function AppearanceSettings() {
                                     <SelectItem value="layout_09">Layout 09 - Organic / Biomorphic</SelectItem>
                                     <SelectItem value="layout_10">Layout 10 - Mesh / Glassmorphism</SelectItem>
                                     <SelectItem value="layout_11">Layout 11 - Cyberpunk / Neon</SelectItem>
+                                    <SelectItem value="layout_12">Layout 12 - Minimalist (Tipografia)</SelectItem>
+                                    <SelectItem value="layout_13">Layout 13 - Futuristic (Cyber)</SelectItem>
+                                    <SelectItem value="layout_14">Layout 14 - Premium Dark (Gold)</SelectItem>
+                                    <SelectItem value="layout_15">Layout 15 - Dynamic (Modular)</SelectItem>
 
+                                    <SelectItem value="layout_12">Layout 12 - Minimalist (Tipografia)</SelectItem>
+                                    <SelectItem value="layout_13">Layout 13 - Futuristic (Cyber)</SelectItem>
+                                    <SelectItem value="layout_14">Layout 14 - Premium Dark (Gold)</SelectItem>
+                                    <SelectItem value="layout_15">Layout 15 - Dynamic (Modular)</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
