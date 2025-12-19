@@ -44,7 +44,7 @@ class ProviderModel {
       details: map['details'],
       features: map['features'],
       notifications: map['notifications'],
-      appConfig: map['appConfig'],
+      appConfig: map['config'] ?? map['appConfig'], // Read from 'config' first
     );
   }
 
@@ -58,7 +58,7 @@ class ProviderModel {
       'details': details,
       'features': features,
       'notifications': notifications,
-      'appConfig': appConfig,
+      'config': appConfig, // Save to 'config' to match Web Admin
     };
   }
 

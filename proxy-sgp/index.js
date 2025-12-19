@@ -62,6 +62,28 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
+// --- CACHE SYSTEM (Simple In-Memory) ---
+const cacheStore = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Minutes
+
+function getFromCache(key) {
+    if (!cacheStore.has(key)) return null;
+    const item = cacheStore.get(key);
+    if (Date.now() > item.expiry) {
+        cacheStore.delete(key);
+        return null;
+    }
+    return item.data;
+}
+
+function setInCache(key, data) {
+    cacheStore.set(key, {
+        data,
+        expiry: Date.now() + CACHE_TTL_MS
+    });
+}
+// ----------------------------------------
+
 // --- CONFIGURAÇÃO ---
 app.use(cors());
 app.use(bodyParser.json());
@@ -155,20 +177,121 @@ function parseSignalValue(value) {
     return isNaN(num) ? null : num;
 }
 
+// --- HELPER: Credential Injection (Safeguard) ---
+// Garante que Token e App existam, usando padrão se necessário.
+function ensureSgpCredentials(body) {
+    const sgpParams = body.sgpParams || {};
+    const sgpBaseUrl = body.sgpBaseUrl || "https://vibetelecom.sgp.net.br";
+
+    // Credenciais Padrão (Definitivas para este servidor)
+    if (!sgpParams.token) sgpParams.token = "4b6aae35-219a-4580-8c5c-dfb4efdbfae3";
+    if (!sgpParams.app) sgpParams.app = "APP-PROVEDOR";
+
+    return { sgpParams, sgpBaseUrl };
+}
+
 // 1. Rota de Consumo
 app.post('/get-consumption-data', async (req, res) => {
-    const { cpfCnpj, senha, sgpParams, sgpBaseUrl } = req.body;
-    if (!cpfCnpj || !senha || !sgpParams || !sgpBaseUrl) return res.status(400).json({ error: { message: "Dados incompletos." } });
+    const { cpfCnpj, senha, mes, ano } = req.body;
+    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+
+    if (!cpfCnpj || !senha) return res.status(400).json({ error: { message: "Dados incompletos (CPF/Senha)." } });
+
     try {
-        const consultaParams = { ...sgpParams, cpfcnpj: cpfCnpj, url: formatSgpUrl(sgpBaseUrl, '/ws/ura/consultacliente/') };
+        const consultaParams = {
+            ...sgpParams,
+            cpfcnpj: cpfCnpj,
+            url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/')
+        };
         const consultaResponse = await executePhp(consultaParams);
-        if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) return res.status(404).json({ error: { message: "Nenhum contrato encontrado." } });
+
+        if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) {
+            return res.status(404).json({ error: { message: "Nenhum contrato encontrado." } });
+        }
+
         const contratoId = consultaResponse.contratos[0].contratoId;
         const hoje = new Date();
-        const extratoParams = { ...sgpParams, cpfcnpj: cpfCnpj, senha: senha, contrato: contratoId.toString(), mes: (hoje.getMonth() + 1).toString(), ano: hoje.getFullYear().toString(), url: formatSgpUrl(sgpBaseUrl, '/api/central/extratouso/') };
+        // Use provided month/year or default to current
+        // Note: JS getMonth() is 0-indexed (0=Jan), SGP expects 1-12
+        const targetMonth = mes ? mes.toString() : (hoje.getMonth() + 1).toString();
+        const targetYear = ano ? ano.toString() : hoje.getFullYear().toString();
+
+        console.log(`[Consumo] Buscando extrato para Contrato ${contratoId} - ${targetMonth}/${targetYear}`);
+
+        const extratoParams = {
+            ...sgpParams,
+            cpfcnpj: cpfCnpj,
+            senha: senha,
+            contrato: contratoId.toString(),
+            mes: targetMonth,
+            ano: targetYear,
+            url: formatSgpUrl(sgpBaseUrl, '/api/central/extratouso/')
+        };
+
         const extratoResponse = await executePhp(extratoParams);
-        res.status(200).json({ data: { usedGb: (extratoResponse?.total ?? 0) / (1024 * 1024 * 1024), planName: extratoResponse?.plano ?? "Plano não informado", period: `${(hoje.getMonth() + 1).toString().padStart(2, '0')}/${hoje.getFullYear()}` } });
-    } catch (error) { res.status(500).json({ error: { message: error.message } }); }
+
+        // DEBUG: Inspetor de Resposta SGP
+        console.log(`[Consumo DEBUG] Keys recebidas: ${Object.keys(extratoResponse || {}).join(', ')}`);
+        if (extratoResponse?.extrato) {
+            console.log(`[Consumo DEBUG] Tipo de 'extrato': ${typeof extratoResponse.extrato}, IsArray: ${Array.isArray(extratoResponse.extrato)}, Length: ${extratoResponse.extrato?.length}`);
+            if (Array.isArray(extratoResponse.extrato) && extratoResponse.extrato.length > 0) {
+                console.log(`[Consumo DEBUG] Primeiro item:`, JSON.stringify(extratoResponse.extrato[0]));
+            }
+        } else {
+            console.log(`[Consumo DEBUG] Campo 'extrato' está AUSENTE ou NULO.`);
+        }
+
+        const usedGb = (extratoResponse?.total ?? 0) / (1024 * 1024 * 1024);
+
+        // Tenta encontrar o array de detalhes em varios campos comuns do SGP
+        const rawDetails = extratoResponse?.extrato ?? extratoResponse?.list ?? extratoResponse?.sessions ?? extratoResponse?.detalhes ?? [];
+
+        // [FIX] Aggregate data by day to prevent App crash with huge lists
+        const dailyMap = {};
+        let totalBytes = 0;
+
+        if (Array.isArray(rawDetails)) {
+            rawDetails.forEach(item => {
+                try {
+                    // Try to parse date (usually 'data_inicio' or 'data')
+                    const dateStr = item.data_inicio || item.data || item.start_time;
+                    if (dateStr) {
+                        const date = new Date(dateStr);
+                        if (!isNaN(date.getTime())) {
+                            const day = date.getDate(); // 1-31
+                            const down = parseFloat(item.download || 0);
+                            const up = parseFloat(item.upload || 0);
+                            const sessionTotal = down + up;
+
+                            dailyMap[day] = (dailyMap[day] || 0) + sessionTotal;
+                            totalBytes += sessionTotal;
+                        }
+                    }
+                } catch (e) { }
+            });
+        }
+
+        // Format for App: [{ day: 1, gb: 2.5 }, ...]
+        const dailyDetails = Object.keys(dailyMap).map(day => ({
+            day: parseInt(day),
+            gb: dailyMap[day] / (1024 * 1024 * 1024)
+        })).sort((a, b) => a.day - b.day);
+
+        // Calculate total only if API didn't provide it (or if we trust ours more)
+        const finalUsedGb = (extratoResponse?.total ? parseFloat(extratoResponse.total) : totalBytes) / (1024 * 1024 * 1024);
+
+        res.status(200).json({
+            data: {
+                usedGb: finalUsedGb,
+                planName: extratoResponse?.plano ?? "Plano não informado",
+                period: `${targetMonth.padStart(2, '0')}/${targetYear}`,
+                details: dailyDetails // Now simplified
+            }
+        });
+    } catch (error) {
+        console.error(`[Consumo] Erro: ${error.message}`);
+        res.status(500).json({ error: { message: error.message } });
+    }
 });
 // 2. Rotas Sincronização Clientes
 app.post('/sync-clients', async (req, res) => {
@@ -219,9 +342,23 @@ app.post('/get-single-client', (req, res) => {
 });
 // 3. Info Básica Cliente (Check-CPF) + Mock
 app.post('/check-cpf', async (req, res) => {
-    const { cpf, sgpParams, sgpBaseUrl } = req.body;
+    const { cpf } = req.body;
     const cpfCnpjUnformatted = cpf ? cpf.replace(/[^0-9]/g, '') : '';
-    if (!cpfCnpjUnformatted || !sgpParams || !sgpBaseUrl) return res.status(400).json({ error: { message: "Dados incompletos." } });
+    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+
+    if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos." } });
+
+    // CACHE CHECK
+    const cacheKey = `check_cpf_${cpfCnpjUnformatted}`;
+    const cachedData = getFromCache(cacheKey);
+    if (cachedData) {
+        console.log(`[Check-CPF] Hit Cache para ${cpfCnpjUnformatted}`);
+        return res.status(200).json(cachedData);
+    }
+
+    // Log para debug
+    console.log(`[Check-CPF] Iniciando check para ${cpfCnpjUnformatted}`);
+    console.log(`[Check-CPF] Params usados: Token=${sgpParams.token?.substring(0, 5)}..., App=${sgpParams.app}, URL=${sgpBaseUrl}`);
     // MOCK LOGIN
     if (cpfCnpjUnformatted === DEV_CPF) {
         console.log(`[MOCK] Login Check-CPF para DEV: ${DEV_CPF}`);
@@ -238,11 +375,94 @@ app.post('/check-cpf', async (req, res) => {
         });
     }
     try {
-        const clientParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/') };
+        const clientParams = {
+            ...sgpParams,
+            cpfcnpj: cpfCnpjUnformatted,
+            url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/')
+        };
         const clientResponse = await executePhp(clientParams);
+
+        // DEBUG EXTREMO: Gravar em arquivo para escapar do PM2 logs truncation
+        try {
+            require('fs').appendFileSync('debug_login.log', `[${new Date().toISOString()}] RAW RESPONSE: ${JSON.stringify(clientResponse)}\n`);
+        } catch (e) { console.error('Erro ao gravar debug log', e); }
+
+        console.log('[Check-CPF] Raw SGP Response:', JSON.stringify(clientResponse));
+
         if (!clientResponse?.contratos?.length) return res.status(404).json({ error: { message: "Cliente não encontrado." } });
-        const contrato = clientResponse.contratos[0];
-        res.status(200).json({ nome: contrato.razaoSocial, cpfCnpj: contrato.cpfCnpj, senha: contrato.contratoCentralSenha, plano: contrato.servico_plano, status: contrato.contratoStatusDisplay, valorFatura: contrato.contratoValorAberto, vencimentoFatura: '10', contratoId: contrato.contratoId, email: contrato.email });
+
+        let contrato = clientResponse.contratos[0];
+        let valorAberto = parseFloat(contrato.contratoValorAberto || '0');
+        let vencimento = contrato.cobVencimento;
+
+        // Se o valor vier zerado do cadastro, busca nas faturas abertas
+        if (!valorAberto || valorAberto <= 0) {
+            try {
+                const titlesParams = {
+                    ...sgpParams,
+                    cpfcnpj: cpfCnpjUnformatted,
+                    status: 'abertos',
+                    url: formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/')
+                };
+                console.log('[Check-CPF] Valor zerado. Buscando títulos abertos...');
+                const titlesResponse = await executePhp(titlesParams);
+
+                if (titlesResponse?.titulos?.length) {
+                    // Filtra apenas faturas vencidas ou a vencer nos próximos 45 dias
+                    // Isso evita somar faturas de anos futuros se o provedor gerou carnê
+                    const now = new Date();
+                    const limitDate = new Date();
+                    limitDate.setDate(limitDate.getDate() + 45); // Próximos 45 dias
+
+                    // Ordena por vencimento (mais antiga primeiro)
+                    const sortedTitles = titlesResponse.titulos.sort((a, b) => {
+                        return new Date(a.dataVencimento) - new Date(b.dataVencimento);
+                    });
+
+                    // Pega a fatura mais antiga em aberto (foco no "próximo pagamento" ou "dívida antiga")
+                    // O cliente pediu: "fatura pendente que está depois do que foi paga pela ultima vez ou do mês"
+                    // Vamos somar todas as vencidas + a atual. Descartar as muito futuras.
+
+                    const validTitles = sortedTitles.filter(t => {
+                        const d = new Date(t.dataVencimento);
+                        return d <= limitDate;
+                    });
+
+                    // Se tiver títulos válidos (limitados no tempo), usa eles. Se não, usa o primeiro da lista geral (mesmo que longe) para não mostrar zero.
+                    const titlesToSum = validTitles.length > 0 ? validTitles : [sortedTitles[0]];
+
+                    valorAberto = titlesToSum.reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
+                    vencimento = titlesToSum[0].dataVencimento;
+
+                    console.log(`[Check-CPF] Novo valor calculado (Inteligente): ${valorAberto}, Vencimento: ${vencimento}`);
+                }
+            } catch (e) {
+                console.error('[Check-CPF] Erro ao buscar títulos para saldo:', e);
+            }
+        }
+
+        const responseData = {
+            nome: contrato.razaoSocial,
+            cpfCnpj: contrato.cpfCnpj,
+            senha: contrato.contratoCentralSenha,
+            plano: contrato.servico_plano,
+            status: contrato.contratoStatusDisplay || "Ativo",
+            valorFatura: valorAberto.toFixed(2).replace('.', ','),
+            vencimentoFatura: vencimento
+                ? (vencimento.toString().includes('-')
+                    ? vencimento.split('-').reverse().join('/')
+                    : `Dia ${vencimento}`)
+                : "N/A",
+            contratoId: contrato.contratoId,
+            email: "cliente@email.com"
+        };
+        console.log('[Check-CPF] Resposta Enviada:', JSON.stringify(responseData));
+        console.log('[Check-CPF] Resposta Enviada:', JSON.stringify(responseData));
+
+        // SAVE TO CACHE
+        setInCache(cacheKey, responseData);
+
+        res.status(200).json(responseData);
     } catch (error) { res.status(500).json({ error: { message: error.message } }); }
 });
 app.post('/get-client-data-for-login', async (req, res) => {
@@ -340,11 +560,12 @@ app.post('/diagnostic/analyze', async (req, res) => {
 });
 // 5. Rotas CPE Manager (Wi-Fi)
 app.post('/cpe/wifi/list', async (req, res) => {
-    const { cpfCnpj, senha, contrato, sgpParams, sgpBaseUrl } = req.body;
+    const { cpfCnpj, senha, contrato } = req.body;
+    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     // DEBUG: Verificando o que está chegando
-    console.log(`[WIFI-LIST] Iniciando busca para Contrato: ${contrato}`);
-    if (!contrato || !sgpParams || !sgpBaseUrl) {
+    console.log(`[WIFI-LIST] Buscando para Contrato: ${contrato}`);
+    if (!contrato) {
         console.error("[WIFI-LIST] Erro: Dados incompletos", req.body);
         return res.status(400).json({ error: { message: "Dados incompletos" } });
     }
@@ -367,10 +588,11 @@ app.post('/cpe/wifi/list', async (req, res) => {
     }
 });
 app.post('/cpe/wifi/update', async (req, res) => {
-    const { cpfCnpj, senha, contrato, wifiId, ssid, password, sgpParams, sgpBaseUrl } = req.body;
+    const { cpfCnpj, senha, contrato, wifiId, ssid, password } = req.body;
+    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     console.log(`[WIFI-UPDATE] Tentando atualizar WiFi ID: ${wifiId} do Contrato: ${contrato}`);
-    if (!contrato || !wifiId || !ssid || !password || !sgpParams || !sgpBaseUrl) return res.status(400).json({ error: { message: "Dados incompletos" } });
+    if (!contrato || !wifiId || !ssid || !password) return res.status(400).json({ error: { message: "Dados incompletos" } });
     try {
         const updateParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, wifi_id: wifiId, ssid, password, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/update/`) };
         const response = await executePhp(updateParams);
@@ -384,11 +606,21 @@ app.post('/cpe/wifi/update', async (req, res) => {
 
 // 6. ROTA DE FATURAS (APP FLUTTER) - ADICIONADA
 app.post('/get-invoices', async (req, res) => {
-    const { cpfCnpj, sgpParams, sgpBaseUrl } = req.body;
+    const { cpfCnpj } = req.body;
+    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
 
-    if (!cpfCnpjUnformatted || !sgpParams || !sgpBaseUrl) {
-        return res.status(400).json({ error: { message: "cpfCnpj, sgpParams e sgpBaseUrl são obrigatórios." } });
+    // CACHE CHECK
+    const cacheKey = `invoices_${cpfCnpjUnformatted}`;
+    const cachedData = getFromCache(cacheKey);
+    if (cachedData) {
+        console.log(`[Faturas] Hit Cache para ${cpfCnpjUnformatted}`);
+        return res.status(200).json(cachedData);
+    }
+
+    if (!cpfCnpjUnformatted) {
+        return res.status(400).json({ error: { message: "cpfCnpj obrigatório." } });
     }
     console.log(`[Faturas] Buscando faturas para: ${cpfCnpjUnformatted} no SGP: ${sgpBaseUrl}`);
 
@@ -442,7 +674,12 @@ app.post('/get-invoices', async (req, res) => {
         }
 
         console.log(`[Faturas] Total de faturas formatadas: ${formattedInvoices.length}`);
-        res.status(200).json({ data: formattedInvoices });
+        console.log(`[Faturas] Total de faturas formatadas: ${formattedInvoices.length}`);
+
+        const responseData = { data: formattedInvoices };
+        setInCache(cacheKey, responseData);
+
+        res.status(200).json(responseData);
     } catch (error) {
         console.error("Erro geral na rota /get-invoices:", error.message);
         res.status(500).json({ error: { message: error.message || "Erro interno ao buscar faturas." } });

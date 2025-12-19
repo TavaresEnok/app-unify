@@ -14,6 +14,9 @@ pm2 start "npm run dev" --name "admin-painel"
 cd ../api-service
 pm2 start "npm run dev" --name "api-service"
 
+cd ../speed_test_server
+pm2 start server.js --name "speed-test-server"
+
 pm2 save
 echo ""
 echo "✅ Serviços iniciados!"

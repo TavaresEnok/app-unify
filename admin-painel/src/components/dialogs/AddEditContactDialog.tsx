@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Phone, Mail, MapPin } from "lucide-react"; 
+import { Trash2, Phone, Mail, MapPin } from "lucide-react";
 import { toast } from 'sonner';
 
 interface Contact {
@@ -83,12 +83,13 @@ export default function AddEditContactDialog({ contact, onSave, onDelete }: AddE
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="type" className="text-right">Tipo</Label>
-            <Select value={type} onValueChange={(v) => setType(v as 'phone' | 'email' | 'address')}>
+            <Select value={type} onValueChange={(v) => setType(v as 'phone' | 'email' | 'address' | 'whatsapp')}>
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Selecione o Tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="phone">Telefone / WhatsApp</SelectItem>
+                <SelectItem value="phone">Telefone</SelectItem>
+                <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="email">Email</SelectItem>
                 <SelectItem value="address">Endereço</SelectItem>
               </SelectContent>

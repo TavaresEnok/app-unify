@@ -3,16 +3,29 @@ import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Phone, Mail, MapPin, Trash2 } from 'lucide-react';
+import { Loader2, Phone, Mail, MapPin, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import AddEditContactDialog from '@/components/dialogs/AddEditContactDialog';
 
 interface SupportContact {
     id: string;
     name: string;
-    type: 'phone' | 'email' | 'address';
+    type: 'phone' | 'email' | 'address' | 'whatsapp';
     value: string;
 }
+
+// ... (in component)
+
+// Mapeia o tipo para um ícone
+const getIcon = (type: 'phone' | 'email' | 'address' | 'whatsapp') => {
+    switch (type) {
+        case 'phone': return <Phone className="h-5 w-5 text-gray-600" />;
+        case 'whatsapp': return <MessageCircle className="h-5 w-5 text-green-600" />;
+        case 'email': return <Mail className="h-5 w-5 text-red-600" />;
+        case 'address': return <MapPin className="h-5 w-5 text-blue-600" />;
+        default: return null;
+    }
+};
 
 export default function SupportSettings() {
     const context = useContext(SettingsContext);
@@ -29,7 +42,7 @@ export default function SupportSettings() {
     // Função interna para atualizar o contexto e o estado local
     const updateAndSave = (updatedContacts: SupportContact[]) => {
         setLocalContacts(updatedContacts);
-        
+
         // Atualiza o contexto
         // CORRIGIDO: Tipagem do prev para resolver TS7006
         setConfig((prev: ProviderConfig) => ({ ...prev, supportContacts: updatedContacts }));
@@ -39,7 +52,7 @@ export default function SupportSettings() {
     const handleSaveContact = (contact: Omit<SupportContact, 'id'>, id?: string) => {
         if (id) {
             // Edição
-            const updatedContacts = localContacts.map(c => 
+            const updatedContacts = localContacts.map(c =>
                 c.id === id ? { ...c, ...contact } : c
             );
             updateAndSave(updatedContacts);
@@ -58,16 +71,8 @@ export default function SupportSettings() {
         updateAndSave(updatedContacts);
         toast.warning("Contato removido. Salve no topo para confirmar.");
     };
-    
-    // Mapeia o tipo para um ícone
-    const getIcon = (type: 'phone' | 'email' | 'address') => {
-        switch (type) {
-            case 'phone': return <Phone className="h-5 w-5 text-green-600" />;
-            case 'email': return <Mail className="h-5 w-5 text-red-600" />;
-            case 'address': return <MapPin className="h-5 w-5 text-blue-600" />;
-            default: return null;
-        }
-    };
+
+
 
     return (
         <Card>
@@ -99,14 +104,14 @@ export default function SupportSettings() {
                                     </div>
                                     <div className="flex gap-2">
                                         {/* Diálogo de Edição */}
-                                        <AddEditContactDialog 
-                                            contact={contact} 
-                                            onSave={handleSaveContact} 
+                                        <AddEditContactDialog
+                                            contact={contact}
+                                            onSave={handleSaveContact}
                                             onDelete={handleRemoveContact}
                                         />
-                                        <Button 
-                                            variant="destructive" 
-                                            size="icon" 
+                                        <Button
+                                            variant="destructive"
+                                            size="icon"
                                             onClick={() => handleRemoveContact(contact.id)}
                                             disabled={isSaving}
                                         >

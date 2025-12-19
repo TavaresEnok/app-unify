@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleGetDashboardDataRequest = exports.handleUpdateProviderDetailsRequest = exports.handleUpdateProviderConfigRequest = void 0;
+exports.handleDeleteProviderRequest = exports.handleGetDashboardDataRequest = exports.handleUpdateProviderDetailsRequest = exports.handleUpdateProviderConfigRequest = void 0;
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
 const firestore_2 = require("firebase-functions/v2/firestore");
@@ -303,6 +303,69 @@ exports.handleGetDashboardDataRequest = (0, firestore_2.onDocumentCreated)({
     }
     catch (error) {
         logger.error(`Erro em GET_DASHBOARD_DATA ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+// --- 5. FUNÇÃO PARA DELETAR PROVEDOR ---
+exports.handleDeleteProviderRequest = (0, firestore_2.onDocumentCreated)({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    var _a, _b, _c, _d;
+    const requestId = event.params.requestId;
+    const requestData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    if (!requestData || requestData.type !== 'DELETE_PROVIDER') {
+        return null;
+    }
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const providerId = (_b = requestData.payload) === null || _b === void 0 ? void 0 : _b.providerId;
+    try {
+        if (!providerId || !requesterUid) {
+            throw new Error("ProviderID e RequesterUID são obrigatórios.");
+        }
+        // Validação de Permissões - Apenas SuperAdmin pode deletar
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = ((_c = user.customClaims) === null || _c === void 0 ? void 0 : _c.superAdmin) === true;
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada. Apenas SuperAdmin pode deletar provedores.");
+        }
+        const providerRef = db.collection("provedores").doc(providerId);
+        const providerDoc = await providerRef.get();
+        if (!providerDoc.exists) {
+            throw new Error(`Provedor '${providerId}' não encontrado.`);
+        }
+        const providerName = ((_d = providerDoc.data()) === null || _d === void 0 ? void 0 : _d.name) || providerId;
+        // 1. Deletar usuários associados (opcional - mas importante para limpeza)
+        const usersSnapshot = await db.collection("users")
+            .where("providerId", "==", providerId)
+            .get();
+        const batch = db.batch();
+        usersSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        // 2. Deletar tickets associados
+        const ticketsSnapshot = await db.collection("tickets")
+            .where("providerId", "==", providerId)
+            .get();
+        ticketsSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        // 3. Deletar o provedor
+        batch.delete(providerRef);
+        await batch.commit();
+        logger.info(`Provedor '${providerName}' (${providerId}) deletado. Removidos ${usersSnapshot.size} usuários e ${ticketsSnapshot.size} tickets.`);
+        await writeResponse(responseRef, {
+            result: {
+                success: true,
+                message: `Provedor '${providerName}' apagado com sucesso! (${usersSnapshot.size} usuários e ${ticketsSnapshot.size} tickets removidos)`,
+                providerId
+            }
+        }, requesterUid);
+    }
+    catch (error) {
+        logger.error(`Erro em DELETE_PROVIDER ${requestId}:`, error);
         await writeResponse(responseRef, { error: error.message }, requesterUid);
     }
     return null;

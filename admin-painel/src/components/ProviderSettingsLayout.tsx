@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
-  { name: "Aparência", path: "theme" },
+  { name: "Aparência", path: "appearance" },
   { name: "Imagens & Ícones", path: "images" },
   { name: "Menus", path: "menus" },
   { name: "Módulos", path: "features" },
@@ -32,20 +32,20 @@ export default function ProviderSettingsLayout() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-8">
-        <aside className="md:col-span-1">
-            <nav className="flex flex-col gap-1">
-                {menuItems.map(item => (
-                    <NavLink key={item.path} to={`${basePath}/${item.path}`}>
-                        <Button variant="ghost" className={navLinkClass(item.path)}>
-                            {item.name}
-                        </Button>
-                    </NavLink>
-                ))}
-            </nav>
-        </aside>
-        <main className="md:col-span-3 lg:col-span-4">
-            <Outlet />
-        </main>
+      <aside className="md:col-span-1">
+        <nav className="flex flex-col gap-1">
+          {menuItems.map(item => (
+            <NavLink key={item.path} to={`${basePath}/${item.path}`}>
+              <Button variant="ghost" className={navLinkClass(item.path)}>
+                {item.name}
+              </Button>
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+      <main className="md:col-span-3 lg:col-span-4">
+        <Outlet />
+      </main>
     </div>
   );
 }

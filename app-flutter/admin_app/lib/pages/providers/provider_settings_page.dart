@@ -36,6 +36,10 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
   // Appearance
   late TextEditingController _themeColorController;
   late TextEditingController _secondaryColorController;
+  late TextEditingController _backgroundColorController; // [NEW]
+  late TextEditingController _iconColorController; // [NEW]
+  late TextEditingController _cardColorController; // [NEW]
+  late TextEditingController _textColorController; // [NEW]
   late TextEditingController _logoUrlController;
   late TextEditingController _appNameController;
   late TextEditingController _cityController;
@@ -51,6 +55,8 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
 
   // Integrations
   late TextEditingController _apiUrlController;
+  late TextEditingController
+  _textSecondaryColorController; // [FIX] Re-adding declaration
   late TextEditingController _apiTokenController;
   late TextEditingController _systemUrlController;
   late TextEditingController _systemTypeController;
@@ -61,13 +67,35 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
     _localProvider = widget.provider;
     _tabController = TabController(length: 17, vsync: this);
 
+    final appConfig = _localProvider.appConfig ?? {};
+
     // Init appearance & general
     _themeColorController = TextEditingController(
       text: _localProvider.themeColor ?? '#673AB7',
     );
+    // [FIX] Read from appConfig first, then details fallback
     _secondaryColorController = TextEditingController(
-      text: _localProvider.details?['secondaryColor'] ?? '#9575CD',
+      text:
+          appConfig['secondaryColor'] ??
+          _localProvider.details?['secondaryColor'] ??
+          '#9575CD',
     );
+    _backgroundColorController = TextEditingController(
+      text: appConfig['backgroundColor'] ?? '#0F172A',
+    );
+    _iconColorController = TextEditingController(
+      text: appConfig['iconColor'] ?? '#FFFFFF',
+    );
+    _cardColorController = TextEditingController(
+      text: appConfig['cardColor'] ?? '#1E293B',
+    );
+    _textColorController = TextEditingController(
+      text: appConfig['textColor'] ?? '#FFFFFF',
+    );
+    _textSecondaryColorController = TextEditingController(
+      text: appConfig['textSecondaryColor'] ?? '#94A3B8',
+    );
+
     _logoUrlController = TextEditingController(
       text: _localProvider.logoUrl ?? '',
     );
@@ -111,6 +139,10 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
     _tabController.dispose();
     _themeColorController.dispose();
     _secondaryColorController.dispose();
+    _backgroundColorController.dispose();
+    _iconColorController.dispose();
+    _cardColorController.dispose();
+    _textColorController.dispose();
     _logoUrlController.dispose();
     _apiUrlController.dispose();
     _apiTokenController.dispose();
@@ -140,7 +172,7 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
     final updatedDetails = Map<String, dynamic>.from(
       _localProvider.details ?? {},
     );
-    updatedDetails['secondaryColor'] = _secondaryColorController.text.trim();
+    // [FIX] Do NOT save colors to details anymore, save to appConfig
     updatedDetails['appName'] = _appNameController.text.trim();
     updatedDetails['city'] = _cityController.text.trim();
     updatedDetails['state'] = _stateController.text.trim();
@@ -158,12 +190,25 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
     updatedFeatures['invoices'] = _featureInvoices;
     updatedFeatures['contract'] = _featureContract;
 
+    // [NEW] Update appConfig (which corresponds to 'config' in Firestore)
+    final updatedAppConfig = Map<String, dynamic>.from(
+      _localProvider.appConfig ?? {},
+    );
+    updatedAppConfig['themeColor'] = _themeColorController.text.trim(); // Sync
+    updatedAppConfig['secondaryColor'] = _secondaryColorController.text.trim();
+    updatedAppConfig['backgroundColor'] = _backgroundColorController.text
+        .trim();
+    updatedAppConfig['iconColor'] = _iconColorController.text.trim();
+    updatedAppConfig['cardColor'] = _cardColorController.text.trim();
+    updatedAppConfig['textColor'] = _textColorController.text.trim();
+
     final updatedProvider = _localProvider.copyWith(
       themeColor: _themeColorController.text.trim(),
       logoUrl: _logoUrlController.text.trim(),
       apiUrl: _apiUrlController.text.trim(),
       features: updatedFeatures,
       details: updatedDetails,
+      appConfig: updatedAppConfig,
     );
 
     try {
@@ -292,6 +337,26 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
           const SizedBox(height: 16),
 
           _buildColorField('Cor Secundária', _secondaryColorController),
+          const SizedBox(height: 24),
+
+          // [NEW] Additional Colors
+          const Text(
+            'Personalização',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _buildColorField('Cor de Fundo (Page)', _backgroundColorController),
+          const SizedBox(height: 16),
+          _buildColorField('Cor dos Ícones', _iconColorController),
+          const SizedBox(height: 16),
+          _buildColorField('Cor dos Cards (Surface)', _cardColorController),
+          const SizedBox(height: 16),
+          _buildColorField('Cor do Texto', _textColorController),
+          const SizedBox(height: 16),
+          _buildColorField(
+            'Cor do Texto Secundário',
+            _textSecondaryColorController,
+          ),
           const SizedBox(height: 24),
 
           const Text(

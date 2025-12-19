@@ -329,3 +329,80 @@ export const handleGetDashboardDataRequest = onDocumentCreated({
     }
     return null;
 });
+
+// --- 5. FUNÇÃO PARA DELETAR PROVEDOR ---
+export const handleDeleteProviderRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'DELETE_PROVIDER') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const providerId = requestData.payload?.providerId;
+
+    try {
+        if (!providerId || !requesterUid) {
+            throw new Error("ProviderID e RequesterUID são obrigatórios.");
+        }
+
+        // Validação de Permissões - Apenas SuperAdmin pode deletar
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = user.customClaims?.superAdmin === true;
+
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada. Apenas SuperAdmin pode deletar provedores.");
+        }
+
+        const providerRef = db.collection("provedores").doc(providerId);
+        const providerDoc = await providerRef.get();
+
+        if (!providerDoc.exists) {
+            throw new Error(`Provedor '${providerId}' não encontrado.`);
+        }
+
+        const providerName = providerDoc.data()?.name || providerId;
+
+        // 1. Deletar usuários associados (opcional - mas importante para limpeza)
+        const usersSnapshot = await db.collection("users")
+            .where("providerId", "==", providerId)
+            .get();
+
+        const batch = db.batch();
+        usersSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        // 2. Deletar tickets associados
+        const ticketsSnapshot = await db.collection("tickets")
+            .where("providerId", "==", providerId)
+            .get();
+
+        ticketsSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        // 3. Deletar o provedor
+        batch.delete(providerRef);
+
+        await batch.commit();
+
+        logger.info(`Provedor '${providerName}' (${providerId}) deletado. Removidos ${usersSnapshot.size} usuários e ${ticketsSnapshot.size} tickets.`);
+
+        await writeResponse(responseRef, {
+            result: {
+                success: true,
+                message: `Provedor '${providerName}' apagado com sucesso! (${usersSnapshot.size} usuários e ${ticketsSnapshot.size} tickets removidos)`,
+                providerId
+            }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em DELETE_PROVIDER ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});

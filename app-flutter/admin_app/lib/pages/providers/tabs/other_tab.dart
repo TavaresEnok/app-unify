@@ -15,6 +15,7 @@ class OtherTab extends StatefulWidget {
 class _OtherTabState extends State<OtherTab> {
   late TextEditingController _privacyPolicyUrlController;
   late TextEditingController _customDomainController;
+  late TextEditingController _speedTestUrlController;
 
   @override
   void initState() {
@@ -26,12 +27,16 @@ class _OtherTabState extends State<OtherTab> {
     _customDomainController = TextEditingController(
       text: other['customDomain'] ?? '',
     );
+    _speedTestUrlController = TextEditingController(
+      text: other['speedTestUrl'] ?? '',
+    );
   }
 
   @override
   void dispose() {
     _privacyPolicyUrlController.dispose();
     _customDomainController.dispose();
+    _speedTestUrlController.dispose();
     super.dispose();
   }
 
@@ -42,6 +47,7 @@ class _OtherTabState extends State<OtherTab> {
         'other': {
           'privacyPolicyUrl': _privacyPolicyUrlController.text.trim(),
           'customDomain': _customDomainController.text.trim(),
+          'speedTestUrl': _speedTestUrlController.text.trim(),
         },
       },
     });
@@ -109,6 +115,21 @@ class _OtherTabState extends State<OtherTab> {
                   const SizedBox(height: 8),
                   Text(
                     'Pode ser usado para personalizar links internos, se aplicável.',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  ),
+                  const SizedBox(height: 24),
+
+                  TextField(
+                    controller: _speedTestUrlController,
+                    decoration: const InputDecoration(
+                      labelText: 'URL do Servidor Personalizado',
+                      hintText: 'Ex: http://192.168.1.50:8080/file',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Link direto para seu servidor próprio. O app usará este endereço para forçar o download/upload.',
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                   const SizedBox(height: 24),

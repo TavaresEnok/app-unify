@@ -16,6 +16,7 @@ interface ImageConfig {
 
 const imageFields: ImageConfig[] = [
     { key: 'backgroundUrl', label: 'Imagem de Fundo (Login)', placeholder: 'URL da imagem de fundo...', previewSize: 'h-24 w-auto' },
+    { key: 'logoUrl', label: 'Logo do Provedor', placeholder: 'URL da logo (PNG/SVG)...', previewSize: 'h-24 w-auto' },
     { key: 'iconUrl', label: 'Ícone da Aplicação', placeholder: 'URL do ícone...', previewSize: 'h-12 w-12' },
 ];
 
@@ -77,7 +78,7 @@ export default function ImagesIconsSettings() {
                             {field.key === 'backgroundUrl' ? <Monitor className="h-5 w-5" /> : <ImageIcon className="h-5 w-5" />}
                             {field.label}
                         </Label>
-                        
+
                         <div className="flex gap-2">
                             <Input
                                 id={field.key}
@@ -95,11 +96,11 @@ export default function ImagesIconsSettings() {
                         {localUrls[field.key] && (
                             <div className="mt-4 p-4 border rounded-md bg-muted/50">
                                 <p className="text-sm font-medium mb-2">Pré-visualização:</p>
-                                <img 
-                                    src={localUrls[field.key]} 
-                                    alt={`${field.label} Preview`} 
-                                    className={`${field.previewSize} object-contain`} 
-                                    onError={(e) => (e.currentTarget.style.display = 'none')} 
+                                <img
+                                    src={localUrls[field.key]}
+                                    alt={`${field.label} Preview`}
+                                    className={`${field.previewSize} object-contain`}
+                                    onError={(e) => (e.currentTarget.style.display = 'none')}
                                 />
                             </div>
                         )}
