@@ -7,6 +7,12 @@ import 'layouts/layout_05/dashboard_page.dart' as l05;
 import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_06/pages/speed_test_page.dart' as l06_speed;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
+import 'layouts/layout_08/dashboard_page.dart' as l08;
+import 'layouts/layout_08/pages/speed_test_page.dart' as l08_speed;
+import 'layouts/layout_09/dashboard_page.dart' as l09;
+import 'layouts/layout_09/pages/speed_test_page.dart' as l09_speed;
+import 'layouts/layout_10/dashboard_page.dart' as l10;
+import 'layouts/layout_10/pages/speed_test_page.dart' as l10_speed;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_02/login_page.dart' as l02_login;
@@ -14,6 +20,9 @@ import 'layouts/layout_03/login_page.dart' as l03_login;
 import 'layouts/layout_05/login_page.dart' as l05_login;
 import 'layouts/layout_06/login_page.dart' as l06_login;
 import 'layouts/layout_07/login_page.dart' as l07_login;
+import 'layouts/layout_08/login_page.dart' as l08_login;
+import 'layouts/layout_09/login_page.dart' as l09_login;
+import 'layouts/layout_10/login_page.dart' as l10_login;
 
 // ============================================
 // PÁGINAS COMPARTILHADAS (idênticas entre layouts 02/03/06/07)
@@ -147,6 +156,66 @@ class LayoutSelector {
           onNavigate: onNavigate,
         );
 
+      case 'layout_08':
+        return l08.ProviderDashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          customCardBg: customCardBg,
+          customCardText: customCardText,
+          invoiceColor: invoiceColor,
+          actionColor: actionColor,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_09':
+        return l09.ProviderDashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          customCardBg: customCardBg,
+          customCardText: customCardText,
+          invoiceColor: invoiceColor,
+          actionColor: actionColor,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_10':
+        return l10.ProviderDashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          customCardBg: customCardBg,
+          customCardText: customCardText,
+          invoiceColor: invoiceColor,
+          actionColor: actionColor,
+          onRefresh: onRefresh,
+        );
+
       default:
         // Default to Layout 02 if unknown
         return l02.ProviderDashboardPage(
@@ -183,6 +252,12 @@ class LayoutSelector {
         return const l06_login.LoginPage();
       case 'layout_07':
         return const l07_login.LoginPage();
+      case 'layout_08':
+        return const l08_login.LoginPage();
+      case 'layout_09':
+        return const l09_login.LoginPage();
+      case 'layout_10':
+        return const l10_login.LoginPage();
 
       default:
         return const l02_login.LoginPage();
@@ -224,6 +299,12 @@ class LayoutSelector {
     switch (layoutType) {
       case 'layout_06':
         return const l06_speed.Layout06SpeedTestPage();
+      case 'layout_08':
+        return const l08_speed.Layout08SpeedTestPage();
+      case 'layout_09':
+        return const l09_speed.Layout09SpeedTestPage();
+      case 'layout_10':
+        return const l10_speed.Layout10SpeedTestPage();
 
       default:
         return const shared_speed.SharedSpeedTestPage();
@@ -261,8 +342,6 @@ class LayoutSelector {
 
       case 'layout_06':
         return const l05_wifi.WifiPage();
-      case 'layout_08':
-        return const l05_wifi.WifiPage();
       default:
         return const Center(
             child: Text('Funcionalidade não disponível neste layout'));
@@ -295,6 +374,22 @@ class LayoutSelector {
       'id': 'layout_07',
       'name': 'Clean Light',
       'description': 'Tema claro e limpo'
+    },
+    {
+      'id': 'layout_08',
+      'name': 'Neubrutalism',
+      'description': 'Estilo marcante com bordas grossas e cores vibrantes'
+    },
+    {
+      'id': 'layout_09',
+      'name': 'Organic / Biomorphic',
+      'description': 'Formas suaves e fluidas inspiradas na natureza'
+    },
+    {
+      'id': 'layout_10',
+      'name': 'Mesh Gradient & Glassmorphism',
+      'description':
+          'Design ultra premium com efeitos de vidro e gradientes mesh'
     },
   ];
 }
