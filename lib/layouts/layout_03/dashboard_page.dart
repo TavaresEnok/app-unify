@@ -64,38 +64,46 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(name, plan),
+                _FadeSlideIn(
+                  delay: 0,
+                  child: _buildHeader(name, plan),
+                ),
                 const SizedBox(height: 40),
 
-                // Status & Bill Row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Connection Status - Neumorphic Card
-                    Expanded(flex: 1, child: _buildNeumorphicStatus(status)),
-                    const SizedBox(width: 20),
-                    // Bill Card - Neumorphic but highlighted
-                    Expanded(
-                        flex: 1,
-                        child: _buildNeumorphicBill(
-                            widget.billAmount, widget.billDueDate)),
-                  ],
+                _FadeSlideIn(
+                  delay: 100,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Connection Status - Neumorphic Card
+                      Expanded(flex: 1, child: _buildNeumorphicStatus(status)),
+                      const SizedBox(width: 20),
+                      // Bill Card - Neumorphic but highlighted
+                      Expanded(
+                          flex: 1,
+                          child: _buildNeumorphicBill(
+                              widget.billAmount, widget.billDueDate)),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 24),
-
-                // Connection Speed - Clickable
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    widget.onNavigate('speed_test');
-                  },
-                  child: _buildSpeedCard(widget.downloadMbps),
+                _FadeSlideIn(
+                  delay: 200,
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      widget.onNavigate('speed_test');
+                    },
+                    child: _buildSpeedCard(widget.downloadMbps),
+                  ),
                 ),
 
                 const SizedBox(height: 32),
 
-                Text('Ações Rápidas', style: Layout03Theme.label),
+                _FadeSlideIn(
+                  delay: 300,
+                  child: Text('Ações Rápidas', style: Layout03Theme.label),
+                ),
                 const SizedBox(height: 16),
 
                 // Shortcuts Grid
@@ -314,15 +322,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Widget _buildNeuShortcut(IconData icon, String title, VoidCallback onTap) {
-    return GestureDetector(
+    return _AnimatedPressButton(
       onTap: () {
         HapticFeedback.lightImpact();
         onTap();
       },
       child: Container(
         height: 100,
-        decoration:
-            Layout03Theme.flatDecoration, // Slightly flatter for buttons
+        decoration: Layout03Theme.flatDecoration,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -335,6 +342,89 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     fontSize: 13)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Animated Fade Slide In Widget
+class _FadeSlideIn extends StatefulWidget {
+  final Widget child;
+  final int delay;
+
+  const _FadeSlideIn({required this.child, this.delay = 0});
+
+  @override
+  State<_FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<_FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+  late Animation<Offset> _offset;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _opacity = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _offset = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _offset, child: widget.child),
+    );
+  }
+}
+
+// Animated Press Button with Scale Effect
+class _AnimatedPressButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _AnimatedPressButton({required this.child, required this.onTap});
+
+  @override
+  State<_AnimatedPressButton> createState() => _AnimatedPressButtonState();
+}
+
+class _AnimatedPressButtonState extends State<_AnimatedPressButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeInOut,
+        child: widget.child,
       ),
     );
   }

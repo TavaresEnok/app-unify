@@ -322,7 +322,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
 
   Widget _buildPillAction(
       IconData icon, String label, String route, Color color) {
-    return GestureDetector(
+    return _AnimatedPressButton(
       onTap: () {
         HapticFeedback.lightImpact();
         widget.onNavigate(route);
@@ -333,6 +333,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -349,8 +350,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   }
 
   Widget _buildOrganicTile(IconData icon, String label, String route) {
-    return GestureDetector(
-      onTap: () => widget.onNavigate(route),
+    return _AnimatedPressButton(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        widget.onNavigate(route);
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -359,19 +363,20 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
                 color: Layout09Theme.background,
                 shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
               ),
               child: Icon(icon, color: const Color(0xFF2C3E50), size: 22),
             ),
@@ -437,6 +442,39 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
           icon,
           color: isSelected ? Colors.white : Colors.blueGrey,
         ),
+      ),
+    );
+  }
+}
+
+// Animated Press Button with Scale Effect
+class _AnimatedPressButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _AnimatedPressButton({required this.child, required this.onTap});
+
+  @override
+  State<_AnimatedPressButton> createState() => _AnimatedPressButtonState();
+}
+
+class _AnimatedPressButtonState extends State<_AnimatedPressButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeInOut,
+        child: widget.child,
       ),
     );
   }
