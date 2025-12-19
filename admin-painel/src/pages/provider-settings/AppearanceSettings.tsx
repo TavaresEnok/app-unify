@@ -158,30 +158,7 @@ export default function AppearanceSettings() {
             textColor: '#FFFFFF',
             iconColor: '#00F3FF',
         },
-        layout_12: {
-            themeColor: '#0F766E', // Teal
-            secondaryColor: '#1E1B4B', // Indigo
-            backgroundColor: '#0F172A', // Deep Slate
-            cardColor: '#1E293B',
-            textColor: '#FFFFFF',
-            iconColor: '#0F766E',
-        },
-        layout_13: {
-            themeColor: '#00FFFF', // Cyan
-            secondaryColor: '#FF00FF', // Magenta
-            backgroundColor: '#050505',
-            cardColor: '#121212',
-            textColor: '#FFFFFF',
-            iconColor: '#00FFFF',
-        },
-        layout_14: {
-            themeColor: '#BF953F', // Gold
-            secondaryColor: '#000000', // Black
-            backgroundColor: '#101010',
-            cardColor: '#1C1C1C',
-            textColor: '#FFFFFF',
-            iconColor: '#BF953F',
-        },
+
     };
 
 
@@ -243,9 +220,7 @@ export default function AppearanceSettings() {
                                     <SelectItem value="layout_09">Layout 09 - Organic / Biomorphic</SelectItem>
                                     <SelectItem value="layout_10">Layout 10 - Mesh / Glassmorphism</SelectItem>
                                     <SelectItem value="layout_11">Layout 11 - Cyberpunk / Neon</SelectItem>
-                                    <SelectItem value="layout_12">Layout 12 - Neuroform (Bio-Organic)</SelectItem>
-                                    <SelectItem value="layout_13">Layout 13 - Cyber-Industrial</SelectItem>
-                                    <SelectItem value="layout_14">Layout 14 - Velvet Gold (Luxury)</SelectItem>
+
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
