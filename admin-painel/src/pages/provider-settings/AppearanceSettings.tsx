@@ -126,31 +126,8 @@ export default function AppearanceSettings() {
             textColor: '#171717',
             iconColor: '#4F46E5',
         },
-        layout_08: {
-            themeColor: '#22D3EE',
-            secondaryColor: '#A78BFA',
-            backgroundColor: '#0F172A',
-            cardColor: '#1E293B',
-            textColor: '#F1F5F9',
-            iconColor: '#22D3EE',
-        },
-        layout_09: {
-            themeColor: '#EC4899',
-            secondaryColor: '#8B5CF6',
-            backgroundColor: '#0C0C1E',
-            cardColor: '#16162A',
-            textColor: '#FAFAFA',
-            iconColor: '#EC4899',
-        },
-        layout_10: {
-            themeColor: '#8B5CF6',
-            secondaryColor: '#06B6D4',
-            backgroundColor: '#0D0D1A',
-            cardColor: '#1A1A2E',
-            textColor: '#FFFFFF',
-            iconColor: '#8B5CF6',
-        },
     };
+
 
     const handleLayoutChange = useCallback((newLayout: string) => {
         setConfig((prev: any) => {
@@ -206,9 +183,6 @@ export default function AppearanceSettings() {
                                     <SelectItem value="layout_05">Layout 05 - Neo Digital</SelectItem>
                                     <SelectItem value="layout_06">Layout 06 - Premium Dark</SelectItem>
                                     <SelectItem value="layout_07">Layout 07 - Clean Light</SelectItem>
-                                    <SelectItem value="layout_08">Layout 08 - Warm Premium</SelectItem>
-                                    <SelectItem value="layout_09">Layout 09 - Bento Glass</SelectItem>
-                                    <SelectItem value="layout_10">Layout 10 - Deep Purple</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
