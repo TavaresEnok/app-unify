@@ -86,7 +86,7 @@ export default function AppearanceSettings() {
 
     // Default color presets per layout
     const layoutDefaults: Record<string, Record<string, string>> = {
-        layout_02: {
+        layout_01: {
             themeColor: '#6B46C1',
             secondaryColor: '#9F7AEA',
             backgroundColor: '#1A202C',
@@ -94,7 +94,7 @@ export default function AppearanceSettings() {
             textColor: '#FFFFFF',
             iconColor: '#9F7AEA',
         },
-        layout_03: {
+        layout_02: {
             themeColor: '#3182CE',
             secondaryColor: '#63B3ED',
             backgroundColor: '#F7FAFC',
@@ -102,7 +102,7 @@ export default function AppearanceSettings() {
             textColor: '#1A202C',
             iconColor: '#3182CE',
         },
-        layout_05: {
+        layout_03: {
             themeColor: '#00D4FF',
             secondaryColor: '#FF00FF',
             backgroundColor: '#0A0A0F',
@@ -110,7 +110,7 @@ export default function AppearanceSettings() {
             textColor: '#FFFFFF',
             iconColor: '#00D4FF',
         },
-        layout_06: {
+        layout_04: {
             themeColor: '#0891B2',
             secondaryColor: '#059669',
             backgroundColor: '#F5F7FA',
@@ -118,23 +118,7 @@ export default function AppearanceSettings() {
             textColor: '#1F2937',
             iconColor: '#0891B2',
         },
-        layout_07: {
-            themeColor: '#4F46E5',
-            secondaryColor: '#7C3AED',
-            backgroundColor: '#FAFAFA',
-            cardColor: '#FFFFFF',
-            textColor: '#171717',
-            iconColor: '#4F46E5',
-        },
-        layout_08: {
-            themeColor: '#FFFF00', // Yellow
-            secondaryColor: '#FF1493', // Deep Pink
-            backgroundColor: '#FFFFFF',
-            cardColor: '#FFFFFF',
-            textColor: '#000000',
-            iconColor: '#000000',
-        },
-        layout_09: {
+        layout_05: {
             themeColor: '#1A5276', // Ocean Blue
             secondaryColor: '#1D8348', // Forest Green
             backgroundColor: '#F0F4F8',
@@ -142,15 +126,7 @@ export default function AppearanceSettings() {
             textColor: '#2C3E50',
             iconColor: '#1A5276',
         },
-        layout_10: {
-            themeColor: '#8E44AD', // Violet
-            secondaryColor: '#1ABC9C', // Teal
-            backgroundColor: '#0F172A', // Navy
-            cardColor: '#1E293B',
-            textColor: '#FFFFFF',
-            iconColor: '#FFFFFF',
-        },
-        layout_11: {
+        layout_06: {
             themeColor: '#00F3FF', // Cyan
             secondaryColor: '#BC13FE', // Neon Pink
             backgroundColor: '#050A14', // Very Dark
@@ -158,15 +134,13 @@ export default function AppearanceSettings() {
             textColor: '#FFFFFF',
             iconColor: '#00F3FF',
         },
-
-
     };
 
 
     const handleLayoutChange = useCallback((newLayout: string) => {
         setConfig((prev: any) => {
             // Maxwell's Demon: Save current state before switching
-            let nextConfig = updateLayoutThemes(prev, prev.layoutType || 'layout_06', prev);
+            let nextConfig = updateLayoutThemes(prev, prev.layoutType || 'layout_01', prev);
 
             // Access the store to retrieve new layout colors
             const layoutThemes = nextConfig.strings?.layoutThemes ? JSON.parse(nextConfig.strings.layoutThemes) : {};
@@ -181,7 +155,7 @@ export default function AppearanceSettings() {
                 };
             } else {
                 // No saved theme - use layout DEFAULTS instead of inheriting
-                const defaults = layoutDefaults[newLayout] || layoutDefaults['layout_06'];
+                const defaults = layoutDefaults[newLayout] || layoutDefaults['layout_01'];
                 nextConfig = {
                     ...nextConfig,
                     ...defaults,
@@ -205,22 +179,19 @@ export default function AppearanceSettings() {
                                 <Smartphone className="h-4 w-4" /> Layout do App
                             </Label>
                             <Select
-                                value={config.layoutType || 'layout_06'}
+                                value={config.layoutType || 'layout_01'}
                                 onValueChange={handleLayoutChange}
                             >
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Escolha o layout" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="layout_02">Layout 02 - Clássico (Gradiente Roxo)</SelectItem>
-                                    <SelectItem value="layout_03">Layout 03 - Minimalista</SelectItem>
-                                    <SelectItem value="layout_05">Layout 05 - Neo Digital</SelectItem>
-                                    <SelectItem value="layout_06">Layout 06 - Premium Dark</SelectItem>
-                                    <SelectItem value="layout_07">Layout 07 - Clean Light</SelectItem>
-                                    <SelectItem value="layout_08">Layout 08 - Neubrutalism</SelectItem>
-                                    <SelectItem value="layout_09">Layout 09 - Organic / Biomorphic</SelectItem>
-                                    <SelectItem value="layout_10">Layout 10 - Mesh / Glassmorphism</SelectItem>
-                                    <SelectItem value="layout_11">Layout 11 - Cyberpunk / Neon</SelectItem>
+                                    <SelectItem value="layout_01">Layout 01 - Clássico</SelectItem>
+                                    <SelectItem value="layout_02">Layout 02 - Minimalista</SelectItem>
+                                    <SelectItem value="layout_03">Layout 03 - Neo Digital</SelectItem>
+                                    <SelectItem value="layout_04">Layout 04 - Premium Dark</SelectItem>
+                                    <SelectItem value="layout_05">Layout 05 - Organic / Biomorphic</SelectItem>
+                                    <SelectItem value="layout_06">Layout 06 - Cyberpunk / Neon</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
