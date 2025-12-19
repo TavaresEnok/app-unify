@@ -91,9 +91,8 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
     final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_02';
     // Layouts with custom bottom navigation (Layout 06 handles its own in dashboard)
-    final hasBottomNav = layoutType == 'layout_05' ||
-        layoutType == 'layout_02' ||
-        layoutType == 'layout_04';
+    // Layout 04 and 06 have their own dark bottom nav, so exclude them
+    final hasBottomNav = layoutType == 'layout_05' || layoutType == 'layout_02';
 
     if (authState.isLoading) {
       return const SkeletonDashboardPage();
