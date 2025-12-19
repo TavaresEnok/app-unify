@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/services/diagnostico_service.dart';
 
 // Imports dos Dashboards (diferentes por layout)
 import 'layouts/layout_02/dashboard_page.dart' as l02;
@@ -11,8 +12,10 @@ import 'layouts/layout_08/dashboard_page.dart' as l08;
 import 'layouts/layout_08/pages/speed_test_page.dart' as l08_speed;
 import 'layouts/layout_09/dashboard_page.dart' as l09;
 import 'layouts/layout_09/pages/speed_test_page.dart' as l09_speed;
-import 'layouts/layout_10/dashboard_page.dart' as l10;
+import 'layouts/layout_10/dashboard_page.dart' as l10_dashboard;
 import 'layouts/layout_10/pages/speed_test_page.dart' as l10_speed;
+import 'layouts/layout_11/dashboard_page.dart' as l11_dashboard;
+import 'layouts/layout_11/login_page.dart' as l11_login;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_02/login_page.dart' as l02_login;
@@ -197,7 +200,7 @@ class LayoutSelector {
         );
 
       case 'layout_10':
-        return l10.ProviderDashboardPage(
+        return l10_dashboard.ProviderDashboardPage(
           customerName: customerName,
           planName: planName,
           connectionStatus: connectionStatus,
@@ -213,6 +216,22 @@ class LayoutSelector {
           customCardText: customCardText,
           invoiceColor: invoiceColor,
           actionColor: actionColor,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_11':
+        return l11_dashboard.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
           onRefresh: onRefresh,
         );
 
@@ -258,6 +277,8 @@ class LayoutSelector {
         return const l09_login.LoginPage();
       case 'layout_10':
         return const l10_login.LoginPage();
+      case 'layout_11':
+        return const l11_login.LoginPage();
 
       default:
         return const l02_login.LoginPage();
@@ -294,8 +315,12 @@ class LayoutSelector {
     return const shared_ip.MeuIpPage();
   }
 
-  /// Retorna o widget de Teste de Velocidade - COMPARTILHADO (por enquanto)
-  static Widget getSpeedTestPage({required String layoutType}) {
+  /// Retorna o widget de Teste de Velocidade
+  static Widget getSpeedTestPage({
+    required String layoutType,
+    required DiagnosticoService diagnosticoService,
+    required VoidCallback onBack,
+  }) {
     switch (layoutType) {
       case 'layout_06':
         return const l06_speed.Layout06SpeedTestPage();
@@ -307,6 +332,8 @@ class LayoutSelector {
         return const l10_speed.Layout10SpeedTestPage();
 
       default:
+        // Por enquanto shared_speed não aceita esses params, mas podemos atualizar se necessário
+        // Ou manter como fallback.
         return const shared_speed.SharedSpeedTestPage();
     }
   }
@@ -390,6 +417,11 @@ class LayoutSelector {
       'name': 'Mesh Gradient & Glassmorphism',
       'description':
           'Design ultra premium com efeitos de vidro e gradientes mesh'
+    },
+    {
+      'id': 'layout_11',
+      'name': 'Cyberpunk / Neon',
+      'description': 'Tema futurista escuro com detalhes em neon Cyan e Pink'
     },
   ];
 }

@@ -107,7 +107,7 @@ Future<String> _pingTestRunner(PingParams params) async {
 
 class DiagnosticoService {
   final ProviderConfig providerConfig;
-  final BuildContext context;
+  final BuildContext? context;
   final _streamController = StreamController<DiagnosticoState>.broadcast();
   Stream<DiagnosticoState> get stateStream => _streamController.stream;
   late DiagnosticoState _currentState;
@@ -129,7 +129,7 @@ class DiagnosticoService {
   int _fastDownloadHistoryCounter = 0;
   int _fastUploadHistoryCounter = 0;
 
-  DiagnosticoService({required this.providerConfig, required this.context}) {
+  DiagnosticoService({required this.providerConfig, this.context}) {
     _currentState = DiagnosticoState.initial();
   }
 
@@ -379,9 +379,9 @@ class DiagnosticoService {
   Future<bool> _requestLocationPermission() async {
     if (!Platform.isAndroid) return true;
     var status = await Permission.location.request();
-    if (!context.mounted) return false;
+    if (context == null || !context!.mounted) return false;
     if (!status.isGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context!).showSnackBar(const SnackBar(
           content: Text(
               'Permissão de localização é necessária para obter informações de WiFi.')));
     }

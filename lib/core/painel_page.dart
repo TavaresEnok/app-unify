@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../layouts/layout_06/widgets/skeleton_dashboard_page.dart';
+import 'services/diagnostico_service.dart';
 import '../layout_selector.dart';
 import '../layouts/layout_05/theme.dart';
 import '../layouts/layout_05/widgets/neumorphic_bottom_nav.dart';
@@ -149,7 +150,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         drawer: _buildDrawer(context, usuario, ref, layoutType),
         body: Stack(
           children: [
-            _buildBody(layoutType, usuario),
+            _buildBody(layoutType, usuario, context),
             const Positioned(
               top: 0,
               left: 0,
@@ -766,7 +767,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     );
   }
 
-  Widget _buildBody(String layoutType, Usuario usuario) {
+  Widget _buildBody(String layoutType, Usuario usuario, BuildContext context) {
     if (_currentPage == 'dashboard') {
       return LayoutSelector.getDashboard(
         layoutType: layoutType,
@@ -828,7 +829,15 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     }
 
     if (_currentPage == 'speed_test') {
-      return LayoutSelector.getSpeedTestPage(layoutType: layoutType);
+      final configProvider = ref.read(configurationProvider);
+      return LayoutSelector.getSpeedTestPage(
+        layoutType: layoutType,
+        diagnosticoService: DiagnosticoService(
+          providerConfig: configProvider.providerConfig!,
+          context: context,
+        ),
+        onBack: () => setState(() => _currentPage = 'dashboard'),
+      );
     }
 
     if (_currentPage == 'trace_route') {
