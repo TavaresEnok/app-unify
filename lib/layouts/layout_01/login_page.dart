@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/providers/providers.dart';
 import '../../core/services/biometric_service.dart';
 import '../../core/widgets/app_colors.dart';
 import '../../core/utils/color_utils.dart';
+import '../../core/providers/providers.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -75,9 +75,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
     final cpfInput = overrideCpf ?? _cpfController.text;
 
     try {
-      // A lógica de login agora está centralizada no AuthService
       final configProvider = ref.read(configurationProvider);
-      final providerConfig = configProvider.providerConfig!;
+      final providerConfig = configProvider.providerConfig;
+      if (providerConfig == null) throw Exception('Configuração não carregada');
+
       await ref
           .read(authNotifierProvider.notifier)
           .login(cpfInput, providerConfig);
@@ -121,9 +122,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    final configProvider = ref.watch(configurationProvider);
+    final config = ref.watch(configurationProvider);
 
-    if (configProvider.isLoading || configProvider.providerConfig == null) {
+    if (config.isLoading || config.providerConfig == null) {
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
@@ -131,13 +132,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
       );
     }
 
-    final providerConfig = configProvider.providerConfig!.config;
+    final providerConfig = config.providerConfig!.config;
     final logoUrl = providerConfig.logoUrl;
     final loginQuote = providerConfig.loginQuote;
 
     // --- CORREÇÃO: Obtém a cor customizada dos botões ---
     final actionColor = providerConfig.actionColor != null
-        ? hexToColor(providerConfig.actionColor!) // Added ! force unwrap
+        ? hexToColor(providerConfig.actionColor!)
         : AppColors.primaryBlue;
 
     return Scaffold(

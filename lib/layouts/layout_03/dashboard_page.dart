@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../core/widgets/premium_invoice_card.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/providers.dart';
+import 'theme.dart';
 
-typedef NavigateToPageCallback = void Function(String pageId);
-
-class ProviderDashboardPage extends StatelessWidget {
-  final String customerName, planName, connectionStatus;
-  final double billAmount, usedGb, totalGb, downloadMbps, uploadMbps;
+class DashboardPage extends ConsumerStatefulWidget {
+  final String customerName;
+  final String planName;
+  final String connectionStatus;
+  final double billAmount;
   final DateTime billDueDate;
-  final NavigateToPageCallback onNavigate;
-  final List<Map<String, dynamic>>? menuItems;
+  final double usedGb;
+  final double totalGb;
+  final double downloadMbps;
+  final double uploadMbps;
+  final Function(String) onNavigate;
 
-  // CORES PERSONALIZADAS
-  final Color? customCardBg;
-  final Color? customCardText;
-  final Color? invoiceColor;
-  final Color?
-      actionColor; // NOVO: Cor para botões de ação (Testar, Diagnóstico)
-
-  const ProviderDashboardPage({
+  const DashboardPage({
     super.key,
     required this.customerName,
     required this.planName,
@@ -30,344 +27,281 @@ class ProviderDashboardPage extends StatelessWidget {
     required this.downloadMbps,
     required this.uploadMbps,
     required this.onNavigate,
-    this.menuItems,
-    this.customCardBg,
-    this.customCardText,
-    this.invoiceColor,
-    this.actionColor,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final firstName = customerName.split(' ')[0];
-    final theme = Theme.of(context);
-    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
+  ConsumerState<DashboardPage> createState() => _DashboardPageState();
+}
 
-    final cardBg = customCardBg ?? textColor.withValues(alpha: 0.08);
-    final cardText = customCardText ?? textColor;
-    // Se não tiver actionColor, usa preto como fallback para o botão "Testar"
-    final buttonColor = actionColor ?? Colors.black;
+class _DashboardPageState extends ConsumerState<DashboardPage> {
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.value;
+
+    final name = user?.nome ?? widget.customerName;
+    final plan = user?.plano ?? widget.planName;
+    final status = user?.status ?? widget.connectionStatus;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        toolbarHeight: 80,
-        title: Padding(
-          padding: const EdgeInsets.only(top: 10),
+      backgroundColor: Layout05Theme.background, // Soft Grey
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+              24, 32, 24, 120), // Added bottom padding for Nav Bar
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Olá, $firstName',
-                  style: GoogleFonts.inter(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
-                      letterSpacing: -0.5)),
-              const SizedBox(height: 4),
+              _buildHeader(name, plan),
+              const SizedBox(height: 40),
+
+              // Status & Bill Row
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                        color: textColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Text(planName,
-                        style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: textColor)),
-                  ),
-                  const SizedBox(width: 8),
-                  _SimpleStatusBadge(
-                      status: connectionStatus, textColor: textColor),
+                  // Connection Status - Neumorphic Card
+                  Expanded(flex: 1, child: _buildNeumorphicStatus(status)),
+                  const SizedBox(width: 20),
+                  // Bill Card - Neumorphic but highlighted
+                  Expanded(
+                      flex: 1,
+                      child: _buildNeumorphicBill(
+                          widget.billAmount, widget.billDueDate)),
                 ],
               ),
+
+              const SizedBox(height: 24),
+
+              // Connection Speed - Clickable
+              GestureDetector(
+                onTap: () => widget.onNavigate('speed_test'),
+                child: _buildSpeedCard(widget.downloadMbps),
+              ),
+
+              const SizedBox(height: 32),
+
+              Text('Ações Rápidas', style: Layout05Theme.label),
+              const SizedBox(height: 16),
+
+              // Shortcuts Grid
+              LayoutBuilder(builder: (ctx, constraints) {
+                final width = (constraints.maxWidth - 20) / 2;
+                return Wrap(
+                  spacing: 20,
+                  runSpacing: 20,
+                  children: [
+                    SizedBox(
+                        width: width,
+                        child: _buildNeuShortcut(Icons.wifi_rounded,
+                            'Meu Wi-Fi', () => widget.onNavigate('wifi'))),
+                    SizedBox(
+                        width: width,
+                        child: _buildNeuShortcut(Icons.receipt_long_rounded,
+                            'Faturas', () => widget.onNavigate('invoices'))),
+                    SizedBox(
+                        width: width,
+                        child: _buildNeuShortcut(
+                            Icons.speed_rounded, // Changed Icon
+                            'Diagnóstico', // Changed Title
+                            () => widget.onNavigate(
+                                'network_diagnostic'))), // Changed Route
+                    SizedBox(
+                        width: width,
+                        child: _buildNeuShortcut(Icons.alt_route_rounded,
+                            'Rota', () => widget.onNavigate('trace_route'))),
+                    SizedBox(
+                        width: width,
+                        child: _buildNeuShortcut(Icons.support_agent_rounded,
+                            'Suporte', () => widget.onNavigate('support'))),
+                  ],
+                );
+              }),
+
+              const SizedBox(height: 40),
             ],
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 24, top: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: textColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                onPressed: () => onNavigate('notifications'),
-                icon: Icon(Icons.notifications_none_rounded, color: textColor),
-              ),
-            ),
-          ),
-        ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
-        children: [
-          PremiumInvoiceCard(
-            amount: billAmount,
-            dueDate: billDueDate,
-            onPay: () => onNavigate('invoices'),
-            customColor: invoiceColor,
+    );
+  }
+
+  Widget _buildHeader(String name, String plan) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Olá,',
+                style: Layout05Theme.heading2.copyWith(
+                    color: Layout05Theme.textGrey,
+                    fontWeight: FontWeight.normal)),
+            Text(name.split(' ').first,
+                style: Layout05Theme.heading1
+                    .copyWith(color: Layout05Theme.textDark)),
+          ],
+        ),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Layout05Theme.background,
+            boxShadow: [
+              const BoxShadow(
+                  color: Colors.white, offset: Offset(-5, -5), blurRadius: 10),
+              BoxShadow(
+                  color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
+                  offset: const Offset(5, 5),
+                  blurRadius: 10),
+            ],
           ),
-          const SizedBox(height: 24),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Layout05Theme.primary, // Pop of color
+            ),
+            child:
+                const Icon(Icons.person_rounded, color: Colors.white, size: 28),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNeumorphicStatus(String status) {
+    final isOnline =
+        status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
+    final color = isOnline ? Layout05Theme.success : Layout05Theme.error;
+
+    return Container(
+      height: 150,
+      padding: const EdgeInsets.all(20),
+      decoration: Layout05Theme.neumorphicDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
           Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Layout05Theme.background,
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4))
+                    color: Colors.white, offset: Offset(-2, -2), blurRadius: 4),
+                BoxShadow(
+                    color: Color(0x22A3B1C6),
+                    offset: Offset(2, 2),
+                    blurRadius: 4),
               ],
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F9FF),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.speed_rounded,
-                      color: Color(0xFF0EA5E9), size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Minha Velocidade',
-                          style: GoogleFonts.inter(
-                              color: const Color(0xFF64748B),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                      Text('${downloadMbps.toInt()} Mega',
-                          style: GoogleFonts.inter(
-                              color: const Color(0xFF0F172A),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800)),
-                    ],
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () => onNavigate('speed_test'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        buttonColor, // <--- APLICANDO A COR DO BOTÃO AQUI
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Testar'),
-                )
-              ],
-            ),
+            child: Icon(isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                color: color, size: 24),
           ),
-          const SizedBox(height: 24),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Acesso Rápido',
-                  style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: textColor)),
-              const SizedBox(height: 16),
-              _CleanActionsRow(
-                onNavigate: onNavigate,
-                textColor: textColor,
-                menuItems: menuItems,
-              ),
-              const SizedBox(height: 20),
-              InkWell(
-                onTap: () => onNavigate('network_diagnostic'),
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: cardText.withValues(alpha: 0.15)),
-                  ),
-                  child: Row(
-                    children: [
-                      // Se tiver actionColor, usa ela no ícone, senão usa o cardText ou Amarelo padrão
-                      Icon(Icons.build_circle_outlined,
-                          color: actionColor ??
-                              customCardText ??
-                              const Color(0xFFFBBC05),
-                          size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Problemas técnicos?',
-                              style: GoogleFonts.inter(
-                                  color: cardText,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14)),
-                          Text('Iniciar auto-diagnóstico da rede.',
-                              style: GoogleFonts.inter(
-                                  color: cardText.withValues(alpha: 0.7),
-                                  fontSize: 12)),
-                        ],
-                      )),
-                      Icon(Icons.arrow_forward_ios_rounded,
-                          size: 16, color: cardText.withValues(alpha: 0.5)),
-                    ],
-                  ),
-                ),
-              ),
+              Text('Status', style: Layout05Theme.label),
+              const SizedBox(height: 4),
+              Text(isOnline ? 'Online' : 'Offline',
+                  style: Layout05Theme.heading2
+                      .copyWith(fontSize: 18, color: color)),
             ],
-          ),
+          )
         ],
       ),
     );
   }
-}
 
-class _SimpleStatusBadge extends StatelessWidget {
-  final String status;
-  final Color textColor;
-  const _SimpleStatusBadge({required this.status, required this.textColor});
-  @override
-  Widget build(BuildContext context) {
-    final isConnected =
-        status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
-    final bgColor = isConnected
-        ? textColor.withValues(alpha: 0.15)
-        : Colors.red.withValues(alpha: 0.15);
-    final badgeColor = isConnected ? textColor : Colors.red;
+  Widget _buildNeumorphicBill(double amount, DateTime dueDate) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-          color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      height: 150,
+      padding: const EdgeInsets.all(20),
+      decoration: Layout05Theme.neumorphicDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(isConnected ? Icons.wifi : Icons.wifi_off,
-              color: badgeColor, size: 12),
-          const SizedBox(width: 4),
-          Text(status,
-              style: GoogleFonts.inter(
-                  color: badgeColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12)),
+          Align(
+            alignment: Alignment.topRight,
+            child: Text('Vence ${dueDate.day}/${dueDate.month}',
+                style: Layout05Theme.label
+                    .copyWith(fontSize: 11, color: Layout05Theme.primary)),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Fatura', style: Layout05Theme.label),
+              const SizedBox(height: 4),
+              Text('R\$ ${amount.toStringAsFixed(0)}',
+                  style: Layout05Theme.heading2
+                      .copyWith(color: Layout05Theme.textDark, fontSize: 22)),
+              Text(',${amount.toStringAsFixed(2).split('.')[1]}',
+                  style: Layout05Theme.heading2
+                      .copyWith(color: Layout05Theme.textGrey, fontSize: 16)),
+            ],
+          )
         ],
       ),
     );
   }
-}
 
-class _CleanActionsRow extends StatelessWidget {
-  final NavigateToPageCallback onNavigate;
-  final Color textColor;
-  final List<Map<String, dynamic>>? menuItems;
-
-  const _CleanActionsRow(
-      {required this.onNavigate, required this.textColor, this.menuItems});
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = menuItems ??
-        [
-          {
-            'id': 'invoices',
-            'icon': Icons.receipt_long_rounded,
-            'label': 'Faturas',
-            'color': const Color(0xFF1E6FF8)
-          },
-          {
-            'id': 'support',
-            'icon': Icons.support_agent_rounded,
-            'label': 'Suporte',
-            'color': const Color(0xFF10B981)
-          },
-          {
-            'id': 'contract',
-            'icon': Icons.description_rounded,
-            'label': 'Contrato',
-            'color': const Color(0xFF8B5CF6)
-          },
-          {
-            'id': 'my_ip',
-            'icon': Icons.public_rounded,
-            'label': 'Meu IP',
-            'color': const Color(0xFFF97316)
-          },
-          {
-            'id': 'trace_route',
-            'icon': Icons.alt_route_rounded,
-            'label': 'Rota',
-            'color': const Color(0xFF7C3AED)
-          },
-        ];
-
-    return Wrap(
-      spacing: 12,
-      runSpacing: 16,
-      alignment: WrapAlignment.spaceBetween,
-      children: actions.map((item) {
-        final color = item['color'] as Color? ?? Colors.blue;
-        final icon = item['icon'] as IconData;
-        final label = item['label'] as String;
-        final id = item['id'] as String;
-
-        return GestureDetector(
-          onTap: () {
-            debugPrint(
-                'Dashboard: Botão "$label" (ID: $id) clicado!'); // DEBUG LOG
-            try {
-              onNavigate(id);
-            } catch (e) {
-              debugPrint('Dashboard: Erro ao navegar para $id: $e');
-            }
-          },
-          child: Container(
-            width: 75,
-            color: Colors.transparent, // Garante área de toque
+  Widget _buildSpeedCard(double speed) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      decoration: Layout05Theme.neumorphicDecoration,
+      child: Row(
+        children: [
+          const Icon(Icons.speed_rounded, color: Layout05Theme.primary, size: 36),
+          const SizedBox(width: 24),
+          Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4))
-                    ],
-                  ),
-                  child: Icon(icon, color: color, size: 26),
+                Text('Sua Velocidade', style: Layout05Theme.label),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text('${speed.toInt()}',
+                        style: Layout05Theme.heading1
+                            .copyWith(color: Layout05Theme.textDark)),
+                    const SizedBox(width: 4),
+                    Text('MEGA',
+                        style: Layout05Theme.label
+                            .copyWith(color: Layout05Theme.primary)),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(label,
-                    style: GoogleFonts.inter(
-                        color: textColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
-        );
-      }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNeuShortcut(IconData icon, String title, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 100,
+        decoration:
+            Layout05Theme.flatDecoration, // Slightly flatter for buttons
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Layout05Theme.textGrey, size: 28),
+            const SizedBox(height: 12),
+            Text(title,
+                style: const TextStyle(
+                    color: Layout05Theme.textDark,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13)),
+          ],
+        ),
+      ),
     );
   }
 }

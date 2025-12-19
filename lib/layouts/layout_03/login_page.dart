@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../../core/providers/providers.dart';
-import '../../core/services/biometric_service.dart';
-import '../../core/widgets/app_colors.dart';
-import '../../core/utils/color_utils.dart';
+import '../../core/models/provider_config.dart';
+import 'theme.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -16,302 +11,243 @@ class LoginPage extends ConsumerStatefulWidget {
   ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends ConsumerState<LoginPage>
-    with SingleTickerProviderStateMixin {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final _cpfController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  String? _localErrorMessage;
 
-  final BiometricService _biometricService = BiometricService();
-  bool _canUseBiometry = false;
-  bool _rememberMe = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    _fadeAnimation =
-        CurvedAnimation(parent: _animationController, curve: Curves.easeIn);
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-        parent: _animationController, curve: Curves.easeOutCubic));
-    _animationController.forward();
-
-    _checkBiometry();
-  }
-
-  Future<void> _checkBiometry() async {
-    final available = await _biometricService.isAvailable;
-    final enabled = await _biometricService.isEnabled;
-
-    if (available) {
-      setState(() => _canUseBiometry = enabled);
-      if (enabled) {
-        // Se já estiver habilitado, tenta login direto
-        _handleBiometricLogin();
-      }
-    }
-  }
+  // Animation constants
+  // static const Duration _animDuration = Duration(milliseconds: 800);
 
   @override
   void dispose() {
     _cpfController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin({String? overrideCpf}) async {
-    if (overrideCpf == null && !_formKey.currentState!.validate()) return;
+  Future<void> _handleLogin(ProviderConfig? config) async {
+    if (_cpfController.text.isEmpty) {
+      setState(() => _localErrorMessage = 'Por favor, digite seu CPF ou CNPJ');
+      return;
+    }
+    if (config == null) {
+      setState(
+          () => _localErrorMessage = 'Erro de configuração. Tente novamente.');
+      return;
+    }
 
-    setState(() => _isLoading = true);
-    final cpfInput = overrideCpf ?? _cpfController.text;
+    setState(() {
+      _isLoading = true;
+      _localErrorMessage = null;
+    });
 
     try {
-      // A lógica de login agora está centralizada no AuthService
-      final configProvider = ref.read(configurationProvider);
-      final providerConfig = configProvider.providerConfig!;
       await ref
           .read(authNotifierProvider.notifier)
-          .login(cpfInput, providerConfig);
-
-      // Se sucesso, navega para o painel
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/painel');
+          .login(_cpfController.text.trim(), config);
+      // Sucesso navega automaticamente via AuthGate
     } catch (e) {
       if (mounted) {
-        _showErrorDialog(
-            'Erro no Login', e.toString().replaceFirst("Exception: ", ""));
+        setState(() =>
+            _localErrorMessage = 'CPF não encontrado ou erro de conexão.');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          )
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleBiometricLogin() async {
-    final creds = await _biometricService.authenticate();
-    if (creds != null) {
-      _cpfController.text = creds['cpf']!; // Preenche visualmente
-      _handleLogin(overrideCpf: creds['cpf']);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Config via Riverpod
     final configProvider = ref.watch(configurationProvider);
-
-    if (configProvider.isLoading || configProvider.providerConfig == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-      );
-    }
-
-    final providerConfig = configProvider.providerConfig!.config;
-    final logoUrl = providerConfig.logoUrl;
-    final loginQuote = providerConfig.loginQuote;
-
-    // --- CORREÇÃO: Obtém a cor customizada dos botões ---
-    final actionColor = providerConfig.actionColor != null
-        ? hexToColor(providerConfig.actionColor!) // Added ! force unwrap
-        : AppColors.primaryBlue;
+    final config = configProvider.providerConfig;
 
     return Scaffold(
-      backgroundColor: AppColors.background, // Branco limpo
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
+        child: SizedBox.expand(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 40),
+
+                // 1. Logo Section
+                Center(
+                  child: Container(
+                    height: 100,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: Layout05Theme.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: config?.config.logoUrl != null
+                        ? Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Image.network(config!.config.logoUrl),
+                          )
+                        : const Icon(Icons.wifi,
+                            size: 40, color: Layout05Theme.primary),
+                  ),
+                ),
+
+                const SizedBox(height: 48),
+
+                // 2. Welcome Text
+                Text(
+                  'Bem-vindo de volta',
+                  style: Layout05Theme.heading1,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Acesse sua área de cliente para gerenciar suas faturas e serviços.',
+                  style: Layout05Theme.bodyText
+                      .copyWith(color: Layout05Theme.textGrey),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 60),
+
+                // 3. Input Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // LOGO
-                    if (logoUrl.isNotEmpty)
-                      Hero(
-                        tag: 'logo',
-                        child: CachedNetworkImage(
-                          imageUrl: logoUrl,
-                          height: 100,
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) =>
-                              const SizedBox(height: 100),
-                          errorWidget: (context, url, error) => const Icon(
-                              Icons.wifi_tethering,
-                              size: 80,
-                              color: AppColors.primaryBlue),
-                        ),
-                      )
-                    else
-                      Icon(Icons.wifi_tethering, size: 80, color: actionColor),
-
-                    const SizedBox(height: 32),
-
-                    // TEXTOS
-                    Text('Bem-vindo de volta!',
-                        style: GoogleFonts.inter(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary)),
+                    const Text(
+                      'CPF / CNPJ',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Layout05Theme.textDark,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text(
-                      loginQuote,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                          color: AppColors.textSecondary, fontSize: 14),
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // FORMULÁRIO
                     Container(
-                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10))
-                        ],
-                        border: Border.all(color: Colors.grey.shade100),
+                        color: Layout05Theme.background,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.transparent),
                       ),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _cpfController,
-                              keyboardType: TextInputType.number,
-                              style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary),
-                              decoration: InputDecoration(
-                                labelText: 'CPF ou CNPJ',
-                                hintText: 'Digite apenas números',
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                        color: Colors.grey.shade200)),
-                                focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                        color: actionColor, width: 2)),
-                                prefixIcon: const Icon(Icons.person_outline_rounded,
-                                    color: AppColors.textSecondary),
-                                filled: true,
-                                fillColor: const Color(0xFFF8FAFC),
-                              ),
-                              validator: (value) =>
-                                  (value == null || value.isEmpty)
-                                      ? 'Informe seu documento'
-                                      : null,
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Checkbox Biometria
-                            Row(
-                              children: [
-                                Checkbox(
-                                    value: _rememberMe,
-                                    activeColor:
-                                        actionColor, // Usa a cor customizada
-                                    onChanged: (val) =>
-                                        setState(() => _rememberMe = val!)),
-                                Text('Lembrar com Biometria',
-                                    style: GoogleFonts.inter(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 13)),
-                              ],
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                onPressed:
-                                    _isLoading ? null : () => _handleLogin(),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      actionColor, // <--- CORREÇÃO APLICADA AQUI
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2))
-                                    : Text('ACESSAR CONTA',
-                                        style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1)),
-                              ),
-                            ),
-                          ],
+                      child: TextField(
+                        controller: _cpfController,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Layout05Theme.textDark),
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: '000.000.000-00',
+                          hintStyle: TextStyle(
+                              color: Layout05Theme.textGrey
+                                  .withValues(alpha: 0.5)),
+                          prefixIcon: const Icon(Icons.person_outline_rounded,
+                              color: Layout05Theme.textGrey),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.all(20),
                         ),
                       ),
                     ),
-
-                    // BOTÃO BIOMETRIA EXTERNO
-                    if (_canUseBiometry && !_isLoading) ...[
-                      const SizedBox(height: 32),
-                      IconButton(
-                        onPressed: _handleBiometricLogin,
-                        iconSize: 48,
-                        icon:
-                            Icon(Icons.fingerprint_rounded, color: actionColor),
-                        style: IconButton.styleFrom(
-                          backgroundColor: actionColor.withValues(alpha: 0.1),
-                          padding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Toque para entrar',
-                          style: GoogleFonts.inter(
-                              color: AppColors.textSecondary, fontSize: 12)),
-                    ],
                   ],
                 ),
-              ),
+
+                const SizedBox(height: 32),
+
+                // 4. Action Button
+                SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () => _handleLogin(config),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Layout05Theme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Acessar Conta',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Center(
+                  child: IconButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Funcionalidade Bio-Login em breve!'),
+                            backgroundColor: Layout05Theme.textGrey),
+                      );
+                    },
+                    icon: const Icon(Icons.fingerprint,
+                        size: 40, color: Layout05Theme.primary),
+                    tooltip: 'Entrar com Biometria',
+                  ),
+                ),
+
+                // 5. Error Feedback
+                if (_localErrorMessage != null) ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Layout05Theme.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: Layout05Theme.error),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _localErrorMessage!,
+                            style: const TextStyle(
+                                color: Layout05Theme.error,
+                                fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 40),
+
+                // Footer
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Precisa de ajuda? ', style: Layout05Theme.bodyText),
+                    GestureDetector(
+                      onTap: () {
+                        // TODO: Implementar ação de ajuda se necessário
+                      },
+                      child: const Text(
+                        'Fale com o suporte',
+                        style: TextStyle(
+                          color: Layout05Theme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

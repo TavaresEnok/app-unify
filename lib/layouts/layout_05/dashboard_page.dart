@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/providers/providers.dart';
+import 'package:flutter/services.dart';
 import 'theme.dart';
 
-class DashboardPage extends ConsumerStatefulWidget {
+class ProviderDashboardPage extends StatefulWidget {
   final String customerName;
   final String planName;
   final String connectionStatus;
@@ -14,8 +13,14 @@ class DashboardPage extends ConsumerStatefulWidget {
   final double downloadMbps;
   final double uploadMbps;
   final Function(String) onNavigate;
+  final List<Map<String, dynamic>>? menuItems;
+  final Color? customCardBg;
+  final Color? customCardText;
+  final Color? invoiceColor;
+  final Color? actionColor;
+  final Future<void> Function()? onRefresh;
 
-  const DashboardPage({
+  const ProviderDashboardPage({
     super.key,
     required this.customerName,
     required this.planName,
@@ -27,279 +32,405 @@ class DashboardPage extends ConsumerStatefulWidget {
     required this.downloadMbps,
     required this.uploadMbps,
     required this.onNavigate,
+    this.menuItems,
+    this.customCardBg,
+    this.customCardText,
+    this.invoiceColor,
+    this.actionColor,
+    this.onRefresh,
   });
 
   @override
-  ConsumerState<DashboardPage> createState() => _DashboardPageState();
+  State<ProviderDashboardPage> createState() => _ProviderDashboardPageState();
 }
 
-class _DashboardPageState extends ConsumerState<DashboardPage> {
+class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
+  int _selectedIndex = 0;
+
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authNotifierProvider);
-    final user = authState.value;
-
-    final name = user?.nome ?? widget.customerName;
-    final plan = user?.plano ?? widget.planName;
-    final status = user?.status ?? widget.connectionStatus;
+    final primaryColor = widget.actionColor ?? Layout09Theme.primary(null);
+    const bgColor = Layout09Theme.background;
 
     return Scaffold(
-      backgroundColor: Layout05Theme.background, // Soft Grey
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-              24, 32, 24, 120), // Added bottom padding for Nav Bar
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(name, plan),
-              const SizedBox(height: 40),
-
-              // Status & Bill Row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Connection Status - Neumorphic Card
-                  Expanded(flex: 1, child: _buildNeumorphicStatus(status)),
-                  const SizedBox(width: 20),
-                  // Bill Card - Neumorphic but highlighted
-                  Expanded(
-                      flex: 1,
-                      child: _buildNeumorphicBill(
-                          widget.billAmount, widget.billDueDate)),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Connection Speed - Clickable
-              GestureDetector(
-                onTap: () => widget.onNavigate('speed_test'),
-                child: _buildSpeedCard(widget.downloadMbps),
-              ),
-
-              const SizedBox(height: 32),
-
-              Text('Ações Rápidas', style: Layout05Theme.label),
-              const SizedBox(height: 16),
-
-              // Shortcuts Grid
-              LayoutBuilder(builder: (ctx, constraints) {
-                final width = (constraints.maxWidth - 20) / 2;
-                return Wrap(
-                  spacing: 20,
-                  runSpacing: 20,
+      backgroundColor: bgColor,
+      body: RefreshIndicator(
+        onRefresh: widget.onRefresh ?? () async {},
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // Header Orgânico (Blob)
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 240,
+                child: Stack(
                   children: [
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.wifi_rounded,
-                            'Meu Wi-Fi', () => widget.onNavigate('wifi'))),
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.receipt_long_rounded,
-                            'Faturas', () => widget.onNavigate('invoices'))),
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(
-                            Icons.speed_rounded, // Changed Icon
-                            'Diagnóstico', // Changed Title
-                            () => widget.onNavigate(
-                                'network_diagnostic'))), // Changed Route
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.alt_route_rounded,
-                            'Rota', () => widget.onNavigate('trace_route'))),
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.support_agent_rounded,
-                            'Suporte', () => widget.onNavigate('support'))),
-                  ],
-                );
-              }),
-
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(String name, String plan) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Olá,',
-                style: Layout05Theme.heading2.copyWith(
-                    color: Layout05Theme.textGrey,
-                    fontWeight: FontWeight.normal)),
-            Text(name.split(' ').first,
-                style: Layout05Theme.heading1
-                    .copyWith(color: Layout05Theme.textDark)),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Layout05Theme.background,
-            boxShadow: [
-              const BoxShadow(
-                  color: Colors.white, offset: Offset(-5, -5), blurRadius: 10),
-              BoxShadow(
-                  color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
-                  offset: const Offset(5, 5),
-                  blurRadius: 10),
-            ],
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Layout05Theme.primary, // Pop of color
-            ),
-            child:
-                const Icon(Icons.person_rounded, color: Colors.white, size: 28),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNeumorphicStatus(String status) {
-    final isOnline =
-        status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
-    final color = isOnline ? Layout05Theme.success : Layout05Theme.error;
-
-    return Container(
-      height: 150,
-      padding: const EdgeInsets.all(20),
-      decoration: Layout05Theme.neumorphicDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Layout05Theme.background,
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.white, offset: Offset(-2, -2), blurRadius: 4),
-                BoxShadow(
-                    color: Color(0x22A3B1C6),
-                    offset: Offset(2, 2),
-                    blurRadius: 4),
-              ],
-            ),
-            child: Icon(isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                color: color, size: 24),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Status', style: Layout05Theme.label),
-              const SizedBox(height: 4),
-              Text(isOnline ? 'Online' : 'Offline',
-                  style: Layout05Theme.heading2
-                      .copyWith(fontSize: 18, color: color)),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNeumorphicBill(double amount, DateTime dueDate) {
-    return Container(
-      height: 150,
-      padding: const EdgeInsets.all(20),
-      decoration: Layout05Theme.neumorphicDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Align(
-            alignment: Alignment.topRight,
-            child: Text('Vence ${dueDate.day}/${dueDate.month}',
-                style: Layout05Theme.label
-                    .copyWith(fontSize: 11, color: Layout05Theme.primary)),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Fatura', style: Layout05Theme.label),
-              const SizedBox(height: 4),
-              Text('R\$ ${amount.toStringAsFixed(0)}',
-                  style: Layout05Theme.heading2
-                      .copyWith(color: Layout05Theme.textDark, fontSize: 22)),
-              Text(',${amount.toStringAsFixed(2).split('.')[1]}',
-                  style: Layout05Theme.heading2
-                      .copyWith(color: Layout05Theme.textGrey, fontSize: 16)),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpeedCard(double speed) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      decoration: Layout05Theme.neumorphicDecoration,
-      child: Row(
-        children: [
-          const Icon(Icons.speed_rounded, color: Layout05Theme.primary, size: 36),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Sua Velocidade', style: Layout05Theme.label),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text('${speed.toInt()}',
-                        style: Layout05Theme.heading1
-                            .copyWith(color: Layout05Theme.textDark)),
-                    const SizedBox(width: 4),
-                    Text('MEGA',
-                        style: Layout05Theme.label
-                            .copyWith(color: Layout05Theme.primary)),
+                    // Fundo curvo (Blob)
+                    Positioned(
+                      top: -100,
+                      left: -50,
+                      right: -50,
+                      child: Container(
+                        height: 300,
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.elliptical(300, 100),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Bem-vindo,',
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 16),
+                                    ),
+                                    Text(
+                                      widget.customerName.split(' ').first,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(
+                                        Icons.notifications_none_rounded,
+                                        color: Colors.white),
+                                    onPressed: () =>
+                                        widget.onNavigate('notifications'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Card de Fatura Flutuante
+                    Positioned(
+                      bottom: 0,
+                      left: 24,
+                      right: 24,
+                      child: Container(
+                        decoration: Layout09Theme.organicDecoration(
+                          color: widget.invoiceColor ?? Colors.white,
+                        ),
+                        padding: const EdgeInsets.all(24),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Próxima Fatura',
+                                    style: TextStyle(
+                                      color: (widget.invoiceColor != null)
+                                          ? Colors.white70
+                                          : Colors.blueGrey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'R\$ ${widget.billAmount.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      color: (widget.invoiceColor != null)
+                                          ? Colors.white
+                                          : const Color(0xFF2C3E50),
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => widget.onNavigate('invoices'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: (widget.invoiceColor != null)
+                                    ? Colors.white
+                                    : primaryColor,
+                                foregroundColor: (widget.invoiceColor != null)
+                                    ? primaryColor
+                                    : Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: const Text('PAGAR'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
+
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Ações Rápidas (Pills)
+                  const Text(
+                    'SERVIÇOS RÁPIDOS',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: Colors.blueGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        _buildPillAction(Icons.speed_rounded, 'Teste',
+                            'speed_test', primaryColor),
+                        _buildPillAction(Icons.wifi_rounded, 'Wi-Fi', 'wifi',
+                            const Color(0xFF8E44AD)),
+                        _buildPillAction(Icons.support_agent_rounded, 'Suporte',
+                            'support', const Color(0xFFE67E22)),
+                        _buildPillAction(Icons.history_rounded, 'Histórico',
+                            'invoices', const Color(0xFF1ABC9C)),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Status de Conexão (Organic Card)
+                  Container(
+                    decoration: Layout09Theme.organicDecoration(
+                      color: primaryColor.withValues(alpha: 0.05),
+                      showShadow: false,
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: primaryColor.withValues(alpha: 0.1)),
+                              ),
+                              child: Icon(Icons.check_circle_rounded,
+                                  color: primaryColor),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Conexão Ativa',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18),
+                                  ),
+                                  Text(
+                                    widget.planName,
+                                    style: const TextStyle(
+                                        color: Colors.blueGrey, fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // Uso de Dados
+                        LinearProgressIndicator(
+                          value: widget.usedGb /
+                              (widget.totalGb > 0 ? widget.totalGb : 1),
+                          backgroundColor: Colors.white,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(primaryColor),
+                          borderRadius: BorderRadius.circular(10),
+                          minHeight: 8,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                                '${widget.usedGb.toStringAsFixed(1)} GB usados',
+                                style: const TextStyle(fontSize: 12)),
+                            Text(
+                                'Limite: ${widget.totalGb.toStringAsFixed(0)} GB',
+                                style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Lista de Atalhos
+                  _buildOrganicTile(Icons.analytics_outlined,
+                      'Diagnóstico de Rede', 'network_diagnostic'),
+                  _buildOrganicTile(
+                      Icons.description_outlined, 'Meu Contrato', 'contract'),
+                  _buildOrganicTile(
+                      Icons.help_outline_rounded, 'Dúvidas Frequentes', 'faq'),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildOrganicNavBar(primaryColor),
+    );
+  }
+
+  Widget _buildPillAction(
+      IconData icon, String label, String route, Color color) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        widget.onNavigate(route);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrganicTile(IconData icon, String label, String route) {
+    return GestureDetector(
+      onTap: () => widget.onNavigate(route),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Layout09Theme.background,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: const Color(0xFF2C3E50), size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                size: 14, color: Colors.blueGrey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrganicNavBar(Color primaryColor) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(35),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildNavItem(0, Icons.grid_view_rounded, primaryColor),
+          _buildNavItem(1, Icons.wifi_rounded, primaryColor),
+          _buildNavItem(2, Icons.receipt_long_rounded, primaryColor),
+          _buildNavItem(3, Icons.person_rounded, primaryColor),
         ],
       ),
     );
   }
 
-  Widget _buildNeuShortcut(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildNavItem(int index, IconData icon, Color primaryColor) {
+    final isSelected = _selectedIndex == index;
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 100,
-        decoration:
-            Layout05Theme.flatDecoration, // Slightly flatter for buttons
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Layout05Theme.textGrey, size: 28),
-            const SizedBox(height: 12),
-            Text(title,
-                style: const TextStyle(
-                    color: Layout05Theme.textDark,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13)),
-          ],
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() => _selectedIndex = index);
+        // Implement navigation logic same as other layouts
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryColor : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? Colors.white : Colors.blueGrey,
         ),
       ),
     );

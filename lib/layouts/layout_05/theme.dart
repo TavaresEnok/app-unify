@@ -1,150 +1,123 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../core/models/theme_config.dart';
 
-class Layout05Theme {
-  // --- Soft UI Colors ---
-  static const Color background = Color(0xFFEFEEEE); // Light Platinum
-  static const Color surface = Color(0xFFEFEEEE); // Same as BG for Neumorphism
+/// Layout 09: Organic / Biomorphic Theme
+/// Fluid shapes, soft colors, and rounded corners (blobs).
+class Layout09Theme {
+  // Core Colors (Defaults)
+  static const Color background = Color(0xFFF0F4F8);
+  static const Color surface = Color(0xFFFFFFFF);
 
-  static const Color primary = Color(0xFF7280FF); // Soft Indigo/Blue
-  static const Color secondary = Color(0xFF4FD1C5); // Soft Teal
-  static const Color accent = Color(0xFFFF7B9C); // Soft Pink
+  // Natural Defaults
+  static const Color _defaultPrimary = Color(0xFF1A5276); // Ocean Blue
+  static const Color _defaultSecondary = Color(0xFF1D8348); // forest Green
+  static const Color _defaultError = Color(0xFFE74C3C);
 
-  static const Color textDark = Color(0xFF3E4E68); // Dark Blue-Grey
-  static const Color textGrey = Color(0xFF7D8CA3); // Soft Grey
-  static const Color textWhite = Colors.white;
+  // Dynamic Color Getters
+  static Color primary(ThemeConfig? config) =>
+      config?.colors.primary ?? _defaultPrimary;
+  static Color secondary(ThemeConfig? config) =>
+      config?.colors.secondary ?? _defaultSecondary;
+  static Color surfaceColor(ThemeConfig? config) =>
+      config?.colors.surface ?? surface;
+  static Color backgroundColor(ThemeConfig? config) =>
+      config?.colors.background ?? background;
 
-  static const Color error = Color(0xFFFF6B6B);
-  static const Color success = Color(0xFF51CF66);
-  static const Color warning = Color(0xFFFFC078);
-
-  // --- Neumorphic Decorations ---
-
-  // 1. Convex (Standard "pop out" card/button)
-  static BoxDecoration get neumorphicDecoration => BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-8, -8),
-            blurRadius: 16,
-          ),
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
-            offset: const Offset(8, 8),
-            blurRadius: 16,
-          ),
-        ],
+  // Organic Decoration (Large Radii)
+  static BoxDecoration organicDecoration({
+    required Color color,
+    BorderRadius? borderRadius,
+    bool showShadow = true,
+  }) =>
+      BoxDecoration(
+        color: color,
+        borderRadius: borderRadius ?? BorderRadius.circular(32),
+        boxShadow: showShadow
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : null,
       );
 
-  // 1b. Convex Circle (for Avatars/Icons)
-  static BoxDecoration get neumorphicCircleDecoration => BoxDecoration(
-        color: background,
-        shape: BoxShape.circle,
-        boxShadow: [
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-8, -8),
-            blurRadius: 16,
-          ),
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
-            offset: const Offset(8, 8),
-            blurRadius: 16,
-          ),
-        ],
-      );
+  // ThemeData
+  static ThemeData getTheme(ThemeConfig? config) {
+    final primaryColor = primary(config);
+    final secondaryColor = secondary(config);
+    final bgColor = backgroundColor(config);
 
-  // 2. Concave (Pressed state or Input)
-  static BoxDecoration get neumorphicPressedDecoration => BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.2),
-            offset: const Offset(6, 6),
-            blurRadius: 10,
-            // inset: true // Requires customized implementation or specialized package,
-            // but standard flutter BoxDecoration doesn't support 'inset'.
-            // We simulate "pressed" by flipping shadows or darkening inner.
-            // For valid Flutter code without extra packages:
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.8),
-            offset: const Offset(-6, -6),
-            blurRadius: 10,
-            // inset: true
-          ),
-        ],
-        // Note: Standard BoxDecoration does NOT support 'inset' shadows natively without custom painting
-        // or packages like flutter_neumorphic.
-        // We will simulate "Concave" using a slightly darker/flat look or standard shadows
-        // inverted if we had a package.
-        // For standard Flutter, we'll just use a flatter, darker style for inputs/pressed.
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFE6E6E6), // Slightly darker top-left
-            Color(0xFFF7F7F7), // Lighter bottom-right
-          ],
+    return ThemeData(
+      brightness: Brightness.light,
+      primaryColor: primaryColor,
+      scaffoldBackgroundColor: bgColor,
+      fontFamily: 'Outfit', // A soft, modern font
+      colorScheme: ColorScheme.light(
+        primary: primaryColor,
+        secondary: secondaryColor,
+        surface: surface,
+        error: _defaultError,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: const Color(0xFF2C3E50),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: const TextStyle(
+          color: Color(0xFF2C3E50),
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
         ),
-      );
-
-  // 3. Flat / Simple for small elements
-  static BoxDecoration get flatDecoration => BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-4, -4),
-            blurRadius: 8,
+        iconTheme: IconThemeData(color: primaryColor),
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(32),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shadowColor: primaryColor.withValues(alpha: 0.4),
+          minimumSize: const Size(double.infinity, 56),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.3),
-            offset: const Offset(4, 4),
-            blurRadius: 8,
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
-        ],
-      );
-
-  // Alias for compatibility with previous layout code
-  static BoxDecoration get cardDecoration => neumorphicDecoration;
-  static BoxDecoration get glassDecoration =>
-      neumorphicDecoration; // Map glass to neumorphic
-  static BoxDecoration get solidCardDecoration => flatDecoration;
-
-  // --- Typography ---
-  static TextStyle get heading1 => GoogleFonts.nunito(
-        fontSize: 28,
-        fontWeight: FontWeight.w800,
-        color: textDark,
-        height: 1.2,
-      );
-
-  static TextStyle get heading2 => GoogleFonts.nunito(
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
-        color: textDark,
-      );
-
-  static TextStyle get bodyText => GoogleFonts.nunito(
-        fontSize: 15,
-        color: textGrey,
-        height: 1.5,
-      );
-
-  static TextStyle get label => GoogleFonts.nunito(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: textGrey,
-        letterSpacing: 0.5,
-      );
-
-  // --- Constants ---
-  static const double radiusM = 20.0;
-  static const double radiusL = 30.0;
-  static const double padding = 24.0;
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        labelStyle: TextStyle(color: primaryColor),
+        hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.6)),
+      ),
+      useMaterial3: true,
+    );
+  }
 }
