@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/providers.dart';
 import 'theme.dart';
@@ -14,6 +15,7 @@ class DashboardPage extends ConsumerStatefulWidget {
   final double downloadMbps;
   final double uploadMbps;
   final Function(String) onNavigate;
+  final Future<void> Function()? onRefresh;
 
   const DashboardPage({
     super.key,
@@ -27,6 +29,7 @@ class DashboardPage extends ConsumerStatefulWidget {
     required this.downloadMbps,
     required this.uploadMbps,
     required this.onNavigate,
+    this.onRefresh,
   });
 
   @override
@@ -45,80 +48,93 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
     return Scaffold(
       backgroundColor: Layout03Theme.background, // Soft Grey
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-              24, 32, 24, 120), // Added bottom padding for Nav Bar
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(name, plan),
-              const SizedBox(height: 40),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          if (widget.onRefresh != null) {
+            HapticFeedback.mediumImpact();
+            await widget.onRefresh!();
+          }
+        },
+        color: Layout03Theme.primary,
+        backgroundColor: Colors.white,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+                24, 32, 24, 120), // Added bottom padding for Nav Bar
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(name, plan),
+                const SizedBox(height: 40),
 
-              // Status & Bill Row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Connection Status - Neumorphic Card
-                  Expanded(flex: 1, child: _buildNeumorphicStatus(status)),
-                  const SizedBox(width: 20),
-                  // Bill Card - Neumorphic but highlighted
-                  Expanded(
-                      flex: 1,
-                      child: _buildNeumorphicBill(
-                          widget.billAmount, widget.billDueDate)),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Connection Speed - Clickable
-              GestureDetector(
-                onTap: () => widget.onNavigate('speed_test'),
-                child: _buildSpeedCard(widget.downloadMbps),
-              ),
-
-              const SizedBox(height: 32),
-
-              Text('Ações Rápidas', style: Layout03Theme.label),
-              const SizedBox(height: 16),
-
-              // Shortcuts Grid
-              LayoutBuilder(builder: (ctx, constraints) {
-                final width = (constraints.maxWidth - 20) / 2;
-                return Wrap(
-                  spacing: 20,
-                  runSpacing: 20,
+                // Status & Bill Row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.wifi_rounded,
-                            'Meu Wi-Fi', () => widget.onNavigate('wifi'))),
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.receipt_long_rounded,
-                            'Faturas', () => widget.onNavigate('invoices'))),
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(
-                            Icons.speed_rounded, // Changed Icon
-                            'Diagnóstico', // Changed Title
-                            () => widget.onNavigate(
-                                'network_diagnostic'))), // Changed Route
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.alt_route_rounded,
-                            'Rota', () => widget.onNavigate('trace_route'))),
-                    SizedBox(
-                        width: width,
-                        child: _buildNeuShortcut(Icons.support_agent_rounded,
-                            'Suporte', () => widget.onNavigate('support'))),
+                    // Connection Status - Neumorphic Card
+                    Expanded(flex: 1, child: _buildNeumorphicStatus(status)),
+                    const SizedBox(width: 20),
+                    // Bill Card - Neumorphic but highlighted
+                    Expanded(
+                        flex: 1,
+                        child: _buildNeumorphicBill(
+                            widget.billAmount, widget.billDueDate)),
                   ],
-                );
-              }),
+                ),
 
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 24),
+
+                // Connection Speed - Clickable
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    widget.onNavigate('speed_test');
+                  },
+                  child: _buildSpeedCard(widget.downloadMbps),
+                ),
+
+                const SizedBox(height: 32),
+
+                Text('Ações Rápidas', style: Layout03Theme.label),
+                const SizedBox(height: 16),
+
+                // Shortcuts Grid
+                LayoutBuilder(builder: (ctx, constraints) {
+                  final width = (constraints.maxWidth - 20) / 2;
+                  return Wrap(
+                    spacing: 20,
+                    runSpacing: 20,
+                    children: [
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(Icons.wifi_rounded,
+                              'Meu Wi-Fi', () => widget.onNavigate('wifi'))),
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(Icons.receipt_long_rounded,
+                              'Faturas', () => widget.onNavigate('invoices'))),
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(
+                              Icons.speed_rounded, // Changed Icon
+                              'Diagnóstico', // Changed Title
+                              () => widget.onNavigate(
+                                  'network_diagnostic'))), // Changed Route
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(Icons.alt_route_rounded,
+                              'Rota', () => widget.onNavigate('trace_route'))),
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(Icons.support_agent_rounded,
+                              'Suporte', () => widget.onNavigate('support'))),
+                    ],
+                  );
+                }),
+
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -254,7 +270,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       decoration: Layout03Theme.neumorphicDecoration,
       child: Row(
         children: [
-          const Icon(Icons.speed_rounded, color: Layout03Theme.primary, size: 36),
+          const Icon(Icons.speed_rounded,
+              color: Layout03Theme.primary, size: 36),
           const SizedBox(width: 24),
           Expanded(
             child: Column(
@@ -284,7 +301,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   Widget _buildNeuShortcut(IconData icon, String title, VoidCallback onTap) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
         height: 100,
         decoration:

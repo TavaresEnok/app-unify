@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/widgets/premium_invoice_card.dart';
 
 typedef NavigateToPageCallback = void Function(String pageId);
 
-class ProviderDashboardPage extends StatelessWidget {
+class ProviderDashboardPage extends StatefulWidget {
   final String customerName, planName, connectionStatus;
   final double billAmount, usedGb, totalGb, downloadMbps, uploadMbps;
   final DateTime billDueDate;
   final NavigateToPageCallback onNavigate;
   final List<Map<String, dynamic>>? menuItems;
+  final Future<void> Function()? onRefresh;
 
   // CORES PERSONALIZADAS
   final Color? customCardBg;
   final Color? customCardText;
   final Color? invoiceColor;
-  final Color?
-      actionColor; // NOVO: Cor para botões de ação (Testar, Diagnóstico)
+  final Color? actionColor;
 
   const ProviderDashboardPage({
     super.key,
@@ -35,18 +36,44 @@ class ProviderDashboardPage extends StatelessWidget {
     this.customCardText,
     this.invoiceColor,
     this.actionColor,
+    this.onRefresh,
   });
 
   @override
+  State<ProviderDashboardPage> createState() => _ProviderDashboardPageState();
+}
+
+class _ProviderDashboardPageState extends State<ProviderDashboardPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final firstName = customerName.split(' ')[0];
+    final firstName = widget.customerName.split(' ')[0];
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
 
-    final cardBg = customCardBg ?? textColor.withValues(alpha: 0.08);
-    final cardText = customCardText ?? textColor;
-    // Se não tiver actionColor, usa preto como fallback para o botão "Testar"
-    final buttonColor = actionColor ?? Colors.black;
+    final cardBg = widget.customCardBg ?? textColor.withValues(alpha: 0.08);
+    final cardText = widget.customCardText ?? textColor;
+    final buttonColor = widget.actionColor ?? Colors.black;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -74,7 +101,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     decoration: BoxDecoration(
                         color: textColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12)),
-                    child: Text(planName,
+                    child: Text(widget.planName,
                         style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -82,7 +109,7 @@ class ProviderDashboardPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   _SimpleStatusBadge(
-                      status: connectionStatus, textColor: textColor),
+                      status: widget.connectionStatus, textColor: textColor),
                 ],
               ),
             ],
@@ -91,147 +118,240 @@ class ProviderDashboardPage extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 24, top: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: textColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                onPressed: () => onNavigate('notifications'),
-                icon: Icon(Icons.notifications_none_rounded, color: textColor),
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                widget.onNavigate('notifications');
+              },
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: textColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.notifications_none_rounded,
+                    color: textColor, size: 24),
               ),
             ),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
-        children: [
-          PremiumInvoiceCard(
-            amount: billAmount,
-            dueDate: billDueDate,
-            onPay: () => onNavigate('invoices'),
-            customColor: invoiceColor,
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4))
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F9FF),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.speed_rounded,
-                      color: Color(0xFF0EA5E9), size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Minha Velocidade',
-                          style: GoogleFonts.inter(
-                              color: const Color(0xFF64748B),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                      Text('${downloadMbps.toInt()} Mega',
-                          style: GoogleFonts.inter(
-                              color: const Color(0xFF0F172A),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800)),
-                    ],
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () => onNavigate('speed_test'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        buttonColor, // <--- APLICANDO A COR DO BOTÃO AQUI
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Testar'),
-                )
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          if (widget.onRefresh != null) {
+            HapticFeedback.mediumImpact();
+            await widget.onRefresh!();
+          }
+        },
+        color: buttonColor,
+        backgroundColor: Colors.white,
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
             children: [
-              Text('Acesso Rápido',
-                  style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: textColor)),
-              const SizedBox(height: 16),
-              _CleanActionsRow(
-                onNavigate: onNavigate,
-                textColor: textColor,
-                menuItems: menuItems,
+              // Invoice Card with subtle animation
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutQuart,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 20 * (1 - value)),
+                    child: Opacity(opacity: value, child: child),
+                  );
+                },
+                child: PremiumInvoiceCard(
+                  amount: widget.billAmount,
+                  dueDate: widget.billDueDate,
+                  onPay: () {
+                    HapticFeedback.lightImpact();
+                    widget.onNavigate('invoices');
+                  },
+                  customColor: widget.invoiceColor,
+                ),
               ),
-              const SizedBox(height: 20),
-              InkWell(
-                onTap: () => onNavigate('network_diagnostic'),
-                borderRadius: BorderRadius.circular(20),
+              const SizedBox(height: 24),
+
+              // Speed Card
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.easeOutQuart,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 20 * (1 - value)),
+                    child: Opacity(opacity: value, child: child),
+                  );
+                },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: cardText.withValues(alpha: 0.15)),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: buttonColor.withValues(alpha: 0.08),
+                        blurRadius: 25,
+                        offset: const Offset(0, 8),
+                      )
+                    ],
                   ),
                   child: Row(
                     children: [
-                      // Se tiver actionColor, usa ela no ícone, senão usa o cardText ou Amarelo padrão
-                      Icon(Icons.build_circle_outlined,
-                          color: actionColor ??
-                              customCardText ??
-                              const Color(0xFFFBBC05),
-                          size: 24),
-                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFFF0F9FF),
+                              const Color(0xFFE0F2FE),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Icon(Icons.speed_rounded,
+                            color: Color(0xFF0EA5E9), size: 28),
+                      ),
+                      const SizedBox(width: 16),
                       Expanded(
-                          child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Problemas técnicos?',
-                              style: GoogleFonts.inter(
-                                  color: cardText,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14)),
-                          Text('Iniciar auto-diagnóstico da rede.',
-                              style: GoogleFonts.inter(
-                                  color: cardText.withValues(alpha: 0.7),
-                                  fontSize: 12)),
-                        ],
-                      )),
-                      Icon(Icons.arrow_forward_ios_rounded,
-                          size: 16, color: cardText.withValues(alpha: 0.5)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Minha Velocidade',
+                                style: GoogleFonts.inter(
+                                    color: const Color(0xFF64748B),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text('${widget.downloadMbps.toInt()} Mega',
+                                style: GoogleFonts.inter(
+                                    color: const Color(0xFF0F172A),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800)),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          widget.onNavigate('speed_test');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: buttonColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Testar',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      )
                     ],
                   ),
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // Quick Actions Section
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutQuart,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 20 * (1 - value)),
+                    child: Opacity(opacity: value, child: child),
+                  );
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Acesso Rápido',
+                        style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: textColor)),
+                    const SizedBox(height: 16),
+                    _CleanActionsRow(
+                      onNavigate: widget.onNavigate,
+                      textColor: textColor,
+                      menuItems: widget.menuItems,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Diagnostic Card
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        widget.onNavigate('network_diagnostic');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 18, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: cardText.withValues(alpha: 0.15)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: (widget.actionColor ??
+                                        const Color(0xFFFBBC05))
+                                    .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.build_circle_outlined,
+                                  color: widget.actionColor ??
+                                      widget.customCardText ??
+                                      const Color(0xFFFBBC05),
+                                  size: 24),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                                child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Problemas técnicos?',
+                                    style: GoogleFonts.inter(
+                                        color: cardText,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15)),
+                                const SizedBox(height: 2),
+                                Text('Iniciar auto-diagnóstico da rede.',
+                                    style: GoogleFonts.inter(
+                                        color: cardText.withValues(alpha: 0.7),
+                                        fontSize: 12)),
+                              ],
+                            )),
+                            Icon(Icons.arrow_forward_ios_rounded,
+                                size: 16,
+                                color: cardText.withValues(alpha: 0.5)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -246,24 +366,30 @@ class _SimpleStatusBadge extends StatelessWidget {
     final isConnected =
         status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
     final bgColor = isConnected
-        ? textColor.withValues(alpha: 0.15)
+        ? const Color(0xFF10B981).withValues(alpha: 0.15)
         : Colors.red.withValues(alpha: 0.15);
-    final badgeColor = isConnected ? textColor : Colors.red;
+    final badgeColor = isConnected ? const Color(0xFF10B981) : Colors.red;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
           color: bgColor, borderRadius: BorderRadius.circular(12)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isConnected ? Icons.wifi : Icons.wifi_off,
-              color: badgeColor, size: 12),
-          const SizedBox(width: 4),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: badgeColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
           Text(status,
               style: GoogleFonts.inter(
                   color: badgeColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12)),
+                  fontSize: 11)),
         ],
       ),
     );
@@ -326,35 +452,31 @@ class _CleanActionsRow extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            debugPrint(
-                'Dashboard: Botão "$label" (ID: $id) clicado!'); // DEBUG LOG
-            try {
-              onNavigate(id);
-            } catch (e) {
-              debugPrint('Dashboard: Erro ao navegar para $id: $e');
-            }
+            HapticFeedback.lightImpact();
+            onNavigate(id);
           },
           child: Container(
             width: 75,
-            color: Colors.transparent, // Garante área de toque
+            color: Colors.transparent,
             child: Column(
               children: [
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 58,
+                  height: 58,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4))
+                        color: color.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      )
                     ],
                   ),
                   child: Icon(icon, color: color, size: 26),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(label,
                     style: GoogleFonts.inter(
                         color: textColor,

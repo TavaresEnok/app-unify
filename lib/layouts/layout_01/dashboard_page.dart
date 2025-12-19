@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:intl/intl.dart';
 
 typedef NavigateToPageCallback = void Function(String pageId);
 
-class ProviderDashboardPage extends StatelessWidget {
+class ProviderDashboardPage extends StatefulWidget {
   final String customerName, planName, connectionStatus;
   final double billAmount, usedGb, totalGb, downloadMbps, uploadMbps;
   final DateTime billDueDate;
   final NavigateToPageCallback onNavigate;
   final List<Map<String, dynamic>>? menuItems;
+  final Future<void> Function()? onRefresh;
 
   // CORES PERSONALIZADAS
   final Color? customCardBg;
@@ -35,51 +36,69 @@ class ProviderDashboardPage extends StatelessWidget {
     this.customCardText,
     this.invoiceColor,
     this.actionColor,
+    this.onRefresh,
   });
 
+  @override
+  State<ProviderDashboardPage> createState() => _ProviderDashboardPageState();
+}
+
+class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
   @override
   Widget build(BuildContext context) {
     // Cores (roxo padrão recuperado ou customizado)
     final primaryColor = Theme.of(context).primaryColor;
     const secondaryColor = Color(0xFF0EA5E9);
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          FadeInUp(
-            child: _buildWelcomeSection(context, primaryColor, secondaryColor),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                FadeInUp(
-                  delay: const Duration(milliseconds: 100),
-                  child: _buildStatusCard(context, primaryColor),
-                ),
-                const SizedBox(height: 16),
-                FadeInUp(
-                  delay: const Duration(milliseconds: 200),
-                  child: _buildInvoiceSection(
-                      context, primaryColor, secondaryColor),
-                ),
-                const SizedBox(height: 16),
-                FadeInUp(
-                  delay: const Duration(milliseconds: 300),
-                  child: _buildServiceGrid(context, primaryColor),
-                ),
-                const SizedBox(height: 16),
-                FadeInUp(
-                  delay: const Duration(milliseconds: 400),
-                  child: _buildDiagnosticoButton(context, primaryColor),
-                ),
-                const SizedBox(height: 180), // Footer spacer
-              ],
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (widget.onRefresh != null) {
+          HapticFeedback.mediumImpact();
+          await widget.onRefresh!();
+        }
+      },
+      color: primaryColor,
+      backgroundColor: Colors.white,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            FadeInUp(
+              child:
+                  _buildWelcomeSection(context, primaryColor, secondaryColor),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 100),
+                    child: _buildStatusCard(context, primaryColor),
+                  ),
+                  const SizedBox(height: 16),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 200),
+                    child: _buildInvoiceSection(
+                        context, primaryColor, secondaryColor),
+                  ),
+                  const SizedBox(height: 16),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 300),
+                    child: _buildServiceGrid(context, primaryColor),
+                  ),
+                  const SizedBox(height: 16),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 400),
+                    child: _buildDiagnosticoButton(context, primaryColor),
+                  ),
+                  const SizedBox(height: 180), // Footer spacer
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -124,7 +143,10 @@ class ProviderDashboardPage extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.notifications_none_rounded,
                         color: Colors.white, size: 26),
-                    onPressed: () => onNavigate('notifications'),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      widget.onNavigate('notifications');
+                    },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -141,7 +163,7 @@ class ProviderDashboardPage extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                customerName,
+                widget.customerName,
                 style: GoogleFonts.inter(
                   color: Colors.white,
                   fontSize: 22,
@@ -156,7 +178,8 @@ class ProviderDashboardPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -164,7 +187,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     const Icon(Icons.wifi, color: Colors.white, size: 16),
                     const SizedBox(width: 8),
                     Text(
-                      planName,
+                      widget.planName,
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -185,8 +208,8 @@ class ProviderDashboardPage extends StatelessWidget {
   // Keeping logic identical but ensuring context usage works.
 
   Widget _buildStatusCard(BuildContext context, Color primaryColor) {
-    final isConnected = connectionStatus.toLowerCase() == 'ativo' ||
-        connectionStatus.toLowerCase() == 'conectado';
+    final isConnected = widget.connectionStatus.toLowerCase() == 'ativo' ||
+        widget.connectionStatus.toLowerCase() == 'conectado';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -195,7 +218,8 @@ class ProviderDashboardPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF673AB7).withValues(alpha: 0.08), // Colored shadow
+            color: const Color(0xFF673AB7)
+                .withValues(alpha: 0.08), // Colored shadow
             blurRadius: 25,
             offset: const Offset(0, 10),
           )
@@ -250,7 +274,10 @@ class ProviderDashboardPage extends StatelessWidget {
               color: Colors.grey.shade100,
             ),
             InkWell(
-              onTap: () => onNavigate('contract'),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                widget.onNavigate('contract');
+              },
               borderRadius: BorderRadius.circular(8),
               child: Padding(
                 padding:
@@ -282,8 +309,8 @@ class ProviderDashboardPage extends StatelessWidget {
       BuildContext context, Color primaryColor, Color secondaryColor) {
     final currencyFormat =
         NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final formattedValue = currencyFormat.format(billAmount);
-    final formattedDate = DateFormat('dd/MM').format(billDueDate);
+    final formattedValue = currencyFormat.format(widget.billAmount);
+    final formattedDate = DateFormat('dd/MM').format(widget.billDueDate);
 
     return Container(
       decoration: BoxDecoration(
@@ -346,7 +373,10 @@ class ProviderDashboardPage extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => onNavigate('invoices'),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    widget.onNavigate('invoices');
+                  },
                   icon: const Icon(Icons.pix, size: 18),
                   label: const Text('Pagar Pix'),
                   style: ElevatedButton.styleFrom(
@@ -362,7 +392,10 @@ class ProviderDashboardPage extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => onNavigate('invoices'),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    widget.onNavigate('invoices');
+                  },
                   icon: const Icon(Icons.receipt_long_rounded, size: 18),
                   label: const Text('Faturas'),
                   style: OutlinedButton.styleFrom(
@@ -429,7 +462,10 @@ class ProviderDashboardPage extends StatelessWidget {
   Widget _buildServiceItem(String pageId, String label, IconData icon,
       Color bgColor, Color iconColor) {
     return InkWell(
-      onTap: () => onNavigate(pageId),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        widget.onNavigate(pageId);
+      },
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
@@ -474,7 +510,10 @@ class ProviderDashboardPage extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () => onNavigate('network_diagnostic'),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          widget.onNavigate('network_diagnostic');
+        },
         icon: const Icon(Icons.build, size: 20),
         label: const Text('Rodar Diagnóstico Completo'),
         style: ElevatedButton.styleFrom(
