@@ -126,6 +126,30 @@ export default function AppearanceSettings() {
             textColor: '#171717',
             iconColor: '#4F46E5',
         },
+        layout_08: {
+            themeColor: '#FFFF00', // Yellow
+            secondaryColor: '#FF1493', // Deep Pink
+            backgroundColor: '#FFFFFF',
+            cardColor: '#FFFFFF',
+            textColor: '#000000',
+            iconColor: '#000000',
+        },
+        layout_09: {
+            themeColor: '#1A5276', // Ocean Blue
+            secondaryColor: '#1D8348', // Forest Green
+            backgroundColor: '#F0F4F8',
+            cardColor: '#FFFFFF',
+            textColor: '#2C3E50',
+            iconColor: '#1A5276',
+        },
+        layout_10: {
+            themeColor: '#8E44AD', // Violet
+            secondaryColor: '#1ABC9C', // Teal
+            backgroundColor: '#0F172A', // Navy
+            cardColor: '#1E293B',
+            textColor: '#FFFFFF',
+            iconColor: '#FFFFFF',
+        },
     };
 
 
@@ -183,6 +207,9 @@ export default function AppearanceSettings() {
                                     <SelectItem value="layout_05">Layout 05 - Neo Digital</SelectItem>
                                     <SelectItem value="layout_06">Layout 06 - Premium Dark</SelectItem>
                                     <SelectItem value="layout_07">Layout 07 - Clean Light</SelectItem>
+                                    <SelectItem value="layout_08">Layout 08 - Neubrutalism</SelectItem>
+                                    <SelectItem value="layout_09">Layout 09 - Organic / Biomorphic</SelectItem>
+                                    <SelectItem value="layout_10">Layout 10 - Mesh / Glassmorphism</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
