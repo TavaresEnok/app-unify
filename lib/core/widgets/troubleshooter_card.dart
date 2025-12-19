@@ -23,8 +23,14 @@ class TroubleshootingRecommendation {
 class TroubleshooterCard extends StatelessWidget {
   final DiagnosticoState state;
   final VoidCallback? onRetry;
+  final bool isDarkLayout;
 
-  const TroubleshooterCard({super.key, required this.state, this.onRetry});
+  const TroubleshooterCard({
+    super.key,
+    required this.state,
+    this.onRetry,
+    this.isDarkLayout = false,
+  });
 
   List<TroubleshootingRecommendation> _analyzeProblems(BuildContext context) {
     final List<TroubleshootingRecommendation> problems = [];
@@ -151,8 +157,12 @@ class TroubleshooterCard extends StatelessWidget {
 
     final recommendations = _analyzeProblems(context);
 
+    final cardColor = isDarkLayout ? const Color(0xFF1C1C1E) : Colors.white;
+    final descriptionColor = isDarkLayout ? const Color(0xFF8E8E93) : null;
+
     if (recommendations.isEmpty) {
       return DashboardCard(
+        color: cardColor,
         child: Row(
           children: [
             const Icon(Icons.thumb_up_alt, color: Colors.greenAccent, size: 32),
@@ -168,7 +178,10 @@ class TroubleshooterCard extends StatelessWidget {
                           ?.copyWith(color: Colors.greenAccent)),
                   const SizedBox(height: 4),
                   Text("Nenhum problema detectado nos testes.",
-                      style: Theme.of(context).textTheme.bodyMedium),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: descriptionColor)),
                 ],
               ),
             ),
@@ -178,6 +191,7 @@ class TroubleshooterCard extends StatelessWidget {
     }
 
     return DashboardCard(
+      color: cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -203,8 +217,12 @@ class TroubleshooterCard extends StatelessWidget {
                 if (onRetry != null) onRetry!();
               },
               style: OutlinedButton.styleFrom(
-                  foregroundColor:
-                      Theme.of(context).textTheme.bodyMedium?.color),
+                  foregroundColor: isDarkLayout
+                      ? Colors.white
+                      : Theme.of(context).textTheme.bodyMedium?.color,
+                  side: isDarkLayout
+                      ? const BorderSide(color: Colors.white54)
+                      : null),
               child: const Text("Refazer Testes"),
             ),
           )
@@ -215,6 +233,9 @@ class TroubleshooterCard extends StatelessWidget {
 
   Widget _buildRecommendationItem(
       BuildContext context, TroubleshootingRecommendation rec) {
+    final textColor = isDarkLayout ? Colors.white : null;
+    final descriptionColor = isDarkLayout ? const Color(0xFF8E8E93) : null;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
@@ -223,7 +244,7 @@ class TroubleshooterCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: rec.color.withOpacity(0.1),
+              color: rec.color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(rec.icon, color: rec.color, size: 20),
@@ -234,13 +255,16 @@ class TroubleshooterCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(rec.title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold, fontSize: 15)),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: textColor)),
                 const SizedBox(height: 4),
                 Text(rec.description,
-                    style: Theme.of(context).textTheme.bodyMedium),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: descriptionColor)),
                 if (rec.action != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),

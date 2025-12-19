@@ -17,7 +17,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   String? _localErrorMessage;
 
   // Animation constants
-  static const Duration _animDuration = Duration(milliseconds: 800);
+  // static const Duration _animDuration = Duration(milliseconds: 800);
 
   @override
   void dispose() {
@@ -114,7 +114,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'CPF / CNPJ',
                       style: TextStyle(
                         fontSize: 14,
@@ -237,7 +237,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       onTap: () {
                         // TODO: Implementar ação de ajuda se necessário
                       },
-                      child: Text(
+                      child: const Text(
                         'Fale com o suporte',
                         style: TextStyle(
                           color: Layout05Theme.primary,

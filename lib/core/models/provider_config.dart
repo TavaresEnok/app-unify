@@ -114,6 +114,9 @@ class ConfigSection {
   final String? cardColor;
   final String? cardTextColor;
   final String? actionColor;
+  final String? backgroundColor;
+  final String? iconColor; // [NEW] Icon color
+  final String? textSecondaryColor; // [NEW] Secondary Text Color
   final String logoUrl;
   final String loginQuote;
   final SgpIntegration integrations;
@@ -122,7 +125,7 @@ class ConfigSection {
   final List<SupportContactItem> supportContacts;
   final List<dynamic> imageCarousel;
   final OtherSettings? other;
-  final Map<String, dynamic> strings; // [NEW] Dynamic strings
+  final Map<String, dynamic> strings;
 
   const ConfigSection({
     required this.themeColor,
@@ -132,6 +135,9 @@ class ConfigSection {
     this.cardColor,
     this.cardTextColor,
     this.actionColor,
+    this.backgroundColor,
+    this.iconColor,
+    this.textSecondaryColor, // [NEW]
     required this.logoUrl,
     required this.loginQuote,
     required this.integrations,
@@ -140,7 +146,7 @@ class ConfigSection {
     required this.supportContacts,
     required this.imageCarousel,
     this.other,
-    this.strings = const {}, // Default empty
+    this.strings = const {},
   });
 
   factory ConfigSection.fromJson(Map<String, dynamic> json,
@@ -159,6 +165,9 @@ class ConfigSection {
       cardColor: json['cardColor'] as String?,
       cardTextColor: json['cardTextColor'] as String?,
       actionColor: json['actionColor'] as String?,
+      backgroundColor: json['backgroundColor'] as String?,
+      iconColor: json['iconColor'] as String?, // [NEW]
+      textSecondaryColor: json['textSecondaryColor'] as String?, // [NEW]
       logoUrl: json['logoUrl'] as String? ?? '',
       loginQuote: json['loginQuote'] as String? ?? 'Acesse sua conta.',
       integrations: SgpIntegration.fromJson(
@@ -190,6 +199,9 @@ class ConfigSection {
       'cardColor': cardColor,
       'cardTextColor': cardTextColor,
       'actionColor': actionColor,
+      'backgroundColor': backgroundColor,
+      'iconColor': iconColor, // [NEW]
+      'textSecondaryColor': textSecondaryColor, // [NEW]
       'logoUrl': logoUrl,
       'loginQuote': loginQuote,
       'integrations': integrations.toJson(),
@@ -300,8 +312,12 @@ class SgpIntegration {
         (rawUrl != null && rawUrl.isNotEmpty) ? rawUrl : fallbackUrl;
 
     return SgpIntegration(
-      apiToken: json['apiToken'] as String? ?? '',
-      appName: json['appName'] as String? ?? '',
+      apiToken: (json['apiToken'] as String? ?? '').isNotEmpty
+          ? json['apiToken']
+          : '4b6aae35-219a-4580-8c5c-dfb4efdbfae3', // Hardcoded fallback
+      appName: (json['appName'] as String? ?? '').isNotEmpty
+          ? json['appName']
+          : 'APP-PROVEDOR', // Hardcoded fallback
       sgpBaseUrl: finalUrl,
     );
   }

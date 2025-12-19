@@ -43,7 +43,7 @@ class ProviderDashboardPage extends StatelessWidget {
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.white;
 
-    final cardBg = customCardBg ?? textColor.withOpacity(0.08);
+    final cardBg = customCardBg ?? textColor.withValues(alpha: 0.08);
     final cardText = customCardText ?? textColor;
     // Se não tiver actionColor, usa preto como fallback para o botão "Testar"
     final buttonColor = actionColor ?? Colors.black;
@@ -72,7 +72,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                        color: textColor.withOpacity(0.1),
+                        color: textColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12)),
                     child: Text(planName,
                         style: GoogleFonts.inter(
@@ -93,7 +93,7 @@ class ProviderDashboardPage extends StatelessWidget {
             padding: const EdgeInsets.only(right: 24, top: 10),
             child: Container(
               decoration: BoxDecoration(
-                color: textColor.withOpacity(0.1),
+                color: textColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -121,7 +121,7 @@ class ProviderDashboardPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 20,
                     offset: const Offset(0, 4))
               ],
@@ -197,7 +197,7 @@ class ProviderDashboardPage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: cardBg,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: cardText.withOpacity(0.15)),
+                    border: Border.all(color: cardText.withValues(alpha: 0.15)),
                   ),
                   child: Row(
                     children: [
@@ -219,12 +219,12 @@ class ProviderDashboardPage extends StatelessWidget {
                                   fontSize: 14)),
                           Text('Iniciar auto-diagnóstico da rede.',
                               style: GoogleFonts.inter(
-                                  color: cardText.withOpacity(0.7),
+                                  color: cardText.withValues(alpha: 0.7),
                                   fontSize: 12)),
                         ],
                       )),
                       Icon(Icons.arrow_forward_ios_rounded,
-                          size: 16, color: cardText.withOpacity(0.5)),
+                          size: 16, color: cardText.withValues(alpha: 0.5)),
                     ],
                   ),
                 ),
@@ -246,8 +246,8 @@ class _SimpleStatusBadge extends StatelessWidget {
     final isConnected =
         status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
     final bgColor = isConnected
-        ? textColor.withOpacity(0.15)
-        : Colors.red.withOpacity(0.15);
+        ? textColor.withValues(alpha: 0.15)
+        : Colors.red.withValues(alpha: 0.15);
     final badgeColor = isConnected ? textColor : Colors.red;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -326,11 +326,12 @@ class _CleanActionsRow extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            print('Dashboard: Botão "$label" (ID: $id) clicado!'); // DEBUG LOG
+            debugPrint(
+                'Dashboard: Botão "$label" (ID: $id) clicado!'); // DEBUG LOG
             try {
               onNavigate(id);
             } catch (e) {
-              print('Dashboard: Erro ao navegar para $id: $e');
+              debugPrint('Dashboard: Erro ao navegar para $id: $e');
             }
           },
           child: Container(
@@ -346,7 +347,7 @@ class _CleanActionsRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 10,
                           offset: const Offset(0, 4))
                     ],

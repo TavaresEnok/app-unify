@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/theme_config.dart';
+import '../../layouts/layout_06/theme.dart';
 
 class DynamicThemeProvider with ChangeNotifier {
   ThemeData _lightTheme;
@@ -21,10 +22,18 @@ class DynamicThemeProvider with ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   ThemeConfig get config => _currentConfig;
 
-  void updateFromConfig(ThemeConfig config) {
+  void updateFromConfig(ThemeConfig config, {String? layoutType}) {
     _currentConfig = config;
-    _lightTheme = _buildTheme(config, Brightness.light);
-    _darkTheme = _buildTheme(config, Brightness.dark);
+
+    if (layoutType == 'layout_06') {
+      // Layout 06 uses its own specialized theme builder
+      _lightTheme = Layout06Theme.getTheme(config);
+      _darkTheme = Layout06Theme.getTheme(config);
+      _themeMode = ThemeMode.dark; // Force Dark Mode
+    } else {
+      _lightTheme = _buildTheme(config, Brightness.light);
+      _darkTheme = _buildTheme(config, Brightness.dark);
+    }
 
     // Atualiza o modo do tema baseado na config
     if (config.darkMode.enabled) {
@@ -54,14 +63,25 @@ class DynamicThemeProvider with ChangeNotifier {
     final colors = config.colors;
     final isDark = brightness == Brightness.dark;
 
-    // Base colors setup
+    // Use configured colors directly if possible, falling back only if needed.
+    // NOTE: In our new system, `colors.background` and `colors.surface` are already
+    // populated precisely from the user's config in `providers.dart`.
+    // So we should trust them unless they are defaults that we successfully identified as "should change based on mode".
+    // For now, let's trust the config object as the source of truth for these custom overrides.
+
     final primary = colors.primary;
     final secondary = colors.secondary;
-    final background = isDark ? colors.background : const Color(0xFFF8FAFC);
-    final surface = isDark ? colors.surface : Colors.white;
-    final textPrimary = isDark ? colors.textPrimary : const Color(0xFF1E293B);
-    final textSecondary =
-        isDark ? colors.textSecondary : const Color(0xFF64748B);
+
+    // [FIX] Trust the config's background/surface.
+    // If the user set a custom color, `colors.background` holds it.
+    // If they didn't, it holds the default.
+    // To distinguish "User set specific color" vs "Default", we rely on the fact
+    // that `providers.dart` constructs this `ThemeConfig` dynamically.
+    final background = colors.background;
+    final surface = colors.surface;
+
+    final textPrimary = colors.textPrimary; // Trust config
+    final textSecondary = colors.textSecondary; // Trust config
 
     // Typography setup
     final textTheme =
@@ -72,6 +92,11 @@ class DynamicThemeProvider with ChangeNotifier {
       brightness: brightness,
       primaryColor: primary,
       scaffoldBackgroundColor: background,
+
+      // [NEW] Map Icon Theme
+      iconTheme: IconThemeData(
+        color: config.effects.iconColor ?? primary,
+      ),
 
       // Color Scheme
       colorScheme: ColorScheme(
@@ -105,7 +130,7 @@ class DynamicThemeProvider with ChangeNotifier {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor:
-            isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+            isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(config.borderRadius.sm),
           borderSide:
@@ -143,7 +168,7 @@ class DynamicThemeProvider with ChangeNotifier {
   }
 
   static TextTheme _buildTextTheme(
-      ThemeTypography config, Color primaryColor, Color secondaryColor) {
+      ThemeTypography config, Color primaryColor, Color textSecondaryColor) {
     try {
       return GoogleFonts.getTextTheme(
         config.fontFamily,
@@ -169,17 +194,17 @@ class DynamicThemeProvider with ChangeNotifier {
           ),
           bodyMedium: TextStyle(
             fontSize: config.fontSizes['body'],
-            color: secondaryColor,
+            color: textSecondaryColor,
           ),
           labelSmall: TextStyle(
             fontSize: config.fontSizes['caption'],
-            color: secondaryColor,
+            color: textSecondaryColor,
           ),
         ),
       );
     } catch (e) {
       // Fallback se a fonte não carregar ou não existir
-      print('Erro ao carregar fonte ${config.fontFamily}: $e');
+      debugPrint('Erro ao carregar fonte ${config.fontFamily}: $e');
       return TextTheme(
         displayLarge:
             TextStyle(fontSize: config.fontSizes['h1'], color: primaryColor),

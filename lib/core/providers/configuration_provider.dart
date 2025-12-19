@@ -51,25 +51,33 @@ class ConfigurationProvider with ChangeNotifier {
 
         _providerConfig = ProviderConfig.fromJson(safeData, providerId);
 
-        // DEBUG: Print layoutType being loaded
-        print(
+        // DEBUG: Print layoutType and colors being loaded
+        debugPrint(
             "🎨 [DEBUG] layoutType from Firestore: ${_providerConfig?.layoutType}");
-        print("🎨 [DEBUG] Raw layoutType in JSON: ${safeData['layoutType']}");
+        debugPrint(
+            "🎨 [DEBUG] Raw layoutType in JSON: ${safeData['layoutType']}");
+        debugPrint("🎨 [DEBUG] themeColor: ${safeData['themeColor']}");
+        debugPrint("🎨 [DEBUG] secondaryColor: ${safeData['secondaryColor']}");
+        debugPrint(
+            "🎨 [DEBUG] config.themeColor: ${_providerConfig?.config.themeColor}");
+        debugPrint(
+            "🎨 [DEBUG] config.secondaryColor: ${_providerConfig?.config.secondaryColor}");
 
         // 3. Atualiza o cache
         await _saveToCache(providerId, safeData);
-        print("✅ Configuração '$providerId' atualizada do servidor.");
+        debugPrint("✅ Configuração '$providerId' atualizada do servidor.");
       } else {
         if (_providerConfig == null) {
           _errorMessage = "Provedor com ID '$providerId' não encontrado.";
         }
-        print("❌ ERRO: Provedor não encontrado no servidor.");
+        debugPrint("❌ ERRO: Provedor não encontrado no servidor.");
       }
     } catch (e) {
       if (_providerConfig == null) {
         _errorMessage = "Erro de conexão e sem cache local: $e";
       }
-      print("⚠️ Aviso: Usando versão em cache devido a erro de conexão: $e");
+      debugPrint(
+          "⚠️ Aviso: Usando versão em cache devido a erro de conexão: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -85,10 +93,10 @@ class ConfigurationProvider with ChangeNotifier {
         _providerConfig = ProviderConfig.fromJson(data, providerId);
         _isLoading = false; // Já temos dados para mostrar!
         notifyListeners();
-        print("📦 Configuração carregada do cache local.");
+        debugPrint("📦 Configuração carregada do cache local.");
       }
     } catch (e) {
-      print("Erro ao ler cache: $e");
+      debugPrint("Erro ao ler cache: $e");
     }
   }
 
@@ -100,7 +108,7 @@ class ConfigurationProvider with ChangeNotifier {
       await prefs.setString(
           'provider_config_$providerId', json.encode(safeData));
     } catch (e) {
-      print("Erro ao salvar cache: $e");
+      debugPrint("Erro ao salvar cache: $e");
     }
   }
 

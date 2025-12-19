@@ -25,9 +25,9 @@ class Layout05Theme {
         color: background,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
+          const BoxShadow(
             color: Colors.white,
-            offset: const Offset(-8, -8),
+            offset: Offset(-8, -8),
             blurRadius: 16,
           ),
           BoxShadow(
@@ -43,9 +43,9 @@ class Layout05Theme {
         color: background,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(
+          const BoxShadow(
             color: Colors.white,
-            offset: const Offset(-8, -8),
+            offset: Offset(-8, -8),
             blurRadius: 16,
           ),
           BoxShadow(
@@ -82,7 +82,7 @@ class Layout05Theme {
         // We will simulate "Concave" using a slightly darker/flat look or standard shadows
         // inverted if we had a package.
         // For standard Flutter, we'll just use a flatter, darker style for inputs/pressed.
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -97,9 +97,9 @@ class Layout05Theme {
         color: background,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
+          const BoxShadow(
             color: Colors.white,
-            offset: const Offset(-4, -4),
+            offset: Offset(-4, -4),
             blurRadius: 8,
           ),
           BoxShadow(

@@ -26,13 +26,13 @@ class NeumorphicBottomNav extends StatelessWidget {
           color: Layout05Theme.background,
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
-            BoxShadow(
+            const BoxShadow(
               color: Colors.white,
-              offset: const Offset(-4, -4), // Sombras mais suaves
+              offset: Offset(-4, -4), // Sombras mais suaves
               blurRadius: 10,
             ),
             BoxShadow(
-              color: const Color(0xFFA3B1C6).withOpacity(0.3),
+              color: const Color(0xFFA3B1C6).withValues(alpha: 0.3),
               offset: const Offset(4, 4),
               blurRadius: 10,
             ),
@@ -71,9 +71,9 @@ class NeumorphicBottomNav extends StatelessWidget {
                       offset: const Offset(4, 4),
                       blurRadius: 8,
                     ),
-                    BoxShadow(
+                    const BoxShadow(
                       color: Colors.white,
-                      offset: const Offset(-4, -4),
+                      offset: Offset(-4, -4),
                       blurRadius: 8,
                     ),
                   ]) // Pressed/Concave Simulation

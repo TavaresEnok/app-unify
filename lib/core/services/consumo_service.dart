@@ -19,7 +19,10 @@ class ConsumoService {
   });
 
   /// Busca os dados de consumo na API
-  Future<Map<String, dynamic>> fetchConsumptionData() async {
+  /// [month] Mês (1-12)
+  /// [year] Ano (ex: 2024)
+  Future<Map<String, dynamic>> fetchConsumptionData(
+      {int? month, int? year}) async {
     try {
       if (cpfCnpj.isEmpty || senha.isEmpty) {
         throw Exception("CPF/CNPJ ou Senha não podem ser vazios.");
@@ -30,6 +33,8 @@ class ConsumoService {
         'senha': senha,
         'sgpParams': sgpParams,
         'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+        if (month != null) 'mes': month,
+        if (year != null) 'ano': year,
       };
 
       final response = await http

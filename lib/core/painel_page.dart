@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../layouts/layout_06/widgets/skeleton_dashboard_page.dart';
 import '../layout_selector.dart';
 import '../layouts/layout_05/theme.dart';
 import '../layouts/layout_05/widgets/neumorphic_bottom_nav.dart';
 import 'providers/providers.dart';
+import 'widgets/offline_banner.dart';
 import 'models/usuario.dart';
 
 /// PainelPage - Widget principal de navegação após login
@@ -17,6 +19,28 @@ class PainelPage extends ConsumerStatefulWidget {
 class _PainelPageState extends ConsumerState<PainelPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String _currentPage = 'dashboard';
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh data in background when Painel opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
+    });
+  }
+
+  Future<void> _refreshData() async {
+    final config = ref.read(configurationProvider).providerConfig;
+    if (config != null) {
+      // Refresh Configuration (for WhatsApp changes etc)
+      ref.read(configurationProvider).loadConfig(config.id);
+
+      // Refresh User Data (for Balance 0.00 fix)
+      if (ref.read(authNotifierProvider).value != null) {
+        ref.read(authNotifierProvider.notifier).refreshUserData(config);
+      }
+    }
+  }
 
   final Map<String, String> _pageNames = {
     'dashboard': 'Dashboard',
@@ -50,6 +74,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     setState(() {
       _currentPage = pageId;
     });
+    // BI (Analytics)
+    ref.read(analyticsServiceProvider).logScreenView(pageId);
+
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       Navigator.of(context).pop();
     }
@@ -61,9 +88,15 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     final configProvider = ref.watch(configurationProvider);
     final usuario = authState.value;
 
-    final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
-    // Layout 02 também deve ter bottom nav agora
-    final hasBottomNav = layoutType == 'layout_05' || layoutType == 'layout_02';
+    final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_02';
+    // Layouts with custom bottom navigation (Layout 06 handles its own in dashboard)
+    final hasBottomNav = layoutType == 'layout_05' ||
+        layoutType == 'layout_02' ||
+        layoutType == 'layout_04';
+
+    if (authState.isLoading) {
+      return const SkeletonDashboardPage();
+    }
 
     if (usuario == null) {
       return const Scaffold(
@@ -73,7 +106,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
         if (_currentPage != 'dashboard') {
@@ -100,9 +133,10 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         );
 
         if (shouldExit == true) {
-          if (context.mounted)
+          if (context.mounted) {
             Navigator.pop(
                 context); // Sai do app (PopScope allows exit if we let it, but here we manually pop the route)
+          }
           // Actually, for PopScope with canPop: false, we can't just return.
           // We need to use SystemChannels.platform.invokeMethod('SystemNavigator.pop') for pure exit, or let the router handle it.
           // Since this is the main page, popping it exits the app.
@@ -110,11 +144,18 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       },
       child: Scaffold(
         key: _scaffoldKey,
+        backgroundColor: null, // Respect theme's scaffoldBackgroundColor
         appBar: _buildAppBar(context, layoutType),
         drawer: _buildDrawer(context, usuario, ref, layoutType),
         body: Stack(
           children: [
             _buildBody(layoutType, usuario),
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: OfflineBanner(),
+            ),
             if (hasBottomNav)
               Positioned(
                 bottom: 0,
@@ -123,11 +164,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                 child: NeumorphicBottomNav(
                   currentIndex: _getBottomNavIndex(),
                   onTap: _onBottomNavTap,
-                  // Layout 02 pode querer um estilo diferente de nav, mas vamos reutilizar o Neumorphic por enquanto ou adaptar.
-                  // O NeumorphicBottomNav é bem estilizado 'glass'.
-                  // Para o Layout 02 (roxo), talvez fique bom, ou precise de ajustes de cor.
-                  // O widget NeumorphicBottomNav usa cores fixas em 'Layout05Theme'.
-                  // Vamos manter assim por enquanto para consistência da solicitação.
                 ),
               ),
           ],
@@ -185,18 +221,31 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     }
 
     // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
-    if (isLayout02 && isOnDashboard) {
+    // Layout 04 e Layout 06 também têm seus próprios headers
+    if ((isLayout02 ||
+            layoutType == 'layout_04' ||
+            layoutType == 'layout_06') &&
+        isOnDashboard) {
       return null;
     }
 
-    // Default AppBar for Layout 06, etc. OR Layout 02 non-dashboard pages
+    // Default AppBar for Layout 04, Layout 06, etc. OR Layout 02 non-dashboard pages
     final primaryColor = Theme.of(context).primaryColor;
-    final bgColor = isLayout02 ? const Color(0xFF673AB7) : primaryColor;
-    final contentColor = Colors.white;
+    final bool isDarkLayout =
+        layoutType == 'layout_04' || layoutType == 'layout_06';
+    Color bgColor;
+    if (isLayout02) {
+      bgColor = const Color(0xFF673AB7); // Purple for Layout 02
+    } else if (isDarkLayout) {
+      bgColor = const Color(0xFF0A0A0A); // Pure black for Layout 04/06
+    } else {
+      bgColor = primaryColor;
+    }
+    const contentColor = Colors.white;
 
     return AppBar(
       backgroundColor: bgColor,
-      iconTheme: IconThemeData(color: contentColor),
+      iconTheme: const IconThemeData(color: contentColor),
       leading: isOnDashboard
           ? null
           : IconButton(
@@ -209,7 +258,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               },
             ),
       title: isOnDashboard
-          ? Text(pageName, style: TextStyle(color: contentColor))
+          ? Text(pageName, style: const TextStyle(color: contentColor))
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -223,7 +272,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                     'Início',
                     style: TextStyle(
                       fontSize: 14,
-                      color: contentColor.withOpacity(0.7),
+                      color: contentColor.withValues(alpha: 0.7),
                     ),
                   ),
                 ),
@@ -232,12 +281,12 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                   child: Icon(
                     Icons.chevron_right,
                     size: 18,
-                    color: contentColor.withOpacity(0.5),
+                    color: contentColor.withValues(alpha: 0.5),
                   ),
                 ),
                 Text(
                   pageName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: contentColor,
@@ -316,13 +365,13 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                       color: Layout05Theme.background,
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(
+                        const BoxShadow(
                           color: Colors.white,
-                          offset: const Offset(-8, -8),
+                          offset: Offset(-8, -8),
                           blurRadius: 16,
                         ),
                         BoxShadow(
-                          color: const Color(0xFFA3B1C6).withOpacity(0.4),
+                          color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
                           offset: const Offset(8, 8),
                           blurRadius: 16,
                         ),
@@ -392,7 +441,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                         actions: [
                           TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: Text('Cancelar',
+                              child: const Text('Cancelar',
                                   style: TextStyle(
                                       color: Layout05Theme.textGrey))),
                           TextButton(
@@ -415,6 +464,143 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       );
     }
 
+    // Layout 06: Dark Fintech Drawer
+    final isDarkLayout = layoutType == 'layout_06';
+    if (isDarkLayout) {
+      final colorScheme = Theme.of(context).colorScheme;
+      final primaryColor = Theme.of(context).primaryColor;
+      final secondaryColor = colorScheme.secondary;
+      final surfaceColor = Theme.of(context).cardColor;
+      final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+      final textColor =
+          Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
+
+      return Drawer(
+        backgroundColor: backgroundColor,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [primaryColor, secondaryColor],
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    child: Text(
+                      usuario.nome.isNotEmpty
+                          ? usuario.nome[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(usuario.nome,
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        Text(usuario.plano,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.8))),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildDarkMenuItem('dashboard', 'Início', Icons.home_rounded),
+                  _buildDarkMenuItem(
+                      'invoices', 'Faturas', Icons.receipt_long_rounded),
+                  _buildDarkMenuItem('wifi', 'Meu Wi-Fi', Icons.wifi_rounded),
+                  _buildDarkMenuItem(
+                      'speed_test', 'Velocidade', Icons.speed_rounded),
+                  _buildDarkMenuItem('network_diagnostic', 'Diagnóstico',
+                      Icons.analytics_rounded),
+                  _buildDarkMenuItem(
+                      'trace_route', 'Traceroute', Icons.route_rounded),
+                  _buildDarkMenuItem(
+                      'support', 'Suporte', Icons.headset_mic_rounded),
+                  _buildDarkMenuItem(
+                      'internet_usage', 'Consumo', Icons.data_usage_rounded),
+                  _buildDarkMenuItem('my_ip', 'Meu IP', Icons.public_rounded),
+                  _buildDarkMenuItem(
+                      'contract', 'Contrato', Icons.description_rounded),
+                  _buildDarkMenuItem('faq', 'FAQ', Icons.help_outline_rounded),
+                  const SizedBox(height: 24),
+                  Divider(color: textColor.withValues(alpha: 0.2)),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    leading: const Icon(Icons.star_rate_rounded,
+                        color: Color(0xFFFFD700)),
+                    title: const Text('Avalie este App',
+                        style: TextStyle(color: Color(0xFFFFD700))),
+                    onTap: () {
+                      ref.read(reviewServiceProvider).openStoreListing();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout_rounded,
+                        color: Color(0xFFFF453A)),
+                    title: const Text('Sair',
+                        style: TextStyle(color: Color(0xFFFF453A))),
+                    onTap: () async {
+                      final shouldLogout = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: surfaceColor,
+                          title:
+                              Text('Sair', style: TextStyle(color: textColor)),
+                          content: Text('Deseja realmente sair?',
+                              style: TextStyle(
+                                  color: textColor.withValues(alpha: 0.7))),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: Text('Cancelar',
+                                    style: TextStyle(
+                                        color:
+                                            textColor.withValues(alpha: 0.5)))),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Sim, Sair',
+                                    style:
+                                        TextStyle(color: Color(0xFFFF453A)))),
+                          ],
+                        ),
+                      );
+                      if (shouldLogout == true) {
+                        ref.read(authNotifierProvider.notifier).logout();
+                      }
+                    },
+                  ),
+                  SizedBox(height: 50 + MediaQuery.of(context).padding.bottom),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -429,7 +615,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
                   child: Text(
                     usuario.nome.isNotEmpty
                         ? usuario.nome[0].toUpperCase()
@@ -454,7 +640,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                 Text(
                   usuario.plano,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 14,
                   ),
                 ),
@@ -527,6 +713,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               }
             },
           ),
+          const SizedBox(height: 50), // Add padding for Android navigation bar
         ],
       ),
     );
@@ -574,7 +761,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         ),
       ),
       selected: isSelected,
-      selectedTileColor: primaryColor.withOpacity(0.1),
+      selectedTileColor: primaryColor.withValues(alpha: 0.1),
       onTap: () => _navigateToPage(pageId),
     );
   }
@@ -596,6 +783,14 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           setState(() {
             _currentPage = page;
           });
+        },
+        onRefresh: () async {
+          final config = ref.read(configurationProvider).providerConfig;
+          if (config != null) {
+            await ref
+                .read(authNotifierProvider.notifier)
+                .refreshUserData(config);
+          }
         },
       );
     }
@@ -640,22 +835,37 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       return LayoutSelector.getTraceRoutePage(layoutType: layoutType);
     }
 
+    if (_currentPage == 'notifications') {
+      return LayoutSelector.getNotificationPage(layoutType: layoutType);
+    }
+
     return _buildPlaceholderPage(layoutType);
   }
 
   Widget _buildPlaceholderPage(String layoutType) {
+    final isLayout05 = layoutType == 'layout_05';
+    final backgroundColor =
+        isLayout05 ? Layout05Theme.background : Colors.grey[100];
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: backgroundColor,
       ),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              _pageIcons[_currentPage] ?? Icons.construction,
-              size: 80,
-              color: Colors.grey[400],
+            Container(
+              padding: isLayout05 ? const EdgeInsets.all(24) : null,
+              decoration: isLayout05
+                  ? Layout05Theme.neumorphicDecoration
+                      .copyWith(shape: BoxShape.circle)
+                  : null,
+              child: Icon(
+                _pageIcons[_currentPage] ?? Icons.construction,
+                size: 80,
+                color: isLayout05 ? Layout05Theme.textGrey : Colors.grey[400],
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -663,7 +873,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+                color: isLayout05 ? Layout05Theme.textDark : Colors.grey[800],
               ),
             ),
             const SizedBox(height: 8),
@@ -671,7 +881,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               'Esta página será implementada em breve',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey[600],
+                color: isLayout05 ? Layout05Theme.textGrey : Colors.grey[600],
               ),
             ),
             const SizedBox(height: 32),
@@ -683,10 +893,19 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               },
               icon: const Icon(Icons.arrow_back),
               label: const Text('Voltar ao Dashboard'),
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
+              style: isLayout05
+                  ? ElevatedButton.styleFrom(
+                      backgroundColor: Layout05Theme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    )
+                  : ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                    ),
             ),
           ],
         ),
@@ -716,5 +935,41 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       }
     } catch (_) {}
     return DateTime.now();
+  }
+
+  Widget _buildDarkMenuItem(String pageId, String label, IconData icon) {
+    final isSelected = _currentPage == pageId;
+    final primaryColor = Theme.of(context).primaryColor;
+    final textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? primaryColor.withValues(alpha: 0.15)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected ? primaryColor : textColor.withValues(alpha: 0.6),
+          size: 22,
+        ),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? primaryColor : textColor,
+            fontSize: 15,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          _navigateToPage(pageId);
+        },
+      ),
+    );
   }
 }

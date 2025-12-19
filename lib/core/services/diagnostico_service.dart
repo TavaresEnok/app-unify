@@ -89,8 +89,9 @@ Future<String> _pingTestRunner(PingParams params) async {
     }
     subscription?.cancel();
   }, onError: (e) {
-    if (!completer.isCompleted)
+    if (!completer.isCompleted) {
       completer.complete('Erro no Ping: ${e.toString()}');
+    }
     subscription?.cancel();
   });
 
@@ -215,9 +216,11 @@ class DiagnosticoService {
       String stateStr = "Desconhecido";
       if (state == BatteryState.charging) {
         stateStr = "Carregando";
-      } else if (state == BatteryState.discharging)
+      } else if (state == BatteryState.discharging) {
         stateStr = "Descarregando";
-      else if (state == BatteryState.full) stateStr = "Cheia";
+      } else if (state == BatteryState.full) {
+        stateStr = "Cheia";
+      }
 
       String warning = "";
       if (level < 20 && state != BatteryState.charging) {
@@ -477,6 +480,29 @@ class DiagnosticoService {
 
   Future<void> _runSpeedTestCustom() async {
     if (!_currentState.isTesting) return;
+    String? customUrl = providerConfig.config.other?.speedTestUrl;
+
+    // Default: Infer local server from API URL (same host, port 3001)
+    String defaultSpeedTestUrl =
+        'https://librespeed.org'; // Fallback of fallback
+    try {
+      final apiUri = Uri.parse(providerConfig.apiUrl);
+      if (apiUri.host.isNotEmpty) {
+        // Assume SpeedTest is adjacent on port 3001
+        defaultSpeedTestUrl = 'http://${apiUri.host}:3001';
+      }
+    } catch (_) {
+      // Ignore parse error, stick to librespeed
+    }
+
+    // Validate URL - use inferred default if invalid or empty
+    if (customUrl == null ||
+        customUrl.isEmpty ||
+        Uri.tryParse(customUrl)?.hasAbsolutePath != true) {
+      customUrl = defaultSpeedTestUrl;
+      _updateStatus("Usando servidor padrão: $customUrl");
+    }
+
     _updateTestState('speedTestCustom', TestStatus.running,
         "Iniciando teste (Servidor Próprio)...");
 
@@ -489,85 +515,123 @@ class DiagnosticoService {
         _currentState.copyWith(downloadHistory: [], uploadHistory: []);
     _streamController.add(_currentState);
 
-    final customUrl = providerConfig.config.other?.speedTestUrl;
-    // Note: flutter_internet_speed_test 1.2.0+ supports testServer param
-    // If the library version is older, this might be ignored or cause error,
-    // but based on context we assume it's supported or we'll wrap in try/catch if needed.
-    // However, the interface usually takes named arguments.
-    // If the user provides a URL, we use it.
+    // TIMERS
+    Timer? stallTimer;
+    Timer? maxDurationTimer;
 
-    internetSpeedTest.startTesting(
-      downloadTestServer: customUrl,
-      uploadTestServer: customUrl,
-      onStarted: () {
-        if (!_currentState.isTesting) {
+    void cancelTimers() {
+      stallTimer?.cancel();
+      maxDurationTimer?.cancel();
+    }
+
+    try {
+      // 1. Max Duration Timer: Hard limit per test (prevents 2 min waits)
+      maxDurationTimer = Timer(const Duration(seconds: 40), () {
+        if (!completer.isCompleted && _currentState.isTesting) {
           internetSpeedTest.cancelTest();
-          return;
+          // Accept current result as final if we timed out but had data
+          _updateTestState(
+              'speedTestCustom', TestStatus.success, "Tempo limite atingido.");
+          if (!completer.isCompleted) completer.complete();
         }
-        _updateStatus(
-            "Testando Download (Servidor ${customUrl != null ? 'Personalizado' : 'Padrão'})...");
-      },
-      onCompleted: (TestResult download, TestResult upload) {
-        if (!_currentState.isTesting) return;
-        final downloadMbps = download.transferRate;
-        final uploadMbps = upload.transferRate;
+      });
 
-        _updateTestState('speedTestCustom', TestStatus.success,
-            "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps");
-        double latencia = _extractLatencyFromResult(
-            _currentState.testResultsDisplay['pingGoogle']?['result']);
-        if (latencia == 0)
-          latencia = _extractLatencyFromResult(
-              _currentState.testResultsDisplay['pingCloudflare']?['result']);
-        if (latencia == 0)
-          latencia = _extractLatencyFromResult(
-              _currentState.testResultsDisplay['pingGateway']?['result']);
+      internetSpeedTest.startTesting(
+        downloadTestServer: customUrl,
+        uploadTestServer: customUrl,
+        // fileSize: 20000000, // Optional: Limit file size if supported to speed up
+        onStarted: () {
+          if (!_currentState.isTesting) {
+            internetSpeedTest.cancelTest();
+            return;
+          }
+          _updateStatus("Testando Download (Servidor Personalizado)...");
+        },
+        onCompleted: (TestResult download, TestResult upload) {
+          cancelTimers();
+          if (!_currentState.isTesting) return;
+          final downloadMbps = download.transferRate;
+          final uploadMbps = upload.transferRate;
 
-        _currentState = _currentState.copyWith(
-          customDownloadResultMbps: downloadMbps,
-          customUploadResultMbps: uploadMbps,
-          speedTestPingLatency: latencia,
-        );
-        _streamController.add(_currentState);
-        if (!completer.isCompleted) completer.complete();
-      },
-      onProgress: (double percent, TestResult data) {
-        if (!_currentState.isTesting) return;
-        final rate = data.transferRate;
-        final isDownload = data.type == TestType.download;
-        if (isDownload) {
-          _updateStatus(
-              "Testando Download... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
-          if (rate > _customPeakDownloadMbps) _customPeakDownloadMbps = rate;
-          final newHistory = List<FlSpot>.from(_currentState.downloadHistory);
-          newHistory.add(FlSpot(_downloadHistoryCounter.toDouble(), rate));
-          _downloadHistoryCounter++;
+          _updateTestState('speedTestCustom', TestStatus.success,
+              "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps");
+
+          double latencia = _extractLatencyFromResult(
+              _currentState.testResultsDisplay['pingGoogle']?['result']);
+          if (latencia == 0) {
+            latencia = _extractLatencyFromResult(
+                _currentState.testResultsDisplay['pingCloudflare']?['result']);
+          }
+
           _currentState = _currentState.copyWith(
-              downloadHistory: newHistory, customDownloadResultMbps: rate);
-        } else {
-          _updateStatus(
-              "Testando Upload... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
-          if (rate > _customPeakUploadMbps) _customPeakUploadMbps = rate;
-          final newHistory = List<FlSpot>.from(_currentState.uploadHistory);
-          newHistory.add(FlSpot(_uploadHistoryCounter.toDouble(), rate));
-          _uploadHistoryCounter++;
-          _currentState = _currentState.copyWith(
-              uploadHistory: newHistory, customUploadResultMbps: rate);
-        }
-        _streamController.add(_currentState);
-      },
-      onError: (String errorMessage, String speedTestError) {
-        if (!_currentState.isTesting) return;
-        String cleanError = errorMessage;
-        if (errorMessage.contains("SocketException") ||
-            errorMessage.contains("Connection refused") ||
-            errorMessage.contains("CONNECTION_ERROR")) {
-          cleanError = "Servidor indisponível.\nVerifique a conexão.";
-        }
-        _updateTestState('speedTestCustom', TestStatus.error, cleanError);
-        if (!completer.isCompleted) completer.complete();
-      },
-    );
+            customDownloadResultMbps: downloadMbps,
+            customUploadResultMbps: uploadMbps,
+            speedTestPingLatency: latencia,
+          );
+          _streamController.add(_currentState);
+          if (!completer.isCompleted) completer.complete();
+        },
+        onProgress: (double percent, TestResult data) {
+          if (!_currentState.isTesting) return;
+          final rate = data.transferRate;
+          final isDownload = data.type == TestType.download;
+
+          // 2. Stall Timer: Reset only on progress
+          stallTimer?.cancel();
+          stallTimer = Timer(const Duration(seconds: 15), () {
+            if (!completer.isCompleted && _currentState.isTesting) {
+              internetSpeedTest.cancelTest();
+              _updateTestState('speedTestCustom', TestStatus.error,
+                  "Teste travado (sem progresso).");
+              if (!completer.isCompleted) completer.complete();
+            }
+          });
+
+          if (isDownload) {
+            _updateStatus(
+                "Testando Download... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+            if (rate > _customPeakDownloadMbps) _customPeakDownloadMbps = rate;
+            final newHistory = List<FlSpot>.from(_currentState.downloadHistory);
+            newHistory.add(FlSpot(_downloadHistoryCounter.toDouble(), rate));
+            _downloadHistoryCounter++;
+            _currentState = _currentState.copyWith(
+                downloadHistory: newHistory, customDownloadResultMbps: rate);
+          } else {
+            _updateStatus(
+                "Testando Upload... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+            if (rate > _customPeakUploadMbps) _customPeakUploadMbps = rate;
+            final newHistory = List<FlSpot>.from(_currentState.uploadHistory);
+            newHistory.add(FlSpot(_uploadHistoryCounter.toDouble(), rate));
+            _uploadHistoryCounter++;
+            _currentState = _currentState.copyWith(
+                uploadHistory: newHistory, customUploadResultMbps: rate);
+          }
+          _streamController.add(_currentState);
+        },
+        onError: (String errorMessage, String speedTestError) {
+          cancelTimers();
+          if (!_currentState.isTesting) return;
+
+          String cleanError = errorMessage;
+          // Enhanced Error Parsing
+          if (errorMessage.toLowerCase().contains("socketexception") ||
+              errorMessage.toLowerCase().contains("connection refused") ||
+              errorMessage.contains("CONNECTION_ERROR") ||
+              errorMessage.contains("HTTP 404")) {
+            cleanError = "Servidor indisponível.\nVerifique a conexão ou URL.";
+          }
+
+          _updateTestState('speedTestCustom', TestStatus.error, cleanError);
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+    } catch (e) {
+      cancelTimers();
+      _updateTestState(
+          'speedTestCustom', TestStatus.error, "Erro ao iniciar: $e");
+      if (!completer.isCompleted) completer.complete();
+    }
+
     return completer.future;
   }
 
@@ -584,59 +648,95 @@ class DiagnosticoService {
         _currentState.copyWith(fastDownloadHistory: [], fastUploadHistory: []);
     _streamController.add(_currentState);
 
-    internetSpeedTest.startTesting(
-      onStarted: () {
-        if (!_currentState.isTesting) {
+    // SAFETY TIMEOUT: Ensure test doesn't hang forever
+    Timer? safeguardTimer;
+
+    try {
+      safeguardTimer = Timer(const Duration(seconds: 45), () {
+        if (!completer.isCompleted && _currentState.isTesting) {
           internetSpeedTest.cancelTest();
-          return;
+          _updateTestState('speedTestFast', TestStatus.error,
+              "Tempo limite excedido (Fast.com).");
+          if (!completer.isCompleted) completer.complete();
         }
-        _updateStatus("Testando Download (Fast.com)...");
-      },
-      onCompleted: (TestResult download, TestResult upload) {
-        if (!_currentState.isTesting) return;
-        final downloadMbps = download.transferRate;
-        final uploadMbps = upload.transferRate;
-        _updateTestState('speedTestFast', TestStatus.success,
-            "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps");
-        _currentState = _currentState.copyWith(
-            fastDownloadResultMbps: downloadMbps,
-            fastUploadResultMbps: uploadMbps);
-        _streamController.add(_currentState);
-        if (!completer.isCompleted) completer.complete();
-      },
-      onProgress: (double percent, TestResult data) {
-        if (!_currentState.isTesting) return;
-        final rate = data.transferRate;
-        final isDownload = data.type == TestType.download;
-        if (isDownload) {
-          _updateStatus(
-              "Testando Download (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
-          if (rate > _fastPeakDownloadMbps) _fastPeakDownloadMbps = rate;
-          final newHistory =
-              List<FlSpot>.from(_currentState.fastDownloadHistory);
-          newHistory.add(FlSpot(_fastDownloadHistoryCounter.toDouble(), rate));
-          _fastDownloadHistoryCounter++;
+      });
+
+      internetSpeedTest.startTesting(
+        onStarted: () {
+          if (!_currentState.isTesting) {
+            internetSpeedTest.cancelTest();
+            return;
+          }
+          _updateStatus("Testando Download (Fast.com)...");
+        },
+        onCompleted: (TestResult download, TestResult upload) {
+          safeguardTimer?.cancel();
+          if (!_currentState.isTesting) return;
+          final downloadMbps = download.transferRate;
+          final uploadMbps = upload.transferRate;
+          _updateTestState('speedTestFast', TestStatus.success,
+              "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps");
           _currentState = _currentState.copyWith(
-              fastDownloadHistory: newHistory, fastDownloadResultMbps: rate);
-        } else {
-          _updateStatus(
-              "Testando Upload (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
-          if (rate > _fastPeakUploadMbps) _fastPeakUploadMbps = rate;
-          final newHistory = List<FlSpot>.from(_currentState.fastUploadHistory);
-          newHistory.add(FlSpot(_fastUploadHistoryCounter.toDouble(), rate));
-          _fastUploadHistoryCounter++;
-          _currentState = _currentState.copyWith(
-              fastUploadHistory: newHistory, fastUploadResultMbps: rate);
-        }
-        _streamController.add(_currentState);
-      },
-      onError: (String errorMessage, String speedTestError) {
-        if (!_currentState.isTesting) return;
-        _updateTestState(
-            'speedTestFast', TestStatus.error, "Erro: $errorMessage");
-        if (!completer.isCompleted) completer.complete();
-      },
-    );
+              fastDownloadResultMbps: downloadMbps,
+              fastUploadResultMbps: uploadMbps);
+          _streamController.add(_currentState);
+          if (!completer.isCompleted) completer.complete();
+        },
+        onProgress: (double percent, TestResult data) {
+          if (!_currentState.isTesting) return; // Prevent Zombie updates
+          final rate = data.transferRate;
+          final isDownload = data.type == TestType.download;
+
+          // Restart safeguard on progress
+          safeguardTimer?.cancel();
+          safeguardTimer = Timer(const Duration(seconds: 20), () {
+            if (!completer.isCompleted && _currentState.isTesting) {
+              internetSpeedTest.cancelTest();
+              _updateTestState('speedTestFast', TestStatus.error,
+                  "Teste travado (sem progresso).");
+              if (!completer.isCompleted) completer.complete();
+            }
+          });
+
+          if (isDownload) {
+            _updateStatus(
+                "Testando Download (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+            if (rate > _fastPeakDownloadMbps) _fastPeakDownloadMbps = rate;
+            final newHistory =
+                List<FlSpot>.from(_currentState.fastDownloadHistory);
+            newHistory
+                .add(FlSpot(_fastDownloadHistoryCounter.toDouble(), rate));
+            _fastDownloadHistoryCounter++;
+            _currentState = _currentState.copyWith(
+                fastDownloadHistory: newHistory, fastDownloadResultMbps: rate);
+          } else {
+            _updateStatus(
+                "Testando Upload (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+            if (rate > _fastPeakUploadMbps) _fastPeakUploadMbps = rate;
+            final newHistory =
+                List<FlSpot>.from(_currentState.fastUploadHistory);
+            newHistory.add(FlSpot(_fastUploadHistoryCounter.toDouble(), rate));
+            _fastUploadHistoryCounter++;
+            _currentState = _currentState.copyWith(
+                fastUploadHistory: newHistory, fastUploadResultMbps: rate);
+          }
+          _streamController.add(_currentState);
+        },
+        onError: (String errorMessage, String speedTestError) {
+          safeguardTimer?.cancel();
+          if (!_currentState.isTesting) return;
+          _updateTestState(
+              'speedTestFast', TestStatus.error, "Erro: $errorMessage");
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+    } catch (e) {
+      safeguardTimer?.cancel();
+      _updateTestState(
+          'speedTestFast', TestStatus.error, "Erro ao iniciar: $e");
+      if (!completer.isCompleted) completer.complete();
+    }
+
     return completer.future;
   }
 

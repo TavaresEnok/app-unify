@@ -1,5 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../services/notification_service.dart';
+import '../services/analytics_service.dart';
+import '../services/review_service.dart';
+import '../services/deep_link_service.dart';
+import '../services/speed_test_history_service.dart';
+
 import '../repositories/auth_repository.dart';
 import '../notifiers/auth_notifier.dart';
 import '../models/usuario.dart';
@@ -46,21 +52,135 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
 
   // Escuta mudanças na configuração para atualizar o tema em tempo real
   ref.listen<ConfigurationProvider>(configurationProvider, (previous, next) {
-    // Se a configuração mudou e temos um tema definido
-    final themeMap = next.providerConfig?.theme;
-    if (themeMap != null) {
-      try {
-        final config = ThemeConfig.fromJson(themeMap);
+    final providerConfig = next.providerConfig;
+    if (providerConfig == null) return;
 
-        // Evita updates desnecessários se a config for idêntica
-        if (themeNotifer.config != config) {
-          themeNotifer.updateFromConfig(config);
+    try {
+      ThemeConfig config;
+
+      // Se temos um tema definido no formato completo, usamos ele
+      // Se temos um tema definido no formato completo, usamos ele,
+      // MAS precisamos garantir que as novas configs (background/icon) tenham prioridade ou sejam mescladas
+      // se elas não existirem no themeMap (ou se quisermos forçar a config nova).
+
+      final themeMap = providerConfig.theme;
+      final configColors = providerConfig.config;
+
+      if (themeMap != null && themeMap.isNotEmpty) {
+        debugPrint('🎨 [DEBUG] Usando themeMap completo (com overrides)');
+
+        // Vamos injetar os valores novos se eles não estiverem explicitamente no themeMap
+        // (Ou forçar se a estratégia for "Config manda")
+        // Como o Admin Novo salva na Config, vamos garantir que a Config seja respeitada para esses campos novos.
+
+        var effectiveThemeMap = Map<String, dynamic>.from(themeMap);
+
+        // Garante estrutura colors
+        if (!effectiveThemeMap.containsKey('colors')) {
+          effectiveThemeMap['colors'] = <String, dynamic>{};
         }
-      } catch (e) {
-        print('⚠️ Erro ao atualizar tema via Provider: $e');
+        var colorsMap = Map<String, dynamic>.from(effectiveThemeMap['colors']);
+
+        // Garante estrutura effects
+        if (!effectiveThemeMap.containsKey('effects')) {
+          effectiveThemeMap['effects'] = <String, dynamic>{};
+        }
+        var effectsMap =
+            Map<String, dynamic>.from(effectiveThemeMap['effects']);
+
+        // Overrides
+        if (configColors.backgroundColor != null) {
+          colorsMap['background'] = configColors.backgroundColor;
+        }
+        if (configColors.iconColor != null) {
+          effectsMap['iconColor'] = configColors.iconColor;
+        }
+        if (configColors.cardColor != null) {
+          colorsMap['surface'] = configColors.cardColor;
+        }
+        if (configColors.textColor != null) {
+          colorsMap['textPrimary'] = configColors.textColor;
+        }
+        if (configColors.textSecondaryColor != null) {
+          colorsMap['textSecondary'] =
+              configColors.textSecondaryColor; // [NEW] Secondary Text
+        }
+
+        effectiveThemeMap['colors'] = colorsMap;
+        effectiveThemeMap['effects'] = effectsMap;
+
+        config = ThemeConfig.fromJson(effectiveThemeMap);
+      } else {
+        // Caso contrário, criamos um ThemeConfig usando as cores simples
+        // do ConfigSection (themeColor, secondaryColor)
+        final themeColor = configColors.themeColor;
+        final secondaryColor = configColors.secondaryColor ?? themeColor;
+        // [NEW] Use configurable colors
+        final cardColor = configColors.cardColor;
+        final textColor = configColors.textColor;
+        final textSecondaryColor = configColors.textSecondaryColor; // [NEW]
+        final backgroundColor =
+            configColors.backgroundColor; // Load background color
+        final iconColor = configColors.iconColor; // [NEW]
+
+        debugPrint(
+            '🎨 [DEBUG] Criando tema com themeColor=$themeColor, secondaryColor=$secondaryColor');
+
+        config = ThemeConfig.fromJson({
+          'colors': {
+            'primary': themeColor,
+            'secondary': secondaryColor,
+            if (cardColor != null) 'surface': cardColor,
+            if (textColor != null) 'textPrimary': textColor,
+            if (textSecondaryColor != null)
+              'textSecondary': textSecondaryColor, // [NEW]
+            // Default mappings for other colors using primary/secondary if not specified
+            'error': '#EF4444',
+            'success': '#10B981',
+            'warning': '#F59E0B',
+            'info': '#3B82F6',
+            'background': backgroundColor ??
+                (configColors.other?.useBackgroundImage == true
+                    ? '#00000000' // If using bg image, transparent
+                    : '#0F172A'),
+          },
+          // [NEW] Map icon color if present, otherwise default to primary
+          if (iconColor != null)
+            'effects': {
+              'iconColor': iconColor,
+            }
+        });
       }
+
+      // Evita updates desnecessários se a config for idêntica
+      if (themeNotifer.config != config) {
+        final layoutType = providerConfig.layoutType;
+        debugPrint(
+            '🎨 [DEBUG] Atualizando tema! primary=${config.colors.primary}, layout=$layoutType');
+        themeNotifer.updateFromConfig(config, layoutType: layoutType);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erro ao atualizar tema via Provider: $e');
     }
   });
 
   return themeNotifer;
+});
+
+// ANALYTICS & ENGAGEMENT
+final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
+  return AnalyticsService();
+});
+
+final reviewServiceProvider = Provider<ReviewService>((ref) {
+  return ReviewService();
+});
+
+final deepLinkServiceProvider = Provider<DeepLinkService>((ref) {
+  return DeepLinkService();
+});
+
+final speedTestHistoryServiceProvider =
+    ChangeNotifierProvider<SpeedTestHistoryService>((ref) {
+  return SpeedTestHistoryService();
 });

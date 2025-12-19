@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class OnuData {
   final double? signalRx; // null if N/A or offline
@@ -145,7 +146,7 @@ class OnuWifiService {
   /// Busca dados da ONU (sinal, temperatura, etc)
   Future<OnuData> fetchOnuSignal() async {
     final url = '$_baseUrl/diagnostic/onu-signal';
-    print('[ONU-Service] Calling: $url');
+    debugPrint('[ONU-Service] Calling: $url');
 
     try {
       final response = await http
@@ -199,7 +200,7 @@ class OnuWifiService {
   /// Lista redes WiFi do CPE/Roteador
   Future<List<WifiNetwork>> fetchWifiNetworks() async {
     final url = '$_baseUrl/cpe/wifi/list';
-    print('[WiFi-Service] Calling: $url');
+    debugPrint('[WiFi-Service] Calling: $url');
 
     try {
       final response = await http
@@ -258,7 +259,7 @@ class OnuWifiService {
     required String password,
   }) async {
     final url = '$_baseUrl/cpe/wifi/update';
-    print('[WiFi-Service] Calling: $url');
+    debugPrint('[WiFi-Service] Calling: $url');
 
     try {
       final response = await http

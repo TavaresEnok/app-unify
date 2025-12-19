@@ -41,7 +41,7 @@ class ProviderDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // Cores (roxo padrão recuperado ou customizado)
     final primaryColor = Theme.of(context).primaryColor;
-    final secondaryColor = const Color(0xFF0EA5E9);
+    const secondaryColor = Color(0xFF0EA5E9);
 
     return SingleChildScrollView(
       padding: EdgeInsets.zero,
@@ -88,16 +88,16 @@ class ProviderDashboardPage extends StatelessWidget {
       BuildContext context, Color primaryColor, Color secondaryColor) {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF673AB7), // Deep Purple
-            const Color(0xFF512DA8), // Darker Purple
+            Color(0xFF673AB7), // Deep Purple
+            Color(0xFF512DA8), // Darker Purple
           ],
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
@@ -154,9 +154,9 @@ class ProviderDashboardPage extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -195,7 +195,7 @@ class ProviderDashboardPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF673AB7).withOpacity(0.08), // Colored shadow
+            color: const Color(0xFF673AB7).withValues(alpha: 0.08), // Colored shadow
             blurRadius: 25,
             offset: const Offset(0, 10),
           )
@@ -211,8 +211,8 @@ class ProviderDashboardPage extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isConnected
-                        ? const Color(0xFF4CAF50).withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
+                        ? const Color(0xFF4CAF50).withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -291,7 +291,7 @@ class ProviderDashboardPage extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 20,
               offset: const Offset(0, 4),
             )
@@ -322,14 +322,14 @@ class ProviderDashboardPage extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.08),
+                  color: primaryColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   children: [
                     Text('Vence em',
                         style: GoogleFonts.inter(
-                            color: primaryColor.withOpacity(0.7),
+                            color: primaryColor.withValues(alpha: 0.7),
                             fontSize: 10)),
                     Text(formattedDate,
                         style: GoogleFonts.inter(
@@ -368,7 +368,7 @@ class ProviderDashboardPage extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: primaryColor,
                     side: BorderSide(
-                        color: primaryColor.withOpacity(0.2), width: 1.5),
+                        color: primaryColor.withValues(alpha: 0.2), width: 1.5),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
@@ -438,7 +438,7 @@ class ProviderDashboardPage extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )
@@ -484,7 +484,7 @@ class ProviderDashboardPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: primaryColor.withOpacity(0.2)))),
+                side: BorderSide(color: primaryColor.withValues(alpha: 0.2)))),
       ),
     );
   }

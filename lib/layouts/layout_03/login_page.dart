@@ -198,7 +198,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 20,
                               offset: const Offset(0, 10))
                         ],
@@ -228,7 +228,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
                                         color: actionColor, width: 2)),
-                                prefixIcon: Icon(Icons.person_outline_rounded,
+                                prefixIcon: const Icon(Icons.person_outline_rounded,
                                     color: AppColors.textSecondary),
                                 filled: true,
                                 fillColor: const Color(0xFFF8FAFC),
@@ -300,7 +300,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                         icon:
                             Icon(Icons.fingerprint_rounded, color: actionColor),
                         style: IconButton.styleFrom(
-                          backgroundColor: actionColor.withOpacity(0.1),
+                          backgroundColor: actionColor.withValues(alpha: 0.1),
                           padding: const EdgeInsets.all(16),
                         ),
                       ),

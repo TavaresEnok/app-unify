@@ -7,8 +7,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/providers/providers.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/dashboard_card.dart';
+import '../../layouts/layout_05/theme.dart';
 
 class SharedTraceRoutePage extends ConsumerStatefulWidget {
   const SharedTraceRoutePage({super.key});
@@ -36,7 +38,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
   final TextEditingController _ipController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isRunning = false;
-  List<TraceHop> _hops = [];
+  final List<TraceHop> _hops = [];
   String _currentStatus = "Aguardando início...";
 
   @override
@@ -215,9 +217,44 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final configProvider = ref.watch(configurationProvider);
+    final layoutType = configProvider.providerConfig?.layoutType;
+    final isLayout05 = layoutType == 'layout_05';
+    final isDarkLayout = layoutType == 'layout_06';
+
+    Color backgroundColor;
+    Color appBarColor;
+    Color appBarTextColor;
+    if (isDarkLayout) {
+      backgroundColor = const Color(0xFF0A0A0A);
+      appBarColor = const Color(0xFF0A0A0A);
+      appBarTextColor = Colors.white;
+    } else if (isLayout05) {
+      backgroundColor = Layout05Theme.background;
+      appBarColor = Layout05Theme.background;
+      appBarTextColor = Layout05Theme.textDark;
+    } else {
+      backgroundColor = theme.scaffoldBackgroundColor;
+      appBarColor = theme.primaryColor;
+      appBarTextColor = Colors.white;
+    }
+
+    final cardDecoration = isDarkLayout
+        ? BoxDecoration(
+            color: const Color(0xFF1C1C1E),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
+          )
+        : (isLayout05 ? Layout05Theme.neumorphicDecoration : null);
+
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Rota (Tracert)'),
+        title: Text('Rota (Tracert)', style: TextStyle(color: appBarTextColor)),
+        backgroundColor: appBarColor,
+        iconTheme: IconThemeData(color: appBarTextColor),
         actions: [
           if (_hops.isNotEmpty && !_isRunning)
             IconButton(
@@ -231,43 +268,24 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: DashboardCard(
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _ipController,
-                    decoration: const InputDecoration(
-                      labelText: 'IP ou Domínio de Destino',
-                      hintText: 'Ex: 8.8.8.8 ou google.com',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                    onSubmitted: (_) => _isRunning ? null : _startTraceRoute(),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(_currentStatus,
-                      style: TextStyle(
-                          color: _isRunning
-                              ? Theme.of(context).primaryColor
-                              : Colors.grey)),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: AppButton(
-                      label: _isRunning ? "Parar" : "Iniciar Rota",
-                      icon: _isRunning ? Icons.stop : Icons.play_arrow,
-                      onPressed: () {
-                        if (_isRunning) {
-                          setState(() => _isRunning = false);
-                        } else {
-                          _startTraceRoute();
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            child: isDarkLayout
+                ? Container(
+                    decoration: cardDecoration,
+                    padding: const EdgeInsets.all(16),
+                    child: _buildInputContent(context, isLayout05,
+                        isDarkLayout: isDarkLayout),
+                  )
+                : (isLayout05
+                    ? Container(
+                        decoration: Layout05Theme.neumorphicDecoration,
+                        padding: const EdgeInsets.all(16),
+                        child: _buildInputContent(context, isLayout05,
+                            isDarkLayout: isDarkLayout),
+                      )
+                    : DashboardCard(
+                        child: _buildInputContent(context, isLayout05,
+                            isDarkLayout: isDarkLayout),
+                      )),
           ),
           Expanded(
             child: ListView.builder(
@@ -276,31 +294,187 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
               itemCount: _hops.length,
               itemBuilder: (context, index) {
                 final hop = _hops[index];
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: hop.status == "Alcançado"
-                          ? Colors.green
-                          : Colors.grey[300],
-                      child: Text("${hop.hop}",
-                          style: TextStyle(
-                              color: hop.status == "Alcançado"
-                                  ? Colors.white
-                                  : Colors.black87)),
-                    ),
-                    title: Text(hop.ip,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(hop.status),
-                    trailing: Text(hop.time,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                );
+                return _buildHopCard(hop, isLayout05,
+                    isDarkLayout: isDarkLayout);
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInputContent(BuildContext context, bool isLayout05,
+      {bool isDarkLayout = false}) {
+    final textColor = isDarkLayout ? Colors.white : Colors.black87;
+    // final primaryColor =
+    //    isDarkLayout ? const Color(0xFF00D9FF) : Theme.of(context).primaryColor;
+
+    return Column(
+      children: [
+        TextField(
+          controller: _ipController,
+          style: TextStyle(color: textColor),
+          decoration: InputDecoration(
+            labelText: 'IP ou Domínio de Destino',
+            labelStyle:
+                TextStyle(color: isDarkLayout ? const Color(0xFF8E8E93) : null),
+            hintText: 'Ex: 8.8.8.8 ou google.com',
+            hintStyle:
+                TextStyle(color: isDarkLayout ? const Color(0xFF8E8E93) : null),
+            border: OutlineInputBorder(
+              borderSide: BorderSide(
+                  color: isDarkLayout ? const Color(0xFF3A3A3C) : Colors.grey),
+            ),
+            enabledBorder: isDarkLayout
+                ? OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFF3A3A3C)),
+                    borderRadius: BorderRadius.circular(12),
+                  )
+                : null,
+            focusedBorder: isDarkLayout
+                ? OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFF00D9FF)),
+                    borderRadius: BorderRadius.circular(12),
+                  )
+                : null,
+            prefixIcon: Icon(Icons.search,
+                color: isDarkLayout ? const Color(0xFF8E8E93) : null),
+            filled: isLayout05 || isDarkLayout,
+            fillColor: isDarkLayout
+                ? const Color(0xFF1C1C1E)
+                : (isLayout05 ? Colors.white.withValues(alpha: 0.5) : null),
+          ),
+          onSubmitted: (_) => _isRunning ? null : _startTraceRoute(),
+        ),
+        const SizedBox(height: 16),
+        Text(_currentStatus,
+            style: TextStyle(
+                color: _isRunning
+                    ? (isDarkLayout
+                        ? const Color(0xFF00D9FF)
+                        : (isLayout05
+                            ? Layout05Theme.primary
+                            : Theme.of(context).primaryColor))
+                    : (isDarkLayout ? const Color(0xFF8E8E93) : Colors.grey))),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: isDarkLayout
+              ? ElevatedButton.icon(
+                  onPressed: () {
+                    if (_isRunning) {
+                      setState(() => _isRunning = false);
+                    } else {
+                      _startTraceRoute();
+                    }
+                  },
+                  icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow,
+                      color: Colors.black),
+                  label: Text(_isRunning ? "Parar" : "Iniciar Rota",
+                      style: const TextStyle(color: Colors.black)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00D9FF),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                )
+              : AppButton(
+                  label: _isRunning ? "Parar" : "Iniciar Rota",
+                  icon: _isRunning ? Icons.stop : Icons.play_arrow,
+                  onPressed: () {
+                    if (_isRunning) {
+                      setState(() => _isRunning = false);
+                    } else {
+                      _startTraceRoute();
+                    }
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHopCard(TraceHop hop, bool isLayout05,
+      {bool isDarkLayout = false}) {
+    if (isDarkLayout) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(12),
+          border:
+              Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
+        ),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: hop.status == "Alcançado"
+                ? const Color(0xFF00D9FF)
+                : const Color(0xFF3A3A3C),
+            child: Text("${hop.hop}",
+                style: TextStyle(
+                    color: hop.status == "Alcançado"
+                        ? Colors.black
+                        : Colors.white)),
+          ),
+          title: Text(hop.ip,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.white)),
+          subtitle: Text(hop.status,
+              style: const TextStyle(color: Color(0xFF8E8E93))),
+          trailing: Text(hop.time,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Color(0xFF00D9FF))),
+        ),
+      );
+    }
+    if (isLayout05) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: Layout05Theme.neumorphicDecoration.copyWith(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: hop.status == "Alcançado"
+                ? Layout05Theme.primary
+                : Layout05Theme.textGrey.withValues(alpha: 0.3),
+            child: Text("${hop.hop}",
+                style: TextStyle(
+                    color: hop.status == "Alcançado"
+                        ? Colors.white
+                        : Layout05Theme.textDark)),
+          ),
+          title: Text(hop.ip,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Layout05Theme.textDark)),
+          subtitle: Text(hop.status,
+              style: const TextStyle(color: Layout05Theme.textGrey)),
+          trailing: Text(hop.time,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Layout05Theme.textDark)),
+        ),
+      );
+    }
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor:
+              hop.status == "Alcançado" ? Colors.green : Colors.grey[300],
+          child: Text("${hop.hop}",
+              style: TextStyle(
+                  color: hop.status == "Alcançado"
+                      ? Colors.white
+                      : Colors.black87)),
+        ),
+        title:
+            Text(hop.ip, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(hop.status),
+        trailing:
+            Text(hop.time, style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }

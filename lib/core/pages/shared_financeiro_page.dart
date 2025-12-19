@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../layouts/layout_06/widgets/skeleton_financeiro_page.dart';
+import '../../layouts/layout_06/widgets/error_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
@@ -12,11 +14,18 @@ import '../../core/providers/financeiro_provider.dart';
 import '../../core/providers/providers.dart';
 import '../../layouts/layout_05/theme.dart';
 
-class FinanceiroPage extends ConsumerWidget {
+class FinanceiroPage extends ConsumerStatefulWidget {
   const FinanceiroPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FinanceiroPage> createState() => _FinanceiroPageState();
+}
+
+class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
+  bool _showAllOpenInvoices = false;
+
+  @override
+  Widget build(BuildContext context) {
     final config = ref.watch(configurationProvider);
     final providerConfig = config.providerConfig;
 
@@ -25,20 +34,31 @@ class FinanceiroPage extends ConsumerWidget {
           body: Center(child: Text('Configuração não encontrada')));
     }
 
-    // Determine layout type
     final layoutType = providerConfig.layoutType;
     final isLayout05 = layoutType == 'layout_05';
+    final isDarkLayout = layoutType == 'layout_06';
+
+    final themeData = Theme.of(context);
+    // Colors setup (condensed for brevity, keeping original logic)
+    Color backgroundColor;
+    Color appBarColor;
+    Color appBarTextColor;
+
+    if (isDarkLayout) {
+      backgroundColor = const Color(0xFF0A0A0A);
+      appBarColor = const Color(0xFF0A0A0A);
+      appBarTextColor = Colors.white;
+    } else if (isLayout05) {
+      backgroundColor = Layout05Theme.background;
+      appBarColor = Layout05Theme.background;
+      appBarTextColor = Layout05Theme.textDark;
+    } else {
+      backgroundColor = Colors.grey[50]!;
+      appBarColor = themeData.primaryColor;
+      appBarTextColor = Colors.white;
+    }
 
     final provider = ref.watch(financeiroViewModelProvider);
-    final themeData = Theme.of(context);
-
-    // Adaptive Properties
-    final backgroundColor =
-        isLayout05 ? Layout05Theme.background : Colors.grey[50];
-    final appBarColor =
-        isLayout05 ? Layout05Theme.background : themeData.primaryColor;
-    final appBarTextColor = isLayout05 ? Layout05Theme.textDark : Colors.white;
-    final appBarIconTheme = IconThemeData(color: appBarTextColor);
 
     return Scaffold(
         backgroundColor: backgroundColor,
@@ -47,14 +67,21 @@ class FinanceiroPage extends ConsumerWidget {
           centerTitle: true,
           elevation: 0,
           backgroundColor: appBarColor,
-          iconTheme: appBarIconTheme,
+          iconTheme: IconThemeData(color: appBarTextColor),
         ),
         body: Builder(builder: (context) {
           if (provider.state == FinanceiroState.loading) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonFinanceiroPage();
           }
 
           if (provider.state == FinanceiroState.error) {
+            if (isDarkLayout) {
+              return Layout06ErrorWidget(
+                title: 'Erro ao carregar faturas',
+                message: provider.errorMessage,
+                onRetry: provider.fetchHistory,
+              );
+            }
             return _buildErrorState(context, provider);
           }
 
@@ -62,14 +89,101 @@ class FinanceiroPage extends ConsumerWidget {
             return _buildEmptyState(context, provider);
           }
 
+          // Segregate Invoices
+          final openInvoices = provider.invoices
+              .where((i) => !i.isPago)
+              .toList()
+            ..sort((a, b) => a.vencimento.compareTo(b.vencimento));
+
+          final paidInvoices = provider.invoices.where((i) => i.isPago).toList()
+            ..sort((a, b) =>
+                b.vencimento.compareTo(a.vencimento)); // Newest paid first
+
+          final displayedOpenInvoices = _showAllOpenInvoices
+              ? openInvoices
+              : (openInvoices.isNotEmpty ? [openInvoices.first] : []);
+
+          final hiddenCount =
+              openInvoices.length - displayedOpenInvoices.length;
+
           return RefreshIndicator(
             onRefresh: provider.fetchHistory,
-            child: ListView.separated(
+            child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-              itemCount: provider.invoices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, index) => _buildInvoiceCard(
-                  context, provider.invoices[index], ref, isLayout05),
+              children: [
+                if (openInvoices.isNotEmpty) ...[
+                  if (!_showAllOpenInvoices && openInvoices.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Text("Próxima Fatura (Pagar Agora)",
+                          style: TextStyle(
+                              color: isDarkLayout
+                                  ? Colors.white70
+                                  : Colors.grey[700],
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ...displayedOpenInvoices.map((i) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _buildInvoiceCard(context, i, ref, isLayout05,
+                            isDarkLayout: isDarkLayout),
+                      )),
+                  if (hiddenCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Center(
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showAllOpenInvoices = true;
+                            });
+                          },
+                          icon: Icon(Icons.add_circle_outline,
+                              color: themeData.primaryColor),
+                          label: Text("Ver mais $hiddenCount faturas pendentes",
+                              style: TextStyle(color: themeData.primaryColor)),
+                        ),
+                      ),
+                    ),
+                  if (_showAllOpenInvoices && openInvoices.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Center(
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _showAllOpenInvoices = false;
+                            });
+                          },
+                          child: const Text("Mostrar menos faturas"),
+                        ),
+                      ),
+                    ),
+                ],
+                if (paidInvoices.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text("Histórico de Pagamentos",
+                              style: TextStyle(
+                                  color: isDarkLayout
+                                      ? Colors.white54
+                                      : Colors.grey)),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                  ),
+                  ...paidInvoices.map((i) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _buildInvoiceCard(context, i, ref, isLayout05,
+                            isDarkLayout: isDarkLayout),
+                      )),
+                ]
+              ],
             ),
           );
         }));
@@ -120,11 +234,13 @@ class FinanceiroPage extends ConsumerWidget {
   }
 
   Widget _buildInvoiceCard(
-      BuildContext context, Fatura fatura, WidgetRef ref, bool isLayout05) {
+      BuildContext context, Fatura fatura, WidgetRef ref, bool isLayout05,
+      {bool isDarkLayout = false}) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final currencyFormat =
         NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final primaryColor = Theme.of(context).primaryColor;
+    final primaryColor =
+        isDarkLayout ? const Color(0xFF00D9FF) : Theme.of(context).primaryColor;
 
     // Status visual
     Color statusColor = Colors.orange;
@@ -132,27 +248,45 @@ class FinanceiroPage extends ConsumerWidget {
     IconData statusIcon = Icons.schedule;
 
     if (fatura.isPago) {
-      statusColor = isLayout05 ? Layout05Theme.success : Colors.green;
+      statusColor = isDarkLayout
+          ? const Color(0xFF30D158)
+          : (isLayout05 ? Layout05Theme.success : Colors.green);
       statusText = 'Pago';
       statusIcon = Icons.check_circle;
     } else if (fatura.isVencido) {
-      statusColor = isLayout05 ? Layout05Theme.error : Colors.red;
+      statusColor = isDarkLayout
+          ? const Color(0xFFFF453A)
+          : (isLayout05 ? Layout05Theme.error : Colors.red);
       statusText = 'Vencido';
       statusIcon = Icons.error;
     }
 
-    final decoration = isLayout05
-        ? Layout05Theme.neumorphicDecoration
-        : BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          );
+    BoxDecoration decoration;
+    if (isDarkLayout) {
+      decoration = BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(16),
+        border:
+            Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
+      );
+    } else if (isLayout05) {
+      decoration = Layout05Theme.neumorphicDecoration;
+    } else {
+      decoration = BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
+      );
+    }
+
+    // final textColor = isDarkLayout ? Colors.white : Colors.black87;
+    // final subtitleColor =
+    //    isDarkLayout ? const Color(0xFF8E8E93) : Colors.grey[600];
 
     return Container(
       decoration: decoration,
@@ -178,7 +312,16 @@ class FinanceiroPage extends ConsumerWidget {
                         fatura.isPago
                             ? 'Pago em ${dateFormat.format(fatura.dataPagamento ?? fatura.vencimento)}'
                             : 'Vence ${dateFormat.format(fatura.vencimento)}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        style: TextStyle(
+                            color: fatura.isPago
+                                ? (isDarkLayout
+                                    ? Colors.white70
+                                    : Colors.black87)
+                                : Colors.grey[600],
+                            fontSize: fatura.isPago ? 15 : 13,
+                            fontWeight: fatura.isPago
+                                ? FontWeight.bold
+                                : FontWeight.normal),
                       ),
                     ],
                   ),
@@ -320,14 +463,14 @@ class FinanceiroPage extends ConsumerWidget {
         child: InkWell(
           onTap: () => _showTrustUnlockDialog(context, fatura, ref),
           borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock_open, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.lock_open, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text(
                   'Liberar por Confiança',
                   style: TextStyle(
                     color: Colors.white,
@@ -458,6 +601,8 @@ class FinanceiroPage extends ConsumerWidget {
         }),
       );
 
+      if (!context.mounted) return;
+
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       if (response.statusCode == 200) {
@@ -479,6 +624,7 @@ class FinanceiroPage extends ConsumerWidget {
         throw Exception(error['error']?['message'] ?? 'Erro ao liberar');
       }
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -530,6 +676,7 @@ class FinanceiroPage extends ConsumerWidget {
 
   void _copyToClipboard(BuildContext context, String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
+    HapticFeedback.selectionClick(); // Charm
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label copiado!'),

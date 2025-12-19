@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/foundation.dart';
 import '../models/diagnostico_state.dart';
 
 class PdfGeneratorService {
@@ -62,7 +63,7 @@ class PdfGeneratorService {
       await Share.shareXFiles([XFile(file.path)],
           text: 'Segue relatório de diagnóstico de rede.');
     } catch (e) {
-      print('Erro ao gerar/compartilhar PDF: $e');
+      debugPrint('Erro ao gerar/compartilhar PDF: $e');
     }
   }
 

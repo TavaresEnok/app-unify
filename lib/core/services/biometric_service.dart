@@ -1,6 +1,7 @@
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 class BiometricService {
   final LocalAuthentication _localAuth = LocalAuthentication();
@@ -13,8 +14,10 @@ class BiometricService {
   /// Verifica se o dispositivo tem suporte a biometria
   Future<bool> get isAvailable async {
     try {
-      final bool canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
-      final bool canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+      final bool canAuthenticateWithBiometrics =
+          await _localAuth.canCheckBiometrics;
+      final bool canAuthenticate =
+          canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
       return canAuthenticate;
     } on PlatformException catch (_) {
       return false;
@@ -53,14 +56,14 @@ class BiometricService {
         ),
       );
     } on PlatformException catch (e) {
-      print("Erro na biometria: $e");
+      debugPrint("Erro na biometria: $e");
       return null;
     }
 
     if (authenticated) {
       String? cpf = await _storage.read(key: _cpfKey);
       String? password = await _storage.read(key: _passwordKey);
-      
+
       if (cpf != null && password != null) {
         return {'cpf': cpf, 'password': password};
       }

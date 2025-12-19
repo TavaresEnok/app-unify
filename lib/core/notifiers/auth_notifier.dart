@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../models/usuario.dart';
 import '../models/provider_config.dart';
 import '../repositories/auth_repository.dart';
@@ -43,6 +44,31 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
     } catch (e) {
       // Even if API logout fails, we clear state to ensure user can "exit"
       state = const AsyncValue.data(null);
+    }
+  }
+
+  /// Refreshes user data from API silently
+  Future<void> refreshUserData(ProviderConfig config) async {
+    final currentUser = state.value;
+    if (currentUser == null) return;
+
+    try {
+      // Re-authenticate to get fresh data (balance, status, etc)
+      // Note: We use the stored CPF. Ideally we should have a 'refresh' endpoint,
+      // but 'performLoginApi' works as a fetch-latest-data call.
+
+      // We don't set state to loading to avoid flickering UI,
+      // just update when data arrives.
+      final updatedUser =
+          await _repository.performLoginApi(currentUser.cpfCnpj, config);
+
+      // Preserve some local-only fields if any (auth tokens are handled inside repository)
+
+      await _repository.saveUserLocally(updatedUser);
+      state = AsyncValue.data(updatedUser);
+    } catch (e) {
+      debugPrint('Erro ao atualizar dados do usuário em background: $e');
+      // Do not change state to error, keep showing cached data
     }
   }
 

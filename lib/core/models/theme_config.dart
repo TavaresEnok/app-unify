@@ -28,7 +28,7 @@ class ThemeConfig {
     );
   }
 
-  static ThemeConfig get defaultTheme => ThemeConfig(
+  static ThemeConfig get defaultTheme => const ThemeConfig(
         colors: ThemeColors.defaultColors,
         typography: ThemeTypography.defaultTypography,
         spacing: ThemeSpacing.defaultSpacing,
@@ -76,7 +76,8 @@ class ThemeColors {
       warning: _parseColor(json['warning'], const Color(0xFFF59E0B)),
       info: _parseColor(json['info'], const Color(0xFF3B82F6)),
       textPrimary: _parseColor(json['textPrimary'], Colors.white),
-      textSecondary: _parseColor(json['textSecondary'], const Color(0xFF94A3B8)),
+      textSecondary:
+          _parseColor(json['textSecondary'], const Color(0xFF94A3B8)),
       textHint: _parseColor(json['textHint'], const Color(0xFF64748B)),
     );
   }
@@ -141,7 +142,12 @@ class ThemeSpacing {
   final double lg;
   final double xl;
 
-  const ThemeSpacing({required this.xs, required this.sm, required this.md, required this.lg, required this.xl});
+  const ThemeSpacing(
+      {required this.xs,
+      required this.sm,
+      required this.md,
+      required this.lg,
+      required this.xl});
 
   factory ThemeSpacing.fromJson(Map<String, dynamic> json) {
     return ThemeSpacing(
@@ -153,7 +159,8 @@ class ThemeSpacing {
     );
   }
 
-  static const ThemeSpacing defaultSpacing = ThemeSpacing(xs: 4, sm: 8, md: 16, lg: 24, xl: 32);
+  static const ThemeSpacing defaultSpacing =
+      ThemeSpacing(xs: 4, sm: 8, md: 16, lg: 24, xl: 32);
 }
 
 class ThemeBorderRadius {
@@ -162,7 +169,8 @@ class ThemeBorderRadius {
   final double lg;
   final double xl;
 
-  const ThemeBorderRadius({required this.sm, required this.md, required this.lg, required this.xl});
+  const ThemeBorderRadius(
+      {required this.sm, required this.md, required this.lg, required this.xl});
 
   factory ThemeBorderRadius.fromJson(Map<String, dynamic> json) {
     return ThemeBorderRadius(
@@ -173,7 +181,8 @@ class ThemeBorderRadius {
     );
   }
 
-  static const ThemeBorderRadius defaultBorderRadius = ThemeBorderRadius(sm: 4, md: 8, lg: 16, xl: 24);
+  static const ThemeBorderRadius defaultBorderRadius =
+      ThemeBorderRadius(sm: 4, md: 8, lg: 16, xl: 24);
 }
 
 class ThemeEffects {
@@ -182,6 +191,7 @@ class ThemeEffects {
   final bool enableAnimations;
   final double glassOpacity;
   final double glassBlur;
+  final Color? iconColor; // [NEW]
 
   const ThemeEffects({
     required this.enableGlassmorphism,
@@ -189,6 +199,7 @@ class ThemeEffects {
     required this.enableAnimations,
     required this.glassOpacity,
     required this.glassBlur,
+    this.iconColor, // [NEW]
   });
 
   factory ThemeEffects.fromJson(Map<String, dynamic> json) {
@@ -198,6 +209,9 @@ class ThemeEffects {
       enableAnimations: json['enableAnimations'] ?? true,
       glassOpacity: (json['glassOpacity'] ?? 0.7).toDouble(),
       glassBlur: (json['glassBlur'] ?? 12).toDouble(),
+      iconColor: json['iconColor'] != null
+          ? ThemeColors._parseColor(json['iconColor'], Colors.black)
+          : null, // [NEW]
     );
   }
 
@@ -207,6 +221,7 @@ class ThemeEffects {
     enableAnimations: true,
     glassOpacity: 0.7,
     glassBlur: 12,
+    iconColor: null,
   );
 }
 
@@ -223,5 +238,6 @@ class DarkModeConfig {
     );
   }
 
-  static const DarkModeConfig defaultDarkMode = DarkModeConfig(enabled: true, defaultMode: 'auto');
+  static const DarkModeConfig defaultDarkMode =
+      DarkModeConfig(enabled: true, defaultMode: 'auto');
 }

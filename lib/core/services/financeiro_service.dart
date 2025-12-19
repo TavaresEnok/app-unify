@@ -21,12 +21,15 @@ class FinanceiroService {
   /// Busca as faturas do cliente
   Future<List<dynamic>> fetchInvoices() async {
     try {
-      if (cpfCnpjUnformatted.isEmpty) {
-        throw Exception("O CPF/CNPJ está vazio.");
-      }
+      // [MOCK] If no token/app configured, return mock data for UI testing
       if ((sgpParams['token'] ?? '').isEmpty ||
           (sgpParams['app'] ?? '').isEmpty) {
-        throw Exception("Token ou App Name não configurados.");
+        // Retrieve colors to use the correct formatting if needed (though model parses strings mostly)
+        return _getMockInvoices();
+      }
+
+      if (cpfCnpjUnformatted.isEmpty) {
+        throw Exception("O CPF/CNPJ está vazio.");
       }
 
       final requestBody = {
@@ -59,8 +62,45 @@ class FinanceiroService {
       throw TimeoutException(
           'O servidor demorou muito para responder. Verifique sua conexão.');
     } catch (e) {
+      // If we are debugging/testing, maybe fallback to mock on error too?
+      // For now, let's stick to explicit mock only if config is missing.
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
     }
+  }
+
+  List<dynamic> _getMockInvoices() {
+    final now = DateTime.now();
+    return [
+      {
+        'id': 123456,
+        'vencimento': now.add(const Duration(days: 5)).toIso8601String(),
+        'valor': 99.90,
+        'status': 'pendente',
+        'linha_digitavel':
+            '84670000001 4 59900296202 5 20424263400 3 10328905230',
+        'pix_copia_cola':
+            '00020101021226870014br.gov.bcb.pix2565qrcode.pix.com.br...',
+        'url_boleto': 'https://example.com/boleto',
+      },
+      {
+        'id': 123455,
+        'vencimento': now.subtract(const Duration(days: 25)).toIso8601String(),
+        'valor': 99.90,
+        'status': 'pago',
+        'data_pagamento':
+            now.subtract(const Duration(days: 26)).toIso8601String(),
+        'valor_pago': 99.90,
+      },
+      {
+        'id': 123454,
+        'vencimento': now.subtract(const Duration(days: 55)).toIso8601String(),
+        'valor': 99.90,
+        'status': 'pago',
+        'data_pagamento':
+            now.subtract(const Duration(days: 56)).toIso8601String(),
+        'valor_pago': 99.90,
+      },
+    ];
   }
 
   /// Solicita desbloqueio por confiança

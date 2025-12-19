@@ -150,7 +150,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               const BoxShadow(
                   color: Colors.white, offset: Offset(-5, -5), blurRadius: 10),
               BoxShadow(
-                  color: const Color(0xFFA3B1C6).withOpacity(0.4),
+                  color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
                   offset: const Offset(5, 5),
                   blurRadius: 10),
             ],
@@ -184,10 +184,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: Layout05Theme.background,
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
                     color: Colors.white, offset: Offset(-2, -2), blurRadius: 4),
                 BoxShadow(
@@ -254,7 +254,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       decoration: Layout05Theme.neumorphicDecoration,
       child: Row(
         children: [
-          Icon(Icons.speed_rounded, color: Layout05Theme.primary, size: 36),
+          const Icon(Icons.speed_rounded, color: Layout05Theme.primary, size: 36),
           const SizedBox(width: 24),
           Expanded(
             child: Column(
@@ -295,7 +295,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             Icon(icon, color: Layout05Theme.textGrey, size: 28),
             const SizedBox(height: 12),
             Text(title,
-                style: TextStyle(
+                style: const TextStyle(
                     color: Layout05Theme.textDark,
                     fontWeight: FontWeight.bold,
                     fontSize: 13)),

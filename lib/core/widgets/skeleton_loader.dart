@@ -85,23 +85,23 @@ class InvoiceSkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const SkeletonLoader(width: 100, height: 24),
-                const Spacer(),
+                SkeletonLoader(width: 100, height: 24),
+                Spacer(),
                 SkeletonLoader(width: 80, height: 28, borderRadius: 14),
               ],
             ),
-            const SizedBox(height: 12),
-            const SkeletonLoader(width: 150, height: 14),
-            const SizedBox(height: 16),
-            const SkeletonLoader(height: 44, borderRadius: 8),
+            SizedBox(height: 12),
+            SkeletonLoader(width: 150, height: 14),
+            SizedBox(height: 16),
+            SkeletonLoader(height: 44, borderRadius: 8),
           ],
         ),
       ),
@@ -132,35 +132,35 @@ class OnuSkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const SkeletonLoader(width: 24, height: 24, isCircle: true),
-                const SizedBox(width: 12),
-                const SkeletonLoader(width: 150, height: 20),
-                const Spacer(),
-                const SkeletonLoader(width: 32, height: 32, isCircle: true),
+                SkeletonLoader(width: 24, height: 24, isCircle: true),
+                SizedBox(width: 12),
+                SkeletonLoader(width: 150, height: 20),
+                Spacer(),
+                SkeletonLoader(width: 32, height: 32, isCircle: true),
               ],
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Row(
-              children: const [
+              children: [
                 Expanded(child: SkeletonLoader(height: 80, borderRadius: 12)),
                 SizedBox(width: 12),
                 Expanded(child: SkeletonLoader(height: 80, borderRadius: 12)),
               ],
             ),
-            const SizedBox(height: 16),
-            const SkeletonLoader(height: 44, borderRadius: 12),
-            const SizedBox(height: 12),
-            const SkeletonLoader(width: 200, height: 14),
-            const SizedBox(height: 8),
-            const SkeletonLoader(width: 160, height: 14),
+            SizedBox(height: 16),
+            SkeletonLoader(height: 44, borderRadius: 12),
+            SizedBox(height: 12),
+            SkeletonLoader(width: 200, height: 14),
+            SizedBox(height: 8),
+            SkeletonLoader(width: 160, height: 14),
           ],
         ),
       ),

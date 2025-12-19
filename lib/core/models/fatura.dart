@@ -26,7 +26,13 @@ class Fatura {
   bool get isPago => status.toLowerCase() == 'pago';
 
   /// Verifica se a fatura está vencida
-  bool get isVencido => !isPago && DateTime.now().isAfter(vencimento);
+  bool get isVencido {
+    if (isPago) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDate = DateTime(vencimento.year, vencimento.month, vencimento.day);
+    return today.isAfter(dueDate);
+  }
 
   /// Factory constructor para criar uma Fatura a partir de um JSON
   factory Fatura.fromJson(Map<String, dynamic> json) {
@@ -54,8 +60,11 @@ class Fatura {
       numero:
           json['id']?.toString() ?? json['nossoNumero']?.toString() ?? 'N/A',
       valor: double.tryParse(valorString) ?? 0.0,
-      vencimento: parseDate(json['dataVencimento']) ?? DateTime.now(),
-      status: (json['pago'] as bool? ?? false) ? 'pago' : 'pendente',
+      vencimento: parseDate(json['vencimento'] ?? json['dataVencimento']) ??
+          DateTime.now(),
+      status: json['status'] != null
+          ? json['status'].toString()
+          : ((json['pago'] as bool? ?? false) ? 'pago' : 'pendente'),
       urlBoleto: json['link'] as String?,
       linhaDigitavel: json['linha_digitavel'] as String?,
       pixCopiaECola: json['pix_copia_cola'] as String?,

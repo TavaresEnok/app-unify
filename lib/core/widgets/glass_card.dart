@@ -19,7 +19,7 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color fallbackBorder = borderColor ?? Colors.white.withOpacity(0.08);
+    final Color fallbackBorder = borderColor ?? Colors.white.withValues(alpha: 0.08);
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
@@ -32,7 +32,7 @@ class GlassCard extends StatelessWidget {
             boxShadow: shadows ??
                 [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.35),
+                    color: Colors.black.withValues(alpha: 0.35),
                     blurRadius: 24,
                     offset: const Offset(0, 18),
                   ),

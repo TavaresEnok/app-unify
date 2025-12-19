@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
+import '../../layouts/layout_05/theme.dart';
 
 class FaqPage extends ConsumerWidget {
   const FaqPage({super.key});
@@ -11,10 +12,37 @@ class FaqPage extends ConsumerWidget {
     final configProvider = ref.watch(configurationProvider);
     final faqList = configProvider.providerConfig?.config.faq ?? [];
     final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+
+    final layoutType = configProvider.providerConfig?.layoutType;
+    final isLayout05 = layoutType == 'layout_05';
+    final isDarkLayout = layoutType == 'layout_06';
+
+    Color backgroundColor;
+    Color appBarColor;
+    Color appBarTextColor;
+    if (isDarkLayout) {
+      backgroundColor = const Color(0xFF0A0A0A);
+      appBarColor = const Color(0xFF0A0A0A);
+      appBarTextColor = Colors.white;
+    } else if (isLayout05) {
+      backgroundColor = Layout05Theme.background;
+      appBarColor = Layout05Theme.background;
+      appBarTextColor = Layout05Theme.textDark;
+    } else {
+      backgroundColor = theme.scaffoldBackgroundColor;
+      appBarColor = theme.primaryColor;
+      appBarTextColor = Colors.white;
+    }
 
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Perguntas Frequentes'),
+        title: Text('Perguntas Frequentes',
+            style: TextStyle(color: appBarTextColor)),
+        backgroundColor: appBarColor,
+        iconTheme: IconThemeData(color: appBarTextColor),
       ),
       body: configProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -57,6 +85,91 @@ class FaqPage extends ConsumerWidget {
                       itemCount: faqList.length,
                       itemBuilder: (context, index) {
                         final faqItem = faqList[index];
+                        if (isDarkLayout) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4.0),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1C1C1E),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: const Color(0xFF3A3A3C)
+                                      .withValues(alpha: 0.3)),
+                            ),
+                            child: ExpansionTile(
+                              tilePadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 4),
+                              childrenPadding:
+                                  const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              collapsedIconColor: const Color(0xFF8E8E93),
+                              iconColor: primaryColor,
+                              leading: CircleAvatar(
+                                backgroundColor: const Color(0xFF3A3A3C),
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                faqItem.question,
+                                style: textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              children: [
+                                const Divider(color: Color(0xFF3A3A3C)),
+                                const SizedBox(height: 8),
+                                Text(faqItem.answer,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: const Color(0xFF8E8E93),
+                                    )),
+                              ],
+                            ),
+                          );
+                        }
+                        if (isLayout05) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 8.0),
+                            decoration: Layout05Theme.neumorphicDecoration,
+                            child: ExpansionTile(
+                              tilePadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 4),
+                              childrenPadding:
+                                  const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              collapsedIconColor: Layout05Theme.textGrey,
+                              iconColor: Layout05Theme.primary,
+                              leading: CircleAvatar(
+                                backgroundColor: Layout05Theme.primary
+                                    .withValues(alpha: 0.1),
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(
+                                    color: Layout05Theme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                faqItem.question,
+                                style: textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Layout05Theme.textDark,
+                                ),
+                              ),
+                              children: [
+                                const Divider(),
+                                const SizedBox(height: 8),
+                                Text(faqItem.answer,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: Layout05Theme.textGrey,
+                                    )),
+                              ],
+                            ),
+                          );
+                        }
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4.0),
                           child: Card(
@@ -67,13 +180,12 @@ class FaqPage extends ConsumerWidget {
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               leading: CircleAvatar(
-                                backgroundColor: Theme.of(context)
-                                    .primaryColor
-                                    .withOpacity(0.1),
+                                backgroundColor:
+                                    primaryColor.withValues(alpha: 0.1),
                                 child: Text(
                                   '${index + 1}',
                                   style: TextStyle(
-                                    color: Theme.of(context).primaryColor,
+                                    color: primaryColor,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

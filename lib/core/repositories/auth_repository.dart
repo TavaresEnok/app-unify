@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -49,7 +50,7 @@ class AuthRepository {
     };
 
     final url = '$apiUrl/check-cpf';
-    print('DEBUG: Enviando login para $url');
+    debugPrint('DEBUG: Enviando login para $url');
 
     final response = await http
         .post(
@@ -127,7 +128,7 @@ class AuthRepository {
         });
       }
     } catch (e) {
-      print('ℹ️  Aviso: Falha ao limpar o token FCM durante o logout: $e');
+      debugPrint('ℹ️  Aviso: Falha ao limpar o token FCM durante o logout: $e');
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -153,7 +154,7 @@ class AuthRepository {
         );
       }
     } catch (e) {
-      print('❌ Erro ao salvar o token FCM: $e');
+      debugPrint('❌ Erro ao salvar o token FCM: $e');
     }
   }
 

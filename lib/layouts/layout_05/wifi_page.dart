@@ -42,6 +42,19 @@ class _WifiPageState extends ConsumerState<WifiPage> {
     }
 
     try {
+      // Check if TR069/SGP integration is configured
+      final sgpBaseUrl = config.config.integrations.sgpBaseUrl;
+      if (sgpBaseUrl.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _errorMessage =
+                'Gerenciamento WiFi não disponível.\n\nO seu provedor não possui integração TR069 configurada para gerenciamento remoto do roteador.';
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
       // Constructing the real service
       _wifiService = OnuWifiService(
         apiUrl: config.apiUrl,
@@ -51,7 +64,7 @@ class _WifiPageState extends ConsumerState<WifiPage> {
         sgpParams: {
           'token': config.config.integrations.apiToken,
           'app': config.config.integrations.appName,
-          'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
+          'sgpBaseUrl': sgpBaseUrl,
         },
       );
 
@@ -185,14 +198,35 @@ class _WifiPageState extends ConsumerState<WifiPage> {
 
   @override
   Widget build(BuildContext context) {
+    final configProvider = ref.watch(configurationProvider);
+    final layoutType = configProvider.providerConfig?.layoutType;
+    final isDarkLayout = layoutType == 'layout_04' || layoutType == 'layout_06';
+
+    Color backgroundColor;
+    Color appBarColor;
+    Color appBarTextColor;
+    if (isDarkLayout) {
+      backgroundColor = const Color(0xFF0A0A0A);
+      appBarColor = const Color(0xFF0A0A0A);
+      appBarTextColor = Colors.white;
+    } else {
+      backgroundColor = Layout05Theme.background;
+      appBarColor = Layout05Theme.background;
+      appBarTextColor = Layout05Theme.textDark;
+    }
+
     return Scaffold(
-      backgroundColor: Layout05Theme.background,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: Text('Minha Rede Wi-Fi', style: Layout05Theme.heading2),
-        backgroundColor: Layout05Theme.background,
+        title: Text('Minha Rede Wi-Fi',
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: appBarTextColor)),
+        backgroundColor: appBarColor,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Layout05Theme.textDark),
+        iconTheme: IconThemeData(color: appBarTextColor),
       ),
       body: _isLoading
           ? const Center(
@@ -244,13 +278,23 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                         final network = _networks[index];
                         return Container(
                           margin: const EdgeInsets.only(bottom: 24),
-                          decoration: Layout05Theme.neumorphicDecoration,
+                          decoration: isDarkLayout
+                              ? BoxDecoration(
+                                  color: const Color(0xFF1C1C1E),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: const Color(0xFF3A3A3C)
+                                          .withValues(alpha: 0.3)),
+                                )
+                              : Layout05Theme.neumorphicDecoration,
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(20),
                             leading: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Layout05Theme.background,
+                                color: isDarkLayout
+                                    ? Colors.black.withValues(alpha: 0.3)
+                                    : Layout05Theme.background,
                                 shape: BoxShape.circle,
                                 boxShadow: const [
                                   BoxShadow(
@@ -267,22 +311,30 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                                 network.frequency.contains('5')
                                     ? Icons.wifi_tethering
                                     : Icons.wifi,
-                                color: Layout05Theme.primary,
+                                color: isDarkLayout
+                                    ? const Color(0xFF00D9FF)
+                                    : Layout05Theme.primary,
                                 size: 28,
                               ),
                             ),
                             title: Text(network.ssid,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
-                                    color: Layout05Theme.textDark)),
+                                    color: isDarkLayout
+                                        ? Colors.white
+                                        : Layout05Theme.textDark)),
                             subtitle: Text(
                                 '${network.frequency} - ${network.enabled ? 'Ativo' : 'Inativo'}',
-                                style: Layout05Theme.bodyText
-                                    .copyWith(fontSize: 13)),
+                                style: Layout05Theme.bodyText.copyWith(
+                                    fontSize: 13,
+                                    color:
+                                        isDarkLayout ? Colors.white70 : null)),
                             trailing: Container(
                               decoration: BoxDecoration(
-                                color: Layout05Theme.background,
+                                color: isDarkLayout
+                                    ? Colors.transparent
+                                    : Layout05Theme.background,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: const [
                                   BoxShadow(

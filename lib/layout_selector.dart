@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
 
 // Imports dos Dashboards (diferentes por layout)
-// Imports dos Dashboards (diferentes por layout)
 import 'layouts/layout_02/dashboard_page.dart' as l02;
 import 'layouts/layout_03/dashboard_page.dart' as l03;
 import 'layouts/layout_05/dashboard_page.dart' as l05;
+import 'layouts/layout_06/dashboard_page.dart' as l06;
+import 'layouts/layout_06/pages/speed_test_page.dart' as l06_speed;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
+import 'layouts/layout_08/dashboard_page.dart' as l08;
+import 'layouts/layout_08/pages/speed_test_page.dart' as l08_speed;
+import 'layouts/layout_09/dashboard_page.dart' as l09;
+import 'layouts/layout_09/pages/speed_test_page.dart' as l09_speed;
+import 'layouts/layout_10/dashboard_page.dart' as l10;
+import 'layouts/layout_10/pages/speed_test_page.dart' as l10_speed;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_02/login_page.dart' as l02_login;
 import 'layouts/layout_03/login_page.dart' as l03_login;
 import 'layouts/layout_05/login_page.dart' as l05_login;
+import 'layouts/layout_06/login_page.dart' as l06_login;
 import 'layouts/layout_07/login_page.dart' as l07_login;
+import 'layouts/layout_08/login_page.dart' as l08_login;
+import 'layouts/layout_09/login_page.dart' as l09_login;
+import 'layouts/layout_10/login_page.dart' as l10_login;
 
 // ============================================
 // PÁGINAS COMPARTILHADAS (idênticas entre layouts 02/03/06/07)
@@ -31,13 +42,14 @@ import 'layouts/layout_05/wifi_page.dart' as l05_wifi;
 // Imports do FAQ e Contrato (também compartilhados)
 import 'core/pages/shared_faq_page.dart' as shared_faq;
 import 'core/pages/shared_contrato_page.dart' as shared_cont;
+import 'core/pages/shared_notification_page.dart' as shared_notif;
 
 /// Classe utilitária que seleciona o layout correto baseado na configuração
 /// carregada do Firestore (campo `layoutType`).
 ///
 /// Uso:
 /// ```dart
-/// final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
+/// final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_02';
 /// return LayoutSelector.getLoginPage(layoutType: layoutType);
 /// ```
 class LayoutSelector {
@@ -59,6 +71,7 @@ class LayoutSelector {
     Color? customCardText,
     Color? invoiceColor,
     Color? actionColor,
+    Future<void> Function()? onRefresh,
   }) {
     switch (layoutType) {
       case 'layout_02':
@@ -114,7 +127,7 @@ class LayoutSelector {
         );
 
       case 'layout_06':
-        return l02.ProviderDashboardPage(
+        return l06.DashboardPage(
           customerName: customerName,
           planName: planName,
           connectionStatus: connectionStatus,
@@ -126,10 +139,7 @@ class LayoutSelector {
           uploadMbps: uploadMbps,
           onNavigate: onNavigate,
           menuItems: menuItems,
-          customCardBg: customCardBg,
-          customCardText: customCardText,
-          invoiceColor: invoiceColor,
-          actionColor: actionColor,
+          onRefresh: onRefresh,
         );
 
       case 'layout_07':
@@ -146,8 +156,56 @@ class LayoutSelector {
           onNavigate: onNavigate,
         );
 
+      case 'layout_08':
+        return l08.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_09':
+        return l09.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_10':
+        return l10.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
       default:
-        // Layout 02 como padrão (Clássico Refinado)
+        // Default to Layout 02 if unknown
         return l02.ProviderDashboardPage(
           customerName: customerName,
           planName: planName,
@@ -169,7 +227,8 @@ class LayoutSelector {
   }
 
   /// Retorna o widget de Login correto para o layout especificado
-  static Widget getLoginPage({required String layoutType}) {
+  static Widget getLoginPage(
+      {required String layoutType, Map<String, dynamic>? arguments}) {
     switch (layoutType) {
       case 'layout_02':
         return const l02_login.LoginPage();
@@ -178,9 +237,15 @@ class LayoutSelector {
       case 'layout_05':
         return const l05_login.LoginPage();
       case 'layout_06':
-        return const l02_login.LoginPage();
+        return const l06_login.LoginPage();
       case 'layout_07':
         return const l07_login.LoginPage();
+      case 'layout_08':
+        return const l08_login.LoginPage();
+      case 'layout_09':
+        return const l09_login.LoginPage();
+      case 'layout_10':
+        return const l10_login.LoginPage();
       default:
         return const l02_login.LoginPage();
     }
@@ -218,9 +283,18 @@ class LayoutSelector {
 
   /// Retorna o widget de Teste de Velocidade - COMPARTILHADO (por enquanto)
   static Widget getSpeedTestPage({required String layoutType}) {
-    // Por enquanto todos usam o shared.
-    // Se no futuro o layout_05 quiser um design diferente, cria-se l05_speed.
-    return const shared_speed.SharedSpeedTestPage();
+    switch (layoutType) {
+      case 'layout_06':
+        return const l06_speed.Layout06SpeedTestPage();
+      case 'layout_08':
+        return const l08_speed.Layout08SpeedTestPage();
+      case 'layout_09':
+        return const l09_speed.Layout09SpeedTestPage();
+      case 'layout_10':
+        return const l10_speed.Layout10SpeedTestPage();
+      default:
+        return const shared_speed.SharedSpeedTestPage();
+    }
   }
 
   static Widget getTraceRoutePage({required String layoutType}) {
@@ -239,13 +313,22 @@ class LayoutSelector {
     return const shared_cont.ContratoPage();
   }
 
+  /// Retorna o widget de Notificações - COMPARTILHADO
+  static Widget getNotificationPage({required String layoutType}) {
+    return const shared_notif.SharedNotificationPage();
+  }
+
   /// Retorna o widget de Wifi correto para o layout especificado
   static Widget getWifiPage({required String layoutType}) {
     switch (layoutType) {
       case 'layout_05':
         return const l05_wifi.WifiPage();
-      // Enable WifiPage for Layout 02 too, reusing Layout 05's implementation
       case 'layout_02':
+        return const l05_wifi.WifiPage();
+
+      case 'layout_06':
+        return const l05_wifi.WifiPage();
+      case 'layout_08':
         return const l05_wifi.WifiPage();
       default:
         return const Center(
@@ -271,9 +354,29 @@ class LayoutSelector {
       'description': 'Estilo futurista com efeitos neon e vidro'
     },
     {
+      'id': 'layout_06',
+      'name': 'Premium Dark',
+      'description': 'Fintech-style com Cyan/Teal'
+    },
+    {
       'id': 'layout_07',
       'name': 'Clean Light',
       'description': 'Tema claro e limpo'
+    },
+    {
+      'id': 'layout_08',
+      'name': 'Warm Premium',
+      'description': 'Tema claro aconchegante com sombras suaves'
+    },
+    {
+      'id': 'layout_09',
+      'name': 'Bento Glass',
+      'description': 'Grid moderno com glassmorphism e cores pastel'
+    },
+    {
+      'id': 'layout_10',
+      'name': 'Deep Purple',
+      'description': 'Tema escuro imersivo com gradientes vibrantes'
     },
   ];
 }

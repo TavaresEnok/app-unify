@@ -3,8 +3,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
+import '../../layouts/layout_05/theme.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/services/onu_wifi_service.dart';
+
 import '../../core/models/diagnostico_state.dart';
 import '../../core/widgets/dashboard_card.dart';
 import '../../core/widgets/app_button.dart';
@@ -80,9 +82,37 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
       builder: (context, snapshot) {
         final state = snapshot.data!;
 
+        final configProvider = ref.watch(configurationProvider);
+        final layoutType = configProvider.providerConfig?.layoutType;
+        final isLayout05 = layoutType == 'layout_05';
+        final isDarkLayout = layoutType == 'layout_06';
+
+        final theme = Theme.of(context);
+
+        Color backgroundColor;
+        Color appBarColor;
+        Color appBarTextColor;
+        if (isDarkLayout) {
+          backgroundColor = const Color(0xFF0A0A0A);
+          appBarColor = const Color(0xFF0A0A0A);
+          appBarTextColor = Colors.white;
+        } else if (isLayout05) {
+          backgroundColor = Layout05Theme.background;
+          appBarColor = Layout05Theme.background;
+          appBarTextColor = Layout05Theme.textDark;
+        } else {
+          backgroundColor = theme.scaffoldBackgroundColor;
+          appBarColor = theme.primaryColor;
+          appBarTextColor = Colors.white;
+        }
+
         return Scaffold(
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            title: const Text('Diagnóstico de Rede'),
+            title: Text('Diagnóstico de Rede',
+                style: TextStyle(color: appBarTextColor)),
+            backgroundColor: appBarColor,
+            iconTheme: IconThemeData(color: appBarTextColor),
             actions: [
               if (!state.isTesting && state.customDownloadResultMbps > 0)
                 IconButton(
@@ -103,35 +133,46 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   ? primaryColor.withAlpha(38)
                   : Colors.transparent,
               child: Text(state.geralStatusMessage,
-                  style: textTheme.bodyLarge
-                      ?.copyWith(color: state.isTesting ? primaryColor : null),
+                  style: textTheme.bodyLarge?.copyWith(
+                      color: state.isTesting
+                          ? primaryColor
+                          : (isLayout05 ? Layout05Theme.textDark : null)),
                   textAlign: TextAlign.center),
             ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 children: [
-                  _buildConnectionJourneyCard(context, state),
+                  _buildConnectionJourneyCard(context, state,
+                      isLayout05: isLayout05, isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
-                  _buildOnuSignalCard(context),
+                  _buildOnuSignalCard(context,
+                      isLayout05: isLayout05, isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
-                  _buildSpeedTestCard(context, state),
+                  _buildSpeedTestCard(context, state, isLayout05,
+                      isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
-                  _buildWifiManagementCard(context),
+                  _buildWifiManagementCard(context,
+                      isLayout05: isLayout05, isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
-                  _buildWifiDetailsCard(context, state),
+                  _buildWifiDetailsCard(context, state, isLayout05,
+                      isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
-                  _buildLanScanCard(context, state),
+                  _buildLanScanCard(context, state, isLayout05,
+                      isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
-                  _buildDeviceInfoCard(context, state),
+                  _buildDeviceInfoCard(context, state, isLayout05,
+                      isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
-                  _buildBatteryInfoCard(context, state),
+                  _buildBatteryInfoCard(context, state, isLayout05,
+                      isDarkLayout: isDarkLayout),
                   const SizedBox(height: 24),
                   TroubleshooterCard(
                     state: state,
                     onRetry: () {
                       if (!state.isTesting) _service.runAllTests();
                     },
+                    isDarkLayout: isDarkLayout,
                   ),
                 ],
               ),
@@ -207,7 +248,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   }
 
   Widget _buildConnectionJourneyCard(
-      BuildContext context, DiagnosticoState state) {
+      BuildContext context, DiagnosticoState state,
+      {bool isLayout05 = false, bool isDarkLayout = false}) {
     final wifiStatus =
         state.testResultsDisplay['wifiInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
@@ -233,134 +275,401 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     final cloudflareResult =
         state.testResultsDisplay['pingCloudflare']?['result'] as String?;
 
-    return DashboardCard(
+    return _buildAdaptiveCard(
+        isLayout05: isLayout05,
+        isDarkLayout: isDarkLayout,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text("Jornada da Conexão",
-          style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 20),
-      _buildJourneyStep(context,
-          icon: Icons.wifi,
-          title: "Você (Dispositivo)",
-          status: wifiStatus,
-          children: [
-            _buildJourneyInfo(context, "Sinal:",
-                _parseResultLine(wifiResult, "Força do Sinal:")),
-            _buildJourneyInfo(
-                context, "SSID:", _parseResultLine(wifiResult, "SSID:"))
-          ]),
-      _buildJourneyStep(context,
-          icon: Icons.router,
-          title: "Seu Roteador",
-          status: gatewayStatus,
-          children: [
-            _buildJourneyInfo(context, "IP:",
-                _parseResultLine(wifiResult, "Gateway (Roteador):")),
-            _buildJourneyInfo(context, "Latência:",
-                _parseResultLine(gatewayResult, "Latência:")),
-            _buildJourneyInfo(
-                context, "Jitter:", _parseResultLine(gatewayResult, "Jitter:")),
-          ]),
-      _buildJourneyStep(context,
-          icon: Icons.cloud_queue,
-          title: "Nossa Rede",
-          status: ipStatus,
-          children: [
-            _buildJourneyInfo(
-                context, "IPv4:", _parseResultLine(ipResult, "IPv4:")),
-            _buildJourneyInfo(
-                context, "IPv6:", _parseResultLine(ipResult, "IPv6:"),
-                isLast: true)
-          ]),
-      _buildJourneyStep(context,
-          icon: Icons.dns_rounded,
-          title: "Internet (DNS)",
-          isLastStep: true,
-          status: (googleStatus == TestStatus.success ||
-                  cloudflareStatus == TestStatus.success)
-              ? TestStatus.success
-              : (googleStatus == TestStatus.running ||
-                      cloudflareStatus == TestStatus.running)
+          Text("Jornada da Conexão",
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineSmall
+                  ?.copyWith(color: isDarkLayout ? Colors.white : null)),
+          const SizedBox(height: 20),
+          _buildJourneyStep(context,
+              icon: Icons.wifi,
+              title: "Você (Dispositivo)",
+              status: wifiStatus,
+              isDarkLayout: isDarkLayout,
+              children: [
+                _buildJourneyInfo(context, "Sinal:",
+                    _parseResultLine(wifiResult, "Força do Sinal:"),
+                    isDarkLayout: isDarkLayout),
+                _buildJourneyInfo(
+                    context, "SSID:", _parseResultLine(wifiResult, "SSID:"),
+                    isDarkLayout: isDarkLayout)
+              ]),
+          _buildJourneyStep(context,
+              icon: Icons.router,
+              title: "Seu Roteador",
+              status: gatewayStatus,
+              isDarkLayout: isDarkLayout,
+              children: [
+                _buildJourneyInfo(context, "IP:",
+                    _parseResultLine(wifiResult, "Gateway (Roteador):"),
+                    isDarkLayout: isDarkLayout),
+                _buildJourneyInfo(context, "Latência:",
+                    _parseResultLine(gatewayResult, "Latência:"),
+                    isDarkLayout: isDarkLayout),
+                _buildJourneyInfo(context, "Jitter:",
+                    _parseResultLine(gatewayResult, "Jitter:"),
+                    isDarkLayout: isDarkLayout),
+              ]),
+          _buildJourneyStep(context,
+              icon: Icons.cloud_queue,
+              title: "Nossa Rede",
+              status: ipStatus,
+              isDarkLayout: isDarkLayout,
+              children: [
+                _buildJourneyInfo(
+                    context, "IPv4:", _parseResultLine(ipResult, "IPv4:"),
+                    isDarkLayout: isDarkLayout),
+                _buildJourneyInfo(
+                    context, "IPv6:", _parseResultLine(ipResult, "IPv6:"),
+                    isLast: true, isDarkLayout: isDarkLayout)
+              ]),
+          _buildJourneyStep(context,
+              icon: Icons.dns_rounded,
+              title: "Internet (DNS)",
+              isLastStep: true,
+              status: (googleStatus == TestStatus.success ||
+                      cloudflareStatus == TestStatus.success)
+                  ? TestStatus.success
+                  : (googleStatus == TestStatus.running ||
+                          cloudflareStatus == TestStatus.running)
+                      ? TestStatus.running
+                      : TestStatus.error,
+              isDarkLayout: isDarkLayout,
+              children: [
+                _buildJourneyInfo(context, "Google:",
+                    "${_parseResultLine(googleResult, "Latência:")} (${_parseResultLine(googleResult, "Perda:")})",
+                    isDarkLayout: isDarkLayout),
+                _buildJourneyInfo(context, "Cloudflare:",
+                    "${_parseResultLine(cloudflareResult, "Latência:")} (${_parseResultLine(cloudflareResult, "Perda:")})",
+                    isDarkLayout: isDarkLayout)
+              ]),
+        ]));
+  }
+
+  Widget _buildSpeedTestCard(
+      BuildContext context, DiagnosticoState state, bool isLayout05,
+      {bool isDarkLayout = false}) {
+    // Determine state
+    final customStatus = state.testResultsDisplay['speedTestCustom']?['status'];
+    final fastStatus = state.testResultsDisplay['speedTestFast']?['status'];
+
+    final isCustomRunning = customStatus == TestStatus.running;
+    final isFastRunning = fastStatus == TestStatus.running;
+    final isRunning = isCustomRunning || isFastRunning;
+    final hasError =
+        (customStatus == TestStatus.error || fastStatus == TestStatus.error) &&
+            !isRunning;
+
+    // Determine values
+    double currentSpeed = 0.0;
+    bool isDownload = true;
+    double download = 0.0;
+    double upload = 0.0;
+
+    final textColor = isDarkLayout
+        ? Colors.white
+        : (isLayout05 ? Layout05Theme.textDark : null);
+    final subTextColor = isDarkLayout
+        ? Colors.white70
+        : (isLayout05 ? Layout05Theme.textGrey : null);
+
+    // Simplification for gauge
+    if (isCustomRunning) {
+      currentSpeed = state.customDownloadResultMbps > 0
+          ? state.customDownloadResultMbps
+          : 0;
+      if (state.customUploadResultMbps > 1) {
+        currentSpeed = state.customUploadResultMbps;
+        isDownload = false;
+      }
+    } else if (isFastRunning) {
+      currentSpeed = state.fastDownloadResultMbps;
+      if (state.fastUploadResultMbps > 1) {
+        currentSpeed = state.fastUploadResultMbps;
+        isDownload = false;
+      }
+    } else if (hasError) {
+      // Stop speed display on error
+      currentSpeed = 0;
+    }
+
+    // Results to show
+    download = state.customDownloadResultMbps > 0
+        ? state.customDownloadResultMbps
+        : state.fastDownloadResultMbps;
+    upload = state.customUploadResultMbps > 0
+        ? state.customUploadResultMbps
+        : state.fastUploadResultMbps;
+
+    final content = Column(
+      children: [
+        if (isRunning) ...[
+          // GAUGE VIEW (Scaled down)
+          SizedBox(
+            height: 220,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                PieChart(PieChartData(
+                    startDegreeOffset: 135,
+                    sectionsSpace: 0,
+                    centerSpaceRadius: 80, // Smaller radius
+                    sections: [
+                      PieChartSectionData(
+                        color: isLayout05 ? Colors.grey[300] : Colors.grey[200],
+                        value: 75,
+                        title: '',
+                        radius: 12, // Smaller
+                        showTitle: false,
+                      ),
+                      PieChartSectionData(
+                          color: Colors.transparent,
+                          value: 25,
+                          title: '',
+                          showTitle: false,
+                          radius: 12),
+                    ])),
+                SizedBox(
+                  width: 180,
+                  height: 180,
+                  child: RotationTransition(
+                    turns: const AlwaysStoppedAnimation(225 / 360),
+                    child: CircularProgressIndicator(
+                      value: (currentSpeed / 100).clamp(0.0, 0.75),
+                      strokeWidth: 12,
+                      color: isDownload
+                          ? (isLayout05 ? Colors.cyan : Colors.green)
+                          : Colors.purple,
+                      backgroundColor: Colors.transparent,
+                      strokeCap: StrokeCap.round,
+                    ),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(isDownload ? 'DOWNLOAD' : 'UPLOAD',
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 10)),
+                    Text(currentSpeed.toStringAsFixed(1),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkLayout
+                              ? Colors.white
+                              : (isLayout05
+                                  ? Layout05Theme.textDark
+                                  : Theme.of(context).primaryColor),
+                        )),
+                    Text('Mbps',
+                        style:
+                            TextStyle(color: Colors.grey[600], fontSize: 12)),
+                  ],
+                )
+              ],
+            ),
+          ),
+          Text(isRunning ? "Testando sua conexão..." : "",
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.grey))
+        ] else if (hasError) ...[
+          // ERROR VIEW
+          Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              alignment: Alignment.center,
+              child: Column(children: [
+                Icon(Icons.error_outline,
+                    size: 48, color: Theme.of(context).colorScheme.error),
+                const SizedBox(height: 16),
+                Text("Falha no Teste",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.error)),
+                const SizedBox(height: 8),
+                Text(
+                    state.testResultsDisplay['speedTestCustom']?['result'] ??
+                        state.testResultsDisplay['speedTestFast']?['result'] ??
+                        "Erro de conexão.",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                    onPressed: () {
+                      // Call service to retry only speed
+                      _service.runSpeedTestsOnly();
+                    },
+                    child: const Text("Tentar Novamente"))
+              ]))
+        ] else ...[
+          // RESULT VIEW (Mini Cards)
+          Row(
+            children: [
+              Expanded(
+                child: _buildMiniResultCard(
+                    context,
+                    "Download",
+                    download.toStringAsFixed(1),
+                    Icons.arrow_downward,
+                    isLayout05 ? Colors.cyan : Colors.green,
+                    isLayout05,
+                    textColor: textColor,
+                    subTextColor: subTextColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMiniResultCard(
+                    context,
+                    "Upload",
+                    upload.toStringAsFixed(1),
+                    Icons.arrow_upward,
+                    isLayout05 ? Colors.purpleAccent : Colors.blue,
+                    isLayout05,
+                    textColor: textColor,
+                    subTextColor: subTextColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMiniResultCard(
+                    context,
+                    "Ping",
+                    "${state.speedTestPingLatency?.toStringAsFixed(0) ?? '-'} ms",
+                    Icons.compare_arrows,
+                    Colors.orange,
+                    isLayout05,
+                    textColor: textColor,
+                    subTextColor: subTextColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              TextButton(
+                  onPressed: () {
+                    // Retry
+                    _service.runSpeedTestsOnly();
+                  },
+                  child: const Text("Refazer Teste"))
+            ],
+          )
+        ] // end else
+      ],
+    );
+
+    return _buildAdaptiveCard(
+        isLayout05: isLayout05,
+        isDarkLayout: isDarkLayout,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _buildTileHeader(context,
+              label: "Velocidade de Internet",
+              status: isRunning
                   ? TestStatus.running
-                  : TestStatus.error,
-          children: [
-            _buildJourneyInfo(context, "Google:",
-                "${_parseResultLine(googleResult, "Latência:")} (${_parseResultLine(googleResult, "Perda:")})"),
-            _buildJourneyInfo(context, "Cloudflare:",
-                "${_parseResultLine(cloudflareResult, "Latência:")} (${_parseResultLine(cloudflareResult, "Perda:")})")
-          ]),
-    ]));
+                  : (hasError ? TestStatus.error : TestStatus.success),
+              isDarkLayout: isDarkLayout),
+          const SizedBox(height: 16),
+          content,
+        ]));
   }
 
-  Widget _buildSpeedTestCard(BuildContext context, DiagnosticoState state) {
-    return DashboardCard(
-        child: Column(children: [
-      _buildSpeedTestTile(context,
-          label: "Velocidade (Seu Servidor)",
-          status: state.testResultsDisplay['speedTestCustom']?['status']
-                  as TestStatus? ??
-              TestStatus.pending,
-          resultText:
-              state.testResultsDisplay['speedTestCustom']?['result'] as String?,
-          downloadMbps: state.customDownloadResultMbps,
-          uploadMbps: state.customUploadResultMbps,
-          latency: state.speedTestPingLatency,
-          downloadHistory: state.downloadHistory,
-          uploadHistory: state.uploadHistory),
-      Divider(height: 32, color: Theme.of(context).dividerColor),
-      _buildSpeedTestTile(context,
-          label: "Velocidade (Referência)",
-          status: state.testResultsDisplay['speedTestFast']?['status']
-                  as TestStatus? ??
-              TestStatus.pending,
-          resultText:
-              state.testResultsDisplay['speedTestFast']?['result'] as String?,
-          downloadMbps: state.fastDownloadResultMbps,
-          uploadMbps: state.fastUploadResultMbps,
-          downloadHistory: state.fastDownloadHistory,
-          uploadHistory: state.fastUploadHistory,
-          isReference: true),
-    ]));
+  Widget _buildMiniResultCard(BuildContext context, String title, String value,
+      IconData icon, Color color, bool isLayout05,
+      {Color? textColor, Color? subTextColor}) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: isLayout05
+          ? BoxDecoration(
+              color: Layout05Theme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)))
+          : BoxDecoration(
+              color: Colors.grey[100]
+                  ?.withValues(alpha: textColor != null ? 0.1 : 1.0),
+              borderRadius: BorderRadius.circular(8),
+            ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 4),
+          Text(title,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: subTextColor)),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildWifiDetailsCard(BuildContext context, DiagnosticoState state) {
+  // Unused method _buildSimpleStat removed
+
+  Widget _buildWifiDetailsCard(
+      BuildContext context, DiagnosticoState state, bool isLayout05,
+      {bool isDarkLayout = false}) {
     final status =
         state.testResultsDisplay['wifiInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
         state.testResultsDisplay['wifiInfo']?['result'] as String?;
 
-    return DashboardCard(
+    return _buildAdaptiveCard(
+      isLayout05: isLayout05,
+      isDarkLayout: isDarkLayout,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _buildTileHeader(context,
-            label: "Detalhes da Rede Wi-Fi", status: status),
+            label: "Detalhes da Rede Wi-Fi",
+            status: status,
+            isDarkLayout: isDarkLayout),
         if (status == TestStatus.pending || status == TestStatus.running)
-          _buildTileStatusText(context, status: status, result: resultText)
+          _buildTileStatusText(context,
+              status: status, result: resultText, isDarkLayout: isDarkLayout)
         else ...[
           const Divider(height: 24),
           _buildJourneyInfo(
-              context, "BSSID:", _parseResultLine(resultText, "BSSID:")),
+              context, "BSSID:", _parseResultLine(resultText, "BSSID:"),
+              isDarkLayout: isDarkLayout),
           _buildJourneyInfo(context, "IP Local:",
-              _parseResultLine(resultText, "IP Dispositivo:")),
+              _parseResultLine(resultText, "IP Dispositivo:"),
+              isDarkLayout: isDarkLayout),
           _buildJourneyInfo(context, "Servidores DNS:",
-              _parseResultBlock(resultText, "Servidores DNS:")),
+              _parseResultBlock(resultText, "Servidores DNS:"),
+              isDarkLayout: isDarkLayout),
         ]
       ]),
     );
   }
 
-  Widget _buildDeviceInfoCard(BuildContext context, DiagnosticoState state) {
+  Widget _buildDeviceInfoCard(
+      BuildContext context, DiagnosticoState state, bool isLayout05,
+      {bool isDarkLayout = false}) {
     final status =
         state.testResultsDisplay['deviceInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
         state.testResultsDisplay['deviceInfo']?['result'] as String?;
 
-    return DashboardCard(
+    return _buildAdaptiveCard(
+      isLayout05: isLayout05,
+      isDarkLayout: isDarkLayout,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _buildTileHeader(context,
-            label: "Informações do Dispositivo", status: status),
+            label: "Informações do Dispositivo",
+            status: status,
+            isDarkLayout: isDarkLayout),
         if (status == TestStatus.pending || status == TestStatus.running)
-          _buildTileStatusText(context, status: status, result: resultText)
+          _buildTileStatusText(context,
+              status: status, result: resultText, isDarkLayout: isDarkLayout)
         else ...[
           const Divider(height: 24),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -371,12 +680,14 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   _buildDeviceInfoRow(context,
                       icon: Icons.wifi,
                       title: "Conexão",
-                      value: _parseResultLine(resultText, "Conexão:")),
+                      value: _parseResultLine(resultText, "Conexão:"),
+                      isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
                   _buildDeviceInfoRow(context,
                       icon: Icons.android_outlined,
                       title: "Sistema",
-                      value: _parseResultLine(resultText, "Versão OS:")),
+                      value: _parseResultLine(resultText, "Versão OS:"),
+                      isDarkLayout: isDarkLayout),
                 ])),
             const SizedBox(width: 16),
             Expanded(
@@ -386,12 +697,14 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   _buildDeviceInfoRow(context,
                       icon: Icons.smartphone,
                       title: "Dispositivo",
-                      value: _parseResultLine(resultText, "Dispositivo:")),
+                      value: _parseResultLine(resultText, "Dispositivo:"),
+                      isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
                   _buildDeviceInfoRow(context,
                       icon: Icons.info_outline,
                       title: "Versão do App",
-                      value: _parseResultLine(resultText, "Versão do App:")),
+                      value: _parseResultLine(resultText, "Versão do App:"),
+                      isDarkLayout: isDarkLayout),
                 ])),
           ]),
         ]
@@ -399,18 +712,26 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     );
   }
 
-  Widget _buildBatteryInfoCard(BuildContext context, DiagnosticoState state) {
+  Widget _buildBatteryInfoCard(
+      BuildContext context, DiagnosticoState state, bool isLayout05,
+      {bool isDarkLayout = false}) {
     final status =
         state.testResultsDisplay['batteryInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
         state.testResultsDisplay['batteryInfo']?['result'] as String?;
 
-    return DashboardCard(
+    return _buildAdaptiveCard(
+      isLayout05: isLayout05,
+      isDarkLayout: isDarkLayout,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _buildTileHeader(context, label: "Energia e Bateria", status: status),
+        _buildTileHeader(context,
+            label: "Energia e Bateria",
+            status: status,
+            isDarkLayout: isDarkLayout),
         if (status == TestStatus.pending || status == TestStatus.running)
-          _buildTileStatusText(context, status: status, result: resultText)
+          _buildTileStatusText(context,
+              status: status, result: resultText, isDarkLayout: isDarkLayout)
         else ...[
           const Divider(height: 24),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -421,7 +742,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   _buildDeviceInfoRow(context,
                       icon: Icons.battery_std,
                       title: "Nível",
-                      value: _parseResultLine(resultText, "Nível:")),
+                      value: _parseResultLine(resultText, "Nível:"),
+                      isDarkLayout: isDarkLayout),
                 ])),
             const SizedBox(width: 16),
             Expanded(
@@ -431,7 +753,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   _buildDeviceInfoRow(context,
                       icon: Icons.power,
                       title: "Estado",
-                      value: _parseResultLine(resultText, "Estado:")),
+                      value: _parseResultLine(resultText, "Estado:"),
+                      isDarkLayout: isDarkLayout),
                 ])),
           ]),
           if (resultText != null && resultText.contains("⚠️"))
@@ -444,12 +767,12 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      resultText.split('\n').lastWhere((l) => l.contains("⚠️"),
-                          orElse: () => "Aviso de energia"),
-                      style: const TextStyle(
-                          color: Colors.amberAccent,
-                          fontWeight: FontWeight.bold),
-                    ),
+                        resultText.split('\n').lastWhere(
+                            (l) => l.contains("⚠️"),
+                            orElse: () => "Aviso de energia"),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isDarkLayout ? Colors.white : null)),
                   ),
                 ],
               ),
@@ -459,19 +782,30 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     );
   }
 
-  Widget _buildLanScanCard(BuildContext context, DiagnosticoState state) {
+  Widget _buildLanScanCard(
+      BuildContext context, DiagnosticoState state, bool isLayout05,
+      {bool isDarkLayout = false}) {
     final status =
         state.testResultsDisplay['lanScan']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
         state.testResultsDisplay['lanScan']?['result'] as String?;
 
-    return DashboardCard(
+    final textColor = isDarkLayout
+        ? Colors.white
+        : (isLayout05 ? Layout05Theme.textDark : null);
+
+    return _buildAdaptiveCard(
+      isLayout05: isLayout05,
+      isDarkLayout: isDarkLayout,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _buildTileHeader(context,
-            label: "Dispositivos na Rede (LAN)", status: status),
+            label: "Dispositivos na Rede (LAN)",
+            status: status,
+            isDarkLayout: isDarkLayout),
         if (status == TestStatus.pending || status == TestStatus.running)
-          _buildTileStatusText(context, status: status, result: resultText)
+          _buildTileStatusText(context,
+              status: status, result: resultText, isDarkLayout: isDarkLayout)
         else ...[
           const Divider(height: 24),
           Row(children: [
@@ -483,10 +817,16 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                   Text("Total Encontrado",
-                      style: Theme.of(context).textTheme.bodyMedium),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: textColor)),
                   Text(
                       _parseResultLine(resultText, "Dispositivos encontrados:"),
-                      style: Theme.of(context).textTheme.headlineMedium),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(color: textColor)),
                   if (resultText != null && resultText.contains("sub-rede"))
                     Padding(
                       padding: const EdgeInsets.only(top: 4.0),
@@ -497,7 +837,10 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                                 orElse: () => "")
                             .replaceAll("(", "")
                             .replaceAll(")", ""),
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: textColor),
                       ),
                     ),
                 ]))
@@ -512,7 +855,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
       required String title,
       required TestStatus status,
       required List<Widget> children,
-      bool isLastStep = false}) {
+      bool isLastStep = false,
+      bool isDarkLayout = false}) {
     Color statusColor = _getColorForStatus(context, status);
     return IntrinsicHeight(
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -524,7 +868,9 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               Expanded(
                   child: Container(
                       width: 2,
-                      color: Theme.of(context).dividerColor,
+                      color: isDarkLayout
+                          ? Colors.grey[700]
+                          : Theme.of(context).dividerColor,
                       margin: const EdgeInsets.symmetric(vertical: 8.0)))
           ])),
       const SizedBox(width: 16),
@@ -546,182 +892,61 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   }
 
   Widget _buildJourneyInfo(BuildContext context, String label, String value,
-      {bool isLast = false}) {
+      {bool isLast = false, bool isDarkLayout = false}) {
     final textTheme = Theme.of(context).textTheme;
+    final textColor = isDarkLayout ? Colors.white : null;
+    final subTextColor = isDarkLayout ? Colors.white70 : null;
     return Padding(
         padding: const EdgeInsets.only(top: 2.0),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('$label ', style: textTheme.bodyMedium),
+          Text('$label ',
+              style: textTheme.bodyMedium?.copyWith(color: subTextColor)),
           Expanded(
               child: Text(value,
-                  style: textTheme.bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.w500))),
+                  style: textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w500, color: textColor))),
         ]));
   }
 
   Widget _buildDeviceInfoRow(BuildContext context,
-      {required IconData icon, required String title, required String value}) {
+      {required IconData icon,
+      required String title,
+      required String value,
+      bool isDarkLayout = false}) {
     final textTheme = Theme.of(context).textTheme;
+    final textColor = isDarkLayout ? Colors.white : null;
+    final subTextColor = isDarkLayout ? Colors.white70 : null;
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
           padding: const EdgeInsets.only(top: 2.0),
-          child: Icon(icon, size: 18, color: textTheme.bodySmall?.color)),
+          child: Icon(icon, size: 18, color: subTextColor)),
       const SizedBox(width: 12),
       Flexible(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: textTheme.bodyMedium),
+          Text(title,
+              style: textTheme.bodyMedium?.copyWith(color: subTextColor)),
           const SizedBox(height: 4),
-          Text(value, style: textTheme.titleMedium, softWrap: true),
+          Text(value,
+              style: textTheme.titleMedium?.copyWith(color: textColor),
+              softWrap: true),
         ]),
       ),
     ]);
   }
 
-  Widget _buildSpeedTestTile(BuildContext context,
-      {required String label,
-      required TestStatus status,
-      required double downloadMbps,
-      required double uploadMbps,
-      double? latency,
-      required List<FlSpot> downloadHistory,
-      required List<FlSpot> uploadHistory,
-      String? resultText,
-      bool isReference = false}) {
-    final theme = Theme.of(context);
-    final showData = status == TestStatus.success ||
-        status == TestStatus.running ||
-        status == TestStatus.error;
+  // Unused method _buildSpeedTestTile removed
+  // Fragments removed
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _buildTileHeader(context, label: label, status: status),
-      if (status == TestStatus.pending ||
-          (status == TestStatus.running && !showData))
-        _buildTileStatusText(context, status: status, result: resultText)
-      else if (showData) ...[
-        const SizedBox(height: 20),
-        Row(children: [
-          Expanded(
-              child: _buildSpeedStatBox(context,
-                  title: "Download",
-                  mbps: downloadMbps,
-                  icon: Icons.arrow_downward_rounded)),
-          Container(width: 1, height: 50, color: theme.dividerColor),
-          Expanded(
-              child: _buildSpeedStatBox(context,
-                  title: "Upload",
-                  mbps: uploadMbps,
-                  icon: Icons.arrow_upward_rounded)),
-          if (!isReference)
-            Container(width: 1, height: 50, color: theme.dividerColor),
-          if (!isReference)
-            Expanded(
-                child: _buildSpeedStatBox(context,
-                    title: "Latência",
-                    mbps: latency,
-                    icon: Icons.timer_outlined,
-                    unit: "ms")),
-        ]),
-        if (status == TestStatus.running)
-          Padding(
-            padding: const EdgeInsets.only(top: 16.0),
-            child: Center(
-                child: Text(resultText?.split('\n').last ?? "Iniciando...",
-                    style: theme.textTheme.bodySmall)),
-          ),
-        if (downloadHistory.isNotEmpty || uploadHistory.isNotEmpty)
-          _buildSparkLineChart(
-              context,
-              downloadHistory,
-              uploadHistory,
-              isReference ? Colors.cyan : theme.primaryColor,
-              isReference ? Colors.purpleAccent : Colors.cyanAccent),
-        if (status == TestStatus.error)
-          _buildTileStatusText(context, status: status, result: resultText),
-      ]
-    ]);
-  }
-
-  Widget _buildSpeedStatBox(BuildContext context,
-      {required String title,
-      double? mbps,
-      required IconData icon,
-      String unit = "Mbps"}) {
-    final textTheme = Theme.of(context).textTheme;
-    final value = mbps ?? 0.0;
-    return Column(children: [
-      Icon(icon, color: textTheme.bodySmall?.color, size: 22),
-      const SizedBox(height: 8),
-      Text(title, style: textTheme.bodyMedium),
-      const SizedBox(height: 4),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Text(
-            unit == "ms" ? value.toStringAsFixed(0) : value.toStringAsFixed(1),
-            style:
-                textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 2),
-          Text(unit, style: textTheme.bodySmall),
-        ],
-      ),
-    ]);
-  }
-
-  Widget _buildSparkLineChart(BuildContext context, List<FlSpot> downloadData,
-      List<FlSpot> uploadData, Color downloadColor, Color uploadColor) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(top: 24.0, bottom: 8.0, left: 8.0, right: 8.0),
-      child: SizedBox(
-        height: 60,
-        child: LineChart(
-          LineChartData(
-            gridData: const FlGridData(show: false),
-            titlesData: const FlTitlesData(show: false),
-            borderData: FlBorderData(show: false),
-            lineTouchData: const LineTouchData(enabled: false),
-            lineBarsData: [
-              _getLineChartBarData(downloadData, downloadColor),
-              if (uploadData.isNotEmpty)
-                _getLineChartBarData(uploadData, uploadColor, showBelow: false),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  LineChartBarData _getLineChartBarData(List<FlSpot> spots, Color color,
-      {bool showBelow = true}) {
-    return LineChartBarData(
-      spots:
-          spots.length > 1 ? spots : [const FlSpot(0, 0), const FlSpot(1, 0)],
-      isCurved: true,
-      color: color,
-      barWidth: 2.5,
-      isStrokeCapRound: true,
-      dotData: const FlDotData(show: false),
-      belowBarData: showBelow
-          ? BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [color.withAlpha(77), color.withAlpha(0)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            )
-          : BarAreaData(show: false),
-    );
-  }
+  // Unused helpers removed
 
   Widget _buildTileHeader(BuildContext context,
-      {required String label, required TestStatus status}) {
+      {required String label,
+      required TestStatus status,
+      bool isDarkLayout = false}) {
     final theme = Theme.of(context);
     Widget statusIconWidget;
     final color = _getColorForStatus(context, status);
+    final textColor = isDarkLayout ? Colors.white : null;
 
     switch (status) {
       case TestStatus.running:
@@ -746,16 +971,17 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(label,
-              style: theme.textTheme.titleLarge?.copyWith(color: color)),
+              style: theme.textTheme.titleLarge?.copyWith(color: textColor)),
         ),
       ],
     );
   }
 
   Widget _buildTileStatusText(BuildContext context,
-      {required TestStatus status, String? result}) {
+      {required TestStatus status, String? result, bool isDarkLayout = false}) {
     String text;
     Color color = _getColorForStatus(context, status);
+    final textColor = isDarkLayout ? Colors.white70 : color;
 
     switch (status) {
       case TestStatus.running:
@@ -781,7 +1007,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
           style: Theme.of(context)
               .textTheme
               .bodyMedium
-              ?.copyWith(color: color, fontStyle: FontStyle.italic),
+              ?.copyWith(color: textColor, fontStyle: FontStyle.italic),
           textAlign: TextAlign.center,
         ),
       ),
@@ -809,20 +1035,28 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     }
   }
 
-  Widget _buildOnuSignalCard(BuildContext context) {
+  Widget _buildOnuSignalCard(BuildContext context,
+      {bool isLayout05 = false, bool isDarkLayout = false}) {
     final theme = Theme.of(context);
+    final textColor = isDarkLayout ? Colors.white : null;
+    final subTextColor = isDarkLayout ? Colors.white70 : Colors.grey;
 
-    return DashboardCard(
+    return _buildAdaptiveCard(
+      isLayout05: isLayout05,
+      isDarkLayout: isDarkLayout,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Icon(Icons.router, color: theme.primaryColor),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
               child: Text("Sinal da ONU (Fibra)",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor))),
           if (!_loadingOnu)
             IconButton(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh, color: Colors.grey),
               onPressed: _fetchOnuSignal,
               tooltip: 'Buscar sinal',
             ),
@@ -861,7 +1095,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   color: Colors.grey[400], size: 40),
               const SizedBox(height: 8),
               Text('Clique em atualizar para buscar o sinal da ONU',
-                  style: TextStyle(color: Colors.grey[500])),
+                  style: TextStyle(color: Colors.grey[500]),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _fetchOnuSignal,
@@ -876,8 +1111,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: _onuData!.isOnline
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.red.withOpacity(0.1),
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(children: [
@@ -897,7 +1132,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               if (_onuData!.lastUpdate != null)
                 Text(
                   _onuData!.lastUpdate!,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  style: TextStyle(color: subTextColor, fontSize: 12),
                 ),
             ]),
           ),
@@ -912,6 +1147,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               value: _onuData!.signalRxDisplay,
               icon: Icons.arrow_downward,
               isGood: _onuData!.isSignalGood,
+              isLayout05: isLayout05,
+              isDarkLayout: isDarkLayout,
             )),
             const SizedBox(width: 12),
             Expanded(
@@ -921,6 +1158,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               value: _onuData!.signalTxDisplay,
               icon: Icons.arrow_upward,
               isGood: _onuData!.signalTx != null,
+              isLayout05: isLayout05,
+              isDarkLayout: isDarkLayout,
             )),
           ]),
           const SizedBox(height: 16),
@@ -932,8 +1171,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: _onuData!.isSignalGood
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(children: [
@@ -955,35 +1194,44 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
           // OLT Info
           if (_onuData!.oltName != null)
-            _buildOnuInfoTile('OLT', _onuData!.oltName!, Icons.cell_tower),
+            _buildOnuInfoTile('OLT', _onuData!.oltName!, Icons.cell_tower,
+                isDarkLayout: isDarkLayout),
           _buildOnuInfoTile(
               'Posição',
               'Slot ${_onuData!.slot} | PON ${_onuData!.pon} | ID ${_onuData!.onuId}',
-              Icons.pin_drop),
+              Icons.pin_drop,
+              isDarkLayout: isDarkLayout),
 
           // Device info
-          _buildOnuInfoTile('Modelo', _onuData!.model, Icons.router),
+          _buildOnuInfoTile('Modelo', _onuData!.model, Icons.router,
+              isDarkLayout: isDarkLayout),
           if (_onuData!.serialNumber != null)
-            _buildOnuInfoTile('Serial', _onuData!.serialNumber!, Icons.tag),
+            _buildOnuInfoTile('Serial', _onuData!.serialNumber!, Icons.tag,
+                isDarkLayout: isDarkLayout),
           if (_onuData!.mode != null)
-            _buildOnuInfoTile('Modo', _onuData!.mode!, Icons.settings),
+            _buildOnuInfoTile('Modo', _onuData!.mode!, Icons.settings,
+                isDarkLayout: isDarkLayout),
 
           // Network info
           if (_onuData!.vlan != null)
-            _buildOnuInfoTile('VLAN', _onuData!.vlan.toString(), Icons.lan),
+            _buildOnuInfoTile('VLAN', _onuData!.vlan.toString(), Icons.lan,
+                isDarkLayout: isDarkLayout),
           if (_onuData!.cto != null)
-            _buildOnuInfoTile('CTO', _onuData!.cto!, Icons.location_on),
+            _buildOnuInfoTile('CTO', _onuData!.cto!, Icons.location_on,
+                isDarkLayout: isDarkLayout),
 
           // Additional info
           Row(children: [
             if (_onuData!.temperature != null)
               Expanded(
                   child: _buildOnuInfoTile(
-                      'Temp', '${_onuData!.temperature}°C', Icons.thermostat)),
+                      'Temp', '${_onuData!.temperature}°C', Icons.thermostat,
+                      isDarkLayout: isDarkLayout)),
             if (_onuData!.voltage != null)
               Expanded(
                   child: _buildOnuInfoTile('Voltagem', '${_onuData!.voltage}V',
-                      Icons.electrical_services)),
+                      Icons.electrical_services,
+                      isDarkLayout: isDarkLayout)),
           ]),
         ],
       ]),
@@ -996,32 +1244,56 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     required String value,
     required IconData icon,
     required bool isGood,
+    bool isLayout05 = false,
+    bool isDarkLayout = false,
   }) {
+    final textColor = isDarkLayout
+        ? Colors.white
+        : (isLayout05 ? Layout05Theme.textDark : null);
+    final subTextColor = isDarkLayout
+        ? Colors.white70
+        : (isLayout05 ? Layout05Theme.textGrey : null);
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: isGood
-                ? Colors.green.withOpacity(0.3)
-                : Colors.orange.withOpacity(0.3)),
-      ),
+      decoration: isLayout05
+          ? BoxDecoration(
+              color: Layout05Theme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: isGood
+                      ? Colors.green.withValues(alpha: 0.3)
+                      : Colors.orange.withValues(alpha: 0.3)),
+            )
+          : BoxDecoration(
+              color:
+                  isDarkLayout ? Colors.grey[900] : Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: isGood
+                      ? Colors.green.withValues(alpha: 0.3)
+                      : Colors.orange.withValues(alpha: 0.3)),
+            ),
       child: Column(children: [
         Icon(icon, color: isGood ? Colors.green : Colors.orange),
         const SizedBox(height: 8),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: subTextColor,
+                )),
         const SizedBox(height: 4),
         Text(value,
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
-                ?.copyWith(fontWeight: FontWeight.bold)),
+                ?.copyWith(fontWeight: FontWeight.bold, color: textColor)),
       ]),
     );
   }
 
-  Widget _buildOnuInfoTile(String label, String value, IconData icon) {
+  Widget _buildOnuInfoTile(String label, String value, IconData icon,
+      {bool isDarkLayout = false}) {
+    // final textColor = isDarkLayout ? Colors.white : null;
+    // final subTextColor = isDarkLayout ? Colors.white70 : Colors.grey;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
@@ -1056,20 +1328,30 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     }
   }
 
-  Widget _buildWifiManagementCard(BuildContext context) {
+  Widget _buildWifiManagementCard(BuildContext context,
+      {bool isLayout05 = false, bool isDarkLayout = false}) {
     final theme = Theme.of(context);
+    final textColor = isDarkLayout ? Colors.white : null;
 
-    return DashboardCard(
+    return _buildAdaptiveCard(
+      isLayout05: isLayout05,
+      isDarkLayout: isDarkLayout,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.wifi, color: theme.primaryColor),
+          Icon(Icons.wifi,
+              color:
+                  isDarkLayout ? const Color(0xFF00D9FF) : theme.primaryColor),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
               child: Text("Gerenciar WiFi (TR-069)",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor))),
           if (!_loadingWifi)
             IconButton(
-              icon: const Icon(Icons.refresh),
+              icon:
+                  Icon(Icons.refresh, color: isDarkLayout ? Colors.grey : null),
               onPressed: _fetchWifiNetworks,
               tooltip: 'Buscar redes',
             ),
@@ -1118,21 +1400,28 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
             ]),
           ))
         else
-          ..._wifiNetworks
-              .map((network) => _buildWifiNetworkTile(context, network)),
+          ..._wifiNetworks.map((network) =>
+              _buildWifiNetworkTile(context, network, isLayout05: isLayout05)),
       ]),
     );
   }
 
-  Widget _buildWifiNetworkTile(BuildContext context, WifiNetwork network) {
+  Widget _buildWifiNetworkTile(BuildContext context, WifiNetwork network,
+      {bool isLayout05 = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
+      decoration: isLayout05
+          ? BoxDecoration(
+              color: Layout05Theme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white), // Subtle border
+            )
+          : BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
       child: Row(children: [
         Icon(
           network.frequency.contains('5') ? Icons.wifi : Icons.wifi_2_bar,
@@ -1144,15 +1433,20 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(network.ssid,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: isLayout05 ? Layout05Theme.textDark : null)),
           Text(network.frequency,
-              style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+              style: TextStyle(
+                  color: isLayout05 ? Layout05Theme.textGrey : Colors.grey[600],
+                  fontSize: 13)),
         ])),
         IconButton(
           icon: const Icon(Icons.edit),
           onPressed: () => _showEditWifiDialog(context, network),
           tooltip: 'Editar WiFi',
+          color: isLayout05 ? Layout05Theme.primary : null,
         ),
       ]),
     );
@@ -1237,5 +1531,31 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         );
       }
     }
+  }
+
+  Widget _buildAdaptiveCard(
+      {required Widget child,
+      required bool isLayout05,
+      bool isDarkLayout = false}) {
+    if (isDarkLayout) {
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(16),
+          border:
+              Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: child,
+      );
+    }
+    if (isLayout05) {
+      return Container(
+        decoration: Layout05Theme.neumorphicDecoration,
+        padding: const EdgeInsets.all(16),
+        child: child,
+      );
+    }
+    return DashboardCard(child: child);
   }
 }

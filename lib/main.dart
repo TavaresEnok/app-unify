@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:ui'; // For PlatformDispatcher
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -12,7 +15,7 @@ import 'layout_selector.dart';
 // ========================================
 // CONFIGURAÇÃO DO PROVEDOR
 // ========================================
-const String providerId = 'vibe';
+const String providerId = '3kdrQFcCkRga234iB1YX';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -26,6 +29,17 @@ void main() async {
   await initializeDateFormatting('pt_BR', null);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Crashlytics Setup (Immortal Mode)
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+  };
+
+  // Async errors
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   runApp(
     const ProviderScope(
@@ -78,6 +92,8 @@ class _AppInitializationWrapperState
       // Usamos read aqui pois é uma ação única na inicialização
       await ref.read(configurationProvider).loadConfig(providerId);
       await ref.read(notificationProvider).loadNotifications();
+      // Init Deep Links
+      ref.read(deepLinkServiceProvider).init();
     }
   }
 
