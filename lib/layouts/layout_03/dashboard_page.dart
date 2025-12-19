@@ -128,6 +128,20 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                           width: width,
                           child: _buildNeuShortcut(Icons.support_agent_rounded,
                               'Suporte', () => widget.onNavigate('support'))),
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(Icons.public_rounded,
+                              'Meu IP', () => widget.onNavigate('my_ip'))),
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(Icons.description_rounded,
+                              'Contrato', () => widget.onNavigate('contract'))),
+                      SizedBox(
+                          width: width,
+                          child: _buildNeuShortcut(
+                              Icons.data_usage_rounded,
+                              'Consumo',
+                              () => widget.onNavigate('internet_usage'))),
                     ],
                   );
                 }),

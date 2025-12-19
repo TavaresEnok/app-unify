@@ -443,6 +443,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
             Icons.wifi_tethering, Colors.green.shade50, Colors.green),
         _buildServiceItemWrapper(context, 'trace_route', 'Rota',
             Icons.alt_route_rounded, Colors.purple.shade50, Colors.deepPurple),
+        _buildServiceItemWrapper(context, 'wifi', 'Wi-Fi', Icons.wifi_rounded,
+            Colors.teal.shade50, Colors.teal),
       ],
     );
   }

@@ -304,6 +304,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage> {
                   _buildOrganicTile(
                       Icons.description_outlined, 'Meu Contrato', 'contract'),
                   _buildOrganicTile(
+                      Icons.alt_route_rounded, 'Traceroute', 'trace_route'),
+                  _buildOrganicTile(Icons.public_rounded, 'Meu IP', 'my_ip'),
+                  _buildOrganicTile(Icons.data_usage_rounded,
+                      'Consumo de Dados', 'internet_usage'),
+                  _buildOrganicTile(
                       Icons.help_outline_rounded, 'Dúvidas Frequentes', 'faq'),
                 ]),
               ),

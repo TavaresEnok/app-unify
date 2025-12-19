@@ -438,6 +438,18 @@ class _CleanActionsRow extends StatelessWidget {
             'label': 'Rota',
             'color': const Color(0xFF7C3AED)
           },
+          {
+            'id': 'wifi',
+            'icon': Icons.wifi_rounded,
+            'label': 'Wi-Fi',
+            'color': const Color(0xFF0891B2)
+          },
+          {
+            'id': 'internet_usage',
+            'icon': Icons.data_usage_rounded,
+            'label': 'Consumo',
+            'color': const Color(0xFF059669)
+          },
         ];
 
     return Wrap(
