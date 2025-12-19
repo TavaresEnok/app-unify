@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -182,7 +181,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'BEM-VINDO,',
                   style: TextStyle(
                     color: _textGray,
@@ -206,8 +205,8 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         Container(
           padding: const EdgeInsets.all(2), // Gradient border trick
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_neonCyan, _neonPink]),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [_neonCyan, _neonPink]),
             shape: BoxShape.circle,
           ),
           child: Container(
@@ -258,7 +257,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'FATURA ATUAL',
                       style: TextStyle(
                         color: _textGray,
@@ -306,7 +305,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today_rounded,
+                    const Icon(Icons.calendar_today_rounded,
                         size: 14, color: _textGray),
                     const SizedBox(width: 8),
                     Text(
@@ -412,12 +411,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.download_rounded, size: 14, color: _textGray),
+                      const Icon(Icons.download_rounded, size: 14, color: _textGray),
                       Text('${widget.downloadMbps.toInt()} Mb',
                           style:
                               const TextStyle(color: _textGray, fontSize: 12)),
                       const SizedBox(width: 12),
-                      Icon(Icons.upload_rounded, size: 14, color: _textGray),
+                      const Icon(Icons.upload_rounded, size: 14, color: _textGray),
                       Text('${widget.uploadMbps.toInt()} Mb',
                           style:
                               const TextStyle(color: _textGray, fontSize: 12)),
@@ -486,7 +485,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: _textGray),
+            const Icon(Icons.chevron_right, color: _textGray),
           ],
         ),
       ),

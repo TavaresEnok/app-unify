@@ -16,6 +16,12 @@ import 'layouts/layout_10/dashboard_page.dart' as l10_dashboard;
 import 'layouts/layout_10/pages/speed_test_page.dart' as l10_speed;
 import 'layouts/layout_11/dashboard_page.dart' as l11_dashboard;
 import 'layouts/layout_11/login_page.dart' as l11_login;
+import 'layouts/layout_12/dashboard_page.dart' as l12_dashboard;
+import 'layouts/layout_12/login_page.dart' as l12_login;
+import 'layouts/layout_13/dashboard_page.dart' as l13_dashboard;
+import 'layouts/layout_13/login_page.dart' as l13_login;
+import 'layouts/layout_14/dashboard_page.dart' as l14_dashboard;
+import 'layouts/layout_14/login_page.dart' as l14_login;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_02/login_page.dart' as l02_login;
@@ -235,6 +241,54 @@ class LayoutSelector {
           onRefresh: onRefresh,
         );
 
+      case 'layout_12':
+        return l12_dashboard.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_13':
+        return l13_dashboard.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_14':
+        return l14_dashboard.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
       default:
         // Default to Layout 02 if unknown
         return l02.ProviderDashboardPage(
@@ -279,6 +333,12 @@ class LayoutSelector {
         return const l10_login.LoginPage();
       case 'layout_11':
         return const l11_login.LoginPage();
+      case 'layout_12':
+        return const l12_login.LoginPage();
+      case 'layout_13':
+        return const l13_login.LoginPage();
+      case 'layout_14':
+        return const l14_login.LoginPage();
 
       default:
         return const l02_login.LoginPage();
@@ -422,6 +482,23 @@ class LayoutSelector {
       'id': 'layout_11',
       'name': 'Cyberpunk / Neon',
       'description': 'Tema futurista escuro com detalhes em neon Cyan e Pink'
+    },
+    {
+      'id': 'layout_12',
+      'name': 'Neuroform (Bio-Organic)',
+      'description':
+          'Design fluido inspirada na natureza com gradientes Deep Teal/Indigo'
+    },
+    {
+      'id': 'layout_13',
+      'name': 'Cyber-Industrial',
+      'description':
+          'Estilo técnico Neo-Brutalista com bordas angulares e fonte terminal'
+    },
+    {
+      'id': 'layout_14',
+      'name': 'Velvet Gold (Luxury)',
+      'description': 'Tema ultra premium Matte Black com gradientes dourados'
     },
   ];
 }
