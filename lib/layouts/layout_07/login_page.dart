@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
+import 'wave_clipper.dart';
 
-/// Página de login simplificada para o layout 07.
-///
-/// Aceita um callback opcional [onLogin] que será chamado com o CPF/CNPJ
-/// digitado. Também aceita um [onBiometricLogin] opcional para autenticação
-/// biométrica.
 class LoginPage extends StatefulWidget {
   final Future<void> Function(String cpf)? onLogin;
   final VoidCallback? onBiometricLogin;
-
   const LoginPage({
     super.key,
     this.onLogin,
     this.onBiometricLogin,
   });
-
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -24,7 +18,6 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _cpfController = TextEditingController();
   bool _isLoading = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -32,24 +25,21 @@ class _LoginPageState extends State<LoginPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Cabeçalho gradiente
-            Container(
-              width: double.infinity,
-              height: 250,
-              decoration: BoxDecoration(
-                gradient: Layout07Theme.headerGradient(),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
+            // Cabeçalho gradiente com onda
+            ClipPath(
+              clipper: WaveClipper(),
+              child: Container(
+                width: double.infinity,
+                height: 280,
+                decoration: BoxDecoration(
+                  gradient: Layout07Theme.headerGradient(),
                 ),
-              ),
-              child: SafeArea(
-                child: Center(
+                child: SafeArea(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.wb_sunny_rounded,
-                          size: 60, color: Colors.white.withOpacity(0.9)),
+                          size: 64, color: Colors.white.withValues(alpha: 0.9)),
                       const SizedBox(height: 16),
                       Text(
                         'Bem‑vindo',
@@ -88,21 +78,16 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 16),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide:
+                            const BorderSide(color: Layout07Theme.accent),
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Layout07Theme.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 4,
-                      shadowColor: Layout07Theme.accent.withOpacity(0.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
                     onPressed: _isLoading
                         ? null
                         : () async {
@@ -114,11 +99,10 @@ class _LoginPageState extends State<LoginPage> {
                             if (widget.onLogin != null) {
                               await widget.onLogin!(cpf);
                             }
-                            if (mounted) {
-                              setState(() {
-                                _isLoading = false;
-                              });
-                            }
+                            if (!mounted) return;
+                            setState(() {
+                              _isLoading = false;
+                            });
                           },
                     child: _isLoading
                         ? const SizedBox(
@@ -131,8 +115,7 @@ class _LoginPageState extends State<LoginPage> {
                           )
                         : const Text(
                             'Entrar',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
+                            style: TextStyle(fontSize: 16),
                           ),
                   ),
                   const SizedBox(height: 24),
@@ -141,14 +124,6 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: widget.onBiometricLogin,
                       icon: const Icon(Icons.fingerprint),
                       label: const Text('Entrar com biometria'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Layout07Theme.accent,
-                        side: BorderSide(color: Layout07Theme.accent),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
                     ),
                 ],
               ),

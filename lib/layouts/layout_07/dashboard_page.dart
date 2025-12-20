@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'theme.dart';
+import 'wave_clipper.dart';
 
 typedef NavigateToPageCallback = void Function(String pageId);
 
@@ -47,6 +48,7 @@ class ProviderDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      // Importante: defina appBar como nula ou transparente no Scaffold pai se necessário.
       body: RefreshIndicator(
         onRefresh: () async {
           if (onRefresh != null) {
@@ -57,80 +59,79 @@ class ProviderDashboardPage extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              // Cabeçalho com gradiente
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: Layout07Theme.headerGradient(),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(32),
-                    bottomRight: Radius.circular(32),
+              // Cabeçalho com gradiente e borda ondulada
+              ClipPath(
+                clipper: WaveClipper(),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: Layout07Theme.headerGradient(),
                   ),
-                ),
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.menu),
-                              color: Colors.white,
-                              onPressed: () =>
-                                  Scaffold.of(context).openDrawer(),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.notifications_none),
-                              color: Colors.white,
-                              onPressed: () => onNavigate('notifications'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Olá,',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          customerName,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Icon(Icons.signal_cellular_alt,
-                                  color: Colors.white, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                planName,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              IconButton(
+                                icon: const Icon(Icons.menu),
+                                color: Colors.white,
+                                onPressed: () =>
+                                    Scaffold.of(context).openDrawer(),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.notifications_none),
+                                color: Colors.white,
+                                onPressed: () => onNavigate('notifications'),
                               ),
                             ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 20),
+                          Text(
+                            'Olá,',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            customerName,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.signal_cellular_alt,
+                                    color: Colors.white, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  planName,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -158,23 +159,19 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  /// Constrói o cartão de status de conexão.
   Widget _buildStatusCard(BuildContext context) {
     final theme = Theme.of(context);
     final bool connected = isConnected;
     final Color iconBg = connected
-        ? Colors.greenAccent.withOpacity(0.2)
-        : Colors.redAccent.withOpacity(0.2);
+        ? Colors.greenAccent.withValues(alpha: 0.25)
+        : Colors.redAccent.withValues(alpha: 0.25);
     final Color iconColor =
         connected ? Colors.green.shade700 : Colors.red.shade700;
-
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
-            // Ícone de status
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -212,21 +209,27 @@ class ProviderDashboardPage extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.download, size: 16),
+                    const Icon(Icons.download,
+                        size: 16, color: Layout07Theme.accent),
                     const SizedBox(width: 4),
                     Text(
                       '${downloadMbps.toStringAsFixed(1)} Mbps',
-                      style: theme.textTheme.labelMedium,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Layout07Theme.textPrimary,
+                      ),
                     ),
                   ],
                 ),
                 Row(
                   children: [
-                    const Icon(Icons.upload, size: 16),
+                    const Icon(Icons.upload,
+                        size: 16, color: Layout07Theme.accent),
                     const SizedBox(width: 4),
                     Text(
                       '${uploadMbps.toStringAsFixed(1)} Mbps',
-                      style: theme.textTheme.labelMedium,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Layout07Theme.textPrimary,
+                      ),
                     ),
                   ],
                 ),
@@ -238,13 +241,10 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  /// Constrói o cartão de fatura.
   Widget _buildInvoiceCard(BuildContext context) {
     final theme = Theme.of(context);
     final daysLeft = billDueDate.difference(DateTime.now()).inDays;
-
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -252,7 +252,7 @@ class ProviderDashboardPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Layout07Theme.accent.withOpacity(0.2),
+                color: Layout07Theme.accent.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -290,15 +290,6 @@ class ProviderDashboardPage extends StatelessWidget {
               ),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Layout07Theme.accent,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
               onPressed: () => onNavigate('invoices'),
               child: const Text('Ver'),
             ),
@@ -308,7 +299,6 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  /// Constrói o grid de serviços (faturas, suporte, serviços, diagnóstico).
   Widget _buildServicesGrid(BuildContext context) {
     return GridView.count(
       physics: const NeverScrollableScrollPhysics(),
@@ -331,9 +321,8 @@ class ProviderDashboardPage extends StatelessWidget {
           onTap: () => onNavigate('support'),
         ),
         _ServiceButton(
-          icon: Icons
-              .wifi, // Changed from dashboard_customize to match intent better
-          label: 'Wi-Fi',
+          icon: Icons.wifi,
+          label: 'Wi‑Fi',
           color: const Color(0xFFEFFBF5),
           onTap: () => onNavigate('wifi'),
         ),
@@ -347,43 +336,28 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  /// Constrói o botão para iniciar o diagnóstico completo.
   Widget _buildDiagnosticButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Layout07Theme.accent,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
         onPressed: () => onNavigate('network_diagnostic'),
-        child: const Text(
-          'Diagnóstico Completo',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        child: const Text('Diagnóstico Completo'),
       ),
     );
   }
 }
 
-/// Widget interno usado para representar um botão de serviço na grade.
 class _ServiceButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
-
   const _ServiceButton({
     required this.icon,
     required this.label,
     required this.color,
     required this.onTap,
   });
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
