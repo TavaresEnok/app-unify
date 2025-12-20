@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/theme_config.dart';
 import '../../layouts/layout_04/theme.dart';
+import '../../layouts/layout_07/theme.dart';
 
 class DynamicThemeProvider with ChangeNotifier {
   ThemeData _lightTheme;
@@ -30,6 +31,12 @@ class DynamicThemeProvider with ChangeNotifier {
       _lightTheme = Layout04Theme.getTheme(config);
       _darkTheme = Layout04Theme.getTheme(config);
       _themeMode = ThemeMode.dark; // Force Dark Mode
+    } else if (layoutType == 'layout_07') {
+      // Layout 07 (Pôr-do-Sol Tropical)
+      _lightTheme = Layout07Theme.getTheme();
+      _darkTheme =
+          Layout07Theme.getTheme(); // Layout 07 é sempre claro/vibrante
+      _themeMode = ThemeMode.light;
     } else {
       _lightTheme = _buildTheme(config, Brightness.light);
       _darkTheme = _buildTheme(config, Brightness.dark);
