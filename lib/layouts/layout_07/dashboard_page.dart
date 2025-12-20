@@ -10,7 +10,8 @@ typedef NavigateToPageCallback = void Function(String pageId);
 ///
 /// Exibe uma saudação, status da conexão, detalhes de fatura, um grid de serviços
 /// e um botão para iniciar o diagnóstico completo. Todas as cores e estilos são
-/// baseados em [Layout07Theme].
+/// baseados em [Layout07Theme].  Os botões recebem estilos explicitamente
+/// definidos para evitar herança de temas de outros layouts.
 class ProviderDashboardPage extends StatelessWidget {
   final String customerName;
   final String planName;
@@ -48,7 +49,7 @@ class ProviderDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      // Importante: defina appBar como nula ou transparente no Scaffold pai se necessário.
+      // Defina appBar: null no Scaffold pai para não exibir a barra roxa padrão.
       body: RefreshIndicator(
         onRefresh: () async {
           if (onRefresh != null) {
@@ -281,7 +282,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Vence em ${DateFormat('dd/MM/yyyy').format(billDueDate)} (${daysLeft}d)',
+                    'Vence em ${DateFormat("dd/MM/yyyy").format(billDueDate)} (${daysLeft}d)',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: Layout07Theme.textSecondary,
                     ),
@@ -289,8 +290,18 @@ class ProviderDashboardPage extends StatelessWidget {
                 ],
               ),
             ),
+            // Define o estilo explicitamente para evitar herança de tema roxo
             ElevatedButton(
               onPressed: () => onNavigate('invoices'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Layout07Theme.accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
               child: const Text('Ver'),
             ),
           ],
@@ -341,6 +352,14 @@ class ProviderDashboardPage extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () => onNavigate('network_diagnostic'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Layout07Theme.accent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
         child: const Text('Diagnóstico Completo'),
       ),
     );

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Tema para o layout 07 (Pôr‑do‑Sol Tropical).
+///
+/// Define paleta de cores, tipografia, sombras, estilos de botões e barra
+/// de navegação inferior.  Certifique‑se de carregar este tema no MaterialApp
+/// quando o layout 07 estiver ativo.
 class Layout07Theme {
   // Cores principais
   static const Color headerStart = Color(0xFFFF6B6B); // coral quente
@@ -15,15 +19,12 @@ class Layout07Theme {
 
   /// Cria um [ThemeData] completo com base nas cores do layout.
   static ThemeData getTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
+    final base = ThemeData.light(useMaterial3: true);
+    return base.copyWith(
       primaryColor: accent,
       scaffoldBackgroundColor: background,
       cardColor: cardBackground,
-      fontFamily: GoogleFonts.poppins().fontFamily,
-
-      colorScheme: const ColorScheme.light(
+      colorScheme: base.colorScheme.copyWith(
         primary: accent,
         secondary: accent,
         surface: cardBackground,
@@ -31,15 +32,11 @@ class Layout07Theme {
         onSecondary: Colors.white,
         onSurface: textPrimary,
       ),
-
       textTheme: GoogleFonts.poppinsTextTheme().apply(
         bodyColor: textPrimary,
         displayColor: textPrimary,
       ),
-
       iconTheme: const IconThemeData(color: accent),
-
-      // Usando CardThemeData conforme sugerido pelo compilador/layout 05
       cardTheme: CardThemeData(
         color: cardBackground,
         shadowColor: Colors.black.withValues(alpha: 0.08),
@@ -48,7 +45,6 @@ class Layout07Theme {
           borderRadius: BorderRadius.circular(20),
         ),
       ),
-
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
@@ -62,7 +58,6 @@ class Layout07Theme {
           textStyle: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: accent,
@@ -73,7 +68,6 @@ class Layout07Theme {
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         ),
       ),
-
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: cardBackground,
         selectedItemColor: accent,

@@ -168,7 +168,34 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               ),
           ],
         ),
-        extendBody: hasBottomNav,
+        bottomNavigationBar: (layoutType == 'layout_07')
+            ? BottomNavigationBar(
+                currentIndex: _getBottomNavIndex(),
+                onTap: _onBottomNavTap,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard_outlined),
+                    activeIcon: Icon(Icons.dashboard),
+                    label: 'Início',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.data_usage_outlined),
+                    activeIcon: Icon(Icons.data_usage),
+                    label: 'Consumo',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.receipt_long_outlined),
+                    activeIcon: Icon(Icons.receipt_long),
+                    label: 'Faturas',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.support_agent_outlined),
+                    activeIcon: Icon(Icons.support_agent),
+                    label: 'Suporte',
+                  ),
+                ],
+              )
+            : null,
       ),
     );
   }
@@ -222,9 +249,11 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
     // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
     // Layout 04 e Layout 06 também têm seus próprios headers
+    // Layout 07 (Novo) também tem header customizado
     if ((isLayout02 ||
             layoutType == 'layout_04' ||
-            layoutType == 'layout_06') &&
+            layoutType == 'layout_06' ||
+            layoutType == 'layout_07') &&
         isOnDashboard) {
       return null;
     }
@@ -309,11 +338,18 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   }
 
   int _getBottomNavIndex() {
+    final layoutType =
+        ref.read(configurationProvider).providerConfig?.layoutType ??
+            'layout_02';
+    final isLayout07 = layoutType == 'layout_07';
+
     switch (_currentPage) {
       case 'dashboard':
         return 0;
       case 'wifi':
-        return 1;
+        return isLayout07 ? 0 : 1;
+      case 'internet_usage':
+        return isLayout07 ? 1 : 0;
       case 'invoices':
         return 2;
       case 'support':
@@ -324,12 +360,21 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   }
 
   void _onBottomNavTap(int index) {
+    final layoutType =
+        ref.read(configurationProvider).providerConfig?.layoutType ??
+            'layout_02';
+    final isLayout07 = layoutType == 'layout_07';
+
     switch (index) {
       case 0:
         _navigateToPage('dashboard');
         break;
       case 1:
-        _navigateToPage('wifi');
+        if (isLayout07) {
+          _navigateToPage('internet_usage');
+        } else {
+          _navigateToPage('wifi');
+        }
         break;
       case 2:
         _navigateToPage('invoices');

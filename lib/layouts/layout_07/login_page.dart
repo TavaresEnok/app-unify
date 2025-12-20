@@ -104,6 +104,16 @@ class _LoginPageState extends State<LoginPage> {
                               _isLoading = false;
                             });
                           },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Layout07Theme.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      elevation: 2,
+                      shadowColor: Layout07Theme.accent.withValues(alpha: 0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
@@ -124,6 +134,14 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: widget.onBiometricLogin,
                       icon: const Icon(Icons.fingerprint),
                       label: const Text('Entrar com biometria'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Layout07Theme.accent,
+                        side: const BorderSide(color: Layout07Theme.accent),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
                     ),
                 ],
               ),
