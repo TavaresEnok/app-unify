@@ -1,15 +1,20 @@
-# 🌅 Código Completo: Layout 07 (Pôr-do-Sol Tropical Premium)
+# Código Completo do Layout 07 (Pôr-do-Sol Tropical) - Premium
 
-Este arquivo contém o código fonte atualizado do Layout 07, incluindo o efeito de onda, tema ajustado e páginas principais.
+Este documento contém todo o código fonte atualizado para o Layout 07 ("Pôr-do-Sol Tropical"), incluindo definições de tema, widgets personalizados e as páginas principais.
 
-## theme.dart
-> Tema e Configurações de Cores
+## 1. `lib/layouts/layout_07/theme.dart`
+
+Define a paleta de cores vibrante, tipografia e estilos globais.
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Tema para o layout 07 (Pôr‑do‑Sol Tropical).
+///
+/// Define paleta de cores, tipografia, sombras, estilos de botões e barra
+/// de navegação inferior.  Certifique‑se de carregar este tema no MaterialApp
+/// quando o layout 07 estiver ativo.
 class Layout07Theme {
   // Cores principais
   static const Color headerStart = Color(0xFFFF6B6B); // coral quente
@@ -23,15 +28,12 @@ class Layout07Theme {
 
   /// Cria um [ThemeData] completo com base nas cores do layout.
   static ThemeData getTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
+    final base = ThemeData.light(useMaterial3: true);
+    return base.copyWith(
       primaryColor: accent,
       scaffoldBackgroundColor: background,
       cardColor: cardBackground,
-      fontFamily: GoogleFonts.poppins().fontFamily,
-
-      colorScheme: const ColorScheme.light(
+      colorScheme: base.colorScheme.copyWith(
         primary: accent,
         secondary: accent,
         surface: cardBackground,
@@ -39,15 +41,11 @@ class Layout07Theme {
         onSecondary: Colors.white,
         onSurface: textPrimary,
       ),
-
       textTheme: GoogleFonts.poppinsTextTheme().apply(
         bodyColor: textPrimary,
         displayColor: textPrimary,
       ),
-
       iconTheme: const IconThemeData(color: accent),
-
-      // Usando CardThemeData conforme sugerido pelo compilador/layout 05
       cardTheme: CardThemeData(
         color: cardBackground,
         shadowColor: Colors.black.withValues(alpha: 0.08),
@@ -56,7 +54,6 @@ class Layout07Theme {
           borderRadius: BorderRadius.circular(20),
         ),
       ),
-
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
@@ -70,7 +67,6 @@ class Layout07Theme {
           textStyle: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: accent,
@@ -81,7 +77,6 @@ class Layout07Theme {
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         ),
       ),
-
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: cardBackground,
         selectedItemColor: accent,
@@ -102,13 +97,11 @@ class Layout07Theme {
     );
   }
 }
-
 ```
 
----
+## 2. `lib/layouts/layout_07/wave_clipper.dart`
 
-## wave_clipper.dart
-> Utilitário WaveClipper
+Clipper personalizado para o efeito de onda no cabeçalho.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -132,13 +125,11 @@ class WaveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
-
 ```
 
----
+## 3. `lib/layouts/layout_07/dashboard_page.dart`
 
-## dashboard_page.dart
-> Página Dashboard
+Página principal ("Inicio") com cards de status, fatura e grid de serviços.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -153,7 +144,8 @@ typedef NavigateToPageCallback = void Function(String pageId);
 ///
 /// Exibe uma saudação, status da conexão, detalhes de fatura, um grid de serviços
 /// e um botão para iniciar o diagnóstico completo. Todas as cores e estilos são
-/// baseados em [Layout07Theme].
+/// baseados em [Layout07Theme].  Os botões recebem estilos explicitamente
+/// definidos para evitar herança de temas de outros layouts.
 class ProviderDashboardPage extends StatelessWidget {
   final String customerName;
   final String planName;
@@ -191,7 +183,7 @@ class ProviderDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      // Importante: defina appBar como nula ou transparente no Scaffold pai se necessário.
+      // Defina appBar: null no Scaffold pai para não exibir a barra roxa padrão.
       body: RefreshIndicator(
         onRefresh: () async {
           if (onRefresh != null) {
@@ -352,8 +344,7 @@ class ProviderDashboardPage extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.download,
-                        size: 16, color: Layout07Theme.accent),
+                    const Icon(Icons.download, size: 16, color: Layout07Theme.accent),
                     const SizedBox(width: 4),
                     Text(
                       '${downloadMbps.toStringAsFixed(1)} Mbps',
@@ -365,8 +356,7 @@ class ProviderDashboardPage extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    const Icon(Icons.upload,
-                        size: 16, color: Layout07Theme.accent),
+                    const Icon(Icons.upload, size: 16, color: Layout07Theme.accent),
                     const SizedBox(width: 4),
                     Text(
                       '${uploadMbps.toStringAsFixed(1)} Mbps',
@@ -424,7 +414,7 @@ class ProviderDashboardPage extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Vence em ${DateFormat('dd/MM/yyyy').format(billDueDate)} (${daysLeft}d)',
+                    'Vence em ${DateFormat("dd/MM/yyyy").format(billDueDate)} (${daysLeft}d)',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: Layout07Theme.textSecondary,
                     ),
@@ -432,8 +422,18 @@ class ProviderDashboardPage extends StatelessWidget {
                 ],
               ),
             ),
+            // Define o estilo explicitamente para evitar herança de tema roxo
             ElevatedButton(
               onPressed: () => onNavigate('invoices'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Layout07Theme.accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
               child: const Text('Ver'),
             ),
           ],
@@ -484,6 +484,14 @@ class ProviderDashboardPage extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () => onNavigate('network_diagnostic'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Layout07Theme.accent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
         child: const Text('Diagnóstico Completo'),
       ),
     );
@@ -535,13 +543,11 @@ class _ServiceButton extends StatelessWidget {
     );
   }
 }
-
 ```
 
----
+## 4. `lib/layouts/layout_07/login_page.dart`
 
-## login_page.dart
-> Página Login
+Página de login estilizada com ondas e suporte a biometria.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -650,6 +656,16 @@ class _LoginPageState extends State<LoginPage> {
                               _isLoading = false;
                             });
                           },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Layout07Theme.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      elevation: 2,
+                      shadowColor: Layout07Theme.accent.withValues(alpha: 0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
@@ -670,6 +686,14 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: widget.onBiometricLogin,
                       icon: const Icon(Icons.fingerprint),
                       label: const Text('Entrar com biometria'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Layout07Theme.accent,
+                        side: const BorderSide(color: Layout07Theme.accent),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -680,8 +704,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
 ```
-
----
-
