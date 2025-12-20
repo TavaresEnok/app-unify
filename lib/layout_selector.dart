@@ -11,6 +11,8 @@ import 'layouts/layout_05/dashboard_page.dart' as l05;
 import 'layouts/layout_05/pages/speed_test_page.dart' as l05_speed;
 import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_06/login_page.dart' as l06_login;
+import 'layouts/layout_07/dashboard_page.dart' as l07;
+import 'layouts/layout_07/login_page.dart' as l07_login;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_01/login_page.dart' as l01_login;
@@ -172,6 +174,21 @@ class LayoutSelector {
           onRefresh: onRefresh,
         );
 
+      case 'layout_07':
+        return l07.ProviderDashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          onRefresh: onRefresh,
+        );
+
       default:
         // Default to Layout 01 if unknown
         return l01.ProviderDashboardPage(
@@ -210,6 +227,8 @@ class LayoutSelector {
         return const l05_login.LoginPage();
       case 'layout_06':
         return const l06_login.LoginPage();
+      case 'layout_07':
+        return const l07_login.LoginPage();
 
       default:
         return const l01_login.LoginPage();
@@ -286,6 +305,8 @@ class LayoutSelector {
         return const l03_wifi.WifiPage();
       case 'layout_04':
         return const l03_wifi.WifiPage();
+      case 'layout_07':
+        return const l03_wifi.WifiPage();
       default:
         return const Center(
             child: Text('Funcionalidade não disponível neste layout'));
@@ -323,6 +344,11 @@ class LayoutSelector {
       'id': 'layout_06',
       'name': 'Cyberpunk / Neon',
       'description': 'Tema futurista escuro com detalhes em neon Cyan e Pink'
+    },
+    {
+      'id': 'layout_07',
+      'name': 'Pôr-do-Sol Tropical',
+      'description': 'Tema quente e amigável com gradientes suaves'
     },
   ];
 }
