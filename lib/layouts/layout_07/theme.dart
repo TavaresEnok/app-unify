@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Tema para o layout 07 (Pôr‑do‑Sol Tropical).
-///
-/// Define paleta de cores, tipografia, sombras, estilos de botões e barra
-/// de navegação inferior.  Certifique‑se de carregar este tema no MaterialApp
-/// quando o layout 07 estiver ativo.
 class Layout07Theme {
   // Cores principais
   static const Color headerStart = Color(0xFFFF6B6B); // coral quente
@@ -16,8 +12,8 @@ class Layout07Theme {
   static const Color textPrimary = Color(0xFF333333);
   static const Color textSecondary = Color(0xFF666666);
   static const Color accent = Color(0xFF2D9CDB); // azul‑verde para destaques
+  static const Color goldBadge = Color(0xFFFFE082); // badge dourado
 
-  /// Cria um [ThemeData] completo com base nas cores do layout.
   static ThemeData getTheme() {
     final base = ThemeData.light(useMaterial3: true);
     return base.copyWith(
@@ -41,17 +37,14 @@ class Layout07Theme {
         color: cardBackground,
         shadowColor: Colors.black.withValues(alpha: 0.08),
         elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           elevation: 2,
           shadowColor: accent.withValues(alpha: 0.3),
@@ -62,9 +55,8 @@ class Layout07Theme {
         style: OutlinedButton.styleFrom(
           foregroundColor: accent,
           side: const BorderSide(color: accent),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         ),
       ),
@@ -73,13 +65,12 @@ class Layout07Theme {
         selectedItemColor: accent,
         unselectedItemColor: textSecondary,
         showSelectedLabels: true,
-        showUnselectedLabels: false,
+        showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
       ),
     );
   }
 
-  /// Gradiente usado no cabeçalho superior.
   static LinearGradient headerGradient() {
     return const LinearGradient(
       begin: Alignment.topLeft,

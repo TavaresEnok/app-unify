@@ -170,32 +170,33 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         ),
         bottomNavigationBar: (layoutType == 'layout_07')
             ? BottomNavigationBar(
-                currentIndex: _getBottomNavIndex(),
-                onTap: _onBottomNavTap,
+                currentIndex: _getLayout07NavIndex(),
+                onTap: _onLayout07NavTap,
                 selectedItemColor: const Color(0xFF2D9CDB), // Layout07 accent
                 unselectedItemColor: const Color(0xFF666666),
                 backgroundColor: Colors.white,
                 type: BottomNavigationBarType.fixed,
+                showUnselectedLabels: true,
                 items: const [
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.dashboard_outlined),
-                    activeIcon: Icon(Icons.dashboard),
-                    label: 'Início',
+                    icon: Icon(Icons.home_outlined),
+                    activeIcon: Icon(Icons.home),
+                    label: 'Inicio',
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.data_usage_outlined),
-                    activeIcon: Icon(Icons.data_usage),
-                    label: 'Consumo',
+                    icon: Icon(Icons.bar_chart_outlined),
+                    activeIcon: Icon(Icons.bar_chart),
+                    label: 'Relatórios',
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.receipt_long_outlined),
-                    activeIcon: Icon(Icons.receipt_long),
-                    label: 'Faturas',
+                    icon: Icon(Icons.apps_outlined),
+                    activeIcon: Icon(Icons.apps),
+                    label: 'Services',
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.support_agent_outlined),
-                    activeIcon: Icon(Icons.support_agent),
-                    label: 'Suporte',
+                    icon: Icon(Icons.person_outline),
+                    activeIcon: Icon(Icons.person),
+                    label: 'Conta',
                   ),
                 ],
               )
@@ -388,6 +389,45 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         break;
       case 4:
         _scaffoldKey.currentState?.openDrawer();
+        break;
+    }
+  }
+
+  // Layout 07 specific navigation (Inicio, Relatórios, Services, Conta)
+  int _getLayout07NavIndex() {
+    switch (_currentPage) {
+      case 'dashboard':
+        return 0;
+      case 'internet_usage':
+      case 'speed_test':
+        return 1; // Relatórios
+      case 'invoices':
+      case 'support':
+      case 'wifi':
+      case 'network_diagnostic':
+        return 2; // Services
+      case 'contract':
+      case 'my_ip':
+      case 'faq':
+        return 3; // Conta
+      default:
+        return 0;
+    }
+  }
+
+  void _onLayout07NavTap(int index) {
+    switch (index) {
+      case 0:
+        _navigateToPage('dashboard');
+        break;
+      case 1:
+        _navigateToPage('internet_usage'); // Relatórios -> consumo
+        break;
+      case 2:
+        _navigateToPage('invoices'); // Services -> faturas como padrão
+        break;
+      case 3:
+        _navigateToPage('contract'); // Conta -> contrato/perfil
         break;
     }
   }

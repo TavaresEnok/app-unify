@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'theme.dart';
 import 'wave_clipper.dart';
 
 typedef NavigateToPageCallback = void Function(String pageId);
 
-/// Página principal do provedor para o layout 07.
-///
-/// Exibe uma saudação, status da conexão, detalhes de fatura, um grid de serviços
-/// e um botão para iniciar o diagnóstico completo. Todas as cores e estilos são
-/// baseados em [Layout07Theme].  Os botões recebem estilos explicitamente
-/// definidos para evitar herança de temas de outros layouts.
+/// Dashboard para Layout 07 - Pôr-do-Sol Tropical
+/// Implementação fiel ao mockup com cards lado a lado,
+/// grid de serviços com gradiente e botão Diagnóstico Rápido.
 class ProviderDashboardPage extends StatelessWidget {
   final String customerName;
   final String planName;
@@ -40,116 +36,36 @@ class ProviderDashboardPage extends StatelessWidget {
     this.onRefresh,
   });
 
-  /// Verifica se a conexão está ativa.
   bool get isConnected =>
       connectionStatus.toLowerCase() == 'ativo' ||
       connectionStatus.toLowerCase() == 'conectado';
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      // Defina appBar: null no Scaffold pai para não exibir a barra roxa padrão.
+      backgroundColor: Layout07Theme.background,
       body: RefreshIndicator(
         onRefresh: () async {
-          if (onRefresh != null) {
-            await onRefresh!();
-          }
+          if (onRefresh != null) await onRefresh!();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cabeçalho com gradiente e borda ondulada
-              ClipPath(
-                clipper: WaveClipper(),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: Layout07Theme.headerGradient(),
-                  ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.menu),
-                                color: Colors.white,
-                                onPressed: () =>
-                                    Scaffold.of(context).openDrawer(),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.notifications_none),
-                                color: Colors.white,
-                                onPressed: () => onNavigate('notifications'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Olá,',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            customerName,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.signal_cellular_alt,
-                                    color: Colors.white, size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  planName,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              _buildHeader(context),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatusCard(context),
-                    const SizedBox(height: 16),
-                    _buildInvoiceCard(context),
-                    const SizedBox(height: 16),
-                    _buildServicesGrid(context),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
+                    _buildStatusAndInvoiceRow(context),
+                    const SizedBox(height: 24),
+                    _buildServicesSection(context),
+                    const SizedBox(height: 24),
                     _buildDiagnosticButton(context),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 100), // Space for BottomNav
                   ],
                 ),
               ),
@@ -160,81 +76,231 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final bool connected = isConnected;
-    final Color iconBg = connected
-        ? Colors.greenAccent.withValues(alpha: 0.25)
-        : Colors.redAccent.withValues(alpha: 0.25);
-    final Color iconColor =
-        connected ? Colors.green.shade700 : Colors.red.shade700;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: iconBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                connected ? Icons.check_circle : Icons.error,
-                color: iconColor,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Column(
+  /// Cabeçalho com gradiente e onda
+  Widget _buildHeader(BuildContext context) {
+    return ClipPath(
+      clipper: WaveClipper(),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: Layout07Theme.headerGradient(),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 50),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top bar with menu and notification
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.menu, size: 28),
+                      color: Colors.white,
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ),
+                    Stack(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none, size: 28),
+                          color: Colors.white,
+                          onPressed: () => onNavigate('notifications'),
+                        ),
+                        // Red notification badge
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Greeting
                 Text(
-                  connected ? 'Conectado' : 'Desconectado',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  'Olá, $customerName!',
+                  style: const TextStyle(
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Layout07Theme.textPrimary,
+                    color: Colors.white,
+                    fontFamily: 'Poppins',
                   ),
                 ),
-                Text(
-                  connected ? 'Status Online' : 'Verifique sua rede',
-                  style: theme.textTheme.bodySmall?.copyWith(
+                const SizedBox(height: 12),
+                // Plan badge (gold/yellow - 0xFFFFE082)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Layout07Theme.goldBadge,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    planName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF5D4037), // Dark brown text
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Cards de status e fatura lado a lado (conforme mockup)
+  Widget _buildStatusAndInvoiceRow(BuildContext context) {
+    return Row(
+      children: [
+        // Status card
+        Expanded(child: _buildStatusCard()),
+        const SizedBox(width: 12),
+        // Invoice card
+        Expanded(child: _buildInvoiceCard()),
+      ],
+    );
+  }
+
+  Widget _buildStatusCard() {
+    final bool connected = isConnected;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: connected
+                  ? Colors.green.withValues(alpha: 0.15)
+                  : Colors.red.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              connected ? Icons.check_circle : Icons.error,
+              color: connected ? Colors.green : Colors.red,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            connected ? 'Conectado' : 'Desconectado',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Layout07Theme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            connected ? 'Tudo funcionando' : 'Verificar rede',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Layout07Theme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvoiceCard() {
+    final day = billDueDate.day.toString().padLeft(2, '0');
+    final months = [
+      '',
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Maio',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez'
+    ];
+    final monthName = months[billDueDate.month];
+
+    return GestureDetector(
+      onTap: () => onNavigate('invoices'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: Layout07Theme.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'Fatura',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                     color: Layout07Theme.textSecondary,
                   ),
                 ),
               ],
             ),
-            const Spacer(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.download,
-                        size: 16, color: Layout07Theme.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${downloadMbps.toStringAsFixed(1)} Mbps',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: Layout07Theme.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.upload,
-                        size: 16, color: Layout07Theme.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${uploadMbps.toStringAsFixed(1)} Mbps',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: Layout07Theme.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            const SizedBox(height: 8),
+            Text(
+              'R\$ ${billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Layout07Theme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Vencimento: $day $monthName',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Layout07Theme.textSecondary,
+              ),
             ),
           ],
         ),
@@ -242,168 +308,153 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInvoiceCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final daysLeft = billDueDate.difference(DateTime.now()).inDays;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Layout07Theme.accent.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.receipt_long,
-                color: Layout07Theme.accent,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Fatura',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Layout07Theme.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'R\$ ${billAmount.toStringAsFixed(2)}',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Layout07Theme.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Vence em ${DateFormat("dd/MM/yyyy").format(billDueDate)} (${daysLeft}d)',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Layout07Theme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Define o estilo explicitamente para evitar herança de tema roxo
-            ElevatedButton(
-              onPressed: () => onNavigate('invoices'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Layout07Theme.accent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              child: const Text('Ver'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildServicesGrid(BuildContext context) {
-    return GridView.count(
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      childAspectRatio: 3 / 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
+  /// Seção de Serviços com grid 2x2 e botões com gradiente
+  Widget _buildServicesSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ServiceButton(
-          icon: Icons.receipt_long,
-          label: 'Faturas',
-          color: const Color(0xFFFDECC8),
-          onTap: () => onNavigate('invoices'),
+        const Text(
+          'Serviços',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Layout07Theme.textPrimary,
+          ),
         ),
-        _ServiceButton(
-          icon: Icons.support_agent,
-          label: 'Suporte',
-          color: const Color(0xFFE0F7FA),
-          onTap: () => onNavigate('support'),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _ServiceButton(
+                icon: Icons.wifi,
+                label: 'Internet',
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF8A65), Color(0xFFFF5722)],
+                ),
+                onTap: () => onNavigate('internet_usage'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ServiceButton(
+                icon: Icons.headset_mic,
+                label: 'Suporte',
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4DD0E1), Color(0xFF00ACC1)],
+                ),
+                onTap: () => onNavigate('support'),
+              ),
+            ),
+          ],
         ),
-        _ServiceButton(
-          icon: Icons.wifi,
-          label: 'Wi‑Fi',
-          color: const Color(0xFFEFFBF5),
-          onTap: () => onNavigate('wifi'),
-        ),
-        _ServiceButton(
-          icon: Icons.speed,
-          label: 'Diagnóstico',
-          color: const Color(0xFFF6E6F6),
-          onTap: () => onNavigate('network_diagnostic'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ServiceButton(
+                icon: Icons.tv,
+                label: 'TV',
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFD54F), Color(0xFFFFC107)],
+                ),
+                onTap: () => onNavigate('contract'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ServiceButton(
+                icon: Icons.settings,
+                label: 'Config',
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFB39DDB), Color(0xFF7E57C2)],
+                ),
+                onTap: () => onNavigate('wifi'),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
+  /// Botão de diagnóstico com gradiente coral-laranja
   Widget _buildDiagnosticButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () => onNavigate('network_diagnostic'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Layout07Theme.accent,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+    return GestureDetector(
+      onTap: () => onNavigate('network_diagnostic'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF8A65), Color(0xFFFF5722)],
           ),
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF5722).withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        child: const Text('Diagnóstico Completo'),
+        child: const Center(
+          child: Text(
+            'Diagnóstico Rápido',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
+/// Botão de serviço com gradiente (conforme mockup)
 class _ServiceButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final Gradient gradient;
   final VoidCallback onTap;
+
   const _ServiceButton({
     required this.icon,
     required this.label,
-    required this.color,
+    required this.gradient,
     required this.onTap,
   });
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: Layout07Theme.accent,
-              size: 28,
-            ),
-            const SizedBox(height: 12),
+            Icon(icon, color: Colors.white, size: 24),
+            const SizedBox(width: 8),
             Text(
               label,
-              style: theme.textTheme.labelMedium?.copyWith(
+              style: const TextStyle(
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Layout07Theme.textPrimary,
+                color: Colors.white,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

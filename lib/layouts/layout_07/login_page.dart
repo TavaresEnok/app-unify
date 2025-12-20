@@ -18,6 +18,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _cpfController = TextEditingController();
   bool _isLoading = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
