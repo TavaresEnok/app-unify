@@ -1,6 +1,17 @@
 # Código Completo do Layout 07 (Pôr-do-Sol Tropical) - Premium
 
-Este documento contém todo o código fonte atualizado para o Layout 07 ("Pôr-do-Sol Tropical"), incluindo definições de tema, widgets personalizados e as páginas principais.
+Este documento contém todo o código fonte atualizado para o Layout 07 ("Pôr-do-Sol Tropical"), implementado conforme o mockup fornecido.
+
+## 📱 Preview do Mockup
+
+O layout implementa:
+- **Cards Status/Fatura lado a lado**
+- **Botões de serviço com gradiente** (Internet, Suporte, TV, Config)
+- **Badge do plano amarelo/dourado**
+- **Botão Diagnóstico Rápido com gradiente coral-laranja**
+- **BottomNav:** Inicio, Relatórios, Services, Conta
+
+---
 
 ## 1. `lib/layouts/layout_07/theme.dart`
 
@@ -10,11 +21,6 @@ Define a paleta de cores vibrante, tipografia e estilos globais.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Tema para o layout 07 (Pôr‑do‑Sol Tropical).
-///
-/// Define paleta de cores, tipografia, sombras, estilos de botões e barra
-/// de navegação inferior.  Certifique‑se de carregar este tema no MaterialApp
-/// quando o layout 07 estiver ativo.
 class Layout07Theme {
   // Cores principais
   static const Color headerStart = Color(0xFFFF6B6B); // coral quente
@@ -26,7 +32,6 @@ class Layout07Theme {
   static const Color textSecondary = Color(0xFF666666);
   static const Color accent = Color(0xFF2D9CDB); // azul‑verde para destaques
 
-  /// Cria um [ThemeData] completo com base nas cores do layout.
   static ThemeData getTheme() {
     final base = ThemeData.light(useMaterial3: true);
     return base.copyWith(
@@ -50,30 +55,13 @@ class Layout07Theme {
         color: cardBackground,
         shadowColor: Colors.black.withValues(alpha: 0.08),
         elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          elevation: 2,
-          shadowColor: accent.withValues(alpha: 0.3),
-          textStyle: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: accent,
-          side: const BorderSide(color: accent),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         ),
       ),
@@ -81,14 +69,11 @@ class Layout07Theme {
         backgroundColor: cardBackground,
         selectedItemColor: accent,
         unselectedItemColor: textSecondary,
-        showSelectedLabels: true,
-        showUnselectedLabels: false,
         type: BottomNavigationBarType.fixed,
       ),
     );
   }
 
-  /// Gradiente usado no cabeçalho superior.
   static LinearGradient headerGradient() {
     return const LinearGradient(
       begin: Alignment.topLeft,
@@ -99,6 +84,8 @@ class Layout07Theme {
 }
 ```
 
+---
+
 ## 2. `lib/layouts/layout_07/wave_clipper.dart`
 
 Clipper personalizado para o efeito de onda no cabeçalho.
@@ -106,13 +93,11 @@ Clipper personalizado para o efeito de onda no cabeçalho.
 ```dart
 import 'package:flutter/material.dart';
 
-/// Clipper que recorta a parte inferior de um container em formato ondulado.
 class WaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final Path path = Path();
     path.lineTo(0, size.height - 30);
-    // Duas curvas para criar a onda
     path.quadraticBezierTo(
         size.width * 0.25, size.height, size.width * 0.5, size.height);
     path.quadraticBezierTo(
@@ -127,25 +112,20 @@ class WaveClipper extends CustomClipper<Path> {
 }
 ```
 
+---
+
 ## 3. `lib/layouts/layout_07/dashboard_page.dart`
 
-Página principal ("Inicio") com cards de status, fatura e grid de serviços.
+Dashboard principal com cards lado a lado e botões com gradiente.
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'theme.dart';
 import 'wave_clipper.dart';
 
 typedef NavigateToPageCallback = void Function(String pageId);
 
-/// Página principal do provedor para o layout 07.
-///
-/// Exibe uma saudação, status da conexão, detalhes de fatura, um grid de serviços
-/// e um botão para iniciar o diagnóstico completo. Todas as cores e estilos são
-/// baseados em [Layout07Theme].  Os botões recebem estilos explicitamente
-/// definidos para evitar herança de temas de outros layouts.
 class ProviderDashboardPage extends StatelessWidget {
   final String customerName;
   final String planName;
@@ -174,116 +154,36 @@ class ProviderDashboardPage extends StatelessWidget {
     this.onRefresh,
   });
 
-  /// Verifica se a conexão está ativa.
   bool get isConnected =>
       connectionStatus.toLowerCase() == 'ativo' ||
       connectionStatus.toLowerCase() == 'conectado';
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      // Defina appBar: null no Scaffold pai para não exibir a barra roxa padrão.
+      backgroundColor: Layout07Theme.background,
       body: RefreshIndicator(
         onRefresh: () async {
-          if (onRefresh != null) {
-            await onRefresh!();
-          }
+          if (onRefresh != null) await onRefresh!();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cabeçalho com gradiente e borda ondulada
-              ClipPath(
-                clipper: WaveClipper(),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: Layout07Theme.headerGradient(),
-                  ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.menu),
-                                color: Colors.white,
-                                onPressed: () =>
-                                    Scaffold.of(context).openDrawer(),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.notifications_none),
-                                color: Colors.white,
-                                onPressed: () => onNavigate('notifications'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Olá,',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            customerName,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.signal_cellular_alt,
-                                    color: Colors.white, size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  planName,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              _buildHeader(context),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatusCard(context),
-                    const SizedBox(height: 16),
-                    _buildInvoiceCard(context),
-                    const SizedBox(height: 16),
-                    _buildServicesGrid(context),
-                    const SizedBox(height: 16),
-                    _buildDiagnosticButton(context),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 24),
+                    _buildStatusAndInvoiceRow(),
+                    const SizedBox(height: 24),
+                    _buildServicesSection(),
+                    const SizedBox(height: 24),
+                    _buildDiagnosticButton(),
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -294,205 +194,230 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final bool connected = isConnected;
-    final Color iconBg = connected
-        ? Colors.greenAccent.withValues(alpha: 0.25)
-        : Colors.redAccent.withValues(alpha: 0.25);
-    final Color iconColor =
-        connected ? Colors.green.shade700 : Colors.red.shade700;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: iconBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                connected ? Icons.check_circle : Icons.error,
-                color: iconColor,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Column(
+  Widget _buildHeader(BuildContext context) {
+    return ClipPath(
+      clipper: WaveClipper(),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(gradient: Layout07Theme.headerGradient()),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 50),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.menu, size: 28),
+                      color: Colors.white,
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ),
+                    Stack(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none, size: 28),
+                          color: Colors.white,
+                          onPressed: () => onNavigate('notifications'),
+                        ),
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Text(
-                  connected ? 'Conectado' : 'Desconectado',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  'Olá, $customerName!',
+                  style: const TextStyle(
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Layout07Theme.textPrimary,
+                    color: Colors.white,
                   ),
                 ),
-                Text(
-                  connected ? 'Status Online' : 'Verifique sua rede',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Layout07Theme.textSecondary,
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD54F), // Gold/yellow badge
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    planName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF5D4037),
+                    ),
                   ),
                 ),
               ],
             ),
-            const Spacer(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.download, size: 16, color: Layout07Theme.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${downloadMbps.toStringAsFixed(1)} Mbps',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: Layout07Theme.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.upload, size: 16, color: Layout07Theme.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${uploadMbps.toStringAsFixed(1)} Mbps',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: Layout07Theme.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildInvoiceCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final daysLeft = billDueDate.difference(DateTime.now()).inDays;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Layout07Theme.accent.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.receipt_long,
-                color: Layout07Theme.accent,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Fatura',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Layout07Theme.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'R\$ ${billAmount.toStringAsFixed(2)}',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Layout07Theme.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Vence em ${DateFormat("dd/MM/yyyy").format(billDueDate)} (${daysLeft}d)',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Layout07Theme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Define o estilo explicitamente para evitar herança de tema roxo
-            ElevatedButton(
-              onPressed: () => onNavigate('invoices'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Layout07Theme.accent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              child: const Text('Ver'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildServicesGrid(BuildContext context) {
-    return GridView.count(
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      childAspectRatio: 3 / 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
+  Widget _buildStatusAndInvoiceRow() {
+    return Row(
       children: [
-        _ServiceButton(
-          icon: Icons.receipt_long,
-          label: 'Faturas',
-          color: const Color(0xFFFDECC8),
-          onTap: () => onNavigate('invoices'),
+        Expanded(child: _buildStatusCard()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildInvoiceCard()),
+      ],
+    );
+  }
+
+  Widget _buildStatusCard() {
+    final connected = isConnected;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: connected
+                  ? Colors.green.withValues(alpha: 0.15)
+                  : Colors.red.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              connected ? Icons.check_circle : Icons.error,
+              color: connected ? Colors.green : Colors.red,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            connected ? 'Conectado' : 'Desconectado',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Layout07Theme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            connected ? 'Tudo funcionando' : 'Verificar rede',
+            style: const TextStyle(fontSize: 12, color: Layout07Theme.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvoiceCard() {
+    final day = billDueDate.day.toString().padLeft(2, '0');
+    final months = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Maio', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    final monthName = months[billDueDate.month];
+    return GestureDetector(
+      onTap: () => onNavigate('invoices'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        _ServiceButton(
-          icon: Icons.support_agent,
-          label: 'Suporte',
-          color: const Color(0xFFE0F7FA),
-          onTap: () => onNavigate('support'),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.calendar_today, size: 16, color: Layout07Theme.textSecondary),
+                const SizedBox(width: 6),
+                const Text('Fatura', style: TextStyle(fontSize: 14, color: Layout07Theme.textSecondary)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'R\$ ${billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Layout07Theme.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            Text('Vencimento: $day $monthName', style: const TextStyle(fontSize: 12, color: Layout07Theme.textSecondary)),
+          ],
         ),
-        _ServiceButton(
-          icon: Icons.wifi,
-          label: 'Wi‑Fi',
-          color: const Color(0xFFEFFBF5),
-          onTap: () => onNavigate('wifi'),
+      ),
+    );
+  }
+
+  Widget _buildServicesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Serviços', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Layout07Theme.textPrimary)),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _ServiceButton(icon: Icons.wifi, label: 'Internet', gradient: const LinearGradient(colors: [Color(0xFFFF8A65), Color(0xFFFF5722)]), onTap: () => onNavigate('internet_usage'))),
+            const SizedBox(width: 12),
+            Expanded(child: _ServiceButton(icon: Icons.headset_mic, label: 'Suporte', gradient: const LinearGradient(colors: [Color(0xFF4DD0E1), Color(0xFF00ACC1)]), onTap: () => onNavigate('support'))),
+          ],
         ),
-        _ServiceButton(
-          icon: Icons.speed,
-          label: 'Diagnóstico',
-          color: const Color(0xFFF6E6F6),
-          onTap: () => onNavigate('network_diagnostic'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _ServiceButton(icon: Icons.tv, label: 'TV', gradient: const LinearGradient(colors: [Color(0xFFFFD54F), Color(0xFFFFC107)]), onTap: () => onNavigate('contract'))),
+            const SizedBox(width: 12),
+            Expanded(child: _ServiceButton(icon: Icons.settings, label: 'Config', gradient: const LinearGradient(colors: [Color(0xFFB39DDB), Color(0xFF7E57C2)]), onTap: () => onNavigate('wifi'))),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildDiagnosticButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () => onNavigate('network_diagnostic'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Layout07Theme.accent,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 16),
+  Widget _buildDiagnosticButton() {
+    return GestureDetector(
+      onTap: () => onNavigate('network_diagnostic'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFFFF8A65), Color(0xFFFF5722)]),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF5722).withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        child: const Text('Diagnóstico Completo'),
+        child: const Center(
+          child: Text('Diagnóstico Rápido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        ),
       ),
     );
   }
@@ -501,42 +426,28 @@ class ProviderDashboardPage extends StatelessWidget {
 class _ServiceButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final Gradient gradient;
   final VoidCallback onTap;
-  const _ServiceButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
+
+  const _ServiceButton({required this.icon, required this.label, required this.gradient, required this.onTap});
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
         ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: Layout07Theme.accent,
-              size: 28,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Layout07Theme.textPrimary,
-              ),
-              textAlign: TextAlign.center,
-            ),
+            Icon(icon, color: Colors.white, size: 24),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
           ],
         ),
       ),
@@ -544,6 +455,8 @@ class _ServiceButton extends StatelessWidget {
   }
 }
 ```
+
+---
 
 ## 4. `lib/layouts/layout_07/login_page.dart`
 
@@ -558,11 +471,7 @@ import 'wave_clipper.dart';
 class LoginPage extends StatefulWidget {
   final Future<void> Function(String cpf)? onLogin;
   final VoidCallback? onBiometricLogin;
-  const LoginPage({
-    super.key,
-    this.onLogin,
-    this.onBiometricLogin,
-  });
+  const LoginPage({super.key, this.onLogin, this.onBiometricLogin});
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -570,6 +479,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _cpfController = TextEditingController();
   bool _isLoading = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -577,29 +487,19 @@ class _LoginPageState extends State<LoginPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Cabeçalho gradiente com onda
             ClipPath(
               clipper: WaveClipper(),
               child: Container(
                 width: double.infinity,
                 height: 280,
-                decoration: BoxDecoration(
-                  gradient: Layout07Theme.headerGradient(),
-                ),
+                decoration: BoxDecoration(gradient: Layout07Theme.headerGradient()),
                 child: SafeArea(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.wb_sunny_rounded,
-                          size: 64, color: Colors.white.withValues(alpha: 0.9)),
+                      Icon(Icons.wb_sunny_rounded, size: 64, color: Colors.white.withValues(alpha: 0.9)),
                       const SizedBox(height: 16),
-                      Text(
-                        'Bem‑vindo',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text('Bem‑vindo', style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -611,12 +511,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Insira seu CPF/CNPJ',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Layout07Theme.textPrimary,
-                    ),
-                  ),
+                  Text('Insira seu CPF/CNPJ', style: theme.textTheme.titleMedium?.copyWith(color: Layout07Theme.textPrimary)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _cpfController,
@@ -624,61 +519,31 @@ class _LoginPageState extends State<LoginPage> {
                       filled: true,
                       fillColor: Layout07Theme.cardBackground,
                       hintText: '000.000.000-00',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide:
-                            const BorderSide(color: Layout07Theme.accent),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Layout07Theme.accent)),
                     ),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () async {
-                            final cpf = _cpfController.text.trim();
-                            if (cpf.isEmpty) return;
-                            setState(() {
-                              _isLoading = true;
-                            });
-                            if (widget.onLogin != null) {
-                              await widget.onLogin!(cpf);
-                            }
-                            if (!mounted) return;
-                            setState(() {
-                              _isLoading = false;
-                            });
-                          },
+                    onPressed: _isLoading ? null : () async {
+                      final cpf = _cpfController.text.trim();
+                      if (cpf.isEmpty) return;
+                      setState(() => _isLoading = true);
+                      if (widget.onLogin != null) await widget.onLogin!(cpf);
+                      if (!mounted) return;
+                      setState(() => _isLoading = false);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Layout07Theme.accent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 2,
-                      shadowColor: Layout07Theme.accent.withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
                     child: _isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Entrar',
-                            style: TextStyle(fontSize: 16),
-                          ),
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Entrar', style: TextStyle(fontSize: 16)),
                   ),
                   const SizedBox(height: 24),
                   if (widget.onBiometricLogin != null)
@@ -690,9 +555,7 @@ class _LoginPageState extends State<LoginPage> {
                         foregroundColor: Layout07Theme.accent,
                         side: const BorderSide(color: Layout07Theme.accent),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       ),
                     ),
                 ],
@@ -705,3 +568,30 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 ```
+
+---
+
+## 📌 Configuração no PainelPage
+
+O `lib/core/painel_page.dart` foi atualizado com:
+
+1. **BottomNavigationBar específica para Layout 07:**
+   - Inicio, Relatórios, Services, Conta
+
+2. **Métodos de navegação dedicados:**
+   - `_getLayout07NavIndex()` - Retorna o índice correto baseado na página atual
+   - `_onLayout07NavTap()` - Navega para a página correta ao tocar
+
+---
+
+## 🎨 Cores e Gradientes
+
+| Elemento | Cores |
+|----------|-------|
+| Header | `#FF6B6B` → `#FFB66C` → `#56CCF2` |
+| Internet | `#FF8A65` → `#FF5722` |
+| Suporte | `#4DD0E1` → `#00ACC1` |
+| TV | `#FFD54F` → `#FFC107` |
+| Config | `#B39DDB` → `#7E57C2` |
+| Badge Plano | `#FFD54F` (amarelo/dourado) |
+| Accent | `#2D9CDB` (azul-turquesa) |
