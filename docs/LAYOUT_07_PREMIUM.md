@@ -1,36 +1,32 @@
-# Código Completo do Layout 07 (Pôr-do-Sol Tropical) - Premium
+# Layout 07 – Pôr‑do‑Sol Tropical (Versão ChatGPT)
 
-Este documento contém todo o código fonte atualizado para o Layout 07 ("Pôr-do-Sol Tropical"), implementado conforme o mockup fornecido.
+Código revisado conforme instruções do ChatGPT, com correções técnicas para APIs deprecadas.
 
-## 📱 Preview do Mockup
+## � Características
 
-O layout implementa:
-- **Cards Status/Fatura lado a lado**
-- **Botões de serviço com gradiente** (Internet, Suporte, TV, Config)
-- **Badge do plano amarelo/dourado**
-- **Botão Diagnóstico Rápido com gradiente coral-laranja**
-- **BottomNav:** Inicio, Relatórios, Services, Conta
+- **Cards empilhados** (Status e Fatura)
+- **Grid de serviços com cores pastéis** (Faturas, Suporte, Wi-Fi, Diagnóstico)
+- **BottomNav:** Início, Consumo, Faturas, Suporte
+- **Badge do plano semi-transparente** no cabeçalho
+- **Botão Diagnóstico Completo** azul sólido
 
 ---
 
 ## 1. `lib/layouts/layout_07/theme.dart`
-
-Define a paleta de cores vibrante, tipografia e estilos globais.
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class Layout07Theme {
-  // Cores principais
-  static const Color headerStart = Color(0xFFFF6B6B); // coral quente
-  static const Color headerMid = Color(0xFFFFB66C); // tom de pêssego
-  static const Color headerEnd = Color(0xFF56CCF2); // azul‑turquesa
-  static const Color background = Color(0xFFFFF7EE); // fundo claro cremoso
+  static const Color headerStart = Color(0xFFFF6B6B);
+  static const Color headerMid = Color(0xFFFFB66C);
+  static const Color headerEnd = Color(0xFF56CCF2);
+  static const Color background = Color(0xFFFFF7EE);
   static const Color cardBackground = Colors.white;
   static const Color textPrimary = Color(0xFF333333);
   static const Color textSecondary = Color(0xFF666666);
-  static const Color accent = Color(0xFF2D9CDB); // azul‑verde para destaques
+  static const Color accent = Color(0xFF2D9CDB);
 
   static ThemeData getTheme() {
     final base = ThemeData.light(useMaterial3: true);
@@ -88,8 +84,6 @@ class Layout07Theme {
 
 ## 2. `lib/layouts/layout_07/wave_clipper.dart`
 
-Clipper personalizado para o efeito de onda no cabeçalho.
-
 ```dart
 import 'package:flutter/material.dart';
 
@@ -116,11 +110,11 @@ class WaveClipper extends CustomClipper<Path> {
 
 ## 3. `lib/layouts/layout_07/dashboard_page.dart`
 
-Dashboard principal com cards lado a lado e botões com gradiente.
+Dashboard com cards empilhados e grid de serviços pastéis.
 
 ```dart
 import 'package:flutter/material.dart';
-
+import 'package:intl/intl.dart';
 import 'theme.dart';
 import 'wave_clipper.dart';
 
@@ -160,30 +154,28 @@ class ProviderDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Layout07Theme.background,
       body: RefreshIndicator(
-        onRefresh: () async {
-          if (onRefresh != null) await onRefresh!();
-        },
+        onRefresh: () async => onRefresh?.call(),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(context),
+              _buildHeader(context, theme),
+              const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
-                    _buildStatusAndInvoiceRow(),
-                    const SizedBox(height: 24),
-                    _buildServicesSection(),
-                    const SizedBox(height: 24),
-                    _buildDiagnosticButton(),
-                    const SizedBox(height: 100),
+                    _buildStatusCard(context),
+                    const SizedBox(height: 16),
+                    _buildInvoiceCard(context),
+                    const SizedBox(height: 16),
+                    _buildServicesGrid(context),
+                    const SizedBox(height: 16),
+                    _buildDiagnosticButton(context),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -194,7 +186,7 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, ThemeData theme) {
     return ClipPath(
       clipper: WaveClipper(),
       child: Container(
@@ -203,7 +195,7 @@ class ProviderDashboardPage extends StatelessWidget {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 50),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -211,56 +203,34 @@ class ProviderDashboardPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.menu, size: 28),
+                      icon: const Icon(Icons.menu),
                       color: Colors.white,
                       onPressed: () => Scaffold.of(context).openDrawer(),
                     ),
-                    Stack(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.notifications_none, size: 28),
-                          color: Colors.white,
-                          onPressed: () => onNavigate('notifications'),
-                        ),
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
+                    IconButton(
+                      icon: const Icon(Icons.notifications_none),
+                      color: Colors.white,
+                      onPressed: () => onNavigate('notifications'),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Olá, $customerName!',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                const SizedBox(height: 20),
+                Text('Olá,', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white)),
+                Text(customerName, style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFD54F), // Gold/yellow badge
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Text(
-                    planName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF5D4037),
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.signal_cellular_alt, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(planName, style: theme.textTheme.labelMedium?.copyWith(color: Colors.white)),
+                    ],
                   ),
                 ),
               ],
@@ -271,153 +241,101 @@ class ProviderDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusAndInvoiceRow() {
-    return Row(
-      children: [
-        Expanded(child: _buildStatusCard()),
-        const SizedBox(width: 12),
-        Expanded(child: _buildInvoiceCard()),
-      ],
-    );
-  }
-
-  Widget _buildStatusCard() {
+  Widget _buildStatusCard(BuildContext context) {
     final connected = isConnected;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: connected
-                  ? Colors.green.withValues(alpha: 0.15)
-                  : Colors.red.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              connected ? Icons.check_circle : Icons.error,
-              color: connected ? Colors.green : Colors.red,
-              size: 32,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            connected ? 'Conectado' : 'Desconectado',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Layout07Theme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            connected ? 'Tudo funcionando' : 'Verificar rede',
-            style: const TextStyle(fontSize: 12, color: Layout07Theme.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInvoiceCard() {
-    final day = billDueDate.day.toString().padLeft(2, '0');
-    final months = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Maio', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    final monthName = months[billDueDate.month];
-    return GestureDetector(
-      onTap: () => onNavigate('invoices'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: (connected ? Colors.greenAccent : Colors.redAccent).withValues(alpha: 0.25),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(connected ? Icons.check_circle : Icons.error, color: connected ? Colors.green.shade700 : Colors.red.shade700, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Layout07Theme.textSecondary),
-                const SizedBox(width: 6),
-                const Text('Fatura', style: TextStyle(fontSize: 14, color: Layout07Theme.textSecondary)),
+                Text(connected ? 'Conectado' : 'Desconectado', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(connected ? 'Status Online' : 'Verifique sua rede', style: TextStyle(color: Layout07Theme.textSecondary, fontSize: 12)),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'R\$ ${billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Layout07Theme.textPrimary),
+            const Spacer(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(children: [const Icon(Icons.download, size: 16, color: Layout07Theme.accent), const SizedBox(width: 4), Text('${downloadMbps.toStringAsFixed(1)} Mbps')]),
+                Row(children: [const Icon(Icons.upload, size: 16, color: Layout07Theme.accent), const SizedBox(width: 4), Text('${uploadMbps.toStringAsFixed(1)} Mbps')]),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text('Vencimento: $day $monthName', style: const TextStyle(fontSize: 12, color: Layout07Theme.textSecondary)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildServicesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildInvoiceCard(BuildContext context) {
+    final daysLeft = billDueDate.difference(DateTime.now()).inDays;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Layout07Theme.accent.withValues(alpha: 0.2), shape: BoxShape.circle),
+              child: const Icon(Icons.receipt_long, color: Layout07Theme.accent, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Fatura', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('R\$ ${billAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('Vence em ${DateFormat("dd/MM/yyyy").format(billDueDate)} (${daysLeft}d)', style: TextStyle(color: Layout07Theme.textSecondary, fontSize: 12)),
+                ],
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => onNavigate('invoices'),
+              style: ElevatedButton.styleFrom(backgroundColor: Layout07Theme.accent, foregroundColor: Colors.white),
+              child: const Text('Ver'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServicesGrid(BuildContext context) {
+    return GridView.count(
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      childAspectRatio: 3 / 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
       children: [
-        const Text('Serviços', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Layout07Theme.textPrimary)),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: _ServiceButton(icon: Icons.wifi, label: 'Internet', gradient: const LinearGradient(colors: [Color(0xFFFF8A65), Color(0xFFFF5722)]), onTap: () => onNavigate('internet_usage'))),
-            const SizedBox(width: 12),
-            Expanded(child: _ServiceButton(icon: Icons.headset_mic, label: 'Suporte', gradient: const LinearGradient(colors: [Color(0xFF4DD0E1), Color(0xFF00ACC1)]), onTap: () => onNavigate('support'))),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _ServiceButton(icon: Icons.tv, label: 'TV', gradient: const LinearGradient(colors: [Color(0xFFFFD54F), Color(0xFFFFC107)]), onTap: () => onNavigate('contract'))),
-            const SizedBox(width: 12),
-            Expanded(child: _ServiceButton(icon: Icons.settings, label: 'Config', gradient: const LinearGradient(colors: [Color(0xFFB39DDB), Color(0xFF7E57C2)]), onTap: () => onNavigate('wifi'))),
-          ],
-        ),
+        _ServiceButton(icon: Icons.receipt_long, label: 'Faturas', color: const Color(0xFFFDECC8), onTap: () => onNavigate('invoices')),
+        _ServiceButton(icon: Icons.support_agent, label: 'Suporte', color: const Color(0xFFE0F7FA), onTap: () => onNavigate('support')),
+        _ServiceButton(icon: Icons.wifi, label: 'Wi‑Fi', color: const Color(0xFFEFFBF5), onTap: () => onNavigate('wifi')),
+        _ServiceButton(icon: Icons.speed, label: 'Diagnóstico', color: const Color(0xFFF6E6F6), onTap: () => onNavigate('network_diagnostic')),
       ],
     );
   }
 
-  Widget _buildDiagnosticButton() {
-    return GestureDetector(
-      onTap: () => onNavigate('network_diagnostic'),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFFFF8A65), Color(0xFFFF5722)]),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFF5722).withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Text('Diagnóstico Rápido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-        ),
+  Widget _buildDiagnosticButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () => onNavigate('network_diagnostic'),
+        style: ElevatedButton.styleFrom(backgroundColor: Layout07Theme.accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
+        child: const Text('Diagnóstico Completo'),
       ),
     );
   }
@@ -426,28 +344,23 @@ class ProviderDashboardPage extends StatelessWidget {
 class _ServiceButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Gradient gradient;
+  final Color color;
   final VoidCallback onTap;
-
-  const _ServiceButton({required this.icon, required this.label, required this.gradient, required this.onTap});
+  const _ServiceButton({required this.icon, required this.label, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
-        ),
-        child: Row(
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
+        padding: const EdgeInsets.all(16),
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 24),
-            const SizedBox(width: 8),
-            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+            Icon(icon, color: Layout07Theme.accent, size: 28),
+            const SizedBox(height: 12),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -460,11 +373,8 @@ class _ServiceButton extends StatelessWidget {
 
 ## 4. `lib/layouts/layout_07/login_page.dart`
 
-Página de login estilizada com ondas e suporte a biometria.
-
 ```dart
 import 'package:flutter/material.dart';
-
 import 'theme.dart';
 import 'wave_clipper.dart';
 
@@ -511,7 +421,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Insira seu CPF/CNPJ', style: theme.textTheme.titleMedium?.copyWith(color: Layout07Theme.textPrimary)),
+                  Text('Insira seu CPF/CNPJ', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _cpfController,
@@ -520,7 +430,6 @@ class _LoginPageState extends State<LoginPage> {
                       fillColor: Layout07Theme.cardBackground,
                       hintText: '000.000.000-00',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Layout07Theme.accent)),
                     ),
                     keyboardType: TextInputType.number,
@@ -531,19 +440,10 @@ class _LoginPageState extends State<LoginPage> {
                       final cpf = _cpfController.text.trim();
                       if (cpf.isEmpty) return;
                       setState(() => _isLoading = true);
-                      if (widget.onLogin != null) await widget.onLogin!(cpf);
-                      if (!mounted) return;
-                      setState(() => _isLoading = false);
+                      await widget.onLogin?.call(cpf);
+                      if (mounted) setState(() => _isLoading = false);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Layout07Theme.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Entrar', style: TextStyle(fontSize: 16)),
+                    child: _isLoading ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Entrar'),
                   ),
                   const SizedBox(height: 24),
                   if (widget.onBiometricLogin != null)
@@ -551,12 +451,6 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: widget.onBiometricLogin,
                       icon: const Icon(Icons.fingerprint),
                       label: const Text('Entrar com biometria'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Layout07Theme.accent,
-                        side: const BorderSide(color: Layout07Theme.accent),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      ),
                     ),
                 ],
               ),
@@ -571,27 +465,16 @@ class _LoginPageState extends State<LoginPage> {
 
 ---
 
-## 📌 Configuração no PainelPage
+## 🎨 Cores do Layout
 
-O `lib/core/painel_page.dart` foi atualizado com:
-
-1. **BottomNavigationBar específica para Layout 07:**
-   - Inicio, Relatórios, Services, Conta
-
-2. **Métodos de navegação dedicados:**
-   - `_getLayout07NavIndex()` - Retorna o índice correto baseado na página atual
-   - `_onLayout07NavTap()` - Navega para a página correta ao tocar
-
----
-
-## 🎨 Cores e Gradientes
-
-| Elemento | Cores |
-|----------|-------|
-| Header | `#FF6B6B` → `#FFB66C` → `#56CCF2` |
-| Internet | `#FF8A65` → `#FF5722` |
-| Suporte | `#4DD0E1` → `#00ACC1` |
-| TV | `#FFD54F` → `#FFC107` |
-| Config | `#B39DDB` → `#7E57C2` |
-| Badge Plano | `#FFD54F` (amarelo/dourado) |
-| Accent | `#2D9CDB` (azul-turquesa) |
+| Elemento | Cor |
+|----------|-----|
+| Header Start | `#FF6B6B` (coral) |
+| Header Mid | `#FFB66C` (pêssego) |
+| Header End | `#56CCF2` (turquesa) |
+| Background | `#FFF7EE` (cremoso) |
+| Accent | `#2D9CDB` (azul) |
+| Faturas | `#FDECC8` (laranja claro) |
+| Suporte | `#E0F7FA` (ciano claro) |
+| Wi-Fi | `#EFFBF5` (verde claro) |
+| Diagnóstico | `#F6E6F6` (rosa claro) |
