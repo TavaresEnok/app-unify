@@ -66,19 +66,20 @@ class _DashboardPageState extends State<DashboardPage> {
       backgroundColor: _deepSpace,
       body: Stack(
         children: [
-          // Animated Grid Background
-          Positioned.fill(
-            child: CustomPaint(
-              painter: CyberGridPainter(),
-            ),
-          ),
+          // Disabled background effects for better visibility
+          // Animated Grid Background - DISABLED
+          // Positioned.fill(
+          //   child: CustomPaint(
+          //     painter: CyberGridPainter(),
+          //   ),
+          // ),
 
-          // Scan Lines Effect
-          Positioned.fill(
-            child: CustomPaint(
-              painter: ScanLinesPainter(),
-            ),
-          ),
+          // Scan Lines Effect - DISABLED
+          // Positioned.fill(
+          //   child: CustomPaint(
+          //     painter: ScanLinesPainter(),
+          //   ),
+          // ),
 
           Column(
             children: [
