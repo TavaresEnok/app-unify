@@ -13,6 +13,18 @@ import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_06/login_page.dart' as l06_login;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
 import 'layouts/layout_07/login_page.dart' as l07_login;
+import 'layouts/layout_08/dashboard_page.dart' as l08;
+import 'layouts/layout_08/login_page.dart' as l08_login;
+import 'layouts/layout_09/dashboard_page.dart' as l09;
+import 'layouts/layout_09/login_page.dart' as l09_login;
+import 'layouts/layout_10/dashboard_page.dart' as l10;
+import 'layouts/layout_10/login_page.dart' as l10_login;
+import 'layouts/layout_11/dashboard_page.dart' as l11;
+import 'layouts/layout_11/login_page.dart' as l11_login;
+import 'layouts/layout_12/dashboard_page.dart' as l12;
+import 'layouts/layout_12/login_page.dart' as l12_login;
+import 'layouts/layout_14/dashboard_page.dart' as l14;
+import 'layouts/layout_14/login_page.dart' as l14_login;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_01/login_page.dart' as l01_login;
@@ -189,6 +201,102 @@ class LayoutSelector {
           onRefresh: onRefresh,
         );
 
+      case 'layout_08':
+        return l08.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_09':
+        return l09.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_10':
+        return l10.Layout10DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_11':
+        return l11.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_12':
+        return l12.Layout12DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_14':
+        return l14.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          menuItems: menuItems,
+          onRefresh: onRefresh,
+        );
+
       default:
         // Default to Layout 01 if unknown
         return l01.ProviderDashboardPage(
@@ -229,6 +337,18 @@ class LayoutSelector {
         return const l06_login.LoginPage();
       case 'layout_07':
         return const l07_login.LoginPage();
+      case 'layout_08':
+        return const l08_login.LoginPage();
+      case 'layout_09':
+        return const l09_login.LoginPage();
+      case 'layout_10':
+        return const l10_login.Layout10LoginPage();
+      case 'layout_11':
+        return const l11_login.LoginPage();
+      case 'layout_12':
+        return const l12_login.Layout12LoginPage();
+      case 'layout_14':
+        return const l14_login.LoginPage();
 
       default:
         return const l01_login.LoginPage();
