@@ -66,7 +66,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     // In production, this would call the actual auth service
     try {
       await Future.delayed(const Duration(seconds: 1));
-      
+
       // Create demo user matching Usuario model requirements
       final user = Usuario(
         nome: 'Usuário Demo',
@@ -84,7 +84,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         _isLoading = false;
         _errorMessage = null;
       });
-      
+
       // Navigate to Dashboard
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/painel');
@@ -100,20 +100,20 @@ class _LoginPageState extends ConsumerState<LoginPage>
   @override
   Widget build(BuildContext context) {
     final config = ref.watch(configurationProvider).providerConfig;
-    
+
     // Cyberpunk-Neon Palette
     const Color deepSpace = Color(0xFF0A0A0F);
     const Color voidBlack = Color(0xFF050508);
     const Color darkPurple = Color(0xFF1A0A2E);
-    
+
     const Color neonCyan = Color(0xFF00FFFF);
     const Color neonMagenta = Color(0xFFFF00FF);
     const Color neonYellow = Color(0xFFFFFF00);
-    
+
     const Color glassCyan = Color(0x1A00FFFF);
     const Color glassMagenta = Color(0x1AFF00FF);
     const Color glassSurface = Color(0x0DFFFFFF);
-    
+
     const Color textPrimary = Color(0xFFFFFFFF);
     const Color textSecondary = Color(0xFFB0B0C0);
     const Color textNeon = Color(0xFF00FFFF);
@@ -157,7 +157,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: neonCyan.withValues(alpha: _glowAnimation.value * 0.6),
+                        color: neonCyan.withValues(
+                            alpha: _glowAnimation.value * 0.6),
                         blurRadius: 60,
                         spreadRadius: 20,
                       ),
@@ -188,7 +189,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: neonMagenta.withOpacity(_glowAnimation.value * 0.5),
+                        color:
+                            neonMagenta.withOpacity(_glowAnimation.value * 0.5),
                         blurRadius: 50,
                         spreadRadius: 15,
                       ),
@@ -312,7 +314,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: neonMagenta, size: 20),
+                          Icon(Icons.error_outline,
+                              color: neonMagenta, size: 20),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -352,7 +355,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                         shadowColor: neonCyan.withValues(alpha: 0.5),
                       ).copyWith(
                         elevation: WidgetStateProperty.all(8),
-                        backgroundColor: WidgetStateProperty.resolveWith((states) {
+                        backgroundColor:
+                            WidgetStateProperty.resolveWith((states) {
                           if (states.contains(WidgetState.pressed)) {
                             return neonCyan.withValues(alpha: 0.2);
                           }
@@ -361,7 +365,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                           }
                           return const Color(0xFF050508);
                         }),
-                        overlayColor: WidgetStateProperty.all(neonCyan.withValues(alpha: 0.2)),
+                        overlayColor: WidgetStateProperty.all(
+                            neonCyan.withValues(alpha: 0.2)),
                       ),
                       child: _isLoading
                           ? const SizedBox(
@@ -375,7 +380,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                           : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.login_rounded, color: neonCyan, size: 20),
+                                Icon(Icons.login_rounded,
+                                    color: neonCyan, size: 20),
                                 SizedBox(width: 8),
                                 Text(
                                   'ENTRAR NO SISTEMA',
@@ -401,7 +407,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   const SizedBox(height: 20),
 
                   // Additional Options
-                  _buildAdditionalOptions(textSecondary, neonCyan, glassSurface),
+                  _buildAdditionalOptions(
+                      textSecondary, neonCyan, glassSurface),
                 ],
               ),
             ),
@@ -436,13 +443,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: glassSurface,
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: neonCyan.withValues(alpha: 0.3), width: 1),
+            border:
+                Border.all(color: neonCyan.withValues(alpha: 0.3), width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,7 +461,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 decoration: BoxDecoration(
                   color: const Color(0xFF050508),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: textSecondary.withValues(alpha: 0.3), width: 1),
+                  border: Border.all(
+                      color: textSecondary.withValues(alpha: 0.3), width: 1),
                 ),
                 child: Text(
                   'CPF / CNPJ',
@@ -467,7 +476,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Input Field
               _buildTextField(
                 controller: _cpfController,
@@ -502,7 +511,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
             color: const Color(0xFF050508),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: neonCyan.withValues(alpha: 0.3 + _animController.value * 0.2),
+              color:
+                  neonCyan.withValues(alpha: 0.3 + _animController.value * 0.2),
               width: 1.5,
             ),
             boxShadow: [
@@ -634,7 +644,8 @@ class CyberGridPainter extends CustomPainter {
       ..strokeWidth = 0.5;
 
     for (var i = -size.height; i < size.width; i += spacing * 2) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), diagPaint);
+      canvas.drawLine(
+          Offset(i, 0), Offset(i + size.height, size.height), diagPaint);
     }
   }
 

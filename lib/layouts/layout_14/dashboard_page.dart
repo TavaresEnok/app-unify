@@ -43,16 +43,16 @@ class _DashboardPageState extends State<DashboardPage> {
   static const Color _deepSpace = Color(0xFF0A0A0F);
   static const Color _voidBlack = Color(0xFF050508);
   static const Color _darkPurple = Color(0xFF1A0A2E);
-  
+
   static const Color _neonCyan = Color(0xFF00FFFF);
   static const Color _neonMagenta = Color(0xFFFF00FF);
   static const Color _neonYellow = Color(0xFFFFFF00);
   static const Color _neonGreen = Color(0xFF00FF00);
-  
+
   static const Color _glassCyan = Color(0x1A00FFFF);
   static const Color _glassMagenta = Color(0x1AFF00FF);
   static const Color _glassSurface = Color(0x0DFFFFFF);
-  
+
   static const Color _textPrimary = Color(0xFFFFFFFF);
   static const Color _textSecondary = Color(0xFFB0B0C0);
   static const Color _textNeon = Color(0xFF00FFFF);
@@ -158,7 +158,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -180,7 +180,8 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.menu_rounded, color: _neonCyan, size: 20),
+                    child: const Icon(Icons.menu_rounded,
+                        color: _neonCyan, size: 20),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -286,7 +287,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
         child: Stack(
           children: [
             // Holographic Effect
@@ -303,7 +304,8 @@ class _DashboardPageState extends State<DashboardPage> {
             Positioned.fill(
               child: CustomPaint(
                 painter: HologramLinesPainter(
-                  color: (isOverdue ? _neonMagenta : _neonCyan).withOpacity(0.05),
+                  color:
+                      (isOverdue ? _neonMagenta : _neonCyan).withOpacity(0.05),
                 ),
               ),
             ),
@@ -316,7 +318,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _voidBlack,
                           borderRadius: BorderRadius.circular(8),
@@ -337,9 +340,11 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
-                          color: (isOverdue ? _neonMagenta : _neonCyan).withOpacity(0.15),
+                          color: (isOverdue ? _neonMagenta : _neonCyan)
+                              .withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: (isOverdue ? _neonMagenta : _neonCyan),
@@ -347,7 +352,8 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: (isOverdue ? _neonMagenta : _neonCyan).withOpacity(0.4),
+                              color: (isOverdue ? _neonMagenta : _neonCyan)
+                                  .withOpacity(0.4),
                               blurRadius: 8,
                             ),
                           ],
@@ -389,7 +395,8 @@ class _DashboardPageState extends State<DashboardPage> {
                           letterSpacing: -1,
                           shadows: [
                             Shadow(
-                              color: (isOverdue ? _neonMagenta : _neonCyan).withOpacity(0.6),
+                              color: (isOverdue ? _neonMagenta : _neonCyan)
+                                  .withOpacity(0.6),
                               blurRadius: 12,
                               offset: const Offset(0, 0),
                             ),
@@ -414,14 +421,16 @@ class _DashboardPageState extends State<DashboardPage> {
                         style: TextStyle(
                           color: isOverdue ? _neonMagenta : _textSecondary,
                           fontSize: 14,
-                          fontWeight: isOverdue ? FontWeight.bold : FontWeight.w500,
+                          fontWeight:
+                              isOverdue ? FontWeight.bold : FontWeight.w500,
                           fontFamily: 'JetBrains Mono',
                         ),
                       ),
                       if (isOverdue) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: _neonMagenta.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
@@ -575,7 +584,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.router_outlined, color: _neonCyan, size: 20),
+              child:
+                  const Icon(Icons.router_outlined, color: _neonCyan, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -596,7 +606,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.download_rounded, size: 14, color: _neonCyan),
+                          const Icon(Icons.download_rounded,
+                              size: 14, color: _neonCyan),
                           const SizedBox(width: 4),
                           Text(
                             '${widget.downloadMbps.toInt()} Mb',
@@ -611,7 +622,8 @@ class _DashboardPageState extends State<DashboardPage> {
                       const SizedBox(width: 12),
                       Row(
                         children: [
-                          const Icon(Icons.upload_rounded, size: 14, color: _neonMagenta),
+                          const Icon(Icons.upload_rounded,
+                              size: 14, color: _neonMagenta),
                           const SizedBox(width: 4),
                           Text(
                             '${widget.uploadMbps.toInt()} Mb',
@@ -661,7 +673,8 @@ class _DashboardPageState extends State<DashboardPage> {
           decoration: BoxDecoration(
             color: _voidBlack,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _textSecondary.withOpacity(0.2), width: 1),
+            border:
+                Border.all(color: _textSecondary.withOpacity(0.2), width: 1),
           ),
           child: const Text(
             'DIAGNÓSTICO & SERVIÇOS',
@@ -714,8 +727,8 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildServiceItem(
-      IconData icon, String title, String subtitle, String route, Color accentColor) {
+  Widget _buildServiceItem(IconData icon, String title, String subtitle,
+      String route, Color accentColor) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -729,9 +742,12 @@ class _DashboardPageState extends State<DashboardPage> {
           borderRadius: BorderRadius.circular(12),
           border: Border(
             left: BorderSide(color: accentColor, width: 3),
-            right: BorderSide(color: _textSecondary.withValues(alpha: 0.1), width: 1),
-            top: BorderSide(color: _textSecondary.withValues(alpha: 0.1), width: 1),
-            bottom: BorderSide(color: _textSecondary.withValues(alpha: 0.1), width: 1),
+            right: BorderSide(
+                color: _textSecondary.withValues(alpha: 0.1), width: 1),
+            top: BorderSide(
+                color: _textSecondary.withValues(alpha: 0.1), width: 1),
+            bottom: BorderSide(
+                color: _textSecondary.withValues(alpha: 0.1), width: 1),
           ),
           boxShadow: [
             BoxShadow(
@@ -798,7 +814,8 @@ class _DashboardPageState extends State<DashboardPage> {
       height: 80,
       decoration: BoxDecoration(
         color: _voidBlack.withOpacity(0.95),
-        border: Border(top: BorderSide(color: _neonCyan.withOpacity(0.3), width: 1)),
+        border: Border(
+            top: BorderSide(color: _neonCyan.withOpacity(0.3), width: 1)),
         boxShadow: [
           BoxShadow(
             color: _neonCyan.withOpacity(0.1),
@@ -808,7 +825,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -905,7 +922,8 @@ class CyberGridPainter extends CustomPainter {
       ..strokeWidth = 0.5;
 
     for (var i = -size.height; i < size.width; i += spacing * 2) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), diagPaint);
+      canvas.drawLine(
+          Offset(i, 0), Offset(i + size.height, size.height), diagPaint);
     }
   }
 
@@ -952,5 +970,6 @@ class HologramLinesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant HologramLinesPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant HologramLinesPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
