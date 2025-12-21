@@ -142,6 +142,54 @@ export default function AppearanceSettings() {
             textColor: '#333333',
             iconColor: '#2D9CDB', // Blue-Green
         },
+        layout_08: {
+            themeColor: '#4CAF50', // Green
+            secondaryColor: '#2196F3', // Blue
+            backgroundColor: '#F0F4F8', // Light gray
+            cardColor: '#FFFFFF',
+            textColor: '#333333',
+            iconColor: '#4CAF50',
+        },
+        layout_09: {
+            themeColor: '#7B3FF2', // Aurora Purple
+            secondaryColor: '#3F7BF2', // Aurora Blue
+            backgroundColor: '#121220', // Dark
+            cardColor: '#1A1A2E',
+            textColor: '#FFFFFF',
+            iconColor: '#7B3FF2',
+        },
+        layout_10: {
+            themeColor: '#00BCD4', // Cyan
+            secondaryColor: '#E91E63', // Pink
+            backgroundColor: '#0A0F1C', // Deep Ocean
+            cardColor: '#0D1B2A',
+            textColor: '#FFFFFF',
+            iconColor: '#00BCD4',
+        },
+        layout_11: {
+            themeColor: '#7B3FF2', // Aurora Purple
+            secondaryColor: '#3F7BF2', // Aurora Blue
+            backgroundColor: '#121220', // Dark glass
+            cardColor: '#1A1A2E',
+            textColor: '#FFFFFF',
+            iconColor: '#7B3FF2',
+        },
+        layout_12: {
+            themeColor: '#00C3FF', // Cyan
+            secondaryColor: '#00FFC3', // Mint
+            backgroundColor: '#0F1727', // Space dark
+            cardColor: '#1A2235',
+            textColor: '#FFFFFF',
+            iconColor: '#00C3FF',
+        },
+        layout_14: {
+            themeColor: '#00FFFF', // Neon Cyan
+            secondaryColor: '#FF00FF', // Neon Magenta
+            backgroundColor: '#0A0A0F', // Deep Space
+            cardColor: '#050508',
+            textColor: '#FFFFFF',
+            iconColor: '#00FFFF',
+        },
     };
 
 
@@ -201,6 +249,12 @@ export default function AppearanceSettings() {
                                     <SelectItem value="layout_05">Layout 05 - Organic / Biomorphic</SelectItem>
                                     <SelectItem value="layout_06">Layout 06 - Cyberpunk / Neon</SelectItem>
                                     <SelectItem value="layout_07">Layout 07 - Pôr-do-Sol Tropical</SelectItem>
+                                    <SelectItem value="layout_08">Layout 08 - Eco-Minimal</SelectItem>
+                                    <SelectItem value="layout_09">Layout 09 - Aurora</SelectItem>
+                                    <SelectItem value="layout_10">Layout 10 - Deep Ocean</SelectItem>
+                                    <SelectItem value="layout_11">Layout 11 - Aurora Glass</SelectItem>
+                                    <SelectItem value="layout_12">Layout 12 - Space Grotesk</SelectItem>
+                                    <SelectItem value="layout_14">Layout 14 - Cyberpunk Neon</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
