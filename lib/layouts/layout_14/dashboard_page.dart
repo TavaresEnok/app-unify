@@ -159,7 +159,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
+        filter: ImageFilter.blur(sigmaX: 0.001, sigmaY: 0.001),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -288,7 +288,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
+        filter: ImageFilter.blur(sigmaX: 0.001, sigmaY: 0.001),
         child: Stack(
           children: [
             // Holographic Effect
@@ -826,7 +826,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
+        filter: ImageFilter.blur(sigmaX: 0.001, sigmaY: 0.001),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [

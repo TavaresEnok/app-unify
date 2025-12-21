@@ -443,7 +443,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         ],
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
+        filter: ImageFilter.blur(sigmaX: 0.001, sigmaY: 0.001),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
