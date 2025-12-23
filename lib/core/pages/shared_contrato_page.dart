@@ -19,7 +19,7 @@ class ContratoPage extends ConsumerWidget {
 
     final layoutType = configProvider.providerConfig?.layoutType;
     final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_06' || layoutType == 'layout_04' || layoutType == 'layout_01' || layoutType == 'layout_11' || layoutType == 'layout_14';
+    final isDarkLayout = layoutType == 'layout_04' || layoutType == 'layout_01' || layoutType == 'layout_12';
 
     Color backgroundColor;
     Color appBarColor;
