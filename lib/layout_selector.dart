@@ -2,18 +2,14 @@ import 'package:flutter/material.dart';
 import 'core/services/diagnostico_service.dart';
 
 // Imports dos Dashboards (diferentes por layout)
-import 'layouts/layout_01/dashboard_page.dart' as l01;
 import 'layouts/layout_02/dashboard_page.dart' as l02;
 import 'layouts/layout_03/dashboard_page.dart' as l03;
 import 'layouts/layout_04/dashboard_page.dart' as l04;
 import 'layouts/layout_04/pages/speed_test_page.dart' as l04_speed;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
 import 'layouts/layout_07/login_page.dart' as l07_login;
-import 'layouts/layout_12/dashboard_page.dart' as l12;
-import 'layouts/layout_12/login_page.dart' as l12_login;
 
 // Imports dos Logins (diferentes por layout)
-import 'layouts/layout_01/login_page.dart' as l01_login;
 import 'layouts/layout_02/login_page.dart' as l02_login;
 import 'layouts/layout_03/login_page.dart' as l03_login;
 import 'layouts/layout_04/login_page.dart' as l04_login;
@@ -29,7 +25,7 @@ import 'core/pages/shared_meu_ip_page.dart' as shared_ip;
 import 'core/pages/shared_speed_test_page.dart' as shared_speed;
 import 'core/pages/shared_traceroute_page.dart' as shared_trace;
 
-// Layout 03 (ex-05) implementações próprias (Wifi)
+// Layout 03 implementações próprias (Wifi)
 import 'layouts/layout_03/wifi_page.dart' as l03_wifi;
 
 // Imports do FAQ e Contrato (também compartilhados)
@@ -38,7 +34,6 @@ import 'core/pages/shared_contrato_page.dart' as shared_cont;
 import 'core/pages/shared_notification_page.dart' as shared_notif;
 
 /// Classe utilitária que seleciona o layout correto baseado na configuração
-/// carregada do Firestore (campo `layoutType`).
 class LayoutSelector {
   /// Retorna o widget de Dashboard correto para o layout especificado
   static Widget getDashboard({
@@ -61,25 +56,6 @@ class LayoutSelector {
     Future<void> Function()? onRefresh,
   }) {
     switch (layoutType) {
-      case 'layout_01':
-        return l01.ProviderDashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          menuItems: menuItems,
-          customCardBg: customCardBg,
-          customCardText: customCardText,
-          invoiceColor: invoiceColor,
-          actionColor: actionColor,
-        );
-
       case 'layout_02':
         return l02.ProviderDashboardPage(
           customerName: customerName,
@@ -144,25 +120,9 @@ class LayoutSelector {
           onRefresh: onRefresh,
         );
 
-      case 'layout_12':
-        return l12.Layout12DashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          menuItems: menuItems,
-          onRefresh: onRefresh,
-        );
-
       default:
-        // Default to Layout 01 if unknown
-        return l01.ProviderDashboardPage(
+        // Default to Layout 02 if unknown
+        return l02.ProviderDashboardPage(
           customerName: customerName,
           planName: planName,
           connectionStatus: connectionStatus,
@@ -186,8 +146,6 @@ class LayoutSelector {
   static Widget getLoginPage(
       {required String layoutType, Map<String, dynamic>? arguments}) {
     switch (layoutType) {
-      case 'layout_01':
-        return const l01_login.LoginPage();
       case 'layout_02':
         return const l02_login.LoginPage();
       case 'layout_03':
@@ -196,11 +154,9 @@ class LayoutSelector {
         return const l04_login.LoginPage();
       case 'layout_07':
         return const l07_login.LoginPage();
-      case 'layout_12':
-        return const l12_login.Layout12LoginPage();
 
       default:
-        return const l01_login.LoginPage();
+        return const l02_login.LoginPage();
     }
   }
 
@@ -268,25 +224,17 @@ class LayoutSelector {
     switch (layoutType) {
       case 'layout_03':
         return const l03_wifi.WifiPage();
-      case 'layout_01':
-        return const l03_wifi.WifiPage();
       case 'layout_04':
         return const l03_wifi.WifiPage();
       case 'layout_07':
         return const l03_wifi.WifiPage();
       default:
-        return const Center(
-            child: Text('Funcionalidade não disponível neste layout'));
+        return const l03_wifi.WifiPage();
     }
   }
 
   /// Lista de layouts disponíveis (útil para UI de seleção)
   static const List<Map<String, String>> availableLayouts = [
-    {
-      'id': 'layout_01',
-      'name': 'Clássico',
-      'description': 'Gradiente roxo, grid de serviços'
-    },
     {
       'id': 'layout_02',
       'name': 'Minimalista',
@@ -306,11 +254,6 @@ class LayoutSelector {
       'id': 'layout_07',
       'name': 'Pôr-do-Sol Tropical',
       'description': 'Tema quente e amigável com gradientes suaves'
-    },
-    {
-      'id': 'layout_12',
-      'name': 'Moderno',
-      'description': 'Layout moderno e limpo'
     },
   ];
 }
