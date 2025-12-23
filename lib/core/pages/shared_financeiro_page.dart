@@ -36,7 +36,11 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
 
     final layoutType = providerConfig.layoutType;
     final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_06';
+    final isDarkLayout = layoutType == 'layout_06' ||
+        layoutType == 'layout_04' ||
+        layoutType == 'layout_01' ||
+        layoutType == 'layout_11' ||
+        layoutType == 'layout_14';
 
     final themeData = Theme.of(context);
     // Colors setup (condensed for brevity, keeping original logic)
@@ -45,8 +49,8 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     Color appBarTextColor;
 
     if (isDarkLayout) {
-      backgroundColor = const Color(0xFF0A0A0A);
-      appBarColor = const Color(0xFF0A0A0A);
+      backgroundColor = themeData.scaffoldBackgroundColor;
+      appBarColor = themeData.scaffoldBackgroundColor;
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;

@@ -27,15 +27,19 @@ class SuportePage extends ConsumerWidget {
 
     final layoutType = providerConfig.layoutType;
     final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_06';
+    final isDarkLayout = layoutType == 'layout_06' ||
+        layoutType == 'layout_04' ||
+        layoutType == 'layout_01' ||
+        layoutType == 'layout_11' ||
+        layoutType == 'layout_14';
 
     final theme = Theme.of(context);
     Color backgroundColor;
     Color appBarColor;
     Color appBarTextColor;
     if (isDarkLayout) {
-      backgroundColor = const Color(0xFF0A0A0A);
-      appBarColor = const Color(0xFF0A0A0A);
+      backgroundColor = theme.scaffoldBackgroundColor;
+      appBarColor = theme.scaffoldBackgroundColor;
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;

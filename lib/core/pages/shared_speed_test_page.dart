@@ -46,7 +46,7 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
     final config = ref.watch(configurationProvider);
     final layoutType = config.providerConfig?.layoutType;
     final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_06';
+    final isDarkLayout = layoutType == 'layout_06' || layoutType == 'layout_04' || layoutType == 'layout_01' || layoutType == 'layout_11' || layoutType == 'layout_14';
 
     // Theme Colors
     Color backgroundColor;

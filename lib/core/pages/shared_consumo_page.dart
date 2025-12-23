@@ -50,8 +50,8 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
     final layoutType = config?.layoutType;
     final isLayout05 = layoutType == 'layout_05';
     // Layout 06 is specifically handled now
-    final isLayout06 = layoutType == 'layout_06';
-    final isDarkLayout = layoutType == 'layout_06';
+    final isLayout06 = layoutType == 'layout_06' || layoutType == 'layout_04' || layoutType == 'layout_01' || layoutType == 'layout_11' || layoutType == 'layout_14';
+    final isDarkLayout = layoutType == 'layout_06' || layoutType == 'layout_04' || layoutType == 'layout_01' || layoutType == 'layout_11' || layoutType == 'layout_14';
 
     Color backgroundColor;
     Color appBarColor;
