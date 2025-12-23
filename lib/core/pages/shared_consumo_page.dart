@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../core/providers/providers.dart';
 import '../../core/providers/consumo_provider.dart';
 import '../../layouts/layout_03/theme.dart';
-import '../../layouts/layout_04/theme.dart'; // Ensure this exists or mock it if generic
 
 class ConsumoPage extends ConsumerStatefulWidget {
   const ConsumoPage({super.key});
@@ -49,21 +48,19 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
     final config = configProvider.providerConfig;
     final layoutType = config?.layoutType;
     final isLayout05 = layoutType == 'layout_05';
-    // Layout 06 is specifically handled now
-    final isLayout06 = layoutType == 'layout_06' || layoutType == 'layout_04' || layoutType == 'layout_01' || layoutType == 'layout_11' || layoutType == 'layout_14';
-    final isDarkLayout = layoutType == 'layout_06' || layoutType == 'layout_04' || layoutType == 'layout_01' || layoutType == 'layout_11' || layoutType == 'layout_14';
+    final isDarkLayout = layoutType == 'layout_06' ||
+        layoutType == 'layout_04' ||
+        layoutType == 'layout_01' ||
+        layoutType == 'layout_11' ||
+        layoutType == 'layout_14';
 
     Color backgroundColor;
     Color appBarColor;
     Color appBarTextColor;
-    if (isLayout06) {
-      // Layout 06 Specific Colors
-      backgroundColor = Layout04Theme.background;
-      appBarColor = Layout04Theme.background;
-      appBarTextColor = Layout04Theme.textPrimary;
-    } else if (isDarkLayout) {
-      backgroundColor = const Color(0xFF0A0A0A);
-      appBarColor = const Color(0xFF0A0A0A);
+    if (isDarkLayout) {
+      // Use theme colors for all dark layouts
+      backgroundColor = theme.scaffoldBackgroundColor;
+      appBarColor = theme.scaffoldBackgroundColor;
       appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;
@@ -85,13 +82,13 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          if (isLayout06) {
+          if (isDarkLayout) {
             await ref.read(consumoViewModelProvider.notifier).loadData();
           } else {
             // Refresh logic for other layouts if any, or remove delay
           }
         },
-        child: isLayout06
+        child: isDarkLayout
             ? _buildLayout06Content(context, theme, consumoState)
             : ListView(
                 padding: const EdgeInsets.all(16),
