@@ -354,7 +354,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             ],
           ),
           const SizedBox(height: 20),
-          // Speed indicators
+          // Plan info indicators
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -364,11 +364,25 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             child: Row(
               children: [
                 Expanded(
-                  child: _buildSpeedIndicator(
-                    'Download',
-                    widget.downloadMbps.toStringAsFixed(0),
-                    'Mbps',
-                    Icons.arrow_downward_rounded,
+                  child: _buildPlanIndicator(
+                    'Plano',
+                    _extractSpeed(widget.planName),
+                    'Mega',
+                    Icons.speed_rounded,
+                    Layout02Theme.secondary,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 50,
+                  color: Colors.white.withOpacity(0.2),
+                ),
+                Expanded(
+                  child: _buildPlanIndicator(
+                    'Valor',
+                    'R\$ ${widget.billAmount.toStringAsFixed(0)}',
+                    '/mês',
+                    Icons.receipt_long_rounded,
                     Layout02Theme.green,
                   ),
                 ),
@@ -378,12 +392,12 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                   color: Colors.white.withOpacity(0.2),
                 ),
                 Expanded(
-                  child: _buildSpeedIndicator(
-                    'Upload',
-                    widget.uploadMbps.toStringAsFixed(0),
-                    'Mbps',
-                    Icons.arrow_upward_rounded,
-                    Layout02Theme.secondary,
+                  child: _buildPlanIndicator(
+                    'Vencimento',
+                    '${widget.billDueDate.day}',
+                    _getMonthName(widget.billDueDate.month),
+                    Icons.calendar_today_rounded,
+                    Layout02Theme.orange,
                   ),
                 ),
               ],
@@ -394,7 +408,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     );
   }
 
-  Widget _buildSpeedIndicator(
+  String _extractSpeed(String planName) {
+    final regex = RegExp(r'(\d+)');
+    final match = regex.firstMatch(planName);
+    return match?.group(1) ?? '100';
+  }
+
+  Widget _buildPlanIndicator(
     String label,
     String value,
     String unit,
@@ -406,12 +426,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         Icon(icon, color: color, size: 22),
         const SizedBox(height: 8),
         RichText(
+          textAlign: TextAlign.center,
           text: TextSpan(
             children: [
               TextSpan(
                 text: value,
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
@@ -419,7 +440,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
               TextSpan(
                 text: ' $unit',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: Colors.white.withOpacity(0.7),
                 ),
@@ -430,7 +451,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6)),
+          style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.6)),
         ),
       ],
     );
@@ -634,128 +655,150 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
   }
 
   Widget _buildCurrentPlan() {
-    // Extract speed from plan name
-    String speed = '100';
-    final regex = RegExp(r'(\d+)');
-    final match = regex.firstMatch(widget.planName);
-    if (match != null) {
-      speed = match.group(1)!;
-    }
+    return _buildPromotionCarousel();
+  }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: Layout02Theme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Seu Plano Atual',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Layout02Theme.textDark,
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: Layout02Theme.primaryGradient,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'FIBRA',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
+  Widget _buildPromotionCarousel() {
+    final promotions = [
+      {
+        'title': 'Combo TV + Internet',
+        'description': 'Streaming e Internet por apenas R\$199',
+        'icon': Icons.tv_rounded,
+        'colors': [const Color(0xFFE040FB), const Color(0xFF7C4DFF)],
+      },
+      {
+        'title': 'Upgrade de Velocidade',
+        'description': 'Migre para o plano Giga com desconto',
+        'icon': Icons.speed_rounded,
+        'colors': [const Color(0xFF00BCD4), const Color(0xFF2196F3)],
+      },
+      {
+        'title': 'Indique um Amigo',
+        'description': 'Ganhe 1 mês grátis por indicação',
+        'icon': Icons.people_rounded,
+        'colors': [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Ofertas Especiais',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Layout02Theme.textDark,
           ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Layout02Theme.primary, Layout02Theme.primaryLight],
-                ).createShader(bounds),
-                child: Text(
-                  speed,
-                  style: const TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    height: 1,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Mega',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Layout02Theme.textGrey,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Layout02Theme.textDark,
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 140,
+          child: PageView.builder(
+            itemCount: promotions.length,
+            controller: PageController(viewportFraction: 0.92),
+            itemBuilder: (context, index) {
+              final promo = promotions[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: promo['colors'] as List<Color>,
                     ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (promo['colors'] as List<Color>)[0]
+                            .withOpacity(0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '/mês',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Layout02Theme.textGrey.withOpacity(0.7),
-                    ),
+                  child: Stack(
+                    children: [
+                      // Background pattern
+                      Positioned(
+                        right: -20,
+                        bottom: -20,
+                        child: Icon(
+                          promo['icon'] as IconData,
+                          size: 120,
+                          color: Colors.white.withOpacity(0.15),
+                        ),
+                      ),
+                      // Content
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'OFERTA',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              promo['title'] as String,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              promo['description'] as String,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Arrow indicator
+                      Positioned(
+                        right: 16,
+                        bottom: 16,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            color: (promo['colors'] as List<Color>)[0],
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Layout02Theme.greyLight,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildPlanFeature(
-                  Icons.calendar_today_rounded,
-                  'Vence ${widget.billDueDate.day}/${_getMonthName(widget.billDueDate.month)}',
                 ),
-                Container(
-                    width: 1, height: 30, color: Layout02Theme.greyMedium),
-                _buildPlanFeature(Icons.all_inclusive_rounded, 'Ilimitado'),
-                Container(
-                    width: 1, height: 30, color: Layout02Theme.greyMedium),
-                _buildPlanFeature(Icons.wifi_rounded, 'Wi-Fi 6'),
-              ],
-            ),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -775,22 +818,5 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
       'Dez'
     ];
     return months[month - 1];
-  }
-
-  Widget _buildPlanFeature(IconData icon, String label) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Layout02Theme.primary),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: Layout02Theme.textGrey,
-          ),
-        ),
-      ],
-    );
   }
 }
