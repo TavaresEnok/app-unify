@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme.dart';
+import 'widgets/bottom_nav.dart';
 
 /// Layout 02 - NetLink Premium Dashboard
 /// Design moderno com gradientes azul/cyan, cards premium e animações fluidas
@@ -107,7 +108,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                         _buildQuickActions(),
                         const SizedBox(height: 28),
                         _buildCurrentPlan(),
-                        const SizedBox(height: 120),
+                        const SizedBox(height: 30),
                       ],
                     ),
                   ),
@@ -116,6 +117,31 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: Layout02BottomNav(
+        currentIndex: 0,
+        onTap: (index) {
+          // Map index to navigation route
+          final routes = ['home', 'financeiro', 'diagnostico', 'suporte'];
+          if (index > 0 && index < routes.length) {
+            widget.onNavigate(routes[index]);
+          }
+        },
+        items: const [
+          BottomNavItem(icon: Icons.home_rounded, label: 'Home', route: 'home'),
+          BottomNavItem(
+              icon: Icons.receipt_long_rounded,
+              label: 'Faturas',
+              route: 'financeiro'),
+          BottomNavItem(
+              icon: Icons.speed_rounded,
+              label: 'Velocidade',
+              route: 'diagnostico'),
+          BottomNavItem(
+              icon: Icons.support_agent_rounded,
+              label: 'Suporte',
+              route: 'suporte'),
+        ],
       ),
     );
   }
