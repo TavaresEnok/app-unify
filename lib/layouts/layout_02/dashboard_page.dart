@@ -458,34 +458,49 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
   }
 
   Widget _buildQuickStats() {
+    // Calculate days until due date
+    final now = DateTime.now();
+    final daysUntilDue = widget.billDueDate.difference(now).inDays;
+    final daysText = daysUntilDue < 0
+        ? 'Vencida'
+        : daysUntilDue == 0
+            ? 'Hoje'
+            : '$daysUntilDue dias';
+    final daysColor = daysUntilDue < 0
+        ? Layout02Theme.red
+        : daysUntilDue <= 3
+            ? Layout02Theme.orange
+            : Layout02Theme.green;
+
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
             'Consumo',
-            '${widget.usedGb.toStringAsFixed(1)} GB',
+            '${widget.usedGb.toStringAsFixed(0)} GB',
             Icons.data_usage_rounded,
             Layout02Theme.purple,
+            onTap: () => widget.onNavigate('consumo'),
           ),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: _buildStatCard(
-            'Status',
-            widget.connectionStatus,
-            Icons.verified_rounded,
-            widget.connectionStatus.toLowerCase() == 'online'
-                ? Layout02Theme.green
-                : Layout02Theme.red,
+            'Velocidade',
+            '${widget.downloadMbps.toStringAsFixed(0)} Mb',
+            Icons.speed_rounded,
+            Layout02Theme.cyan,
+            onTap: () => widget.onNavigate('diagnostico'),
           ),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: _buildStatCard(
             'Fatura',
-            'R\$ ${widget.billAmount.toStringAsFixed(0)}',
-            Icons.receipt_long_rounded,
-            Layout02Theme.cyan,
+            daysText,
+            Icons.calendar_today_rounded,
+            daysColor,
+            onTap: () => widget.onNavigate('financeiro'),
           ),
         ),
       ],
@@ -496,13 +511,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     String label,
     String value,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        if (label == 'Fatura') widget.onNavigate('financeiro');
-        if (label == 'Consumo') widget.onNavigate('consumo');
+        onTap?.call();
       },
       child: Container(
         padding: const EdgeInsets.all(16),
