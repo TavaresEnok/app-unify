@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../../core/providers/providers.dart';
-import '../../core/services/biometric_service.dart';
-import '../../core/widgets/app_colors.dart';
-import '../../core/utils/color_utils.dart';
+import 'theme.dart';
 
+/// Layout 02 - NetLink Premium Login Page
+/// Design moderno com gradiente azul/cyan e animações fluidas
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -18,304 +15,399 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
-  final _cpfController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _documentController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
-  late AnimationController _animationController;
+  bool _obscurePassword = true;
+  late AnimationController _animController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-
-  final BiometricService _biometricService = BiometricService();
-  bool _canUseBiometry = false;
-  bool _rememberMe = false;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
+    _animController = AnimationController(
       duration: const Duration(milliseconds: 1000),
+      vsync: this,
     );
-    _fadeAnimation =
-        CurvedAnimation(parent: _animationController, curve: Curves.easeIn);
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-        parent: _animationController, curve: Curves.easeOutCubic));
-    _animationController.forward();
-
-    _checkBiometry();
-  }
-
-  Future<void> _checkBiometry() async {
-    final available = await _biometricService.isAvailable;
-    final enabled = await _biometricService.isEnabled;
-
-    if (available) {
-      setState(() => _canUseBiometry = enabled);
-      if (enabled) {
-        // Se já estiver habilitado, tenta login direto
-        _handleBiometricLogin();
-      }
-    }
+    _fadeAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    );
+    _animController.forward();
   }
 
   @override
   void dispose() {
-    _cpfController.dispose();
-    _animationController.dispose();
+    _documentController.dispose();
+    _passwordController.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin({String? overrideCpf}) async {
-    if (overrideCpf == null && !_formKey.currentState!.validate()) return;
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    final cpfInput = overrideCpf ?? _cpfController.text;
+    HapticFeedback.mediumImpact();
 
     try {
-      // A lógica de login agora está centralizada no AuthService
-      final configProvider = ref.read(configurationProvider);
-      final providerConfig = configProvider.providerConfig!;
-      await ref
-          .read(authNotifierProvider.notifier)
-          .login(cpfInput, providerConfig);
-
-      // Se sucesso, navega para o painel
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/painel');
-    } catch (e) {
-      if (mounted) {
-        _showErrorDialog(
-            'Erro no Login', e.toString().replaceFirst("Exception: ", ""));
+      final config = ref.read(configurationProvider);
+      if (config.providerConfig != null) {
+        await ref.read(authNotifierProvider.notifier).login(
+              _documentController.text.trim(),
+              config.providerConfig!,
+            );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          )
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleBiometricLogin() async {
-    final creds = await _biometricService.authenticate();
-    if (creds != null) {
-      _cpfController.text = creds['cpf']!; // Preenche visualmente
-      _handleLogin(overrideCpf: creds['cpf']);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final configProvider = ref.watch(configurationProvider);
-
-    if (configProvider.isLoading || configProvider.providerConfig == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-      );
-    }
-
-    final providerConfig = configProvider.providerConfig!.config;
-    final logoUrl = providerConfig.logoUrl;
-    final loginQuote = providerConfig.loginQuote;
-
-    // --- CORREÇÃO: Obtém a cor customizada dos botões ---
-    final actionColor = providerConfig.actionColor != null
-        ? hexToColor(providerConfig.actionColor!) // Added ! force unwrap
-        : AppColors.primaryBlue;
+    final configAsync = ref.watch(configurationProvider);
+    final providerName = configAsync.providerConfig?.name ?? 'Provedor';
 
     return Scaffold(
-      backgroundColor: AppColors.background, // Branco limpo
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // LOGO
-                    if (logoUrl.isNotEmpty)
-                      Hero(
-                        tag: 'logo',
-                        child: CachedNetworkImage(
-                          imageUrl: logoUrl,
-                          height: 100,
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) =>
-                              const SizedBox(height: 100),
-                          errorWidget: (context, url, error) => const Icon(
-                              Icons.wifi_tethering,
-                              size: 80,
-                              color: AppColors.primaryBlue),
-                        ),
-                      )
-                    else
-                      Icon(Icons.wifi_tethering, size: 80, color: actionColor),
-
-                    const SizedBox(height: 32),
-
-                    // TEXTOS
-                    Text('Bem-vindo de volta!',
-                        style: GoogleFonts.inter(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary)),
-                    const SizedBox(height: 8),
-                    Text(
-                      loginQuote,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                          color: AppColors.textSecondary, fontSize: 14),
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // FORMULÁRIO
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10))
-                        ],
-                        border: Border.all(color: Colors.grey.shade100),
-                      ),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _cpfController,
-                              keyboardType: TextInputType.number,
-                              style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary),
-                              decoration: InputDecoration(
-                                labelText: 'CPF ou CNPJ',
-                                hintText: 'Digite apenas números',
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                        color: Colors.grey.shade200)),
-                                focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                        color: actionColor, width: 2)),
-                                prefixIcon: const Icon(Icons.person_outline_rounded,
-                                    color: AppColors.textSecondary),
-                                filled: true,
-                                fillColor: const Color(0xFFF8FAFC),
-                              ),
-                              validator: (value) =>
-                                  (value == null || value.isEmpty)
-                                      ? 'Informe seu documento'
-                                      : null,
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Checkbox Biometria
-                            Row(
-                              children: [
-                                Checkbox(
-                                    value: _rememberMe,
-                                    activeColor:
-                                        actionColor, // Usa a cor customizada
-                                    onChanged: (val) =>
-                                        setState(() => _rememberMe = val!)),
-                                Text('Lembrar com Biometria',
-                                    style: GoogleFonts.inter(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 13)),
-                              ],
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                onPressed:
-                                    _isLoading ? null : () => _handleLogin(),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      actionColor, // <--- CORREÇÃO APLICADA AQUI
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2))
-                                    : Text('ACESSAR CONTA',
-                                        style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // BOTÃO BIOMETRIA EXTERNO
-                    if (_canUseBiometry && !_isLoading) ...[
-                      const SizedBox(height: 32),
-                      IconButton(
-                        onPressed: _handleBiometricLogin,
-                        iconSize: 48,
-                        icon:
-                            Icon(Icons.fingerprint_rounded, color: actionColor),
-                        style: IconButton.styleFrom(
-                          backgroundColor: actionColor.withValues(alpha: 0.1),
-                          padding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Toque para entrar',
-                          style: GoogleFonts.inter(
-                              color: AppColors.textSecondary, fontSize: 12)),
-                    ],
-                  ],
-                ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Layout02Theme.primary,
+              Layout02Theme.primaryDark,
+              Color(0xFF002966),
+            ],
+            stops: [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                children: [
+                  const SizedBox(height: 60),
+                  _buildLogo(),
+                  const SizedBox(height: 20),
+                  _buildWelcomeText(providerName),
+                  const SizedBox(height: 50),
+                  _buildLoginCard(),
+                  const SizedBox(height: 30),
+                  _buildFooter(),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Layout02Theme.secondary.withOpacity(0.3),
+            blurRadius: 30,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.wifi_rounded,
+        size: 50,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildWelcomeText(String providerName) {
+    return Column(
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Colors.white, Layout02Theme.secondary],
+          ).createShader(bounds),
+          child: Text(
+            providerName,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Acesse sua conta',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white.withOpacity(0.7),
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginCard() {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Login',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Layout02Theme.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Entre com seu CPF/CNPJ e senha',
+              style: TextStyle(
+                fontSize: 14,
+                color: Layout02Theme.textGrey.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 28),
+            _buildTextField(
+              controller: _documentController,
+              label: 'CPF ou CNPJ',
+              icon: Icons.person_rounded,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Informe seu CPF ou CNPJ';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 18),
+            _buildTextField(
+              controller: _passwordController,
+              label: 'Senha',
+              icon: Icons.lock_rounded,
+              obscureText: _obscurePassword,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  color: Layout02Theme.grey,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Informe sua senha';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {},
+                child: const Text(
+                  'Esqueceu a senha?',
+                  style: TextStyle(
+                    color: Layout02Theme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildLoginButton(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      validator: validator,
+      style: const TextStyle(
+        fontSize: 16,
+        color: Layout02Theme.textDark,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          color: Layout02Theme.textGrey.withOpacity(0.8),
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: Container(
+          margin: const EdgeInsets.only(left: 16, right: 12),
+          child: Icon(icon, color: Layout02Theme.primary, size: 22),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Layout02Theme.greyLight,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Layout02Theme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Layout02Theme.red, width: 1.5),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return GestureDetector(
+      onTap: _isLoading ? null : _handleLogin,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          gradient: _isLoading
+              ? LinearGradient(
+                  colors: [
+                    Layout02Theme.grey,
+                    Layout02Theme.grey.withOpacity(0.8)
+                  ],
+                )
+              : Layout02Theme.primaryGradient,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: _isLoading
+              ? null
+              : [
+                  BoxShadow(
+                    color: Layout02Theme.primary.withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_isLoading) ...[
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Text(
+              _isLoading ? 'Entrando...' : 'Entrar',
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            if (!_isLoading) ...[
+              const SizedBox(width: 10),
+              const Icon(Icons.arrow_forward_rounded,
+                  color: Colors.white, size: 22),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Column(
+      children: [
+        Text(
+          'Precisa de ajuda?',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.6),
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => HapticFeedback.lightImpact(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.headset_mic_rounded,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  'Falar com Suporte',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
