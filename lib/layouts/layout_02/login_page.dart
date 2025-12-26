@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/providers/providers.dart';
+import '../../core/models/usuario.dart';
 import 'theme.dart';
 
 /// Layout 02 - NetLink Premium Login Page
-/// Design moderno com gradiente azul/cyan e animações fluidas
+/// Design moderno com gradiente azul/cyan - APENAS CPF/CNPJ (sem senha)
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -15,11 +17,9 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _documentController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _cpfController = TextEditingController();
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  String? _errorMessage;
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
 
@@ -39,35 +39,58 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   void dispose() {
-    _documentController.dispose();
-    _passwordController.dispose();
+    _cpfController.dispose();
     _animController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+    final configProvider = ref.read(configurationProvider);
+    final config = configProvider.providerConfig;
 
-    setState(() => _isLoading = true);
-    HapticFeedback.mediumImpact();
-
-    try {
-      final config = ref.read(configurationProvider);
-      if (config.providerConfig != null) {
-        await ref.read(authNotifierProvider.notifier).login(
-              _documentController.text.trim(),
-              config.providerConfig!,
-            );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (_cpfController.text.isEmpty) {
+      setState(() => _errorMessage = 'Por favor, digite seu CPF/CNPJ');
+      HapticFeedback.vibrate();
+      return;
     }
+
+    if (config == null) {
+      setState(() => _errorMessage = 'Erro de configuração');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    await ref.read(authNotifierProvider.notifier).login(
+          _cpfController.text.trim(),
+          config,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    final configAsync = ref.watch(configurationProvider);
-    final providerName = configAsync.providerConfig?.name ?? 'Provedor';
+    // Listen to Auth State changes
+    ref.listen<AsyncValue<Usuario?>>(authNotifierProvider, (previous, next) {
+      if (next is AsyncError) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              'CPF/CNPJ não encontrado. Verifique e tente novamente.';
+        });
+      } else if (next is AsyncData && next.value != null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = null;
+        });
+        Navigator.of(context).pushReplacementNamed('/painel');
+      }
+    });
+
+    final config = ref.watch(configurationProvider).providerConfig;
+    final providerName = config?.name ?? 'Provedor';
 
     return Scaffold(
       body: Container(
@@ -92,7 +115,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               child: Column(
                 children: [
                   const SizedBox(height: 60),
-                  _buildLogo(),
+                  _buildLogo(config?.config.logoUrl),
                   const SizedBox(height: 20),
                   _buildWelcomeText(providerName),
                   const SizedBox(height: 50),
@@ -109,7 +132,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo(String? logoUrl) {
     return Container(
       width: 100,
       height: 100,
@@ -128,10 +151,28 @@ class _LoginPageState extends ConsumerState<LoginPage>
           ),
         ],
       ),
-      child: const Icon(
-        Icons.wifi_rounded,
-        size: 50,
-        color: Colors.white,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: logoUrl != null
+            ? CachedNetworkImage(
+                imageUrl: logoUrl,
+                fit: BoxFit.contain,
+                placeholder: (context, url) => const Icon(
+                  Icons.wifi_rounded,
+                  size: 50,
+                  color: Colors.white,
+                ),
+                errorWidget: (context, url, error) => const Icon(
+                  Icons.wifi_rounded,
+                  size: 50,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(
+                Icons.wifi_rounded,
+                size: 50,
+                color: Colors.white,
+              ),
       ),
     );
   }
@@ -180,132 +221,105 @@ class _LoginPageState extends ConsumerState<LoginPage>
           ),
         ],
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Login',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: Layout02Theme.textDark,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Entrar',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Layout02Theme.textDark,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Entre com seu CPF/CNPJ e senha',
-              style: TextStyle(
-                fontSize: 14,
-                color: Layout02Theme.textGrey.withOpacity(0.8),
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Digite seu CPF ou CNPJ para acessar',
+            style: TextStyle(
+              fontSize: 14,
+              color: Layout02Theme.textGrey.withOpacity(0.8),
             ),
-            const SizedBox(height: 28),
-            _buildTextField(
-              controller: _documentController,
-              label: 'CPF ou CNPJ',
-              icon: Icons.person_rounded,
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Informe seu CPF ou CNPJ';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 18),
-            _buildTextField(
-              controller: _passwordController,
-              label: 'Senha',
-              icon: Icons.lock_rounded,
-              obscureText: _obscurePassword,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  color: Layout02Theme.grey,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Informe sua senha';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                child: const Text(
-                  'Esqueceu a senha?',
-                  style: TextStyle(
-                    color: Layout02Theme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildLoginButton(),
-          ],
-        ),
-      ),
-    );
-  }
+          ),
+          const SizedBox(height: 28),
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      validator: validator,
-      style: const TextStyle(
-        fontSize: 16,
-        color: Layout02Theme.textDark,
-        fontWeight: FontWeight.w500,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          color: Layout02Theme.textGrey.withOpacity(0.8),
-          fontWeight: FontWeight.w500,
-        ),
-        prefixIcon: Container(
-          margin: const EdgeInsets.only(left: 16, right: 12),
-          child: Icon(icon, color: Layout02Theme.primary, size: 22),
-        ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: Layout02Theme.greyLight,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Layout02Theme.primary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Layout02Theme.red, width: 1.5),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          // Campo CPF/CNPJ
+          TextFormField(
+            controller: _cpfController,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(
+              fontSize: 18,
+              color: Layout02Theme.textDark,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              labelText: 'CPF ou CNPJ',
+              hintText: '000.000.000-00',
+              labelStyle: TextStyle(
+                color: Layout02Theme.textGrey.withOpacity(0.8),
+                fontWeight: FontWeight.w500,
+              ),
+              hintStyle: TextStyle(
+                color: Layout02Theme.textGrey.withOpacity(0.5),
+              ),
+              prefixIcon: Container(
+                margin: const EdgeInsets.only(left: 16, right: 12),
+                child: const Icon(Icons.person_rounded,
+                    color: Layout02Theme.primary, size: 24),
+              ),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 0, minHeight: 0),
+              filled: true,
+              fillColor: Layout02Theme.greyLight,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide:
+                    const BorderSide(color: Layout02Theme.primary, width: 2),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide:
+                    const BorderSide(color: Layout02Theme.red, width: 1.5),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            ),
+          ),
+
+          // Mensagem de Erro
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Layout02Theme.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: Layout02Theme.red, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Layout02Theme.red,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 28),
+          _buildLoginButton(),
+        ],
       ),
     );
   }
