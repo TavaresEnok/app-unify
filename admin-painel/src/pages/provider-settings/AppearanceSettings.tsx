@@ -86,14 +86,6 @@ export default function AppearanceSettings() {
 
     // Default color presets per layout
     const layoutDefaults: Record<string, Record<string, string>> = {
-        layout_01: {
-            themeColor: '#6B46C1',
-            secondaryColor: '#9F7AEA',
-            backgroundColor: '#1A202C',
-            cardColor: '#2D3748',
-            textColor: '#FFFFFF',
-            iconColor: '#9F7AEA',
-        },
         layout_02: {
             themeColor: '#3182CE',
             secondaryColor: '#63B3ED',
@@ -125,14 +117,6 @@ export default function AppearanceSettings() {
             cardColor: '#FFFFFF',
             textColor: '#333333',
             iconColor: '#2D9CDB', // Blue-Green
-        },
-        layout_12: {
-            themeColor: '#00C3FF', // Cyan
-            secondaryColor: '#00FFC3', // Mint
-            backgroundColor: '#0F1727', // Space dark
-            cardColor: '#1A2235',
-            textColor: '#FFFFFF',
-            iconColor: '#00C3FF',
         },
     };
 
@@ -186,12 +170,10 @@ export default function AppearanceSettings() {
                                     <SelectValue placeholder="Escolha o layout" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="layout_01">Layout 01 - Clássico</SelectItem>
                                     <SelectItem value="layout_02">Layout 02 - Minimalista</SelectItem>
                                     <SelectItem value="layout_03">Layout 03 - Neo Digital</SelectItem>
                                     <SelectItem value="layout_04">Layout 04 - Premium Dark</SelectItem>
                                     <SelectItem value="layout_07">Layout 07 - Pôr-do-Sol Tropical</SelectItem>
-                                    <SelectItem value="layout_12">Layout 12 - Space Grotesk</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
