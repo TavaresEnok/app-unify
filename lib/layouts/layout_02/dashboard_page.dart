@@ -386,20 +386,6 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                     Layout02Theme.secondary,
                   ),
                 ),
-                Container(
-                  width: 1,
-                  height: 50,
-                  color: Colors.white.withOpacity(0.2),
-                ),
-                Expanded(
-                  child: _buildSpeedIndicator(
-                    'Latência',
-                    '8',
-                    'ms',
-                    Icons.speed_rounded,
-                    Layout02Theme.orange,
-                  ),
-                ),
               ],
             ),
           ),
@@ -464,10 +450,12 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         const SizedBox(width: 14),
         Expanded(
           child: _buildStatCard(
-            'Uptime',
-            '99.8%',
+            'Status',
+            widget.connectionStatus,
             Icons.verified_rounded,
-            Layout02Theme.green,
+            widget.connectionStatus.toLowerCase() == 'online'
+                ? Layout02Theme.green
+                : Layout02Theme.red,
           ),
         ),
         const SizedBox(width: 14),
