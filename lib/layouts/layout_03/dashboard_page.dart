@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/providers/providers.dart';
 import 'theme.dart';
+import 'widgets/neu_button.dart';
+import 'widgets/feature_tile.dart';
 
-class DashboardPage extends ConsumerStatefulWidget {
+/// Layout 03 Neumorphic Dashboard
+class DashboardPage extends StatefulWidget {
   final String customerName;
   final String planName;
   final String connectionStatus;
@@ -15,7 +16,6 @@ class DashboardPage extends ConsumerStatefulWidget {
   final double downloadMbps;
   final double uploadMbps;
   final Function(String) onNavigate;
-  final Future<void> Function()? onRefresh;
 
   const DashboardPage({
     super.key,
@@ -29,403 +29,1028 @@ class DashboardPage extends ConsumerStatefulWidget {
     required this.downloadMbps,
     required this.uploadMbps,
     required this.onNavigate,
-    this.onRefresh,
   });
 
   @override
-  ConsumerState<DashboardPage> createState() => _DashboardPageState();
+  State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends ConsumerState<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage> {
+  int _navIndex = 0;
+  bool _featuresExpanded = false;
+  int _bannerPage = 0;
+  late PageController _bannerController;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  final List<Map<String, dynamic>> _features = [
+    {
+      'label': 'Velocidade',
+      'icon': Icons.speed_rounded,
+      'color': Layout03Theme.iconBlue,
+      'route': 'diagnostico'
+    },
+    {
+      'label': 'Diagnóstico',
+      'icon': Icons.healing_rounded,
+      'color': Layout03Theme.iconTeal,
+      'route': 'diagnostico'
+    },
+    {
+      'label': 'Traceroute',
+      'icon': Icons.route_rounded,
+      'color': Layout03Theme.iconSlate,
+      'route': 'traceroute'
+    },
+    {
+      'label': 'Contrato',
+      'icon': Icons.description_rounded,
+      'color': Layout03Theme.iconMauve,
+      'route': 'contrato'
+    },
+    {
+      'label': 'Consumo',
+      'icon': Icons.pie_chart_rounded,
+      'color': Layout03Theme.iconSage,
+      'route': 'consumo'
+    },
+    {
+      'label': 'Meu IP',
+      'icon': Icons.public_rounded,
+      'color': Layout03Theme.iconStorm,
+      'route': 'meu_ip'
+    },
+    {
+      'label': 'FAQ',
+      'icon': Icons.help_outline_rounded,
+      'color': Layout03Theme.iconMist,
+      'route': 'faq'
+    },
+    {
+      'label': 'Faturas',
+      'icon': Icons.receipt_long_rounded,
+      'color': Layout03Theme.iconDusk,
+      'route': 'financeiro'
+    },
+    {
+      'label': 'Suporte',
+      'icon': Icons.headset_mic_rounded,
+      'color': Layout03Theme.iconFog,
+      'route': 'suporte'
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _bannerController = PageController();
+    _autoScrollBanner();
+  }
+
+  void _autoScrollBanner() {
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && _bannerController.hasClients) {
+        _bannerController.animateToPage(
+          (_bannerPage + 1) % 2,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+        _autoScrollBanner();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _bannerController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authNotifierProvider);
-    final user = authState.value;
-
-    final name = user?.nome ?? widget.customerName;
-    final plan = user?.plano ?? widget.planName;
-    final status = user?.status ?? widget.connectionStatus;
-
     return Scaffold(
-      backgroundColor: Layout03Theme.background, // Soft Grey
-      body: RefreshIndicator(
-        onRefresh: () async {
-          if (widget.onRefresh != null) {
-            HapticFeedback.mediumImpact();
-            await widget.onRefresh!();
-          }
-        },
-        color: Layout03Theme.primary,
-        backgroundColor: Colors.white,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-                24, 32, 24, 120), // Added bottom padding for Nav Bar
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _FadeSlideIn(
-                  delay: 0,
-                  child: _buildHeader(name, plan),
+      key: _scaffoldKey,
+      backgroundColor: Layout03Theme.neuBase,
+      drawer: _buildDrawer(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 20),
+                    _buildConnectionCard(),
+                    const SizedBox(height: 18),
+                    _buildPromoBanner(),
+                    const SizedBox(height: 22),
+                    _buildFeaturesSection(),
+                    const SizedBox(height: 22),
+                    _buildInvoicesSection(),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-                const SizedBox(height: 40),
-
-                _FadeSlideIn(
-                  delay: 100,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Connection Status - Neumorphic Card
-                      Expanded(flex: 1, child: _buildNeumorphicStatus(status)),
-                      const SizedBox(width: 20),
-                      // Bill Card - Neumorphic but highlighted
-                      Expanded(
-                          flex: 1,
-                          child: _buildNeumorphicBill(
-                              widget.billAmount, widget.billDueDate)),
-                    ],
-                  ),
-                ),
-
-                _FadeSlideIn(
-                  delay: 200,
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      widget.onNavigate('speed_test');
-                    },
-                    child: _buildSpeedCard(widget.downloadMbps),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                _FadeSlideIn(
-                  delay: 300,
-                  child: Text('Ações Rápidas', style: Layout03Theme.label),
-                ),
-                const SizedBox(height: 16),
-
-                // Shortcuts Grid
-                LayoutBuilder(builder: (ctx, constraints) {
-                  final width = (constraints.maxWidth - 20) / 2;
-                  return Wrap(
-                    spacing: 20,
-                    runSpacing: 20,
-                    children: [
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(Icons.wifi_rounded,
-                              'Meu Wi-Fi', () => widget.onNavigate('wifi'))),
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(Icons.receipt_long_rounded,
-                              'Faturas', () => widget.onNavigate('invoices'))),
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(
-                              Icons.speed_rounded, // Changed Icon
-                              'Diagnóstico', // Changed Title
-                              () => widget.onNavigate(
-                                  'network_diagnostic'))), // Changed Route
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(Icons.alt_route_rounded,
-                              'Rota', () => widget.onNavigate('trace_route'))),
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(Icons.support_agent_rounded,
-                              'Suporte', () => widget.onNavigate('support'))),
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(Icons.public_rounded,
-                              'Meu IP', () => widget.onNavigate('my_ip'))),
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(Icons.description_rounded,
-                              'Contrato', () => widget.onNavigate('contract'))),
-                      SizedBox(
-                          width: width,
-                          child: _buildNeuShortcut(
-                              Icons.data_usage_rounded,
-                              'Consumo',
-                              () => widget.onNavigate('internet_usage'))),
-                    ],
-                  );
-                }),
-
-                const SizedBox(height: 40),
-              ],
+              ),
             ),
-          ),
+            _buildNavbar(),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(String name, String plan) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Header
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
           children: [
-            Text('Olá,',
-                style: Layout03Theme.heading2.copyWith(
-                    color: Layout03Theme.textGrey,
-                    fontWeight: FontWeight.normal)),
-            Text(name.split(' ').first,
-                style: Layout03Theme.heading1
-                    .copyWith(color: Layout03Theme.textDark)),
+            NeuButton(
+              onTap: () => _scaffoldKey.currentState?.openDrawer(),
+              child: const Icon(Icons.menu_rounded,
+                  color: Layout03Theme.textMedium, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'NetConnect',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Layout03Theme.textDark,
+                  ),
+                ),
+                Text(
+                  'Olá, ${widget.customerName.split(' ').first}! 👋',
+                  style: const TextStyle(
+                      fontSize: 13, color: Layout03Theme.textMedium),
+                ),
+              ],
+            ),
           ],
         ),
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Layout03Theme.background,
-            boxShadow: [
-              const BoxShadow(
-                  color: Colors.white, offset: Offset(-5, -5), blurRadius: 10),
-              BoxShadow(
-                  color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
-                  offset: const Offset(5, 5),
-                  blurRadius: 10),
+        Row(
+          children: [
+            NeuButton(
+              onTap: () => widget.onNavigate('notificacoes'),
+              child: const Icon(Icons.notifications_none_rounded,
+                  color: Layout03Theme.textMedium, size: 22),
+            ),
+            const SizedBox(width: 12),
+            NeuButton(
+              onTap: () {},
+              child: const Icon(Icons.person_outline_rounded,
+                  color: Layout03Theme.primary, size: 22),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Connection Card
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildConnectionCard() {
+    final isOnline = widget.connectionStatus.toLowerCase() == 'online' ||
+        widget.connectionStatus.toLowerCase() == 'ativo';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Layout03Theme.neuBase,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: Layout03Theme.neuConvex(distance: 10, blur: 20),
+      ),
+      child: Row(
+        children: [
+          // Status indicator - CONCAVE (sunken)
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Layout03Theme.neuBase,
+              shape: BoxShape.circle,
+              boxShadow: Layout03Theme.neuConcave(distance: 5, blur: 10),
+            ),
+            child: Icon(
+              Icons.wifi_rounded,
+              color: isOnline ? Layout03Theme.success : Layout03Theme.error,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isOnline
+                            ? Layout03Theme.success
+                            : Layout03Theme.error,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isOnline ? 'Conectado' : 'Desconectado',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isOnline
+                            ? Layout03Theme.success
+                            : Layout03Theme.error,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.planName,
+                  style: const TextStyle(
+                      fontSize: 12, color: Layout03Theme.textMedium),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    widget.downloadMbps.toStringAsFixed(0),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Layout03Theme.textDark,
+                      height: 1,
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 3),
+                    child: Text(
+                      ' Mbps',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Layout03Theme.textMedium,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.signal_cellular_alt_rounded,
+                    size: 12,
+                    color: isOnline
+                        ? Layout03Theme.success
+                        : Layout03Theme.textLight,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isOnline ? 'Estável' : 'Offline',
+                    style: const TextStyle(
+                        fontSize: 11, color: Layout03Theme.textMedium),
+                  ),
+                ],
+              ),
             ],
           ),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Layout03Theme.primary, // Pop of color
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Promo Banner
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildPromoBanner() {
+    return Column(
+      children: [
+        Stack(
+          children: [
+            // Sunken container
+            Container(
+              height: 155,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Layout03Theme.neuBase,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: Layout03Theme.neuShadowDark.withOpacity(0.25),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Layout03Theme.neuShadowDark.withOpacity(0.5),
+                    offset: const Offset(4, 4),
+                    blurRadius: 8,
+                    spreadRadius: -4,
+                  ),
+                  BoxShadow(
+                    color: Layout03Theme.neuShadowLight,
+                    offset: const Offset(-4, -4),
+                    blurRadius: 8,
+                    spreadRadius: -4,
+                  ),
+                ],
+              ),
             ),
-            child:
-                const Icon(Icons.person_rounded, color: Colors.white, size: 28),
+            // PageView
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: PageView(
+                    controller: _bannerController,
+                    onPageChanged: (i) => setState(() => _bannerPage = i),
+                    children: [_buildUpgradeBanner(), _buildSupportBanner()],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(2, (i) {
+            final active = _bannerPage == i;
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: active ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: active
+                    ? Layout03Theme.primary
+                    : Layout03Theme.neuShadowDark.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpgradeBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '🔥 Oferta',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Upgrade para 1 Gbps',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Por apenas + R\$ 30/mês',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.85), fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 55,
+            height: 55,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.15),
+              border:
+                  Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+            ),
+            child: const Icon(Icons.rocket_launch_rounded,
+                size: 26, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupportBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF38B2AC), Color(0xFF4FD1C5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '⚡ 24/7',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Suporte Técnico',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Equipe sempre disponível',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.85), fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 55,
+            height: 55,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.15),
+              border:
+                  Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+            ),
+            child: const Icon(Icons.headset_mic_rounded,
+                size: 26, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Features Section
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildFeaturesSection() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Acesso Rápido',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Layout03Theme.textDark,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _featuresExpanded = !_featuresExpanded);
+              },
+              child: Row(
+                children: [
+                  Text(
+                    _featuresExpanded ? 'Menos' : 'Ver todos',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Layout03Theme.primary,
+                    ),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _featuresExpanded ? 0.5 : 0,
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Layout03Theme.primary,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 300),
+          crossFadeState: _featuresExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          firstChild: SizedBox(
+            height: 95,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _features.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 16),
+              itemBuilder: (_, i) => FeatureTile(
+                label: _features[i]['label'] as String,
+                icon: _features[i]['icon'] as IconData,
+                color: _features[i]['color'] as Color,
+                onTap: () => widget.onNavigate(_features[i]['route'] as String),
+              ),
+            ),
+          ),
+          secondChild: Wrap(
+            spacing: 16,
+            runSpacing: 18,
+            children: _features
+                .map((f) => FeatureTile(
+                      label: f['label'] as String,
+                      icon: f['icon'] as IconData,
+                      color: f['color'] as Color,
+                      onTap: () => widget.onNavigate(f['route'] as String),
+                    ))
+                .toList(),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildNeumorphicStatus(String status) {
-    final isOnline =
-        status.toLowerCase() == 'ativo' || status.toLowerCase() == 'conectado';
-    final color = isOnline ? Layout03Theme.success : Layout03Theme.error;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Invoices Section
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildInvoicesSection() {
+    final now = DateTime.now();
+    final daysUntilDue = widget.billDueDate.difference(now).inDays;
+    final isPending = daysUntilDue >= 0;
 
-    return Container(
-      height: 150,
-      padding: const EdgeInsets.all(20),
-      decoration: Layout03Theme.neumorphicDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Layout03Theme.background,
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.white, offset: Offset(-2, -2), blurRadius: 4),
-                BoxShadow(
-                    color: Color(0x22A3B1C6),
-                    offset: Offset(2, 2),
-                    blurRadius: 4),
-              ],
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Faturas',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Layout03Theme.textDark,
+              ),
             ),
-            child: Icon(isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                color: color, size: 24),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Status', style: Layout03Theme.label),
-              const SizedBox(height: 4),
-              Text(isOnline ? 'Online' : 'Offline',
-                  style: Layout03Theme.heading2
-                      .copyWith(fontSize: 18, color: color)),
-            ],
-          )
-        ],
-      ),
+            GestureDetector(
+              onTap: () => widget.onNavigate('financeiro'),
+              child: const Text(
+                'Ver todas',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Layout03Theme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildInvoiceCard(
+                _getMonthName(widget.billDueDate.month),
+                'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
+                '${widget.billDueDate.day}/${widget.billDueDate.month}',
+                isPending ? 'Pendente' : 'Vencida',
+                isPending ? Layout03Theme.warning : Layout03Theme.error,
+                isPending: isPending,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildInvoiceCard(
+                _getMonthName(widget.billDueDate.month - 1 == 0
+                    ? 12
+                    : widget.billDueDate.month - 1),
+                'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
+                '${widget.billDueDate.day}/${widget.billDueDate.month - 1 == 0 ? 12 : widget.billDueDate.month - 1}',
+                'Pago',
+                Layout03Theme.success,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildNeumorphicBill(double amount, DateTime dueDate) {
+  Widget _buildInvoiceCard(
+    String month,
+    String value,
+    String due,
+    String status,
+    Color statusColor, {
+    bool isPending = false,
+  }) {
     return Container(
-      height: 150,
-      padding: const EdgeInsets.all(20),
-      decoration: Layout03Theme.neumorphicDecoration,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Layout03Theme.neuBase,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: Layout03Theme.neuConvex(distance: 5, blur: 10),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Align(
-            alignment: Alignment.topRight,
-            child: Text('Vence ${dueDate.day}/${dueDate.month}',
-                style: Layout03Theme.label
-                    .copyWith(fontSize: 11, color: Layout03Theme.primary)),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Fatura', style: Layout03Theme.label),
-              const SizedBox(height: 4),
-              Text('R\$ ${amount.toStringAsFixed(0)}',
-                  style: Layout03Theme.heading2
-                      .copyWith(color: Layout03Theme.textDark, fontSize: 22)),
-              Text(',${amount.toStringAsFixed(2).split('.')[1]}',
-                  style: Layout03Theme.heading2
-                      .copyWith(color: Layout03Theme.textGrey, fontSize: 16)),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Layout03Theme.neuBase,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: Layout03Theme.neuConcave(distance: 2, blur: 5),
+                ),
+                child:
+                    Icon(Icons.receipt_rounded, size: 18, color: statusColor),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
             ],
-          )
+          ),
+          const SizedBox(height: 10),
+          Text(month,
+              style: const TextStyle(
+                  fontSize: 10, color: Layout03Theme.textMedium)),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Layout03Theme.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.event_rounded,
+                      size: 10, color: Layout03Theme.textLight),
+                  const SizedBox(width: 3),
+                  Text(
+                    'Venc: $due',
+                    style: const TextStyle(
+                        fontSize: 9, color: Layout03Theme.textLight),
+                  ),
+                ],
+              ),
+              if (isPending)
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    widget.onNavigate('financeiro');
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Pagar',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSpeedCard(double speed) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Navbar
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildNavbar() {
+    final items = [
+      {'icon': Icons.home_rounded, 'label': 'Home', 'route': 'home'},
+      {'icon': Icons.speed_rounded, 'label': 'Speed', 'route': 'diagnostico'},
+      {
+        'icon': Icons.receipt_long_rounded,
+        'label': 'Faturas',
+        'route': 'financeiro'
+      },
+      {
+        'icon': Icons.headset_mic_rounded,
+        'label': 'Suporte',
+        'route': 'suporte'
+      },
+    ];
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      decoration: Layout03Theme.neumorphicDecoration,
-      child: Row(
-        children: [
-          const Icon(Icons.speed_rounded,
-              color: Layout03Theme.primary, size: 36),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Sua Velocidade', style: Layout03Theme.label),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: Layout03Theme.neuBase,
+        boxShadow: [
+          BoxShadow(
+            color: Layout03Theme.neuShadowDark.withOpacity(0.2),
+            offset: const Offset(0, -6),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: items.asMap().entries.map((e) {
+            final i = e.key;
+            final item = e.value;
+            final selected = _navIndex == i;
+
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _navIndex = i);
+                if (i > 0) widget.onNavigate(item['route'] as String);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Layout03Theme.neuBase,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: selected
+                      ? Layout03Theme.neuFlat(distance: 4, blur: 8)
+                      : null,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('${speed.toInt()}',
-                        style: Layout03Theme.heading1
-                            .copyWith(color: Layout03Theme.textDark)),
-                    const SizedBox(width: 4),
-                    Text('MEGA',
-                        style: Layout03Theme.label
-                            .copyWith(color: Layout03Theme.primary)),
+                    Icon(
+                      item['icon'] as IconData,
+                      size: 22,
+                      color: selected
+                          ? Layout03Theme.primary
+                          : Layout03Theme.textLight,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item['label'] as String,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w500,
+                        color: selected
+                            ? Layout03Theme.primary
+                            : Layout03Theme.textLight,
+                      ),
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
 
-  Widget _buildNeuShortcut(IconData icon, String title, VoidCallback onTap) {
-    return _AnimatedPressButton(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Drawer
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildDrawer() {
+    final items = [
+      {
+        'icon': Icons.home_rounded,
+        'label': 'Início',
+        'route': 'home',
+        'selected': true
       },
-      child: Container(
-        height: 100,
-        decoration: Layout03Theme.flatDecoration,
+      {
+        'icon': Icons.speed_rounded,
+        'label': 'Velocidade',
+        'route': 'diagnostico'
+      },
+      {
+        'icon': Icons.healing_rounded,
+        'label': 'Diagnóstico',
+        'route': 'diagnostico'
+      },
+      {
+        'icon': Icons.route_rounded,
+        'label': 'Traceroute',
+        'route': 'traceroute'
+      },
+      {'icon': Icons.pie_chart_rounded, 'label': 'Consumo', 'route': 'consumo'},
+      {'icon': Icons.public_rounded, 'label': 'Meu IP', 'route': 'meu_ip'},
+      {
+        'icon': Icons.description_rounded,
+        'label': 'Contrato',
+        'route': 'contrato'
+      },
+      {
+        'icon': Icons.receipt_long_rounded,
+        'label': 'Faturas',
+        'route': 'financeiro'
+      },
+      {'icon': Icons.help_outline_rounded, 'label': 'FAQ', 'route': 'faq'},
+      {
+        'icon': Icons.headset_mic_rounded,
+        'label': 'Suporte',
+        'route': 'suporte'
+      },
+    ];
+
+    return Drawer(
+      backgroundColor: Layout03Theme.neuBase,
+      child: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Layout03Theme.textGrey, size: 28),
-            const SizedBox(height: 12),
-            Text(title,
-                style: const TextStyle(
-                    color: Layout03Theme.textDark,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13)),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Layout03Theme.neuBase,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: Layout03Theme.neuConvex(distance: 5, blur: 10),
+                    ),
+                    child: const Icon(Icons.wifi_rounded,
+                        color: Layout03Theme.primary, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'NetConnect',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Layout03Theme.textDark,
+                        ),
+                      ),
+                      Text(
+                        widget.planName,
+                        style: const TextStyle(
+                            fontSize: 12, color: Layout03Theme.textMedium),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: items.length,
+                itemBuilder: (_, i) {
+                  final item = items[i];
+                  final selected = item['selected'] == true;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Layout03Theme.neuBase,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: selected
+                          ? Layout03Theme.neuFlat(distance: 4, blur: 8)
+                          : null,
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        item['icon'] as IconData,
+                        color: selected
+                            ? Layout03Theme.primary
+                            : Layout03Theme.textMedium,
+                        size: 22,
+                      ),
+                      title: Text(
+                        item['label'] as String,
+                        style: TextStyle(
+                          color: selected
+                              ? Layout03Theme.primary
+                              : Layout03Theme.textDark,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (item['route'] != 'home') {
+                          widget.onNavigate(item['route'] as String);
+                        }
+                      },
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-}
 
-// Animated Fade Slide In Widget
-class _FadeSlideIn extends StatefulWidget {
-  final Widget child;
-  final int delay;
-
-  const _FadeSlideIn({required this.child, this.delay = 0});
-
-  @override
-  State<_FadeSlideIn> createState() => _FadeSlideInState();
-}
-
-class _FadeSlideInState extends State<_FadeSlideIn>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacity;
-  late Animation<Offset> _offset;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _opacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-    _offset = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) _controller.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(position: _offset, child: widget.child),
-    );
-  }
-}
-
-// Animated Press Button with Scale Effect
-class _AnimatedPressButton extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-
-  const _AnimatedPressButton({required this.child, required this.onTap});
-
-  @override
-  State<_AnimatedPressButton> createState() => _AnimatedPressButtonState();
-}
-
-class _AnimatedPressButtonState extends State<_AnimatedPressButton> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _isPressed = false),
-      child: AnimatedScale(
-        scale: _isPressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeInOut,
-        child: widget.child,
-      ),
-    );
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez'
+    ];
+    return months[(month - 1).clamp(0, 11)];
   }
 }

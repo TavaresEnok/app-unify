@@ -1,119 +1,160 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎨 TRUE NEUMORPHISM - Layout 03 Theme
+// ═══════════════════════════════════════════════════════════════════════════
+
 class Layout03Theme {
-  // --- Soft UI Colors ---
-  static const Color background = Color(0xFFEFEEEE); // Light Platinum
-  static const Color surface = Color(0xFFEFEEEE); // Same as BG for Neumorphism
+  // THE BASE COLOR - Everything uses this EXACT color
+  static const Color neuBase = Color(0xFFE0E5EC);
+  static const Color background = neuBase;
+  static const Color surface = neuBase;
 
-  static const Color primary = Color(0xFF7280FF); // Soft Indigo/Blue
-  static const Color secondary = Color(0xFF4FD1C5); // Soft Teal
-  static const Color accent = Color(0xFFFF7B9C); // Soft Pink
+  // THE SHADOWS - The heart of neumorphism
+  static const Color neuShadowDark = Color(0xFFA3B1C6);
+  static const Color neuShadowLight = Color(0xFFFFFFFF);
 
-  static const Color textDark = Color(0xFF3E4E68); // Dark Blue-Grey
-  static const Color textGrey = Color(0xFF7D8CA3); // Soft Grey
+  // TEXT - Soft grays, never pure black
+  static const Color textDark = Color(0xFF4A5568);
+  static const Color textMedium = Color(0xFF718096);
+  static const Color textLight = Color(0xFFA0AEC0);
+  static const Color textGrey = textMedium;
   static const Color textWhite = Colors.white;
 
-  static const Color error = Color(0xFFFF6B6B);
-  static const Color success = Color(0xFF51CF66);
-  static const Color warning = Color(0xFFFFC078);
+  // ACCENT - Only for small details (icons, chips)
+  static const Color primary = Color(0xFF6B7FD7);
+  static const Color accent = primary;
+  static const Color secondary = Color(0xFF4FD1C5);
+  static const Color success = Color(0xFF68D391);
+  static const Color warning = Color(0xFFECC94B);
+  static const Color error = Color(0xFFFC8181);
 
-  // --- Neumorphic Decorations ---
+  // COLD COLORS for feature icons (desaturated, muted)
+  static const Color iconBlue = Color(0xFF7B9DBF);
+  static const Color iconTeal = Color(0xFF6BA8A0);
+  static const Color iconSlate = Color(0xFF8B9DC3);
+  static const Color iconSage = Color(0xFF8DAA9D);
+  static const Color iconMauve = Color(0xFF9B8FA8);
+  static const Color iconStorm = Color(0xFF7C8DA0);
+  static const Color iconMist = Color(0xFF9CAFB7);
+  static const Color iconDusk = Color(0xFF8A97AA);
+  static const Color iconFog = Color(0xFF94A3B8);
 
-  // 1. Convex (Standard "pop out" card/button)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONVEX SHADOW - Element rises FROM the surface
+  // ═══════════════════════════════════════════════════════════════════════════
+  static List<BoxShadow> neuConvex({
+    double distance = 8,
+    double blur = 15,
+    double spread = 1,
+  }) {
+    return [
+      BoxShadow(
+        color: neuShadowDark,
+        offset: Offset(distance, distance),
+        blurRadius: blur,
+        spreadRadius: spread,
+      ),
+      BoxShadow(
+        color: neuShadowLight,
+        offset: Offset(-distance, -distance),
+        blurRadius: blur,
+        spreadRadius: spread,
+      ),
+    ];
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONCAVE SHADOW - Element sinks INTO the surface (inset simulation)
+  // ═══════════════════════════════════════════════════════════════════════════
+  static List<BoxShadow> neuConcave({
+    double distance = 6,
+    double blur = 12,
+    double spread = 1,
+  }) {
+    return [
+      BoxShadow(
+        color: neuShadowDark.withOpacity(0.5),
+        offset: Offset(distance, distance),
+        blurRadius: blur,
+        spreadRadius: -spread,
+      ),
+      BoxShadow(
+        color: neuShadowLight.withOpacity(0.7),
+        offset: Offset(-distance, -distance),
+        blurRadius: blur,
+        spreadRadius: -spread,
+      ),
+    ];
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FLAT SHADOW - Subtle, for smaller elements
+  // ═══════════════════════════════════════════════════════════════════════════
+  static List<BoxShadow> neuFlat({double distance = 4, double blur = 8}) {
+    return [
+      BoxShadow(
+        color: neuShadowDark.withOpacity(0.6),
+        offset: Offset(distance, distance),
+        blurRadius: blur,
+      ),
+      BoxShadow(
+        color: neuShadowLight,
+        offset: Offset(-distance, -distance),
+        blurRadius: blur,
+      ),
+    ];
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PRESSED SHADOW - For active/pressed state
+  // ═══════════════════════════════════════════════════════════════════════════
+  static List<BoxShadow> neuPressed({double distance = 3, double blur = 6}) {
+    return [
+      BoxShadow(
+        color: neuShadowDark.withOpacity(0.4),
+        offset: Offset(distance, distance),
+        blurRadius: blur,
+        spreadRadius: -2,
+      ),
+      BoxShadow(
+        color: neuShadowLight.withOpacity(0.6),
+        offset: Offset(-distance, -distance),
+        blurRadius: blur,
+        spreadRadius: -2,
+      ),
+    ];
+  }
+
+  // --- Neumorphic Decorations (Backward compatibility) ---
   static BoxDecoration get neumorphicDecoration => BoxDecoration(
-        color: background,
+        color: neuBase,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-8, -8),
-            blurRadius: 16,
-          ),
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
-            offset: const Offset(8, 8),
-            blurRadius: 16,
-          ),
-        ],
+        boxShadow: neuConvex(),
       );
 
-  // 1b. Convex Circle (for Avatars/Icons)
   static BoxDecoration get neumorphicCircleDecoration => BoxDecoration(
-        color: background,
+        color: neuBase,
         shape: BoxShape.circle,
-        boxShadow: [
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-8, -8),
-            blurRadius: 16,
-          ),
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
-            offset: const Offset(8, 8),
-            blurRadius: 16,
-          ),
-        ],
+        boxShadow: neuConvex(),
       );
 
-  // 2. Concave (Pressed state or Input)
   static BoxDecoration get neumorphicPressedDecoration => BoxDecoration(
-        color: background,
+        color: neuBase,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.2),
-            offset: const Offset(6, 6),
-            blurRadius: 10,
-            // inset: true // Requires customized implementation or specialized package,
-            // but standard flutter BoxDecoration doesn't support 'inset'.
-            // We simulate "pressed" by flipping shadows or darkening inner.
-            // For valid Flutter code without extra packages:
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.8),
-            offset: const Offset(-6, -6),
-            blurRadius: 10,
-            // inset: true
-          ),
-        ],
-        // Note: Standard BoxDecoration does NOT support 'inset' shadows natively without custom painting
-        // or packages like flutter_neumorphic.
-        // We will simulate "Concave" using a slightly darker/flat look or standard shadows
-        // inverted if we had a package.
-        // For standard Flutter, we'll just use a flatter, darker style for inputs/pressed.
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFE6E6E6), // Slightly darker top-left
-            Color(0xFFF7F7F7), // Lighter bottom-right
-          ],
-        ),
+        boxShadow: neuPressed(),
       );
 
-  // 3. Flat / Simple for small elements
   static BoxDecoration get flatDecoration => BoxDecoration(
-        color: background,
+        color: neuBase,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-4, -4),
-            blurRadius: 8,
-          ),
-          BoxShadow(
-            color: const Color(0xFFA3B1C6).withValues(alpha: 0.3),
-            offset: const Offset(4, 4),
-            blurRadius: 8,
-          ),
-        ],
+        boxShadow: neuFlat(),
       );
 
-  // Alias for compatibility with previous layout code
+  // Aliases
   static BoxDecoration get cardDecoration => neumorphicDecoration;
-  static BoxDecoration get glassDecoration =>
-      neumorphicDecoration; // Map glass to neumorphic
+  static BoxDecoration get glassDecoration => neumorphicDecoration;
   static BoxDecoration get solidCardDecoration => flatDecoration;
 
   // --- Typography ---
@@ -132,14 +173,14 @@ class Layout03Theme {
 
   static TextStyle get bodyText => GoogleFonts.nunito(
         fontSize: 15,
-        color: textGrey,
+        color: textMedium,
         height: 1.5,
       );
 
   static TextStyle get label => GoogleFonts.nunito(
         fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: textGrey,
+        color: textMedium,
         letterSpacing: 0.5,
       );
 
