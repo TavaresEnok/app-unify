@@ -49,8 +49,8 @@ class _FeatureTileState extends State<FeatureTile> {
                 color: Layout03Theme.neuBase,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: _pressed
-                    ? Layout03Theme.neuPressed()
-                    : Layout03Theme.neuFlat(distance: 5, blur: 10),
+                    ? Layout03Theme.neuPressed(distance: 2, blur: 4)
+                    : Layout03Theme.neuFlat(distance: 3, blur: 6),
               ),
               child: Icon(widget.icon, color: widget.color, size: 24),
             ),
