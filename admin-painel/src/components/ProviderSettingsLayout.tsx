@@ -17,6 +17,7 @@ const menuItems = [
   { name: "Mensagens", path: "messages" },
   { name: "Outros", path: "other" },
   { name: "Backup/Restore", path: "backup" },
+  { name: "📱 Gerar App", path: "app-build" },
 ];
 
 export default function ProviderSettingsLayout() {

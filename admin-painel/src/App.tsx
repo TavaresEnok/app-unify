@@ -36,6 +36,7 @@ import ProviderTicketsPage from "./pages/provider/ProviderTicketsPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import MyCompanyPage from "./pages/provider/MyCompanyPage";
 import MenusSettingsPage from "./pages/provider-settings/MenusSettingsPage";
+import AppBuildSettings from "./pages/provider-settings/AppBuildSettings";
 
 function PostLoginRedirect() {
   const { userRole } = useAuth();
@@ -65,6 +66,7 @@ const ProviderSettingsRoutes = (
     <Route path="promotions" element={<PromotionsManager />} />
     <Route path="splash-login" element={<SplashLoginConfig />} />
     <Route path="texts" element={<PersonalizedTextsSettings />} />
+    <Route path="app-build" element={<AppBuildSettings />} />
   </Route>
 );
 
