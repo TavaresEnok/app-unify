@@ -410,9 +410,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                 ),
                 Expanded(
                   child: _buildPlanIndicator(
-                    'Mensalidade',
+                    'Valor',
                     'R\$ ${widget.billAmount.toStringAsFixed(0)}',
-                    '/mês',
+                    '',
                     Icons.payments_rounded,
                     Layout02Theme.green,
                   ),
@@ -435,9 +435,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                 ),
                 Expanded(
                   child: _buildPlanIndicator(
-                    'Vence dia',
-                    '${widget.billDueDate.day}',
-                    _getMonthName(widget.billDueDate.month),
+                    'Vencimento',
+                    '${widget.billDueDate.day}/${_getMonthName(widget.billDueDate.month)}',
+                    '',
                     Icons.event_rounded,
                     Layout02Theme.orange,
                   ),
@@ -506,8 +506,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     final daysText = daysUntilDue < 0
         ? 'Vencida'
         : daysUntilDue == 0
-            ? 'Vence Hoje'
-            : 'Vence em $daysUntilDue dias';
+            ? 'Hoje'
+            : '$daysUntilDue dias';
     final daysColor = daysUntilDue < 0
         ? Layout02Theme.red
         : daysUntilDue <= 3
@@ -525,23 +525,23 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             onTap: () => widget.onNavigate('financeiro'),
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
             'Suporte',
-            '24h Online',
+            'Online',
             Icons.headset_mic_rounded,
             Layout02Theme.purple,
             onTap: () => widget.onNavigate('suporte'),
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
             'Consumo',
             widget.usedGb > 0
                 ? '${widget.usedGb.toStringAsFixed(0)} GB'
-                : 'Ilimitado',
+                : 'Livre',
             Icons.data_usage_rounded,
             Layout02Theme.cyan,
             onTap: () => widget.onNavigate('consumo'),
@@ -612,80 +612,89 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
   }
 
   Widget _buildQuickActions() {
+    final actions = [
+      {
+        'icon': Icons.speed_rounded,
+        'label': 'Velocidade',
+        'colors': [Layout02Theme.primary, Layout02Theme.secondary],
+        'route': 'diagnostico'
+      },
+      {
+        'icon': Icons.network_check_rounded,
+        'label': 'Diagnóstico',
+        'colors': [Layout02Theme.green, Layout02Theme.cyan],
+        'route': 'diagnostico'
+      },
+      {
+        'icon': Icons.route_rounded,
+        'label': 'Tracert',
+        'colors': [Layout02Theme.purple, Layout02Theme.accent],
+        'route': 'traceroute'
+      },
+      {
+        'icon': Icons.description_rounded,
+        'label': 'Contrato',
+        'colors': [Layout02Theme.orange, const Color(0xFFFF6B35)],
+        'route': 'contrato'
+      },
+      {
+        'icon': Icons.language_rounded,
+        'label': 'Meu IP',
+        'colors': [Layout02Theme.cyan, Layout02Theme.primary],
+        'route': 'meu_ip'
+      },
+      {
+        'icon': Icons.quiz_rounded,
+        'label': 'FAQ',
+        'colors': [const Color(0xFFFF6B9D), Layout02Theme.purple],
+        'route': 'faq'
+      },
+      {
+        'icon': Icons.wifi_rounded,
+        'label': 'Wi-Fi',
+        'colors': [Layout02Theme.secondary, Layout02Theme.green],
+        'route': 'wifi'
+      },
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Ações Rápidas',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Layout02Theme.textDark,
+        const Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: Text(
+            'Ações Rápidas',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Layout02Theme.textDark,
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        // Primeira linha - 4 ações
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildActionItem(
-              Icons.speed_rounded,
-              'Teste de\nVelocidade',
-              [Layout02Theme.primary, Layout02Theme.secondary],
-              'diagnostico',
-            ),
-            _buildActionItem(
-              Icons.network_check_rounded,
-              'Diagnóstico',
-              [Layout02Theme.green, Layout02Theme.cyan],
-              'diagnostico',
-            ),
-            _buildActionItem(
-              Icons.route_rounded,
-              'Rota\n(Tracert)',
-              [Layout02Theme.purple, Layout02Theme.accent],
-              'traceroute',
-            ),
-            _buildActionItem(
-              Icons.description_rounded,
-              'Contrato',
-              [Layout02Theme.orange, const Color(0xFFFF6B35)],
-              'contrato',
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Segunda linha - 3 ações centralizadas
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            const SizedBox(width: 8),
-            _buildActionItem(
-              Icons.language_rounded,
-              'Meu IP',
-              [Layout02Theme.cyan, Layout02Theme.primary],
-              'meu_ip',
-            ),
-            _buildActionItem(
-              Icons.quiz_rounded,
-              'FAQ',
-              [const Color(0xFFFF6B9D), Layout02Theme.purple],
-              'faq',
-            ),
-            _buildActionItem(
-              Icons.wifi_rounded,
-              'Configurar\nWi-Fi',
-              [Layout02Theme.secondary, Layout02Theme.green],
-              'wifi',
-            ),
-            const SizedBox(width: 8),
-          ],
+        SizedBox(
+          height: 90,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: actions.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final action = actions[index];
+              return _buildSliderActionItem(
+                action['icon'] as IconData,
+                action['label'] as String,
+                action['colors'] as List<Color>,
+                action['route'] as String,
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildActionItem(
+  Widget _buildSliderActionItem(
     IconData icon,
     String label,
     List<Color> gradientColors,
@@ -696,47 +705,51 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         HapticFeedback.mediumImpact();
         widget.onNavigate(route);
       },
-      child: Column(
-        children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  gradientColors[0].withOpacity(0.15),
-                  gradientColors[1].withOpacity(0.1),
+      child: SizedBox(
+        width: 72,
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    gradientColors[0].withOpacity(0.15),
+                    gradientColors[1].withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: gradientColors[0].withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: gradientColors[0].withOpacity(0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+              child: ShaderMask(
+                shaderCallback: (bounds) =>
+                    LinearGradient(colors: gradientColors).createShader(bounds),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
             ),
-            child: ShaderMask(
-              shaderCallback: (bounds) =>
-                  LinearGradient(colors: gradientColors).createShader(bounds),
-              child: Icon(icon, color: Colors.white, size: 30),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Layout02Theme.textGrey.withOpacity(0.9),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Layout02Theme.textGrey.withOpacity(0.9),
-              height: 1.3,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
