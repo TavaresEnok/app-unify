@@ -77,9 +77,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     super.dispose();
   }
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: _buildDrawer(),
       body: Container(
         decoration:
             const BoxDecoration(gradient: Layout02Theme.backgroundGradient),
@@ -149,22 +153,29 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
   Widget _buildHeader() {
     return Row(
       children: [
-        // Logo with glow
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            gradient: Layout02Theme.primaryGradient,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Layout02Theme.primary.withOpacity(0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
+        // Menu button
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _scaffoldKey.currentState?.openDrawer();
+          },
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              gradient: Layout02Theme.primaryGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Layout02Theme.primary.withOpacity(0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child:
+                const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
           ),
-          child: const Icon(Icons.wifi_rounded, color: Colors.white, size: 28),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -476,11 +487,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
       children: [
         Expanded(
           child: _buildStatCard(
-            'Consumo',
-            '${widget.usedGb.toStringAsFixed(0)} GB',
-            Icons.data_usage_rounded,
+            'Suporte',
+            '24h',
+            Icons.headset_mic_rounded,
             Layout02Theme.purple,
-            onTap: () => widget.onNavigate('consumo'),
+            onTap: () => widget.onNavigate('suporte'),
           ),
         ),
         const SizedBox(width: 14),
@@ -833,5 +844,126 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
       'Dez'
     ];
     return months[month - 1];
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Layout02Theme.primary,
+              Layout02Theme.primaryDark,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header do Drawer
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.2), width: 2),
+                      ),
+                      child: const Icon(Icons.person_rounded,
+                          color: Colors.white, size: 40),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      widget.customerName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.planName,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white24, height: 1),
+
+              // Menu Items
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  children: [
+                    _buildDrawerItem(Icons.home_rounded, 'Início', 'home'),
+                    _buildDrawerItem(
+                        Icons.receipt_long_rounded, 'Faturas', 'financeiro'),
+                    _buildDrawerItem(Icons.speed_rounded, 'Teste de Velocidade',
+                        'diagnostico'),
+                    _buildDrawerItem(
+                        Icons.support_agent_rounded, 'Suporte', 'suporte'),
+                    _buildDrawerItem(
+                        Icons.description_rounded, 'Contrato', 'contrato'),
+                    _buildDrawerItem(Icons.notifications_rounded,
+                        'Notificações', 'notificacoes'),
+                    const Divider(
+                        color: Colors.white24, indent: 24, endIndent: 24),
+                    _buildDrawerItem(Icons.logout_rounded, 'Sair', 'logout'),
+                  ],
+                ),
+              ),
+
+              // Footer
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  '© 2024 - Versão 1.0',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String label, String route) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white, size: 24),
+      title: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        HapticFeedback.lightImpact();
+        if (route == 'logout') {
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/login', (route) => false);
+        } else if (route != 'home') {
+          widget.onNavigate(route);
+        }
+      },
+    );
   }
 }

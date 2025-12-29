@@ -864,10 +864,12 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         connectionStatus: usuario.status,
         billAmount: _parseBillAmount(usuario.valorFatura),
         billDueDate: _parseBillDate(usuario.vencimentoFatura),
-        usedGb: 50.0,
-        totalGb: 100.0,
-        downloadMbps: 100.0,
-        uploadMbps: 50.0,
+        // Extract speed from plan name (e.g. "500 Mega" -> 500)
+        usedGb: 0.0, // API doesn't provide this - will be hidden in dashboard
+        totalGb: 0.0, // API doesn't provide this
+        downloadMbps: _extractSpeedFromPlan(usuario.plano),
+        uploadMbps: _extractSpeedFromPlan(usuario.plano) *
+            0.5, // Estimate upload as half of download
         onNavigate: (page) {
           setState(() {
             _currentPage = page;
@@ -1032,6 +1034,18 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       }
     } catch (_) {}
     return DateTime.now();
+  }
+
+  /// Extracts speed (Mbps) from plan name, e.g. "500 Mega" -> 500.0
+  double _extractSpeedFromPlan(String planName) {
+    try {
+      final regex = RegExp(r'(\d+)');
+      final match = regex.firstMatch(planName);
+      if (match != null) {
+        return double.parse(match.group(1)!);
+      }
+    } catch (_) {}
+    return 100.0; // Default fallback
   }
 
   Widget _buildDarkMenuItem(String pageId, String label, IconData icon) {
