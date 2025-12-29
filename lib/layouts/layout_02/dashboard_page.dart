@@ -365,12 +365,21 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             ],
           ),
           const SizedBox(height: 20),
-          // Plan info indicators
+          // Plan info indicators - Premium style
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.15),
+                  Colors.white.withOpacity(0.08),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border:
+                  Border.all(color: Colors.white.withOpacity(0.1), width: 1),
             ),
             child: Row(
               children: [
@@ -379,35 +388,57 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                     'Plano',
                     _extractSpeed(widget.planName),
                     'Mega',
-                    Icons.speed_rounded,
+                    Icons.rocket_launch_rounded,
                     Layout02Theme.secondary,
                   ),
                 ),
                 Container(
                   width: 1,
-                  height: 50,
-                  color: Colors.white.withOpacity(0.2),
+                  height: 45,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.0),
+                        Colors.white.withOpacity(0.3),
+                        Colors.white.withOpacity(0.0),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: _buildPlanIndicator(
-                    'Valor',
+                    'Mensalidade',
                     'R\$ ${widget.billAmount.toStringAsFixed(0)}',
                     '/mês',
-                    Icons.receipt_long_rounded,
+                    Icons.payments_rounded,
                     Layout02Theme.green,
                   ),
                 ),
                 Container(
                   width: 1,
-                  height: 50,
-                  color: Colors.white.withOpacity(0.2),
+                  height: 45,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.0),
+                        Colors.white.withOpacity(0.3),
+                        Colors.white.withOpacity(0.0),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: _buildPlanIndicator(
-                    'Vencimento',
+                    'Vence dia',
                     '${widget.billDueDate.day}',
                     _getMonthName(widget.billDueDate.month),
-                    Icons.calendar_today_rounded,
+                    Icons.event_rounded,
                     Layout02Theme.orange,
                   ),
                 ),
@@ -475,8 +506,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     final daysText = daysUntilDue < 0
         ? 'Vencida'
         : daysUntilDue == 0
-            ? 'Hoje'
-            : '$daysUntilDue dias';
+            ? 'Vence Hoje'
+            : 'Vence em $daysUntilDue dias';
     final daysColor = daysUntilDue < 0
         ? Layout02Theme.red
         : daysUntilDue <= 3
@@ -487,8 +518,18 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
       children: [
         Expanded(
           child: _buildStatCard(
+            'Faturas',
+            daysText,
+            Icons.receipt_long_rounded,
+            daysColor,
+            onTap: () => widget.onNavigate('financeiro'),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _buildStatCard(
             'Suporte',
-            '24h',
+            '24h Online',
             Icons.headset_mic_rounded,
             Layout02Theme.purple,
             onTap: () => widget.onNavigate('suporte'),
@@ -497,21 +538,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         const SizedBox(width: 14),
         Expanded(
           child: _buildStatCard(
-            'Velocidade',
-            '${widget.downloadMbps.toStringAsFixed(0)} Mb',
-            Icons.speed_rounded,
+            'Consumo',
+            widget.usedGb > 0
+                ? '${widget.usedGb.toStringAsFixed(0)} GB'
+                : 'Ilimitado',
+            Icons.data_usage_rounded,
             Layout02Theme.cyan,
-            onTap: () => widget.onNavigate('diagnostico'),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _buildStatCard(
-            'Fatura',
-            daysText,
-            Icons.calendar_today_rounded,
-            daysColor,
-            onTap: () => widget.onNavigate('financeiro'),
+            onTap: () => widget.onNavigate('consumo'),
           ),
         ),
       ],
@@ -591,6 +624,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
           ),
         ),
         const SizedBox(height: 16),
+        // Primeira linha - 4 ações
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -601,23 +635,50 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
               'diagnostico',
             ),
             _buildActionItem(
-              Icons.router_rounded,
-              'Configurar\nWi-Fi',
+              Icons.network_check_rounded,
+              'Diagnóstico',
+              [Layout02Theme.green, Layout02Theme.cyan],
+              'diagnostico',
+            ),
+            _buildActionItem(
+              Icons.route_rounded,
+              'Rota\n(Tracert)',
               [Layout02Theme.purple, Layout02Theme.accent],
+              'traceroute',
+            ),
+            _buildActionItem(
+              Icons.description_rounded,
+              'Contrato',
+              [Layout02Theme.orange, const Color(0xFFFF6B35)],
+              'contrato',
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        // Segunda linha - 3 ações centralizadas
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            const SizedBox(width: 8),
+            _buildActionItem(
+              Icons.language_rounded,
+              'Meu IP',
+              [Layout02Theme.cyan, Layout02Theme.primary],
+              'meu_ip',
+            ),
+            _buildActionItem(
+              Icons.quiz_rounded,
+              'FAQ',
+              [const Color(0xFFFF6B9D), Layout02Theme.purple],
+              'faq',
+            ),
+            _buildActionItem(
+              Icons.wifi_rounded,
+              'Configurar\nWi-Fi',
+              [Layout02Theme.secondary, Layout02Theme.green],
               'wifi',
             ),
-            _buildActionItem(
-              Icons.receipt_long_rounded,
-              'Segunda\nVia',
-              [Layout02Theme.green, Layout02Theme.cyan],
-              'financeiro',
-            ),
-            _buildActionItem(
-              Icons.headset_mic_rounded,
-              'Falar com\nSuporte',
-              [Layout02Theme.orange, const Color(0xFFFF6B35)],
-              'suporte',
-            ),
+            const SizedBox(width: 8),
           ],
         ),
       ],
@@ -905,21 +966,43 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
               // Menu Items
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   children: [
                     _buildDrawerItem(Icons.home_rounded, 'Início', 'home'),
                     _buildDrawerItem(
                         Icons.receipt_long_rounded, 'Faturas', 'financeiro'),
+                    const Divider(
+                        color: Colors.white24,
+                        indent: 24,
+                        endIndent: 24,
+                        height: 16),
                     _buildDrawerItem(Icons.speed_rounded, 'Teste de Velocidade',
                         'diagnostico'),
+                    _buildDrawerItem(Icons.network_check_rounded,
+                        'Diagnóstico de Rede', 'diagnostico'),
                     _buildDrawerItem(
-                        Icons.support_agent_rounded, 'Suporte', 'suporte'),
+                        Icons.route_rounded, 'Rota (Tracert)', 'traceroute'),
+                    _buildDrawerItem(
+                        Icons.language_rounded, 'Meu IP', 'meu_ip'),
+                    _buildDrawerItem(
+                        Icons.wifi_rounded, 'Configurar Wi-Fi', 'wifi'),
+                    const Divider(
+                        color: Colors.white24,
+                        indent: 24,
+                        endIndent: 24,
+                        height: 16),
                     _buildDrawerItem(
                         Icons.description_rounded, 'Contrato', 'contrato'),
+                    _buildDrawerItem(Icons.quiz_rounded, 'FAQ', 'faq'),
+                    _buildDrawerItem(
+                        Icons.support_agent_rounded, 'Suporte', 'suporte'),
                     _buildDrawerItem(Icons.notifications_rounded,
                         'Notificações', 'notificacoes'),
                     const Divider(
-                        color: Colors.white24, indent: 24, endIndent: 24),
+                        color: Colors.white24,
+                        indent: 24,
+                        endIndent: 24,
+                        height: 16),
                     _buildDrawerItem(Icons.logout_rounded, 'Sair', 'logout'),
                   ],
                 ),
