@@ -6,6 +6,8 @@ import 'layouts/layout_02/dashboard_page.dart' as l02;
 import 'layouts/layout_03/dashboard_page.dart' as l03;
 import 'layouts/layout_04/dashboard_page.dart' as l04;
 import 'layouts/layout_04/pages/speed_test_page.dart' as l04_speed;
+import 'layouts/layout_05/dashboard_page.dart' as l05;
+import 'layouts/layout_06/dashboard_page.dart' as l06;
 import 'layouts/layout_07/dashboard_page.dart' as l07;
 import 'layouts/layout_07/login_page.dart' as l07_login;
 
@@ -13,6 +15,8 @@ import 'layouts/layout_07/login_page.dart' as l07_login;
 import 'layouts/layout_02/login_page.dart' as l02_login;
 import 'layouts/layout_03/login_page.dart' as l03_login;
 import 'layouts/layout_04/login_page.dart' as l04_login;
+import 'layouts/layout_05/login_page.dart' as l05_login;
+import 'layouts/layout_06/login_page.dart' as l06_login;
 
 // ============================================
 // PÁGINAS COMPARTILHADAS (idênticas entre layouts)
@@ -105,6 +109,36 @@ class LayoutSelector {
           onRefresh: onRefresh,
         );
 
+      case 'layout_05':
+        return l05.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          onRefresh: onRefresh,
+        );
+
+      case 'layout_06':
+        return l06.DashboardPage(
+          customerName: customerName,
+          planName: planName,
+          connectionStatus: connectionStatus,
+          billAmount: billAmount,
+          billDueDate: billDueDate,
+          usedGb: usedGb,
+          totalGb: totalGb,
+          downloadMbps: downloadMbps,
+          uploadMbps: uploadMbps,
+          onNavigate: onNavigate,
+          onRefresh: onRefresh,
+        );
+
       case 'layout_07':
         return l07.ProviderDashboardPage(
           customerName: customerName,
@@ -152,6 +186,10 @@ class LayoutSelector {
         return const l03_login.LoginPage();
       case 'layout_04':
         return const l04_login.LoginPage();
+      case 'layout_05':
+        return const l05_login.LoginPage();
+      case 'layout_06':
+        return const l06_login.LoginPage();
       case 'layout_07':
         return const l07_login.LoginPage();
 
@@ -226,6 +264,10 @@ class LayoutSelector {
         return const l03_wifi.WifiPage();
       case 'layout_04':
         return const l03_wifi.WifiPage();
+      case 'layout_05':
+        return const l03_wifi.WifiPage();
+      case 'layout_06':
+        return const l03_wifi.WifiPage();
       case 'layout_07':
         return const l03_wifi.WifiPage();
       default:
@@ -249,6 +291,16 @@ class LayoutSelector {
       'id': 'layout_04',
       'name': 'Premium Dark',
       'description': 'Fintech-style com Cyan/Teal'
+    },
+    {
+      'id': 'layout_05',
+      'name': 'Cyber Neon',
+      'description': 'Futurista dark com grid animado e efeitos neon'
+    },
+    {
+      'id': 'layout_06',
+      'name': 'Clean Dark',
+      'description': 'Elegante escuro com gráfico de uso e design limpo'
     },
     {
       'id': 'layout_07',

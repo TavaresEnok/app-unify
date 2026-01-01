@@ -340,55 +340,19 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Promo Banner
+  // Promo Banner - Clean design without sunken border
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildPromoBanner() {
     return Column(
       children: [
-        Stack(
-          children: [
-            // Sunken container
-            Container(
-              height: 155,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: Layout03Theme.neuBase,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(
-                  color: Layout03Theme.neuShadowDark.withOpacity(0.25),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Layout03Theme.neuShadowDark.withOpacity(0.5),
-                    offset: const Offset(4, 4),
-                    blurRadius: 8,
-                    spreadRadius: -4,
-                  ),
-                  BoxShadow(
-                    color: Layout03Theme.neuShadowLight,
-                    offset: const Offset(-4, -4),
-                    blurRadius: 8,
-                    spreadRadius: -4,
-                  ),
-                ],
-              ),
-            ),
-            // PageView
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: PageView(
-                    controller: _bannerController,
-                    onPageChanged: (i) => setState(() => _bannerPage = i),
-                    children: [_buildUpgradeBanner(), _buildSupportBanner()],
-                  ),
-                ),
-              ),
-            ),
-          ],
+        // PageView sem container afundado - design limpo
+        SizedBox(
+          height: 140,
+          child: PageView(
+            controller: _bannerController,
+            onPageChanged: (i) => setState(() => _bannerPage = i),
+            children: [_buildUpgradeBanner(), _buildSupportBanner()],
+          ),
         ),
         const SizedBox(height: 14),
         Row(
