@@ -110,6 +110,22 @@ export default function AppearanceSettings() {
             textColor: '#1F2937',
             iconColor: '#0891B2',
         },
+        layout_05: {
+            themeColor: '#00E5FF',
+            secondaryColor: '#7C4DFF',
+            backgroundColor: '#050810',
+            cardColor: '#161B22',
+            textColor: '#FFFFFF',
+            iconColor: '#00E5FF',
+        },
+        layout_06: {
+            themeColor: '#00BCD4',
+            secondaryColor: '#00E676',
+            backgroundColor: '#0A0E21',
+            cardColor: '#0F1225',
+            textColor: '#FFFFFF',
+            iconColor: '#00BCD4',
+        },
         layout_07: {
             themeColor: '#FF6B6B', // Coral
             secondaryColor: '#FFB66C', // Peach
@@ -173,6 +189,8 @@ export default function AppearanceSettings() {
                                     <SelectItem value="layout_02">Layout 02 - Minimalista</SelectItem>
                                     <SelectItem value="layout_03">Layout 03 - Neo Digital</SelectItem>
                                     <SelectItem value="layout_04">Layout 04 - Premium Dark</SelectItem>
+                                    <SelectItem value="layout_05">Layout 05 - Cyber Neon</SelectItem>
+                                    <SelectItem value="layout_06">Layout 06 - Clean Dark</SelectItem>
                                     <SelectItem value="layout_07">Layout 07 - Pôr-do-Sol Tropical</SelectItem>
                                 </SelectContent>
                             </Select>

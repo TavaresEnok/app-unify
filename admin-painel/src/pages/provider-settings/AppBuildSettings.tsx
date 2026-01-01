@@ -70,8 +70,13 @@ export default function AppBuildSettings() {
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
 
-            const mockDownloadUrl = `/api/builds/download?arch=${architecture}&timestamp=${Date.now()}`;
-            setDownloadUrl(mockDownloadUrl);
+            // APK específico por arquitetura
+            const apkUrls: Record<BuildArchitecture, string> = {
+                'arm64-v8a': '/app-arm64-v8a.apk',
+                'armeabi-v7a': '/app-armeabi-v7a.apk',
+                'all': '/app-release.apk',
+            };
+            setDownloadUrl(apkUrls[architecture]);
             setBuildStatus('success');
             setBuildProgress('Build concluído com sucesso!');
             toast.success('APK gerado com sucesso!');
@@ -84,7 +89,14 @@ export default function AppBuildSettings() {
 
     const handleDownload = () => {
         if (downloadUrl) {
-            toast.info('Download iniciado...');
+            // Criar link de download e clicar automaticamente
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `app-provedor-${architecture}.apk`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success('Download iniciado!');
         }
     };
 
@@ -161,8 +173,8 @@ export default function AppBuildSettings() {
                     {/* Build Progress */}
                     {buildStatus !== 'idle' && (
                         <div className={`p-4 rounded-lg border ${buildStatus === 'building' ? 'bg-blue-500/10 border-blue-500/30' :
-                                buildStatus === 'success' ? 'bg-green-500/10 border-green-500/30' :
-                                    'bg-red-500/10 border-red-500/30'
+                            buildStatus === 'success' ? 'bg-green-500/10 border-green-500/30' :
+                                'bg-red-500/10 border-red-500/30'
                             }`}>
                             <div className="flex items-center gap-3">
                                 {buildStatus === 'building' && (
@@ -175,8 +187,8 @@ export default function AppBuildSettings() {
                                     <AlertCircle className="h-5 w-5 text-red-500" />
                                 )}
                                 <span className={`font-medium ${buildStatus === 'building' ? 'text-blue-500' :
-                                        buildStatus === 'success' ? 'text-green-500' :
-                                            'text-red-500'
+                                    buildStatus === 'success' ? 'text-green-500' :
+                                        'text-red-500'
                                     }`}>
                                     {buildProgress}
                                 </span>
