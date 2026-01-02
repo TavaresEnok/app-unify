@@ -126,14 +126,6 @@ export default function AppearanceSettings() {
             textColor: '#FFFFFF',
             iconColor: '#00BCD4',
         },
-        layout_07: {
-            themeColor: '#FF6B6B', // Coral
-            secondaryColor: '#FFB66C', // Peach
-            backgroundColor: '#FFF7EE', // Cream
-            cardColor: '#FFFFFF',
-            textColor: '#333333',
-            iconColor: '#2D9CDB', // Blue-Green
-        },
     };
 
 
@@ -191,7 +183,6 @@ export default function AppearanceSettings() {
                                     <SelectItem value="layout_04">Layout 04 - Premium Dark</SelectItem>
                                     <SelectItem value="layout_05">Layout 05 - Cyber Neon</SelectItem>
                                     <SelectItem value="layout_06">Layout 06 - Clean Dark</SelectItem>
-                                    <SelectItem value="layout_07">Layout 07 - Pôr-do-Sol Tropical</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
