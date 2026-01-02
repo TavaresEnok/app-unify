@@ -549,53 +549,61 @@ class _DashboardPageState extends State<DashboardPage>
               ],
             ),
             const SizedBox(height: 20),
-            ...actions.map((a) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      HapticFeedback.lightImpact();
-                      widget.onNavigate(a['route'] as String);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: (a['color'] as Color).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color:
-                                (a['color'] as Color).withValues(alpha: 0.2)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color:
-                                  (a['color'] as Color).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(a['icon'] as IconData,
-                                color: a['color'] as Color, size: 24),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.95,
+              ),
+              itemCount: actions.length,
+              itemBuilder: (context, index) {
+                final a = actions[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    HapticFeedback.lightImpact();
+                    widget.onNavigate(a['route'] as String);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (a['color'] as Color).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                          color: (a['color'] as Color).withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (a['color'] as Color).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              a['label'] as String,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          Icon(Icons.arrow_forward_ios_rounded,
-                              color: Colors.white.withValues(alpha: 0.4),
-                              size: 16),
-                        ],
-                      ),
+                          child: Icon(a['icon'] as IconData,
+                              color: a['color'] as Color, size: 24),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          a['label'] as String,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                )),
+                );
+              },
+            ),
           ],
         ),
       ),
