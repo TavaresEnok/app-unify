@@ -90,9 +90,10 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     final usuario = authState.value;
 
     final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_02';
-    // Layouts with custom bottom navigation (Layout 02, 04, 06 handle their own in dashboard)
-    // Layout 02 now has its own Layout02BottomNav inside dashboard_page.dart
-    final hasBottomNav = layoutType == 'layout_05';
+    // Layouts with custom bottom navigation - Layout 02, 05, 06 handle their own in dashboard_page
+    // Layout 05 now has its own _buildBottomNav inside dashboard_page.dart
+    final hasBottomNav =
+        false; // Nenhum layout usa mais o NeumorphicBottomNav externo
 
     if (authState.isLoading) {
       return const SkeletonDashboardPage();
@@ -207,56 +208,18 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
   PreferredSizeWidget? _buildAppBar(BuildContext context, String layoutType) {
     // Layout 02 agora usa a AppBar padrão do PainelPage, não a header interna.
-    // Layout 05 (Neumorphic) tem AppBar customizada
-    final isNeumorphic = layoutType == 'layout_05';
+    // Layout 05 agora tem seu próprio header interno no dashboard, não precisa mais de AppBar externa
     // Layout 02 usa cores roxas
     final isLayout02 = layoutType == 'layout_02';
 
     final isOnDashboard = _currentPage == 'dashboard';
     final pageName = _pageNames[_currentPage] ?? 'Dashboard';
 
-    if (isNeumorphic) {
-      return AppBar(
-        backgroundColor: Layout03Theme.background,
-        elevation: 0,
-        centerTitle: true,
-        leading: isOnDashboard
-            ? Builder(
-                builder: (context) => IconButton(
-                      icon: const Icon(Icons.menu_rounded,
-                          color: Layout03Theme.textDark),
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                    ))
-            : IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: Layout03Theme.textDark),
-                onPressed: () => setState(() => _currentPage = 'dashboard'),
-              ),
-        title: Text(pageName,
-            style:
-                Layout03Theme.heading2.copyWith(color: Layout03Theme.textDark)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded,
-                color: Layout03Theme.textDark),
-            onPressed: () => setState(() => _currentPage = 'notifications'),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1.0),
-          child: Container(
-            color: Colors.white,
-            height: 1,
-          ),
-        ),
-      );
-    }
-
     // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
-    // Layout 04 e Layout 06 também têm seus próprios headers
-    // Layout 07 (Novo) também tem header customizado
+    // Layout 04, 05, 06, 07 também têm seus próprios headers
     if ((isLayout02 ||
             layoutType == 'layout_04' ||
+            layoutType == 'layout_05' ||
             layoutType == 'layout_06' ||
             layoutType == 'layout_07') &&
         isOnDashboard) {

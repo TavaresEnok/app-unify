@@ -648,28 +648,229 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildQuickActions() {
-    return SizedBox(
-      height: 105,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        physics: const BouncingScrollPhysics(),
+    final actions = [
+      {
+        'label': 'Meu\nRoteador',
+        'icon': Icons.router_rounded,
+        'color': Layout05Theme.secondary,
+        'subtitle': '2 devices',
+        'route': 'wifi'
+      },
+      {
+        'label': 'Upgrade\nPlano',
+        'icon': Icons.rocket_launch_rounded,
+        'color': const Color(0xFFFF7043),
+        'subtitle': 'Até 1Gbps',
+        'route': 'planos'
+      },
+      {
+        'label': '2ª Via\nBoleto',
+        'icon': Icons.receipt_long_rounded,
+        'color': Layout05Theme.primary,
+        'subtitle':
+            'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll(".", ",")}',
+        'route': 'financeiro'
+      },
+      {
+        'label': 'Senha\nWi-Fi',
+        'icon': Icons.wifi_password_rounded,
+        'color': Layout05Theme.success,
+        'subtitle': 'Copiar',
+        'route': 'wifi'
+      },
+      {
+        'label': 'Suporte\n24h',
+        'icon': Icons.headset_mic_rounded,
+        'color': Layout05Theme.warning,
+        'subtitle': 'Online',
+        'route': 'suporte'
+      },
+      {
+        'label': 'Consumo\nDados',
+        'icon': Icons.data_usage_rounded,
+        'color': const Color(0xFF9C27B0),
+        'subtitle': '${widget.usedGb.toStringAsFixed(0)} GB',
+        'route': 'consumo'
+      },
+      {
+        'label': 'Contrato\nDigital',
+        'icon': Icons.description_rounded,
+        'color': const Color(0xFF607D8B),
+        'subtitle': 'Ver PDF',
+        'route': 'contrato'
+      },
+      {
+        'label': 'FAQ\nAjuda',
+        'icon': Icons.help_outline_rounded,
+        'color': const Color(0xFF795548),
+        'subtitle': 'Dúvidas',
+        'route': 'faq'
+      },
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
         children: [
-          _buildActionCard('Meu\nRoteador', Icons.router_rounded,
-              Layout05Theme.secondary, '2 devices', 'wifi'),
-          _buildActionCard('Upgrade\nPlano', Icons.rocket_launch_rounded,
-              const Color(0xFFFF7043), 'Até 1Gbps', 'planos'),
-          _buildActionCard(
-              '2ª Via\nBoleto',
-              Icons.receipt_long_rounded,
-              Layout05Theme.primary,
-              'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll(".", ",")}',
-              'financeiro'),
-          _buildActionCard('Senha\nWi-Fi', Icons.wifi_password_rounded,
-              Layout05Theme.success, 'Copiar', 'wifi'),
-          _buildActionCard('Suporte\n24h', Icons.headset_mic_rounded,
-              Layout05Theme.warning, 'Online', 'suporte'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Ações Rápidas',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _showActionsGrid(context, actions);
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Layout05Theme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Ver mais',
+                          style: TextStyle(
+                              color: Layout05Theme.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold)),
+                      SizedBox(width: 4),
+                      Icon(Icons.grid_view_rounded,
+                          color: Layout05Theme.primary, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 105,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              children: actions
+                  .take(5)
+                  .map((a) => _buildActionCard(
+                        a['label'] as String,
+                        a['icon'] as IconData,
+                        a['color'] as Color,
+                        a['subtitle'] as String,
+                        a['route'] as String,
+                      ))
+                  .toList(),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _showActionsGrid(
+      BuildContext context, List<Map<String, dynamic>> actions) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Layout05Theme.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Todas as Ações',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold)),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.white, size: 20),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.9,
+              ),
+              itemCount: actions.length,
+              itemBuilder: (context, index) {
+                final a = actions[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    HapticFeedback.lightImpact();
+                    widget.onNavigate(a['route'] as String);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (a['color'] as Color).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                          color: (a['color'] as Color).withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(a['icon'] as IconData,
+                            color: a['color'] as Color, size: 28),
+                        const SizedBox(height: 8),
+                        Text(
+                          (a['label'] as String).replaceAll('\n', ' '),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          a['subtitle'] as String,
+                          style: TextStyle(
+                              color:
+                                  (a['color'] as Color).withValues(alpha: 0.8),
+                              fontSize: 10),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
