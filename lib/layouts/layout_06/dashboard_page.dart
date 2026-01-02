@@ -107,7 +107,7 @@ class _DashboardPageState extends State<DashboardPage>
                       const SizedBox(height: 24),
                       _buildServiceStatus(),
                       const SizedBox(height: 24),
-                      _buildDevices(),
+                      _buildPromoBanner(),
                     ],
                   ),
                 ),
@@ -823,7 +823,34 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
-  Widget _buildDevices() {
+  Widget _buildPromoBanner() {
+    final promos = [
+      {
+        'title': '🎄 Feliz Ano Novo!',
+        'subtitle': 'Desejamos um 2026 cheio de conexão e alegria!',
+        'gradient': const [Color(0xFF7C4DFF), Color(0xFF536DFE)],
+        'icon': Icons.celebration_rounded,
+      },
+      {
+        'title': '🚀 Upgrade Disponível',
+        'subtitle': 'Dobre sua velocidade por apenas +R\$ 20/mês',
+        'gradient': const [Color(0xFF00BCD4), Color(0xFF00838F)],
+        'icon': Icons.rocket_launch_rounded,
+      },
+      {
+        'title': '📅 Manutenção Programada',
+        'subtitle': 'Dia 15/01 das 02h às 05h - Melhorias na rede',
+        'gradient': const [Color(0xFFFF7043), Color(0xFFE64A19)],
+        'icon': Icons.build_rounded,
+      },
+      {
+        'title': '🎁 Indique e Ganhe',
+        'subtitle': 'Ganhe 1 mês grátis para cada amigo indicado',
+        'gradient': const [Color(0xFF00E676), Color(0xFF00C853)],
+        'icon': Icons.card_giftcard_rounded,
+      },
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -831,77 +858,124 @@ class _DashboardPageState extends State<DashboardPage>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Dispositivos',
+              'Novidades',
               style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Layout06Theme.success.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                '8 ativos',
-                style: TextStyle(
-                    color: Layout06Theme.success,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold),
-              ),
+            Row(
+              children: List.generate(promos.length, (i) {
+                return AnimatedBuilder(
+                  animation: _waveController,
+                  builder: (context, _) {
+                    final isActive =
+                        ((_waveController.value * promos.length).floor() %
+                                promos.length) ==
+                            i;
+                    return Container(
+                      width: isActive ? 16 : 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? Layout06Theme.primary
+                            : Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    );
+                  },
+                );
+              }),
             ),
           ],
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 95,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 0),
-            children: [
-              _buildDevice('iPhone', Icons.phone_iphone_rounded, '12 MB/s'),
-              _buildDevice('MacBook', Icons.laptop_mac_rounded, '45 MB/s'),
-              _buildDevice('Smart TV', Icons.tv_rounded, '8 MB/s'),
-              _buildDevice('PS5', Icons.gamepad_rounded, '25 MB/s'),
-              _buildDevice('Alexa', Icons.speaker_rounded, '1 MB/s'),
-              _buildDevice('iPad', Icons.tablet_mac_rounded, '5 MB/s'),
-            ],
+          height: 120,
+          child: PageView.builder(
+            itemCount: promos.length,
+            controller: PageController(viewportFraction: 0.92),
+            itemBuilder: (context, index) {
+              final promo = promos[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () => HapticFeedback.lightImpact(),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: promo['gradient'] as List<Color>,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (promo['gradient'] as List<Color>)[0]
+                              .withValues(alpha: 0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            promo['icon'] as IconData,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                promo['title'] as String,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                promo['subtitle'] as String,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 12,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: Colors.white.withValues(alpha: 0.6),
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDevice(String name, IconData icon, String speed) {
-    return Container(
-      width: 85,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Layout06Theme.primary, size: 26),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 11,
-                fontWeight: FontWeight.w500),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(speed,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4), fontSize: 10)),
-        ],
-      ),
     );
   }
 
