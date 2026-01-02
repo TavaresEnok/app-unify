@@ -1419,53 +1419,83 @@ class _SpeedGaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 15;
+    final radius = size.width / 2 - 20;
 
-    // Background arcs
+    // Background circles
     for (int i = 0; i < 3; i++) {
       final r = radius - (i * 12);
       final paint = Paint()
         ..color = Colors.white.withValues(alpha: 0.03 + i * 0.01)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4;
+        ..strokeWidth = 2;
       canvas.drawCircle(center, r, paint);
     }
 
-    // Progress arc
-    final progressPaint = Paint()
-      ..shader = SweepGradient(
-        startAngle: -math.pi / 2,
-        endAngle: math.pi * 1.5,
-        colors: const [Color(0xFF00E5FF), Color(0xFF00E676), Color(0xFF00E5FF)],
-        transform: GradientRotation(animation * 2 * math.pi),
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
+    // Speed markers
+    final markerPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.15)
+      ..strokeWidth = 2;
+    for (int i = 0; i < 12; i++) {
+      final angle = -math.pi / 2 + (2 * math.pi * i / 12);
+      final start = Offset(
+        center.dx + (radius - 5) * math.cos(angle),
+        center.dy + (radius - 5) * math.sin(angle),
+      );
+      final end = Offset(
+        center.dx + (radius - 15) * math.cos(angle),
+        center.dy + (radius - 15) * math.sin(angle),
+      );
+      canvas.drawLine(start, end, markerPaint);
+    }
+
+    // Progress arc (only if progress > 0)
+    if (progress > 0) {
+      final progressPaint = Paint()
+        ..shader = SweepGradient(
+          startAngle: -math.pi / 2,
+          colors: const [
+            Color(0xFF00E5FF),
+            Color(0xFF00E676),
+            Color(0xFF00E5FF)
+          ],
+          transform: GradientRotation(animation * 2 * math.pi),
+        ).createShader(Rect.fromCircle(center: center, radius: radius))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2,
+        2 * math.pi * progress,
+        false,
+        progressPaint,
+      );
+
+      // Glow
+      final glowPaint = Paint()
+        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.25)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2,
+        2 * math.pi * progress,
+        false,
+        glowPaint,
+      );
+    }
+
+    // Outer ring glow (subtle, always visible)
+    final ringGlow = Paint()
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      2 * math.pi * progress,
-      false,
-      progressPaint,
-    );
-
-    // Glow
-    final glowPaint = Paint()
-      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      2 * math.pi * progress,
-      false,
-      glowPaint,
-    );
+      ..strokeWidth = 3
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(center, radius, ringGlow);
   }
 
   @override
