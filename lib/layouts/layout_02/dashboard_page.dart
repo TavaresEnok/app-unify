@@ -126,7 +126,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         currentIndex: 0,
         onTap: (index) {
           // Map index to navigation route
-          final routes = ['home', 'financeiro', 'diagnostico', 'suporte'];
+          final routes = ['home', 'invoices', 'speed_test', 'support'];
           if (index > 0 && index < routes.length) {
             widget.onNavigate(routes[index]);
           }
@@ -136,15 +136,15 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
           BottomNavItem(
               icon: Icons.receipt_long_rounded,
               label: 'Faturas',
-              route: 'financeiro'),
+              route: 'invoices'),
           BottomNavItem(
               icon: Icons.speed_rounded,
               label: 'Velocidade',
-              route: 'diagnostico'),
+              route: 'speed_test'),
           BottomNavItem(
               icon: Icons.support_agent_rounded,
               label: 'Suporte',
-              route: 'suporte'),
+              route: 'support'),
         ],
       ),
     );
@@ -205,7 +205,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         ),
         // Notification bell
         GestureDetector(
-          onTap: () => widget.onNavigate('notification'),
+          onTap: () => widget.onNavigate('notifications'),
           child: Stack(
             children: [
               Container(
@@ -522,7 +522,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             daysText,
             Icons.receipt_long_rounded,
             daysColor,
-            onTap: () => widget.onNavigate('financeiro'),
+            onTap: () => widget.onNavigate('invoices'),
           ),
         ),
         const SizedBox(width: 12),
@@ -532,7 +532,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             'Online',
             Icons.headset_mic_rounded,
             Layout02Theme.purple,
-            onTap: () => widget.onNavigate('suporte'),
+            onTap: () => widget.onNavigate('support'),
           ),
         ),
         const SizedBox(width: 12),
@@ -544,7 +544,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                 : 'Livre',
             Icons.data_usage_rounded,
             Layout02Theme.cyan,
-            onTap: () => widget.onNavigate('consumo'),
+            onTap: () => widget.onNavigate('internet_usage'),
           ),
         ),
       ],
@@ -629,19 +629,19 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         'icon': Icons.route_rounded,
         'label': 'Tracert',
         'colors': [Layout02Theme.purple, Layout02Theme.accent],
-        'route': 'traceroute'
+        'route': 'trace_route'
       },
       {
         'icon': Icons.description_rounded,
         'label': 'Contrato',
         'colors': [Layout02Theme.orange, const Color(0xFFFF6B35)],
-        'route': 'contrato'
+        'route': 'contract'
       },
       {
         'icon': Icons.language_rounded,
         'label': 'Meu IP',
         'colors': [Layout02Theme.cyan, Layout02Theme.primary],
-        'route': 'meu_ip'
+        'route': 'my_ip'
       },
       {
         'icon': Icons.quiz_rounded,
@@ -659,13 +659,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         'icon': Icons.receipt_long_rounded,
         'label': 'Faturas',
         'colors': [Layout02Theme.orange, Layout02Theme.primary],
-        'route': 'financeiro'
+        'route': 'invoices'
       },
       {
         'icon': Icons.support_agent_rounded,
         'label': 'Suporte',
         'colors': [Layout02Theme.green, Layout02Theme.cyan],
-        'route': 'suporte'
+        'route': 'support'
       },
     ];
 

@@ -614,7 +614,7 @@ class _DashboardPageState extends State<DashboardPage>
         'color': Layout05Theme.primary,
         'subtitle':
             'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll(".", ",")}',
-        'route': 'financeiro'
+        'route': 'invoices'
       },
       {
         'label': 'Senha\nWi-Fi',
@@ -628,21 +628,21 @@ class _DashboardPageState extends State<DashboardPage>
         'icon': Icons.headset_mic_rounded,
         'color': Layout05Theme.warning,
         'subtitle': 'Online',
-        'route': 'suporte'
+        'route': 'support'
       },
       {
         'label': 'Consumo\nDados',
         'icon': Icons.data_usage_rounded,
         'color': const Color(0xFF9C27B0),
         'subtitle': '${widget.usedGb.toStringAsFixed(0)} GB',
-        'route': 'consumo'
+        'route': 'internet_usage'
       },
       {
         'label': 'Contrato\nDigital',
         'icon': Icons.description_rounded,
         'color': const Color(0xFF607D8B),
         'subtitle': 'Ver PDF',
-        'route': 'contrato'
+        'route': 'contract'
       },
       {
         'label': 'FAQ\nAjuda',
@@ -1051,19 +1051,19 @@ class _DashboardPageState extends State<DashboardPage>
       {
         'icon': Icons.home_rounded,
         'label': 'Início',
-        'route': 'inicio',
+        'route': 'dashboard',
         'color': Layout05Theme.primary
       },
       {
         'icon': Icons.speed_rounded,
         'label': 'Velocidade',
-        'route': 'diagnostico',
+        'route': 'speed_test',
         'color': Layout05Theme.success
       },
       {
         'icon': Icons.receipt_long_rounded,
         'label': 'Faturas',
-        'route': 'financeiro',
+        'route': 'invoices',
         'color': const Color(0xFFFF7043)
       },
       {
@@ -1075,13 +1075,13 @@ class _DashboardPageState extends State<DashboardPage>
       {
         'icon': Icons.data_usage_rounded,
         'label': 'Consumo',
-        'route': 'consumo',
+        'route': 'internet_usage',
         'color': const Color(0xFF9C27B0)
       },
       {
         'icon': Icons.support_agent_rounded,
         'label': 'Suporte',
-        'route': 'suporte',
+        'route': 'support',
         'color': Layout05Theme.warning
       },
     ];

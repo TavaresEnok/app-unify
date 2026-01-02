@@ -47,37 +47,37 @@ class _DashboardPageState extends State<DashboardPage> {
       'label': 'Velocidade',
       'icon': Icons.speed_rounded,
       'color': Layout03Theme.iconBlue,
-      'route': 'diagnostico'
+      'route': 'speed_test'
     },
     {
       'label': 'Diagnóstico',
       'icon': Icons.healing_rounded,
       'color': Layout03Theme.iconTeal,
-      'route': 'diagnostico'
+      'route': 'network_diagnostic'
     },
     {
       'label': 'Traceroute',
       'icon': Icons.route_rounded,
       'color': Layout03Theme.iconSlate,
-      'route': 'traceroute'
+      'route': 'trace_route'
     },
     {
       'label': 'Contrato',
       'icon': Icons.description_rounded,
       'color': Layout03Theme.iconMauve,
-      'route': 'contrato'
+      'route': 'contract'
     },
     {
       'label': 'Consumo',
       'icon': Icons.pie_chart_rounded,
       'color': Layout03Theme.iconSage,
-      'route': 'consumo'
+      'route': 'internet_usage'
     },
     {
       'label': 'Meu IP',
       'icon': Icons.public_rounded,
       'color': Layout03Theme.iconStorm,
-      'route': 'meu_ip'
+      'route': 'my_ip'
     },
     {
       'label': 'FAQ',
@@ -89,13 +89,13 @@ class _DashboardPageState extends State<DashboardPage> {
       'label': 'Faturas',
       'icon': Icons.receipt_long_rounded,
       'color': Layout03Theme.iconDusk,
-      'route': 'financeiro'
+      'route': 'invoices'
     },
     {
       'label': 'Suporte',
       'icon': Icons.headset_mic_rounded,
       'color': Layout03Theme.iconFog,
-      'route': 'suporte'
+      'route': 'support'
     },
   ];
 
@@ -200,7 +200,7 @@ class _DashboardPageState extends State<DashboardPage> {
         Row(
           children: [
             NeuButton(
-              onTap: () => widget.onNavigate('notificacoes'),
+              onTap: () => widget.onNavigate('notifications'),
               child: const Icon(Icons.notifications_none_rounded,
                   color: Layout03Theme.textMedium, size: 22),
             ),
@@ -618,7 +618,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
             GestureDetector(
-              onTap: () => widget.onNavigate('financeiro'),
+              onTap: () => widget.onNavigate('invoices'),
               child: const Text(
                 'Ver todas',
                 style: TextStyle(
@@ -775,16 +775,16 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildNavbar() {
     final items = [
       {'icon': Icons.home_rounded, 'label': 'Home', 'route': 'home'},
-      {'icon': Icons.speed_rounded, 'label': 'Speed', 'route': 'diagnostico'},
+      {'icon': Icons.speed_rounded, 'label': 'Speed', 'route': 'speed_test'},
       {
         'icon': Icons.receipt_long_rounded,
         'label': 'Faturas',
-        'route': 'financeiro'
+        'route': 'invoices'
       },
       {
         'icon': Icons.headset_mic_rounded,
         'label': 'Suporte',
-        'route': 'suporte'
+        'route': 'support'
       },
     ];
 
@@ -872,35 +872,39 @@ class _DashboardPageState extends State<DashboardPage> {
       {
         'icon': Icons.speed_rounded,
         'label': 'Velocidade',
-        'route': 'diagnostico'
+        'route': 'speed_test'
       },
       {
         'icon': Icons.healing_rounded,
         'label': 'Diagnóstico',
-        'route': 'diagnostico'
+        'route': 'network_diagnostic'
       },
       {
         'icon': Icons.route_rounded,
         'label': 'Traceroute',
-        'route': 'traceroute'
+        'route': 'trace_route'
       },
-      {'icon': Icons.pie_chart_rounded, 'label': 'Consumo', 'route': 'consumo'},
-      {'icon': Icons.public_rounded, 'label': 'Meu IP', 'route': 'meu_ip'},
+      {
+        'icon': Icons.pie_chart_rounded,
+        'label': 'Consumo',
+        'route': 'internet_usage'
+      },
+      {'icon': Icons.public_rounded, 'label': 'Meu IP', 'route': 'my_ip'},
       {
         'icon': Icons.description_rounded,
         'label': 'Contrato',
-        'route': 'contrato'
+        'route': 'contract'
       },
       {
         'icon': Icons.receipt_long_rounded,
         'label': 'Faturas',
-        'route': 'financeiro'
+        'route': 'invoices'
       },
       {'icon': Icons.help_outline_rounded, 'label': 'FAQ', 'route': 'faq'},
       {
         'icon': Icons.headset_mic_rounded,
         'label': 'Suporte',
-        'route': 'suporte'
+        'route': 'support'
       },
     ];
 

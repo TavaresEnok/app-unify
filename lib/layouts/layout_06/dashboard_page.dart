@@ -402,7 +402,7 @@ class _DashboardPageState extends State<DashboardPage>
         'label': '2ª Via',
         'icon': Icons.receipt_long_rounded,
         'color': Layout06Theme.primary,
-        'route': 'financeiro'
+        'route': 'invoices'
       },
       {
         'label': 'Upgrade',
@@ -420,19 +420,19 @@ class _DashboardPageState extends State<DashboardPage>
         'label': 'Suporte',
         'icon': Icons.support_agent_rounded,
         'color': Layout06Theme.warning,
-        'route': 'suporte'
+        'route': 'support'
       },
       {
         'label': 'Consumo',
         'icon': Icons.data_usage_rounded,
         'color': const Color(0xFF9C27B0),
-        'route': 'consumo'
+        'route': 'internet_usage'
       },
       {
         'label': 'Contrato',
         'icon': Icons.description_rounded,
         'color': const Color(0xFF607D8B),
-        'route': 'contrato'
+        'route': 'contract'
       },
       {
         'label': 'FAQ',
@@ -1192,19 +1192,19 @@ class _DashboardPageState extends State<DashboardPage>
       {
         'icon': Icons.home_rounded,
         'label': 'Início',
-        'route': 'inicio',
+        'route': 'dashboard',
         'color': Layout06Theme.primary
       },
       {
         'icon': Icons.speed_rounded,
         'label': 'Velocidade',
-        'route': 'diagnostico',
+        'route': 'speed_test',
         'color': const Color(0xFF00E676)
       },
       {
         'icon': Icons.receipt_long_rounded,
         'label': 'Faturas',
-        'route': 'financeiro',
+        'route': 'invoices',
         'color': const Color(0xFFFF7043)
       },
       {
@@ -1216,7 +1216,7 @@ class _DashboardPageState extends State<DashboardPage>
       {
         'icon': Icons.data_usage_rounded,
         'label': 'Consumo',
-        'route': 'consumo',
+        'route': 'internet_usage',
         'color': const Color(0xFF9C27B0)
       },
       {
@@ -1228,13 +1228,13 @@ class _DashboardPageState extends State<DashboardPage>
       {
         'icon': Icons.description_rounded,
         'label': 'Contrato',
-        'route': 'contrato',
+        'route': 'contract',
         'color': const Color(0xFF607D8B)
       },
       {
         'icon': Icons.support_agent_rounded,
         'label': 'Suporte',
-        'route': 'suporte',
+        'route': 'support',
         'color': Layout06Theme.warning
       },
       {
@@ -1246,7 +1246,7 @@ class _DashboardPageState extends State<DashboardPage>
       {
         'icon': Icons.notifications_rounded,
         'label': 'Notificações',
-        'route': 'notificacoes',
+        'route': 'notifications',
         'color': const Color(0xFFFF5252)
       },
     ];
