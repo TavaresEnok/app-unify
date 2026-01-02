@@ -169,39 +169,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               ),
           ],
         ),
-        bottomNavigationBar: (layoutType == 'layout_07')
-            ? BottomNavigationBar(
-                currentIndex: _getLayout07NavIndex(),
-                onTap: _onLayout07NavTap,
-                selectedItemColor: const Color(0xFF2D9CDB), // Layout07 accent
-                unselectedItemColor: const Color(0xFF666666),
-                backgroundColor: Colors.white,
-                type: BottomNavigationBarType.fixed,
-                showUnselectedLabels: true,
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home_outlined),
-                    activeIcon: Icon(Icons.home),
-                    label: 'Inicio',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.bar_chart_outlined),
-                    activeIcon: Icon(Icons.bar_chart),
-                    label: 'Relatórios',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.apps_outlined),
-                    activeIcon: Icon(Icons.apps),
-                    label: 'Services',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.person_outline),
-                    activeIcon: Icon(Icons.person),
-                    label: 'Conta',
-                  ),
-                ],
-              )
-            : null,
       ),
     );
   }
@@ -216,13 +183,12 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     final pageName = _pageNames[_currentPage] ?? 'Dashboard';
 
     // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
-    // Layout 03, 04, 05, 06, 07 também têm seus próprios headers
+    // Layout 03, 04, 05, 06 também têm seus próprios headers
     if ((isLayout02 ||
             layoutType == 'layout_03' ||
             layoutType == 'layout_04' ||
             layoutType == 'layout_05' ||
-            layoutType == 'layout_06' ||
-            layoutType == 'layout_07') &&
+            layoutType == 'layout_06') &&
         isOnDashboard) {
       return null;
     }
@@ -307,18 +273,11 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   }
 
   int _getBottomNavIndex() {
-    final layoutType =
-        ref.read(configurationProvider).providerConfig?.layoutType ??
-            'layout_02';
-    final isLayout07 = layoutType == 'layout_07';
-
     switch (_currentPage) {
       case 'dashboard':
         return 0;
       case 'wifi':
-        return isLayout07 ? 0 : 1;
-      case 'internet_usage':
-        return isLayout07 ? 1 : 0;
+        return 1;
       case 'invoices':
         return 2;
       case 'support':
@@ -329,21 +288,12 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   }
 
   void _onBottomNavTap(int index) {
-    final layoutType =
-        ref.read(configurationProvider).providerConfig?.layoutType ??
-            'layout_02';
-    final isLayout07 = layoutType == 'layout_07';
-
     switch (index) {
       case 0:
         _navigateToPage('dashboard');
         break;
       case 1:
-        if (isLayout07) {
-          _navigateToPage('internet_usage');
-        } else {
-          _navigateToPage('wifi');
-        }
+        _navigateToPage('wifi');
         break;
       case 2:
         _navigateToPage('invoices');
@@ -353,45 +303,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         break;
       case 4:
         _scaffoldKey.currentState?.openDrawer();
-        break;
-    }
-  }
-
-  // Layout 07 specific navigation (Inicio, Relatórios, Services, Conta)
-  int _getLayout07NavIndex() {
-    switch (_currentPage) {
-      case 'dashboard':
-        return 0;
-      case 'internet_usage':
-      case 'speed_test':
-        return 1; // Relatórios
-      case 'invoices':
-      case 'support':
-      case 'wifi':
-      case 'network_diagnostic':
-        return 2; // Services
-      case 'contract':
-      case 'my_ip':
-      case 'faq':
-        return 3; // Conta
-      default:
-        return 0;
-    }
-  }
-
-  void _onLayout07NavTap(int index) {
-    switch (index) {
-      case 0:
-        _navigateToPage('dashboard');
-        break;
-      case 1:
-        _navigateToPage('internet_usage'); // Relatórios -> consumo
-        break;
-      case 2:
-        _navigateToPage('invoices'); // Services -> faturas como padrão
-        break;
-      case 3:
-        _navigateToPage('contract'); // Conta -> contrato/perfil
         break;
     }
   }

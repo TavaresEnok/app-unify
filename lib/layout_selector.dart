@@ -8,8 +8,6 @@ import 'layouts/layout_04/dashboard_page.dart' as l04;
 import 'layouts/layout_04/pages/speed_test_page.dart' as l04_speed;
 import 'layouts/layout_05/dashboard_page.dart' as l05;
 import 'layouts/layout_06/dashboard_page.dart' as l06;
-import 'layouts/layout_07/dashboard_page.dart' as l07;
-import 'layouts/layout_07/login_page.dart' as l07_login;
 
 // Imports dos Logins (diferentes por layout)
 import 'layouts/layout_02/login_page.dart' as l02_login;
@@ -139,21 +137,6 @@ class LayoutSelector {
           onRefresh: onRefresh,
         );
 
-      case 'layout_07':
-        return l07.ProviderDashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          onRefresh: onRefresh,
-        );
-
       default:
         // Default to Layout 02 if unknown
         return l02.ProviderDashboardPage(
@@ -190,8 +173,6 @@ class LayoutSelector {
         return const l05_login.LoginPage();
       case 'layout_06':
         return const l06_login.LoginPage();
-      case 'layout_07':
-        return const l07_login.LoginPage();
 
       default:
         return const l02_login.LoginPage();
@@ -268,8 +249,7 @@ class LayoutSelector {
         return const l03_wifi.WifiPage();
       case 'layout_06':
         return const l03_wifi.WifiPage();
-      case 'layout_07':
-        return const l03_wifi.WifiPage();
+
       default:
         return const l03_wifi.WifiPage();
     }
@@ -301,11 +281,6 @@ class LayoutSelector {
       'id': 'layout_06',
       'name': 'Clean Dark',
       'description': 'Elegante escuro com gráfico de uso e design limpo'
-    },
-    {
-      'id': 'layout_07',
-      'name': 'Pôr-do-Sol Tropical',
-      'description': 'Tema quente e amigável com gradientes suaves'
     },
   ];
 }
