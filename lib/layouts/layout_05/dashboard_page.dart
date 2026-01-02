@@ -108,26 +108,21 @@ class _DashboardPageState extends State<DashboardPage>
                       child: _buildHeroCard(isOnline),
                     ),
                     const SizedBox(height: 20),
+                    _buildQuickActions(),
+                    const SizedBox(height: 24),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildLiveStats(),
+                      child: _buildPromoBanner(),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildSpeedTestCard(),
                     ),
                     const SizedBox(height: 24),
-                    _buildQuickActions(),
-                    const SizedBox(height: 24),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildNetworkMap(),
-                    ),
-                    const SizedBox(height: 24),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildPromoBanner(),
                     ),
                     const SizedBox(height: 100),
                   ],
@@ -462,51 +457,6 @@ class _DashboardPageState extends State<DashboardPage>
           ),
         );
       },
-    );
-  }
-
-  Widget _buildLiveStats() {
-    return Row(
-      children: [
-        Expanded(
-            child: _buildStatCard('Download', '—', Icons.arrow_downward_rounded,
-                Colors.white.withValues(alpha: 0.3))),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _buildStatCard('Upload', '—', Icons.arrow_upward_rounded,
-                Colors.white.withValues(alpha: 0.3))),
-        const SizedBox(width: 12),
-        Expanded(
-            child: _buildStatCard('Ping', '—', Icons.network_ping_rounded,
-                Colors.white.withValues(alpha: 0.3))),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-      String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 8),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5), fontSize: 10)),
-        ],
-      ),
     );
   }
 
