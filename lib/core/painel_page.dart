@@ -216,8 +216,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     final pageName = _pageNames[_currentPage] ?? 'Dashboard';
 
     // Layout 02 agora faz seu próprio header no Dashboard, então escondemos a AppBar principal
-    // Layout 04, 05, 06, 07 também têm seus próprios headers
+    // Layout 03, 04, 05, 06, 07 também têm seus próprios headers
     if ((isLayout02 ||
+            layoutType == 'layout_03' ||
             layoutType == 'layout_04' ||
             layoutType == 'layout_05' ||
             layoutType == 'layout_06' ||

@@ -655,21 +655,62 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         'colors': [Layout02Theme.secondary, Layout02Theme.green],
         'route': 'wifi'
       },
+      {
+        'icon': Icons.receipt_long_rounded,
+        'label': 'Faturas',
+        'colors': [Layout02Theme.orange, Layout02Theme.primary],
+        'route': 'financeiro'
+      },
+      {
+        'icon': Icons.support_agent_rounded,
+        'label': 'Suporte',
+        'colors': [Layout02Theme.green, Layout02Theme.cyan],
+        'route': 'suporte'
+      },
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4),
-          child: Text(
-            'Ações Rápidas',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Layout02Theme.textDark,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Text(
+                'Ações Rápidas',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Layout02Theme.textDark,
+                ),
+              ),
             ),
-          ),
+            GestureDetector(
+              onTap: () => _showActionsGrid(context, actions),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Layout02Theme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Ver mais',
+                        style: TextStyle(
+                            color: Layout02Theme.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 4),
+                    Icon(Icons.grid_view_rounded,
+                        color: Layout02Theme.primary, size: 14),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -677,7 +718,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: actions.length,
+            itemCount: 5, // Mostrar apenas 5 no slider
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final action = actions[index];
@@ -691,6 +732,113 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
           ),
         ),
       ],
+    );
+  }
+
+  void _showActionsGrid(
+      BuildContext context, List<Map<String, dynamic>> actions) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Todas as Ações',
+                    style: TextStyle(
+                        color: Layout02Theme.textDark,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold)),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.grey, size: 20),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.95,
+              ),
+              itemCount: actions.length,
+              itemBuilder: (context, index) {
+                final a = actions[index];
+                final colors = a['colors'] as List<Color>;
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onNavigate(a['route'] as String);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                        colors[0].withValues(alpha: 0.15),
+                        colors[1].withValues(alpha: 0.08)
+                      ]),
+                      borderRadius: BorderRadius.circular(18),
+                      border:
+                          Border.all(color: colors[0].withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: colors),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(a['icon'] as IconData,
+                              color: Colors.white, size: 22),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          a['label'] as String,
+                          style: const TextStyle(
+                              color: Layout02Theme.textDark,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
