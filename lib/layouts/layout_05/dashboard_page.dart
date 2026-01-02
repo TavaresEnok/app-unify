@@ -310,40 +310,45 @@ class _DashboardPageState extends State<DashboardPage>
             children: [
               Row(
                 children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ...List.generate(3, (i) {
-                        final delay = i * 0.3;
-                        final progress =
-                            ((_dataFlowController.value + delay) % 1.0);
-                        return Container(
-                          width: 55 + (progress * 25),
-                          height: 55 + (progress * 25),
+                  SizedBox(
+                    width: 70,
+                    height: 70,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        ...List.generate(3, (i) {
+                          final delay = i * 0.3;
+                          final progress =
+                              ((_dataFlowController.value + delay) % 1.0);
+                          return Opacity(
+                            opacity: (1 - progress) * 0.4,
+                            child: Container(
+                              width: 50 + (progress * 18),
+                              height: 50 + (progress * 18),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Layout05Theme.primary, width: 1.5),
+                              ),
+                            ),
+                          );
+                        }),
+                        Container(
+                          width: 52,
+                          height: 52,
                           decoration: BoxDecoration(
+                            gradient: Layout05Theme.primaryGradient,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                                color: Layout05Theme.primary
-                                    .withValues(alpha: (1 - progress) * 0.3),
-                                width: 1.5),
+                            boxShadow:
+                                Layout05Theme.glowShadow(Layout05Theme.primary),
                           ),
-                        );
-                      }),
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          gradient: Layout05Theme.primaryGradient,
-                          shape: BoxShape.circle,
-                          boxShadow:
-                              Layout05Theme.glowShadow(Layout05Theme.primary),
+                          child: const Icon(Icons.wifi_rounded,
+                              color: Colors.white, size: 26),
                         ),
-                        child: const Icon(Icons.wifi_rounded,
-                            color: Colors.white, size: 30),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
