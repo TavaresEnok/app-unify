@@ -226,40 +226,39 @@ class _DashboardPageState extends State<DashboardPage>
             children: [
               Row(
                 children: [
-                  Text(
-                    widget.customerName.split(' ').first,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5),
+                  Flexible(
+                    child: Text(
+                      widget.customerName.split(' ').first,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       gradient: Layout05Theme.accentGradient,
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Layout05Theme.accent.withValues(alpha: 0.3),
-                            blurRadius: 8)
-                      ],
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text('ULTRA',
                         style: TextStyle(
                             color: Colors.black,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1)),
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
+              const SizedBox(height: 2),
               Text(
                 'Fibra Óptica • ${widget.planName}',
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                    color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
