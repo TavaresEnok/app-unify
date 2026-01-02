@@ -1,5 +1,5 @@
-// Layout 05 Dashboard - Cyber Neon Theme (Versão Completa)
-// Design futurista com animações e todos os elementos premium
+// Layout 05 Dashboard - Cyber Neon Theme
+// Design futurista com Speed Test Gauge, Network Map, e animações
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,6 +47,7 @@ class _DashboardPageState extends State<DashboardPage>
   late AnimationController _pulseController;
   late AnimationController _waveController;
   late AnimationController _dataFlowController;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -78,7 +79,9 @@ class _DashboardPageState extends State<DashboardPage>
     final isOnline = widget.connectionStatus.toLowerCase() == 'online';
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Layout05Theme.background,
+      drawer: _buildDrawer(),
       body: Stack(
         children: [
           _buildAnimatedBackground(),
@@ -93,25 +96,41 @@ class _DashboardPageState extends State<DashboardPage>
               color: Layout05Theme.primary,
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                  child: Column(
-                    children: [
-                      _buildHeader(),
-                      const SizedBox(height: 16),
-                      _buildHeroCard(isOnline),
-                      const SizedBox(height: 24),
-                      _buildQuickActions(),
-                      const SizedBox(height: 24),
-                      _buildPlanCard(),
-                      const SizedBox(height: 24),
-                      _buildLiveStats(),
-                      const SizedBox(height: 24),
-                      _buildServiceStatus(),
-                      const SizedBox(height: 24),
-                      _buildDevices(),
-                    ],
-                  ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                      child: _buildHeader(),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildHeroCard(isOnline),
+                    ),
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildLiveStats(),
+                    ),
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildSpeedTestCard(),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildQuickActions(),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildNetworkMap(),
+                    ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildPromoBanner(),
+                    ),
+                    const SizedBox(height: 100),
+                  ],
                 ),
               ),
             ),
@@ -176,28 +195,34 @@ class _DashboardPageState extends State<DashboardPage>
   Widget _buildHeader() {
     return Row(
       children: [
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, _) {
-            return Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                gradient: Layout05Theme.primaryGradient,
-                boxShadow: [
-                  BoxShadow(
-                    color: Layout05Theme.primary
-                        .withValues(alpha: 0.3 + _pulseController.value * 0.15),
-                    blurRadius: 15,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child:
-                  const Icon(Icons.bolt_rounded, color: Colors.white, size: 28),
-            );
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _scaffoldKey.currentState?.openDrawer();
           },
+          child: AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, _) {
+              return Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  gradient: Layout05Theme.primaryGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Layout05Theme.primary.withValues(
+                          alpha: 0.3 + _pulseController.value * 0.15),
+                      blurRadius: 15,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.menu_rounded,
+                    color: Colors.white, size: 26),
+              );
+            },
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -440,229 +465,20 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
-  Widget _buildQuickActions() {
-    return SizedBox(
-      height: 100,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _buildAction('Roteador', Icons.router_rounded,
-              Layout05Theme.secondary, 'wifi'),
-          _buildAction('2ª Via', Icons.receipt_long_rounded,
-              Layout05Theme.primary, 'financeiro'),
-          _buildAction('Upgrade', Icons.rocket_launch_rounded,
-              const Color(0xFFFF7043), 'planos'),
-          _buildAction('Wi-Fi', Icons.wifi_password_rounded,
-              Layout05Theme.success, 'wifi'),
-          _buildAction('Suporte', Icons.support_agent_rounded,
-              Layout05Theme.warning, 'suporte'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAction(String label, IconData icon, Color color, String route) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          widget.onNavigate(route);
-        },
-        child: Column(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: color.withValues(alpha: 0.2)),
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(height: 8),
-            Text(label,
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlanCard() {
-    final formattedDate =
-        '${widget.billDueDate.day.toString().padLeft(2, '0')}/${widget.billDueDate.month.toString().padLeft(2, '0')}/${widget.billDueDate.year}';
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF7C4DFF), Color(0xFF536DFE)],
-        ),
-        boxShadow: [
-          BoxShadow(
-              color: const Color(0xFF7C4DFF).withValues(alpha: 0.35),
-              blurRadius: 25,
-              offset: const Offset(0, 12))
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Seu Plano',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 13)),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(widget.planName.split(' ').first,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.planName.split(' ').length > 1
-                            ? widget.planName.split(' ').sublist(1).join(' ')
-                            : '',
-                        style: const TextStyle(
-                            color: Color(0xFFFFD740),
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.verified_rounded, color: Colors.white, size: 16),
-                    SizedBox(width: 4),
-                    Text('Ativo',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildPlanBadge('${widget.downloadMbps.toStringAsFixed(0)} Mbps',
-                  Icons.speed_rounded),
-              _buildPlanBadge('${widget.totalGb.toStringAsFixed(0)} GB',
-                  Icons.data_usage_rounded),
-              _buildPlanBadge('Wi-Fi 6', Icons.wifi_rounded),
-              _buildPlanBadge('IP Fixo', Icons.language_rounded),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Próxima Fatura',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Text(
-                        'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
-                    Text('Vencimento: $formattedDate',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 11)),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    widget.onNavigate('financeiro');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 14),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14)),
-                    child: const Text('Pagar',
-                        style: TextStyle(
-                            color: Color(0xFF7C4DFF),
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlanBadge(String label, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white.withValues(alpha: 0.85), size: 22),
-        const SizedBox(height: 6),
-        Text(label,
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 11,
-                fontWeight: FontWeight.w500)),
-      ],
-    );
-  }
-
   Widget _buildLiveStats() {
     return Row(
       children: [
         Expanded(
             child: _buildStatCard(
                 'Download',
-                '${widget.downloadMbps.toStringAsFixed(0)} Mbps',
+                '${widget.downloadMbps.toStringAsFixed(1)} Mbps',
                 Icons.arrow_downward_rounded,
                 Layout05Theme.primary)),
         const SizedBox(width: 12),
         Expanded(
             child: _buildStatCard(
                 'Upload',
-                '${widget.uploadMbps.toStringAsFixed(0)} Mbps',
+                '${widget.uploadMbps.toStringAsFixed(1)} Mbps',
                 Icons.arrow_upward_rounded,
                 Layout05Theme.success)),
         const SizedBox(width: 12),
@@ -700,76 +516,211 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
-  Widget _buildServiceStatus() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Status dos Serviços',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-        const SizedBox(height: 16),
-        Row(
+  Widget _buildSpeedTestCard() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.heavyImpact();
+        widget.onNavigate('diagnostico');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: const LinearGradient(
+              colors: [Color(0xFF0D1117), Color(0xFF161B22)]),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+        child: Column(
           children: [
-            Expanded(
-                child: _buildStatusCard('Internet', 'Operacional',
-                    Icons.public_rounded, Layout05Theme.success, true)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: _buildStatusCard('TV', 'Operacional', Icons.tv_rounded,
-                    Layout05Theme.success, true)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: _buildStatusCard('Telefone', 'Manutenção',
-                    Icons.phone_rounded, Layout05Theme.warning, false)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Speed Test',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold)),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      Layout05Theme.success.withValues(alpha: 0.2),
+                      Layout05Theme.success.withValues(alpha: 0.1)
+                    ]),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: Layout05Theme.success.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified_rounded,
+                          color: Layout05Theme.success, size: 14),
+                      SizedBox(width: 4),
+                      Text('Excelente',
+                          style: TextStyle(
+                              color: Layout05Theme.success,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            AnimatedBuilder(
+              animation: _waveController,
+              builder: (context, _) {
+                return SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: CustomPaint(
+                    painter: _SpeedGaugePainter(0.9, _waveController.value),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.downloadMbps.toStringAsFixed(1),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold,
+                                height: 1),
+                          ),
+                          Text('Mbps',
+                              style: TextStyle(
+                                  color: Layout05Theme.primary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                    child: _buildTestResult(
+                        'Ping', '3 ms', Layout05Theme.warning)),
+                Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.white.withValues(alpha: 0.08)),
+                Expanded(
+                    child: _buildTestResult(
+                        'Download',
+                        '${widget.downloadMbps.toStringAsFixed(1)} Mbps',
+                        Layout05Theme.primary)),
+                Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.white.withValues(alpha: 0.08)),
+                Expanded(
+                    child: _buildTestResult(
+                        'Upload',
+                        '${widget.uploadMbps.toStringAsFixed(1)} Mbps',
+                        Layout05Theme.success)),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTestResult(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value,
+            style: TextStyle(
+                color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
       ],
     );
   }
 
-  Widget _buildStatusCard(
-      String title, String status, IconData icon, Color color, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
+  Widget _buildQuickActions() {
+    return SizedBox(
+      height: 105,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 10),
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6)),
-            child: Text(status,
-                style: TextStyle(
-                    color: color, fontSize: 9, fontWeight: FontWeight.bold)),
-          ),
+          _buildActionCard('Meu\nRoteador', Icons.router_rounded,
+              Layout05Theme.secondary, '2 devices', 'wifi'),
+          _buildActionCard('Upgrade\nPlano', Icons.rocket_launch_rounded,
+              const Color(0xFFFF7043), 'Até 1Gbps', 'planos'),
+          _buildActionCard(
+              '2ª Via\nBoleto',
+              Icons.receipt_long_rounded,
+              Layout05Theme.primary,
+              'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll(".", ",")}',
+              'financeiro'),
+          _buildActionCard('Senha\nWi-Fi', Icons.wifi_password_rounded,
+              Layout05Theme.success, 'Copiar', 'wifi'),
+          _buildActionCard('Suporte\n24h', Icons.headset_mic_rounded,
+              Layout05Theme.warning, 'Online', 'suporte'),
         ],
       ),
     );
   }
 
-  Widget _buildDevices() {
+  Widget _buildActionCard(
+      String label, IconData icon, Color color, String subtitle, String route) {
+    return Container(
+      width: 100,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          widget.onNavigate(route);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 26),
+              const Spacer(),
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      height: 1.2)),
+              const SizedBox(height: 4),
+              Text(subtitle,
+                  style: TextStyle(
+                      color: color.withValues(alpha: 0.8), fontSize: 10)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNetworkMap() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Dispositivos',
+            const Text('Mapa da Rede',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -777,61 +728,349 @@ class _DashboardPageState extends State<DashboardPage>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                  color: Layout05Theme.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8)),
-              child: const Text('8 ativos',
-                  style: TextStyle(
-                      color: Layout05Theme.success,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
+                color: Layout05Theme.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle,
+                      color: Layout05Theme.success, size: 12),
+                  SizedBox(width: 4),
+                  Text('Tudo OK',
+                      style: TextStyle(
+                          color: Layout05Theme.success,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 95,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildDevice('iPhone', Icons.phone_iphone_rounded, '12 MB/s'),
-              _buildDevice('MacBook', Icons.laptop_mac_rounded, '45 MB/s'),
-              _buildDevice('Smart TV', Icons.tv_rounded, '8 MB/s'),
-              _buildDevice('PS5', Icons.gamepad_rounded, '25 MB/s'),
-              _buildDevice('Alexa', Icons.speaker_rounded, '1 MB/s'),
-              _buildDevice('iPad', Icons.tablet_mac_rounded, '5 MB/s'),
-            ],
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: AnimatedBuilder(
+            animation: _dataFlowController,
+            builder: (context, _) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNetworkNode('Internet', Icons.public_rounded,
+                      Layout05Theme.primary, true),
+                  _buildNetworkLine(),
+                  _buildNetworkNode('Roteador', Icons.router_rounded,
+                      Layout05Theme.secondary, true),
+                  _buildNetworkLine(),
+                  _buildNetworkNode('Você', Icons.phone_iphone_rounded,
+                      Layout05Theme.success, true),
+                ],
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDevice(String name, IconData icon, String speed) {
-    return Container(
-      width: 85,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+  Widget _buildNetworkNode(
+      String label, IconData icon, Color color, bool isActive) {
+    return Column(
+      children: [
+        AnimatedBuilder(
+          animation: _pulseController,
+          builder: (context, _) {
+            return Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.15),
+                border: Border.all(
+                    color: color.withValues(
+                        alpha: 0.3 + _pulseController.value * 0.2),
+                    width: 2),
+                boxShadow: [
+                  BoxShadow(color: color.withValues(alpha: 0.2), blurRadius: 15)
+                ],
+              ),
+              child: Icon(icon, color: color, size: 26),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        Text(label,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildNetworkLine() {
+    return AnimatedBuilder(
+      animation: _dataFlowController,
+      builder: (context, _) {
+        return SizedBox(
+          width: 50,
+          height: 3,
+          child: CustomPaint(
+              painter: _DataFlowPainter(
+                  _dataFlowController.value, Layout05Theme.primary)),
+        );
+      },
+    );
+  }
+
+  Widget _buildPromoBanner() {
+    final promos = [
+      {
+        'title': '🚀 Upgrade Disponível',
+        'subtitle': 'Dobre sua velocidade por +R\$ 20/mês',
+        'gradient': const [Color(0xFF7C4DFF), Color(0xFF536DFE)]
+      },
+      {
+        'title': '🎁 Indique e Ganhe',
+        'subtitle': '1 mês grátis para cada amigo',
+        'gradient': [Layout05Theme.success, const Color(0xFF00C853)]
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Promoções',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 100,
+          child: PageView.builder(
+            itemCount: promos.length,
+            controller: PageController(viewportFraction: 0.95),
+            itemBuilder: (context, index) {
+              final promo = promos[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                        colors: promo['gradient'] as List<Color>),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(promo['title'] as String,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(promo['subtitle'] as String,
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          color: Colors.white.withValues(alpha: 0.6), size: 18),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrawer() {
+    final menuItems = [
+      {
+        'icon': Icons.home_rounded,
+        'label': 'Início',
+        'route': 'inicio',
+        'color': Layout05Theme.primary
+      },
+      {
+        'icon': Icons.speed_rounded,
+        'label': 'Velocidade',
+        'route': 'diagnostico',
+        'color': Layout05Theme.success
+      },
+      {
+        'icon': Icons.receipt_long_rounded,
+        'label': 'Faturas',
+        'route': 'financeiro',
+        'color': const Color(0xFFFF7043)
+      },
+      {
+        'icon': Icons.router_rounded,
+        'label': 'Wi-Fi / Roteador',
+        'route': 'wifi',
+        'color': Layout05Theme.secondary
+      },
+      {
+        'icon': Icons.data_usage_rounded,
+        'label': 'Consumo',
+        'route': 'consumo',
+        'color': const Color(0xFF9C27B0)
+      },
+      {
+        'icon': Icons.support_agent_rounded,
+        'label': 'Suporte',
+        'route': 'suporte',
+        'color': Layout05Theme.warning
+      },
+    ];
+
+    return Drawer(
+      backgroundColor: Layout05Theme.surface,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration:
+                  const BoxDecoration(gradient: Layout05Theme.primaryGradient),
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle),
+                    child: const Icon(Icons.person_rounded,
+                        color: Colors.white, size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.customerName,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4)),
+                          child: Text(widget.planName,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                children:
+                    menuItems.map((item) => _buildDrawerItem(item)).toList(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onNavigate('logout');
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Layout05Theme.error.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: Layout05Theme.error.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.logout_rounded,
+                          color: Layout05Theme.error, size: 20),
+                      SizedBox(width: 8),
+                      Text('Sair',
+                          style: TextStyle(
+                              color: Layout05Theme.error,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Layout05Theme.primary, size: 26),
-          const SizedBox(height: 8),
-          Text(name,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
-          Text(speed,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4), fontSize: 10)),
-        ],
+    );
+  }
+
+  Widget _buildDrawerItem(Map<String, dynamic> item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.pop(context);
+          widget.onNavigate(item['route'] as String);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: (item['color'] as Color).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: (item['color'] as Color).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Icon(item['icon'] as IconData,
+                    color: item['color'] as Color, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                  child: Text(item['label'] as String,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500))),
+              Icon(Icons.chevron_right_rounded,
+                  color: Colors.white.withValues(alpha: 0.3), size: 22),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -973,4 +1212,95 @@ class _GridPatternPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GridPatternPainter oldDelegate) =>
       oldDelegate.animation != animation;
+}
+
+class _SpeedGaugePainter extends CustomPainter {
+  final double progress;
+  final double animation;
+  _SpeedGaugePainter(this.progress, this.animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 15;
+
+    // Background arcs
+    for (int i = 0; i < 3; i++) {
+      final r = radius - (i * 12);
+      final paint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.03 + i * 0.01)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4;
+      canvas.drawCircle(center, r, paint);
+    }
+
+    // Progress arc
+    final progressPaint = Paint()
+      ..shader = SweepGradient(
+        startAngle: -math.pi / 2,
+        endAngle: math.pi * 1.5,
+        colors: const [Color(0xFF00E5FF), Color(0xFF00E676), Color(0xFF00E5FF)],
+        transform: GradientRotation(animation * 2 * math.pi),
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      progressPaint,
+    );
+
+    // Glow
+    final glowPaint = Paint()
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      glowPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpeedGaugePainter oldDelegate) =>
+      progress != oldDelegate.progress || animation != oldDelegate.animation;
+}
+
+class _DataFlowPainter extends CustomPainter {
+  final double animation;
+  final Color color;
+  _DataFlowPainter(this.animation, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.3)
+      ..strokeWidth = size.height
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+        Offset(0, size.height / 2), Offset(size.width, size.height / 2), paint);
+
+    // Animated dot
+    final dotPaint = Paint()
+      ..color = color
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+
+    final dotX = animation * size.width;
+    canvas.drawCircle(Offset(dotX, size.height / 2), 4, dotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DataFlowPainter oldDelegate) =>
+      animation != oldDelegate.animation;
 }
