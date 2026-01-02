@@ -469,22 +469,16 @@ class _DashboardPageState extends State<DashboardPage>
     return Row(
       children: [
         Expanded(
-            child: _buildStatCard(
-                'Download',
-                '${widget.downloadMbps.toStringAsFixed(1)} Mbps',
-                Icons.arrow_downward_rounded,
-                Layout05Theme.primary)),
+            child: _buildStatCard('Download', '—', Icons.arrow_downward_rounded,
+                Colors.white.withValues(alpha: 0.3))),
         const SizedBox(width: 12),
         Expanded(
-            child: _buildStatCard(
-                'Upload',
-                '${widget.uploadMbps.toStringAsFixed(1)} Mbps',
-                Icons.arrow_upward_rounded,
-                Layout05Theme.success)),
+            child: _buildStatCard('Upload', '—', Icons.arrow_upward_rounded,
+                Colors.white.withValues(alpha: 0.3))),
         const SizedBox(width: 12),
         Expanded(
-            child: _buildStatCard('Ping', '3 ms', Icons.network_ping_rounded,
-                Layout05Theme.warning)),
+            child: _buildStatCard('Ping', '—', Icons.network_ping_rounded,
+                Colors.white.withValues(alpha: 0.3))),
       ],
     );
   }
@@ -544,25 +538,20 @@ class _DashboardPageState extends State<DashboardPage>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [
-                      Layout05Theme.success.withValues(alpha: 0.2),
-                      Layout05Theme.success.withValues(alpha: 0.1)
-                    ]),
+                    color: Colors.white.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: Layout05Theme.success.withValues(alpha: 0.3)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.verified_rounded,
-                          color: Layout05Theme.success, size: 14),
-                      SizedBox(width: 4),
-                      Text('Excelente',
+                      Icon(Icons.info_outline_rounded,
+                          color: Colors.white.withValues(alpha: 0.5), size: 14),
+                      const SizedBox(width: 4),
+                      Text('Não testado',
                           style: TextStyle(
-                              color: Layout05Theme.success,
+                              color: Colors.white.withValues(alpha: 0.5),
                               fontSize: 11,
-                              fontWeight: FontWeight.bold)),
+                              fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
@@ -576,55 +565,62 @@ class _DashboardPageState extends State<DashboardPage>
                   width: 200,
                   height: 200,
                   child: CustomPaint(
-                    painter: _SpeedGaugePainter(0.9, _waveController.value),
+                    painter: _SpeedGaugePainter(0.0, _waveController.value),
                     child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            widget.downloadMbps.toStringAsFixed(1),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 48,
-                                fontWeight: FontWeight.bold,
-                                height: 1),
-                          ),
-                          Text('Mbps',
-                              style: TextStyle(
-                                  color: Layout05Theme.primary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500)),
-                        ],
+                      child: Container(
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: Layout05Theme.primaryGradient,
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  Layout05Theme.primary.withValues(alpha: 0.4),
+                              blurRadius: 25,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 50,
+                        ),
                       ),
                     ),
                   ),
                 );
               },
             ),
+            const SizedBox(height: 16),
+            Text(
+              'Toque para iniciar',
+              style: TextStyle(
+                color: Layout05Theme.primary.withValues(alpha: 0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
                     child: _buildTestResult(
-                        'Ping', '3 ms', Layout05Theme.warning)),
+                        'Ping', '—', Colors.white.withValues(alpha: 0.3))),
                 Container(
                     width: 1,
                     height: 40,
                     color: Colors.white.withValues(alpha: 0.08)),
                 Expanded(
                     child: _buildTestResult(
-                        'Download',
-                        '${widget.downloadMbps.toStringAsFixed(1)} Mbps',
-                        Layout05Theme.primary)),
+                        'Download', '—', Colors.white.withValues(alpha: 0.3))),
                 Container(
                     width: 1,
                     height: 40,
                     color: Colors.white.withValues(alpha: 0.08)),
                 Expanded(
                     child: _buildTestResult(
-                        'Upload',
-                        '${widget.uploadMbps.toStringAsFixed(1)} Mbps',
-                        Layout05Theme.success)),
+                        'Upload', '—', Colors.white.withValues(alpha: 0.3))),
               ],
             ),
           ],
