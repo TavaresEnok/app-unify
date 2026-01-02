@@ -651,6 +651,34 @@ class _DashboardPageState extends State<DashboardPage>
         'subtitle': 'Dúvidas',
         'route': 'faq'
       },
+      {
+        'label': 'Diagnóstico\nRede',
+        'icon': Icons.healing_rounded,
+        'color': const Color(0xFF00ACC1),
+        'subtitle': 'Testar',
+        'route': 'network_diagnostic'
+      },
+      {
+        'label': 'Traceroute\nRota',
+        'icon': Icons.route_rounded,
+        'color': const Color(0xFF5C6BC0),
+        'subtitle': 'Mapear',
+        'route': 'trace_route'
+      },
+      {
+        'label': 'Meu IP\nPúblico',
+        'icon': Icons.public_rounded,
+        'color': const Color(0xFF26A69A),
+        'subtitle': 'Ver',
+        'route': 'my_ip'
+      },
+      {
+        'label': 'Alertas\nAvisos',
+        'icon': Icons.notifications_rounded,
+        'color': const Color(0xFFEF5350),
+        'subtitle': 'Novos',
+        'route': 'notifications'
+      },
     ];
 
     return Padding(
@@ -1083,6 +1111,42 @@ class _DashboardPageState extends State<DashboardPage>
         'label': 'Suporte',
         'route': 'support',
         'color': Layout05Theme.warning
+      },
+      {
+        'icon': Icons.healing_rounded,
+        'label': 'Diagnóstico',
+        'route': 'network_diagnostic',
+        'color': const Color(0xFF00ACC1)
+      },
+      {
+        'icon': Icons.route_rounded,
+        'label': 'Traceroute',
+        'route': 'trace_route',
+        'color': const Color(0xFF5C6BC0)
+      },
+      {
+        'icon': Icons.public_rounded,
+        'label': 'Meu IP',
+        'route': 'my_ip',
+        'color': const Color(0xFF26A69A)
+      },
+      {
+        'icon': Icons.description_rounded,
+        'label': 'Contrato',
+        'route': 'contract',
+        'color': const Color(0xFF607D8B)
+      },
+      {
+        'icon': Icons.help_outline_rounded,
+        'label': 'FAQ',
+        'route': 'faq',
+        'color': const Color(0xFF795548)
+      },
+      {
+        'icon': Icons.notifications_rounded,
+        'label': 'Notificações',
+        'route': 'notifications',
+        'color': const Color(0xFFEF5350)
       },
     ];
 

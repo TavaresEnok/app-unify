@@ -440,6 +440,24 @@ class _DashboardPageState extends State<DashboardPage>
         'color': const Color(0xFF795548),
         'route': 'faq'
       },
+      {
+        'label': 'Diagnóstico',
+        'icon': Icons.healing_rounded,
+        'color': const Color(0xFF00ACC1),
+        'route': 'network_diagnostic'
+      },
+      {
+        'label': 'Traceroute',
+        'icon': Icons.route_rounded,
+        'color': const Color(0xFF5C6BC0),
+        'route': 'trace_route'
+      },
+      {
+        'label': 'Meu IP',
+        'icon': Icons.public_rounded,
+        'color': const Color(0xFF26A69A),
+        'route': 'my_ip'
+      },
     ];
 
     return Column(
@@ -1218,6 +1236,24 @@ class _DashboardPageState extends State<DashboardPage>
         'label': 'Consumo',
         'route': 'internet_usage',
         'color': const Color(0xFF9C27B0)
+      },
+      {
+        'icon': Icons.healing_rounded,
+        'label': 'Diagnóstico',
+        'route': 'network_diagnostic',
+        'color': const Color(0xFF00ACC1)
+      },
+      {
+        'icon': Icons.route_rounded,
+        'label': 'Traceroute',
+        'route': 'trace_route',
+        'color': const Color(0xFF5C6BC0)
+      },
+      {
+        'icon': Icons.public_rounded,
+        'label': 'Meu IP',
+        'route': 'my_ip',
+        'color': const Color(0xFF26A69A)
       },
       {
         'icon': Icons.rocket_launch_rounded,
