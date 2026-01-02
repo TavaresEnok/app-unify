@@ -617,13 +617,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         'icon': Icons.speed_rounded,
         'label': 'Velocidade',
         'colors': [Layout02Theme.primary, Layout02Theme.secondary],
-        'route': 'diagnostico'
+        'route': 'speed_test'
       },
       {
         'icon': Icons.network_check_rounded,
         'label': 'Diagnóstico',
         'colors': [Layout02Theme.green, Layout02Theme.cyan],
-        'route': 'diagnostico'
+        'route': 'network_diagnostic'
       },
       {
         'icon': Icons.route_rounded,
@@ -666,6 +666,18 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         'label': 'Suporte',
         'colors': [Layout02Theme.green, Layout02Theme.cyan],
         'route': 'support'
+      },
+      {
+        'icon': Icons.data_usage_rounded,
+        'label': 'Consumo',
+        'colors': [const Color(0xFF9C27B0), Layout02Theme.purple],
+        'route': 'internet_usage'
+      },
+      {
+        'icon': Icons.notifications_rounded,
+        'label': 'Alertas',
+        'colors': [const Color(0xFFEF5350), Layout02Theme.orange],
+        'route': 'notifications'
       },
     ];
 
