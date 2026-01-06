@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/diagnostico_service.dart' as real_service;
+import '../../services/onu_wifi_service.dart';
 import '../../models/diagnostico_state.dart' as real_state;
 import '../../providers/providers.dart';
 
@@ -2146,10 +2147,31 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     // Inicializar serviço real se disponível
     if (_realService == null) {
       final config = ref.read(configurationProvider).providerConfig;
+      final authState = ref.read(authNotifierProvider);
+      final user = authState.value;
+
       if (config != null) {
+        OnuWifiService? onuService;
+        if (user != null) {
+          final integrations = config.config.integrations;
+          Map<String, String> sgpParams = {
+            'sgpBaseUrl': integrations.sgpBaseUrl,
+            'token': integrations.apiToken,
+            'appName': integrations.appName,
+          };
+          onuService = OnuWifiService(
+            apiUrl: config.apiUrl,
+            cpfCnpj: user.cpfCnpj,
+            senha: user.senha,
+            contrato: user.contratoId?.toString(),
+            sgpParams: sgpParams,
+          );
+        }
+
         _realService = real_service.DiagnosticoService(
           providerConfig: config,
           context: context,
+          onuService: onuService,
         );
         // Integrar stream do serviço real com UI
         _realSub = _realService!.stateStream.listen(_handleRealServiceState);

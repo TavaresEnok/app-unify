@@ -19,6 +19,7 @@ import 'package:flutter_internet_speed_test/flutter_internet_speed_test.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:lan_scanner/lan_scanner.dart';
+import 'onu_wifi_service.dart';
 
 class PingParams {
   final String host;
@@ -108,6 +109,7 @@ Future<String> _pingTestRunner(PingParams params) async {
 class DiagnosticoService {
   final ProviderConfig providerConfig;
   final BuildContext? context;
+  final OnuWifiService? onuService; // Dependência opcional para dados remotos
   final _streamController = StreamController<DiagnosticoState>.broadcast();
   Stream<DiagnosticoState> get stateStream => _streamController.stream;
   late DiagnosticoState _currentState;
@@ -129,7 +131,11 @@ class DiagnosticoService {
   int _fastDownloadHistoryCounter = 0;
   int _fastUploadHistoryCounter = 0;
 
-  DiagnosticoService({required this.providerConfig, this.context}) {
+  DiagnosticoService({
+    required this.providerConfig,
+    this.context,
+    this.onuService,
+  }) {
     _currentState = DiagnosticoState.initial();
   }
 
@@ -404,10 +410,50 @@ class DiagnosticoService {
     return "Muito Fraca ($rssi dBm)";
   }
 
+  Future<void> _runOnuTest() async {
+    if (!_currentState.isTesting || onuService == null) return;
+    _updateTestState('onuInfo', TestStatus.running,
+        "Verificando sinal da Fibra Óptica (ONU)...");
+    try {
+      final onuData = await onuService!.fetchOnuSignal();
+
+      String status = "Offline";
+      if (onuData.isOnline) {
+        status = "Online (${onuData.signalQuality})";
+      }
+
+      String details =
+          "Status: $status\nSinal RX: ${onuData.signalRxDisplay}\nSinal TX: ${onuData.signalTxDisplay}\nModelo: ${onuData.model}";
+
+      if (onuData.temperature != null) {
+        details += "\nTemp: ${onuData.temperature}°C";
+      }
+
+      _updateTestState('onuInfo', TestStatus.success, details);
+    } catch (e) {
+      // Se falhar o remoto, não é crítico, apenas avisamos
+      // _updateTestState('onuInfo', TestStatus.error, "Erro ONU: $e");
+      // Mas para UX, talvez seja melhor mostrar aviso
+      _updateTestState('onuInfo', TestStatus.error,
+          "Falha ao obter dados da ONU:\n${e.toString().replaceAll('Exception:', '').trim()}");
+    }
+  }
+
   Future<void> _runWifiTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
         'wifiInfo', TestStatus.running, "Buscando dados de WiFi/DNS...");
+
+    // Se temos serviço remoto e permissão, tentamos buscar dados do roteador também
+    List<WifiNetwork>? remoteNetworks;
+    if (onuService != null) {
+      try {
+        remoteNetworks = await onuService!.fetchWifiNetworks();
+      } catch (_) {
+        // Ignora erro remoto aqui, foca no local first
+      }
+    }
+
     try {
       String? wifiName =
           (await _networkInfo.getWifiName())?.replaceAll("\"", "");
@@ -447,8 +493,22 @@ class DiagnosticoService {
         dnsTimeMs = -1;
       }
 
-      final resultString =
+      String resultString =
           "SSID: ${wifiName ?? 'N/A'}\nFrequência: $wifiFrequencyBand\nForça do Sinal: $wifiSignalStrength\nBSSID: ${wifiBSSID ?? 'N/A'}\nIP Dispositivo: ${wifiIPv4 ?? 'N/A'}\nGateway (Roteador): ${wifiGatewayIP ?? 'N/A'}\nServidores DNS:\n$dnsServers\nTempo DNS: ${dnsTimeMs >= 0 ? '$dnsTimeMs ms' : 'Falha'}";
+
+      // Append Remote info if available
+      if (remoteNetworks != null && remoteNetworks.isNotEmpty) {
+        final mySsid = wifiName;
+        // Find matching remote network
+        final match = remoteNetworks.firstWhere((n) => n.ssid == mySsid,
+            orElse: () =>
+                WifiNetwork(id: '', ssid: '', frequency: '', enabled: false));
+        if (match.id.isNotEmpty) {
+          resultString +=
+              "\n\n[Roteador Remoto]\nSSID: ${match.ssid}\nFreq: ${match.frequency}";
+        }
+      }
+
       _updateTestState('wifiInfo', TestStatus.success, resultString);
     } catch (e) {
       if (!_currentState.isTesting) return;
@@ -749,6 +809,13 @@ class DiagnosticoService {
     try {
       _updateStatus("Verificando informações do dispositivo...");
       await _runDeviceInfoTest();
+
+      // Novo teste ONU
+      if (onuService != null) {
+        _updateStatus("Verificando sinal da Fibra (ONU)...");
+        await _runOnuTest();
+      }
+
       await _runBatteryTest();
       if (!_currentState.isTesting) return;
 
