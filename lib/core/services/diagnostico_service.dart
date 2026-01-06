@@ -439,6 +439,62 @@ class DiagnosticoService {
     }
   }
 
+  Future<void> _runTracerouteTest() async {
+    if (!_currentState.isTesting) return;
+    _updateTestState('traceroute', TestStatus.running,
+        "Iniciando Rastreamento de Rota (Tracert)...");
+
+    final target = '8.8.8.8';
+    List<String> hops = [];
+    int maxHops = 15; // Limit hops
+
+    try {
+      for (int ttl = 1; ttl <= maxHops; ttl++) {
+        if (!_currentState.isTesting) break;
+
+        final completer = Completer<String?>();
+        // Ping with count 1 and specific TTL
+        final ping = Ping(target, count: 1, ttl: ttl, timeout: 2);
+
+        // Listen to stream to capture response
+        final subscription = ping.stream.listen((event) {
+          if (event.response != null) {
+            // Se tiver resposta (mesmo TTL expired), pegamos o IP
+            if (event.response?.ip != null) {
+              if (!completer.isCompleted)
+                completer.complete(event.response!.ip);
+            }
+          } else if (event.error != null) {
+            // Error can happen, ignore
+          }
+        });
+
+        // Wait for result or timeout (2.5s)
+        final ip = await completer.future
+            .timeout(const Duration(milliseconds: 2500), onTimeout: () => null);
+        await subscription.cancel();
+
+        final hopIp = ip ?? '*';
+        final hopLine = "$ttl: $hopIp";
+        hops.add(hopLine);
+
+        // Update live status
+        _updateTestState('traceroute', TestStatus.running, hops.join('\n'));
+
+        if (hopIp == target) {
+          _updateTestState('traceroute', TestStatus.success, hops.join('\n'));
+          return;
+        }
+      }
+      // If loop finishes without reaching target
+      hops.add("Max hops reached.");
+      _updateTestState('traceroute', TestStatus.success, hops.join('\n'));
+    } catch (e) {
+      if (!_currentState.isTesting) return;
+      _updateTestState('traceroute', TestStatus.error, "Erro no Tracert: $e");
+    }
+  }
+
   Future<void> _runWifiTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
@@ -866,6 +922,10 @@ class DiagnosticoService {
           if (!_currentState.isTesting) return;
         }
       }
+
+      // Traceroute test
+      await _runTracerouteTest();
+      if (!_currentState.isTesting) return;
 
       await _runSpeedTestCustom();
       if (!_currentState.isTesting) return;
