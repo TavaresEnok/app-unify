@@ -1,154 +1,160 @@
 import 'package:flutter/material.dart';
-import '../../core/models/theme_config.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Layout 06: Premium Light Fintech Theme
-/// Clean, modern light theme with cyan/teal accents
 class Layout04Theme {
-  // Core Colors (Defaults) - LIGHT THEME
-  static const Color background = Color(0xFFF5F7FA); // Light grey-blue
-  static const Color surface = Color(0xFFFFFFFF); // Pure White
-  static const Color surfaceLight = Color(0xFFF0F2F5); // Lighter surface
-  static const Color _defaultPrimary = Color(0xFF0891B2); // Cyan-600
-  static const Color _defaultSecondary = Color(0xFF059669); // Emerald-600
+  // --- Colors ---
+  static const Color background = Color(0xFF101010); // Deep matte black
+  static const Color surface = Color(0xFF1C1C1E); // Dark grey surface
+  static const Color surfaceHighlight =
+      Color(0xFF2C2C2E); // Lighter grey for interactions
+  static const Color secondarySurface = Color(0xFF252525); // Secondary surface
 
-  static const Color accent = Color(0xFF7C3AED); // Purple accent
-  static const Color textPrimary = Color(0xFF1F2937); // Dark grey
-  static const Color textSecondary = Color(0xFF6B7280); // Grey
-  static const Color border = Color(0xFFE5E7EB);
-  static const Color error = Color(0xFFDC2626);
-  static const Color success = Color(0xFF16A34A);
+  static const Color primary = Color(0xFF5E5CE6); // Modern Violet/Indigo
+  static const Color primaryVariant = Color(0xFF7D7AFF);
 
-  // Dynamic Color Getters
-  static Color primary(ThemeConfig? config) {
-    if (config?.colors.primary != null) {
-      return config!.colors.primary;
-    }
-    return _defaultPrimary;
-  }
+  static const Color accent = Color(0xFF0A84FF); // Bright Blue for stats/links
+  static const Color success = Color(0xFF32D74B); // iOS Green
+  static const Color warning = Color(0xFFFFD60A); // iOS Yellow
+  static const Color error = Color(0xFFFF453A); // iOS Red
 
-  static Color secondary(ThemeConfig? config) {
-    if (config?.colors.secondary != null) {
-      return config!.colors.secondary;
-    }
-    return _defaultSecondary;
-  }
+  static const Color textPrimary = Color(0xFFFFFFFF);
+  static const Color textSecondary = Color(0xFF8E8E93); // Light Grey
+  static const Color textTertiary = Color(0xFF636366); // Darker Grey
+  static const Color border = Color(0xFF3A3A3C); // Subtle border
 
-  // Gradients
-  static LinearGradient primaryGradient(ThemeConfig? config) => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [primary(config), secondary(config)],
+  // --- Gradients (Subtle) ---
+  // Using minimal gradients, mostly formatting utility
+  static LinearGradient primaryGradient = const LinearGradient(
+    colors: [primary, primaryVariant],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // --- Text Styles ---
+  static TextStyle get heading1 => GoogleFonts.inter(
+        fontSize: 32,
+        fontWeight: FontWeight.w700, // Bold
+        color: textPrimary,
+        letterSpacing: -0.5,
       );
 
-  static LinearGradient gaugeGradient(ThemeConfig? config) => LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [primary(config), secondary(config)],
+  static TextStyle get heading2 => GoogleFonts.inter(
+        fontSize: 24,
+        fontWeight: FontWeight.w600, // SemiBold
+        color: textPrimary,
+        letterSpacing: -0.5,
       );
 
-  // Text Styles
-  static const TextStyle heading1 = TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.bold,
-    color: textPrimary,
-    letterSpacing: -0.5,
+  static TextStyle get heading3 => GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: textPrimary,
+      );
+
+  static TextStyle get bodyLarge => GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: textPrimary,
+      );
+
+  static TextStyle get bodyMedium => GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: textSecondary,
+      );
+
+  static TextStyle get bodySmall => GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: textSecondary,
+      );
+
+  static TextStyle get caption => GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: textTertiary,
+        letterSpacing: 0.5,
+      );
+
+  static TextStyle get buttonText => GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      );
+
+  // --- Decoration Helpers ---
+
+  // Standard Card Style
+  static BoxDecoration cardDecoration = BoxDecoration(
+    color: surface,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.2),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
+      ),
+    ],
   );
 
-  static const TextStyle heading2 = TextStyle(
-    fontSize: 22,
-    fontWeight: FontWeight.w600,
-    color: textPrimary,
+  // Active / Highlighted Card
+  static BoxDecoration activeCardDecoration = BoxDecoration(
+    color: surfaceHighlight,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: primary.withOpacity(0.3), width: 1),
   );
 
-  static const TextStyle bodyText = TextStyle(
-    fontSize: 16,
-    color: textSecondary,
-    height: 1.5,
-  );
-
-  static const TextStyle caption = TextStyle(
-    fontSize: 12,
-    color: textSecondary,
-  );
-
-  static const TextStyle balanceText = TextStyle(
-    fontSize: 36,
-    fontWeight: FontWeight.bold,
-    color: textPrimary,
-    letterSpacing: -1,
-  );
-
-  // Box Decorations
-  static BoxDecoration get cardDecoration => BoxDecoration(
-        color: surface,
+  // Simple Input Decoration
+  static InputDecoration inputDecoration(String label, {IconData? icon}) {
+    return InputDecoration(
+      filled: true,
+      fillColor: surface,
+      labelText: label,
+      labelStyle: bodyMedium,
+      prefixIcon:
+          icon != null ? Icon(icon, color: textSecondary, size: 20) : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      );
-
-  static BoxDecoration get glassmorphism => BoxDecoration(
-        color: surface.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      );
-
-  // ThemeData - LIGHT
-  static ThemeData getTheme(ThemeConfig? config) {
-    final primaryColor = primary(config);
-    final secondaryColor = secondary(config);
-    final iconColor = config?.effects.iconColor ?? primaryColor;
-
-    return ThemeData(
-      brightness: Brightness.light,
-      primaryColor: primaryColor,
-      scaffoldBackgroundColor: background,
-      fontFamily: 'Inter',
-      colorScheme: ColorScheme.light(
-        primary: primaryColor,
-        secondary: secondaryColor,
-        surface: surface,
-        error: error,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: textPrimary,
+        borderSide: BorderSide.none,
       ),
-      iconTheme: IconThemeData(color: iconColor),
-      appBarTheme: AppBarTheme(
-        backgroundColor: background,
-        elevation: 0,
-        iconTheme: IconThemeData(color: iconColor),
-        titleTextStyle: const TextStyle(
-          color: textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: border, width: 1),
       ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: surface,
-        selectedItemColor: primaryColor,
-        unselectedItemColor: textSecondary,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: primary, width: 1.5),
       ),
-      cardTheme: CardThemeData(
-        color: surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: error, width: 1),
       ),
-      useMaterial3: true,
     );
   }
+
+  // Primary Button Style
+  static ButtonStyle primaryButtonStyle = ElevatedButton.styleFrom(
+    backgroundColor: primary,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    shadowColor: Colors.transparent,
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    textStyle: buttonText,
+  );
+
+  // Secondary / Outline Button Style
+  static ButtonStyle outlineButtonStyle = OutlinedButton.styleFrom(
+    foregroundColor: textPrimary,
+    side: const BorderSide(color: border),
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    textStyle: buttonText.copyWith(fontSize: 14),
+  );
 }

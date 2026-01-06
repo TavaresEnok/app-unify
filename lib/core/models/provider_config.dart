@@ -9,6 +9,8 @@ class ProviderConfig {
   final String apiUrl;
   final String
       layoutType; // NOVO: Tipo de layout (layout_02, layout_03, layout_06, layout_07)
+  final String?
+      diagnosticStyle; // Estilo de página de diagnóstico (diagnostic_02, diagnostic_03, etc.)
   final ConfigSection config;
   final FeaturesSection features;
   final MenuConfig menuConfig;
@@ -19,6 +21,7 @@ class ProviderConfig {
     required this.name,
     required this.apiUrl,
     this.layoutType = 'layout_06', // Padrão: Layout 06 (Premium Dark)
+    this.diagnosticStyle, // null = usa padrão baseado no layout
     required this.config,
     required this.features,
     required this.menuConfig,
@@ -75,11 +78,15 @@ class ProviderConfig {
     // NOVO: Extrai layoutType do JSON ou usa padrão 'layout_06'
     final layoutType = json['layoutType'] as String? ?? 'layout_06';
 
+    // NOVO: Extrai diagnosticStyle do JSON (null = usar padrão do layout)
+    final diagnosticStyle = json['diagnosticStyle'] as String?;
+
     return ProviderConfig(
       id: providerId,
       name: providerName,
       apiUrl: effectiveApiUrl,
       layoutType: layoutType,
+      diagnosticStyle: diagnosticStyle,
       config: ConfigSection.fromJson(combinedConfig, fallbackSgpUrl),
       features: FeaturesSection.fromJson(
           json['features'] as Map<String, dynamic>? ?? {}),
@@ -95,6 +102,7 @@ class ProviderConfig {
       'name': name,
       'apiUrl': apiUrl,
       'layoutType': layoutType,
+      'diagnosticStyle': diagnosticStyle,
       'config': config.toJson(),
       'features': features.toJson(),
       'menuConfig': menuConfig.toJson(),

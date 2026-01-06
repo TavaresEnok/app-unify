@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/theme_config.dart';
-import '../../layouts/layout_04/theme.dart';
 
 class DynamicThemeProvider with ChangeNotifier {
   ThemeData _lightTheme;
@@ -25,15 +24,10 @@ class DynamicThemeProvider with ChangeNotifier {
   void updateFromConfig(ThemeConfig config, {String? layoutType}) {
     _currentConfig = config;
 
-    if (layoutType == 'layout_06') {
-      // Layout 06 uses its own specialized theme builder
-      _lightTheme = Layout04Theme.getTheme(config);
-      _darkTheme = Layout04Theme.getTheme(config);
-      _themeMode = ThemeMode.dark; // Force Dark Mode
-    } else {
-      _lightTheme = _buildTheme(config, Brightness.light);
-      _darkTheme = _buildTheme(config, Brightness.dark);
-    }
+    // Todos os layouts usam o _buildTheme padrão
+    // Layouts dark (04, 05, 06) têm seus próprios backgrounds no dashboard_page
+    _lightTheme = _buildTheme(config, Brightness.light);
+    _darkTheme = _buildTheme(config, Brightness.dark);
 
     // Atualiza o modo do tema baseado na config
     if (config.darkMode.enabled) {

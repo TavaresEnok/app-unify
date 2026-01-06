@@ -770,7 +770,13 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     }
 
     if (_currentPage == 'network_diagnostic') {
-      return LayoutSelector.getDiagnosticoPage(layoutType: layoutType);
+      final diagnosticStyle =
+          ref.read(configurationProvider).providerConfig?.diagnosticStyle ??
+              'default';
+      return LayoutSelector.getDiagnosticByStyle(
+        layoutType: layoutType,
+        diagnosticStyle: diagnosticStyle,
+      );
     }
 
     if (_currentPage == 'internet_usage') {
