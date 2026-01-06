@@ -35,12 +35,12 @@ import 'core/pages/shared_faq_page.dart' as shared_faq;
 import 'core/pages/shared_contrato_page.dart' as shared_cont;
 import 'core/pages/shared_notification_page.dart' as shared_notif;
 
-// TEMPORARIAMENTE DESABILITADO PARA DEBUG - Imports das páginas de diagnóstico
-// import 'core/pages/diagnostics/diagnostic_02_page.dart' as diag02;
-// import 'core/pages/diagnostics/diagnostic_03_page.dart' as diag03;
-// import 'core/pages/diagnostics/diagnostic_05_page.dart' as diag05;
-// import 'core/pages/diagnostics/diagnostic_06_page.dart' as diag06;
-// import 'core/pages/diagnostics/diagnostic_07_page.dart' as diag07;
+// Imports das páginas de diagnóstico selecionáveis
+import 'core/pages/diagnostics/diagnostic_02_page.dart' as diag02;
+import 'core/pages/diagnostics/diagnostic_03_page.dart' as diag03;
+import 'core/pages/diagnostics/diagnostic_05_page.dart' as diag05;
+import 'core/pages/diagnostics/diagnostic_06_page.dart' as diag06;
+import 'core/pages/diagnostics/diagnostic_07_page.dart' as diag07;
 
 /// Classe utilitária que seleciona o layout correto baseado na configuração
 class LayoutSelector {
@@ -202,13 +202,42 @@ class LayoutSelector {
   }
 
   /// Retorna diagnóstico com estilo selecionável
-  /// TEMPORARIAMENTE DESABILITADO PARA DEBUG - sempre retorna shared_diag
+  /// [diagnosticStyle] define qual página de diagnóstico usar
+  /// Se 'default', usa padrão baseado no tema do layout (light/dark)
   static Widget getDiagnosticByStyle({
     required String layoutType,
     String diagnosticStyle = 'default',
   }) {
-    // TODO: Restaurar seleção de diagnósticos após debug do login
-    return const shared_diag.DiagnosticoPage();
+    switch (diagnosticStyle) {
+      case 'diagnostic_02':
+        return const diag02.Diagnostic02Page();
+      case 'diagnostic_03':
+        return const diag03.Diagnostic03Page();
+      case 'diagnostic_05':
+        return const diag05.Diagnostic05Page();
+      case 'diagnostic_06':
+        return const diag06.Diagnostic06Page();
+      case 'diagnostic_07':
+        return const diag07.Diagnostic07Page();
+      default:
+        // Seleciona padrão baseado no tema do layout
+        // Dark layouts (04, 05, 06) -> diagnostic_02 ou diagnostic_03
+        // Light layouts (02, 03) -> diagnostic_05 ou diagnostic_06
+        switch (layoutType) {
+          case 'layout_02':
+            return const diag05.Diagnostic05Page(); // Light
+          case 'layout_03':
+            return const diag06.Diagnostic06Page(); // Light Neumorphic
+          case 'layout_04':
+            return const diag02.Diagnostic02Page(); // Dark Obsidian
+          case 'layout_05':
+            return const diag03.Diagnostic03Page(); // Dark Cyber
+          case 'layout_06':
+            return const diag07.Diagnostic07Page(); // Dark Clean
+          default:
+            return const shared_diag.DiagnosticoPage();
+        }
+    }
   }
 
   /// Retorna o widget de Consumo - COMPARTILHADO entre layouts
