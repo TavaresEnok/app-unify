@@ -85,7 +85,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
           _isLoading = false;
           _errorMessage = null;
         });
-        Navigator.of(context).pushReplacementNamed('/painel');
+        // A navegação para o PainelPage é feita automaticamente pelo AuthGate
+        // quando authNotifierProvider.value != null
       }
     });
 
