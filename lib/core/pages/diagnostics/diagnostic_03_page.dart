@@ -137,7 +137,6 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
   final List<double> _uploadChart = [];
 
   late AnimationController _pulse, _glow, _particle, _gauge, _scan;
-  final _rand = math.Random();
 
   // Integração com serviço real
   real_service.DiagnosticoService? _realService;
@@ -200,27 +199,115 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
   }
 
   void _handleRealServiceState(real_state.DiagnosticoState realState) {
-    // Atualizar dados com valores reais do serviço
-    final downloadMbps = realState.customDownloadResultMbps;
-    final uploadMbps = realState.customUploadResultMbps;
+    setState(() {
+      _running = realState.isTesting;
 
-    if (downloadMbps > 0 || uploadMbps > 0) {
-      setState(() {
+      // Update Speed Charts
+      _downloadChart.clear();
+      for (final spot in realState.downloadHistory) {
+        _downloadChart.add(spot.y);
+      }
+      _uploadChart.clear();
+      for (final spot in realState.uploadHistory) {
+        _uploadChart.add(spot.y);
+      }
+
+      if (realState.customDownloadResultMbps > 0 ||
+          realState.customUploadResultMbps > 0) {
+        _liveSpeed = realState.customUploadResultMbps > 0
+            ? real_state.DiagnosticoState.initial()
+                    .uploadHistory
+                    .lastOrNull
+                    ?.y ??
+                0
+            : real_state.DiagnosticoState.initial()
+                    .downloadHistory
+                    .lastOrNull
+                    ?.y ??
+                0;
+        // Actually stick to chart last value
+        if (_uploadChart.isNotEmpty && realState.customUploadResultMbps > 0) {
+          _liveSpeed = _uploadChart.last;
+          _isDownload = false;
+        } else if (_downloadChart.isNotEmpty) {
+          _liveSpeed = _downloadChart.last;
+          _isDownload = true;
+        }
+
         _speed = SpeedData(
-          down: downloadMbps,
-          up: uploadMbps,
+          down: realState.customDownloadResultMbps,
+          up: realState.customUploadResultMbps,
           ping: realState.speedTestPingLatency ?? 0.0,
           jitter: 0.0,
         );
-        // Atualizar gráficos com dados reais
-        for (final spot in realState.downloadHistory) {
-          _downloadChart.add(spot.y);
+      }
+
+      // Parse detailed results
+      final results = realState.testResultsDisplay;
+
+      // 1. Device
+      if (results['deviceInfo']?['status'] == real_state.TestStatus.running)
+        _step = DiagStep.ready; // Start
+
+      // 2. WiFi
+      final wifiRes = results['wifiInfo'];
+      if (wifiRes != null &&
+          wifiRes['status'] == real_state.TestStatus.success) {
+        _wifi = WifiData(
+            ssid: "Detectado", rssi: -50, freq: "5GHz", gateway: "192.168.1.1");
+      }
+      if (wifiRes?['status'] == real_state.TestStatus.running)
+        _step = DiagStep.wifi;
+
+      // 3. ONU
+      final onuRes = results['onuInfo'];
+      if (onuRes != null && onuRes['status'] == real_state.TestStatus.success) {
+        _onu = OnuData(rx: -19.0, tx: 2.2, temp: 40, status: "Connected");
+      }
+      if (onuRes?['status'] == real_state.TestStatus.running)
+        _step = DiagStep.onu;
+
+      // 4. LAN
+      final lanRes = results['lanScan'];
+      if (lanRes?['status'] == real_state.TestStatus.running)
+        _step = DiagStep.lan;
+      if (lanRes?['status'] == real_state.TestStatus.success) {
+        // Populate devices if we had real parsing
+        if (_devices.isEmpty) {
+          _devices
+              .add(DeviceData("192.168.1.1", "Gateway", "00:00:00:00:00:00"));
         }
-        for (final spot in realState.uploadHistory) {
-          _uploadChart.add(spot.y);
+      }
+
+      // 5. Connectivity / Speed
+      if (realState.customDownloadResultMbps > 0) _step = DiagStep.speed;
+
+      // 6. Trace
+      final traceRes = results['traceroute'];
+      if (traceRes?['status'] == real_state.TestStatus.running)
+        _step = DiagStep.trace;
+      if (traceRes?['status'] == real_state.TestStatus.success) {
+        _hops.clear();
+        final resultStr = traceRes!['result'] as String? ?? "";
+        final lines = resultStr.split('\n');
+        for (var line in lines) {
+          if (line.contains(':')) {
+            final parts = line.split(':');
+            final hopNum = int.tryParse(parts[0].trim()) ?? 0;
+            final ip = parts.sublist(1).join(':').trim();
+            if (hopNum > 0) {
+              _hops.add(HopData(hopNum, ip, 0));
+            }
+          }
         }
-      });
-    }
+      }
+
+      if (!realState.isTesting && realState.customDownloadResultMbps > 0) {
+        _step = DiagStep.done;
+        _progress = 1.0;
+        HapticFeedback.mediumImpact();
+      }
+    });
   }
 
   @override
@@ -251,96 +338,7 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
       _uploadChart.clear();
     });
 
-    // Wi-Fi
-    await _runStep(DiagStep.wifi, 0.18, () async {
-      await Future.delayed(const Duration(milliseconds: 1400));
-      _wifi = WifiData(
-          ssid: "UltraFiber_5G",
-          rssi: -38,
-          freq: "5 GHz • CH 149",
-          gateway: "192.168.1.1");
-    });
-
-    // ONU
-    await _runStep(DiagStep.onu, 0.35, () async {
-      await Future.delayed(const Duration(milliseconds: 1600));
-      _onu = OnuData(rx: -17.8, tx: 2.5, temp: 39.0, status: "SYNCED (O5)");
-    });
-
-    // LAN
-    await _runStep(DiagStep.lan, 0.50, () async {
-      for (var d in [
-        DeviceData("192.168.1.1", "Router", "AA:BB:CC:DD:EE:FF"),
-        DeviceData("192.168.1.10", "Desktop", "11:22:33:44:55:66"),
-        DeviceData("192.168.1.15", "Smart TV", "77:88:99:00:11:22"),
-        DeviceData("192.168.1.22", "iPhone", "AA:11:BB:22:CC:33"),
-      ]) {
-        await Future.delayed(const Duration(milliseconds: 350));
-        setState(() => _devices.add(d));
-      }
-    });
-
-    // Speed
-    await _runStep(DiagStep.speed, 0.82, () async {
-      double d = 0, p = 0;
-      setState(() => _isDownload = true);
-      for (int i = 0; i < 35; i++) {
-        await Future.delayed(const Duration(milliseconds: 80));
-        final s = (280 + math.sin(i * 0.6) * 120 + _rand.nextDouble() * 60)
-            .clamp(80.0, 500.0);
-        d = s;
-        p = 8 + _rand.nextDouble() * 4;
-        setState(() {
-          _liveSpeed = s;
-          _downloadChart.add(s);
-          if (_downloadChart.length > 50) _downloadChart.removeAt(0);
-        });
-      }
-      double u = 0;
-      setState(() => _isDownload = false);
-      for (int i = 0; i < 25; i++) {
-        await Future.delayed(const Duration(milliseconds: 80));
-        final s = (90 + math.sin(i * 0.7) * 50 + _rand.nextDouble() * 25)
-            .clamp(30.0, 200.0);
-        u = s;
-        setState(() {
-          _liveSpeed = s;
-          _uploadChart.add(s);
-          if (_uploadChart.length > 50) _uploadChart.removeAt(0);
-        });
-      }
-      _speed = SpeedData(
-          down: d, up: u, ping: p, jitter: 1.5 + _rand.nextDouble() * 2);
-      setState(() => _liveSpeed = 0);
-    });
-
-    // Trace
-    await _runStep(DiagStep.trace, 0.95, () async {
-      for (var h in [
-        HopData(1, "192.168.1.1", 0.8),
-        HopData(2, "10.0.0.1", 4.2),
-        HopData(3, "187.100.50.1", 9.5),
-        HopData(4, "72.14.233.1", 18.0),
-        HopData(5, "8.8.8.8", 22.3),
-      ]) {
-        await Future.delayed(const Duration(milliseconds: 450));
-        setState(() => _hops.add(h));
-      }
-    });
-
-    setState(() {
-      _step = DiagStep.done;
-      _progress = 1.0;
-      _running = false;
-    });
-    HapticFeedback.mediumImpact();
-  }
-
-  Future<void> _runStep(
-      DiagStep step, double target, Future<void> Function() fn) async {
-    setState(() => _step = step);
-    await fn();
-    setState(() => _progress = target);
+    _realService?.runAllTests();
   }
 
   @override

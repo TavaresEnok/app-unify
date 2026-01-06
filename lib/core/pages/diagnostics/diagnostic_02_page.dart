@@ -112,6 +112,9 @@ class DiagState {
   final bool isRunning, isComplete;
   final String status;
 
+  final List<double> downloadHistory;
+  final List<double> uploadHistory;
+
   DiagState({
     this.currentStep = DiagStep.device,
     this.completedSteps = const {},
@@ -131,6 +134,8 @@ class DiagState {
     this.isRunning = false,
     this.isComplete = false,
     this.status = '',
+    this.downloadHistory = const [],
+    this.uploadHistory = const [],
   });
 
   DiagState copyWith({
@@ -152,6 +157,8 @@ class DiagState {
     bool? isRunning,
     bool? isComplete,
     String? status,
+    List<double>? downloadHistory,
+    List<double>? uploadHistory,
   }) =>
       DiagState(
         currentStep: currentStep ?? this.currentStep,
@@ -172,253 +179,9 @@ class DiagState {
         isRunning: isRunning ?? this.isRunning,
         isComplete: isComplete ?? this.isComplete,
         status: status ?? this.status,
+        downloadHistory: downloadHistory ?? this.downloadHistory,
+        uploadHistory: uploadHistory ?? this.uploadHistory,
       );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// SERVICE
-// ═══════════════════════════════════════════════════════════════════════════
-
-class DiagService {
-  final _ctrl = StreamController<DiagState>.broadcast();
-  final _rnd = Random();
-  DiagState _s = DiagState();
-  bool _stop = false;
-
-  // Speed history for graph
-  final List<double> downloadHistory = [];
-  final List<double> uploadHistory = [];
-
-  Stream<DiagState> get stream => _ctrl.stream;
-  void _emit(DiagState s) {
-    _s = s;
-    _ctrl.add(s);
-  }
-
-  Future<void> start() async {
-    _stop = false;
-    downloadHistory.clear();
-    uploadHistory.clear();
-    final completed = <DiagStep>{};
-    _emit(
-      DiagState(
-        isRunning: true,
-        status: 'Iniciando...',
-        currentStep: DiagStep.device,
-        completedSteps: completed,
-      ),
-    );
-
-    await _wait(400);
-    if (_stop) return;
-    _emit(
-      _s.copyWith(
-        status: 'Analisando dispositivo...',
-        device: DeviceInfo(),
-        progress: 10,
-      ),
-    );
-    await _wait(500);
-    if (_stop) return;
-    completed.add(DiagStep.device);
-
-    _emit(
-      _s.copyWith(
-        currentStep: DiagStep.wifi,
-        completedSteps: Set.from(completed),
-        status: 'Verificando Wi-Fi...',
-      ),
-    );
-    await _wait(400);
-    if (_stop) return;
-    _emit(_s.copyWith(wifi: WifiData(), progress: 20));
-    await _wait(400);
-    if (_stop) return;
-    completed.add(DiagStep.wifi);
-
-    _emit(
-      _s.copyWith(
-        currentStep: DiagStep.onu,
-        completedSteps: Set.from(completed),
-        status: 'Consultando ONU...',
-      ),
-    );
-    await _wait(500);
-    if (_stop) return;
-    _emit(_s.copyWith(onu: OnuData(), progress: 30));
-    await _wait(300);
-    if (_stop) return;
-    completed.add(DiagStep.onu);
-
-    _emit(
-      _s.copyWith(
-        currentStep: DiagStep.lan,
-        completedSteps: Set.from(completed),
-        status: 'Escaneando rede...',
-      ),
-    );
-    await _scanLan();
-    if (_stop) return;
-    completed.add(DiagStep.lan);
-
-    _emit(
-      _s.copyWith(
-        currentStep: DiagStep.connectivity,
-        completedSteps: Set.from(completed),
-        status: 'Testando conectividade...',
-        progress: 45,
-      ),
-    );
-    await _wait(400);
-    if (_stop) return;
-    _emit(_s.copyWith(conn: ConnectivityData()));
-    await _wait(300);
-    if (_stop) return;
-    completed.add(DiagStep.connectivity);
-
-    _emit(
-      _s.copyWith(
-        currentStep: DiagStep.speed,
-        completedSteps: Set.from(completed),
-        status: 'Medindo velocidade...',
-      ),
-    );
-    await _speedTest();
-    if (_stop) return;
-    completed.add(DiagStep.speed);
-
-    _emit(
-      _s.copyWith(
-        currentStep: DiagStep.tracert,
-        completedSteps: Set.from(completed),
-        status: 'Traceroute...',
-      ),
-    );
-    await _trace();
-    if (_stop) return;
-    completed.add(DiagStep.tracert);
-
-    _emit(
-      _s.copyWith(
-        completedSteps: Set.from(completed),
-        isRunning: false,
-        isComplete: true,
-        progress: 100,
-        status: 'Diagnóstico completo!',
-      ),
-    );
-  }
-
-  Future<void> _scanLan() async {
-    final devices = <LanDevice>[];
-    final vendors = [
-      'Samsung',
-      'Apple',
-      'Xiaomi',
-      'TP-Link',
-      'Intelbras',
-      'LG',
-    ];
-    for (int i = 0; i < 4 + _rnd.nextInt(3); i++) {
-      if (_stop) return;
-      devices.add(
-        LanDevice(
-          ip: '192.168.1.${100 + i}',
-          mac: 'A$i:B$i:C$i:D$i:E$i:F$i',
-          vendor: vendors[_rnd.nextInt(vendors.length)],
-        ),
-      );
-      _emit(_s.copyWith(lan: List.from(devices), progress: 38));
-      await _wait(120);
-    }
-  }
-
-  Future<void> _speedTest() async {
-    _emit(
-      _s.copyWith(
-        status: 'Medindo latência...',
-        ping: 12 + _rnd.nextInt(18),
-        progress: 50,
-      ),
-    );
-    await _wait(400);
-
-    // Download test with graph data
-    _emit(_s.copyWith(status: 'Download...', speedPhase: SpeedPhase.download));
-    final down = 180.0 + _rnd.nextDouble() * 220;
-    for (int i = 0; i <= 25; i++) {
-      if (_stop) return;
-      final speed = down * i / 25 + _rnd.nextDouble() * 30 - 15;
-      downloadHistory.add(speed.clamp(0, 500));
-      if (downloadHistory.length > 60) downloadHistory.removeAt(0);
-      _emit(
-        _s.copyWith(
-          currentSpeed: speed.clamp(0, 500),
-          progress: 50 + (i * 0.8).toInt(),
-        ),
-      );
-      await _wait(60);
-    }
-    _emit(_s.copyWith(downloadSpeed: down));
-
-    // Upload test with graph data
-    _emit(
-      _s.copyWith(
-        status: 'Upload...',
-        speedPhase: SpeedPhase.upload,
-        currentSpeed: 0,
-      ),
-    );
-    final up = 60.0 + _rnd.nextDouble() * 90;
-    for (int i = 0; i <= 20; i++) {
-      if (_stop) return;
-      final speed = up * i / 20 + _rnd.nextDouble() * 20 - 10;
-      uploadHistory.add(speed.clamp(0, 200));
-      if (uploadHistory.length > 60) uploadHistory.removeAt(0);
-      _emit(
-        _s.copyWith(
-          currentSpeed: speed.clamp(0, 200),
-          progress: 70 + (i * 0.7).toInt(),
-        ),
-      );
-      await _wait(60);
-    }
-    _emit(
-      _s.copyWith(
-        uploadSpeed: up,
-        jitter: 2 + _rnd.nextDouble() * 5,
-        currentSpeed: 0,
-        speedPhase: SpeedPhase.idle,
-      ),
-    );
-  }
-
-  Future<void> _trace() async {
-    final hops = <TracertHop>[];
-    for (int i = 1; i <= 5 + _rnd.nextInt(3); i++) {
-      if (_stop) return;
-      hops.add(
-        TracertHop(
-          hop: i,
-          ip: i == 1
-              ? '192.168.1.1'
-              : '${10 + _rnd.nextInt(200)}.${_rnd.nextInt(255)}.${_rnd.nextInt(255)}.1',
-          latency: i * 4 + _rnd.nextInt(10),
-          isSuccess: _rnd.nextDouble() > 0.1,
-        ),
-      );
-      _emit(_s.copyWith(tracert: List.from(hops), progress: 90 + i));
-      await _wait(100);
-    }
-  }
-
-  Future<void> _wait(int ms) => Future.delayed(Duration(milliseconds: ms));
-  void cancel() {
-    _stop = true;
-    _emit(_s.copyWith(isRunning: false, status: 'Cancelado'));
-  }
-
-  void dispose() => _ctrl.close();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1641,13 +1404,11 @@ class _ScannerBeamPainter extends CustomPainter {
 
 class DiagnosticScreen extends StatelessWidget {
   final DiagState state;
-  final DiagService service;
   final VoidCallback onCancel;
 
   const DiagnosticScreen({
     super.key,
     required this.state,
-    required this.service,
     required this.onCancel,
   });
 
@@ -1727,8 +1488,8 @@ class DiagnosticScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   // Live Graph
                   LiveSpeedGraph(
-                    downloadData: service.downloadHistory,
-                    uploadData: service.uploadHistory,
+                    downloadData: state.downloadHistory,
+                    uploadData: state.uploadHistory,
                     currentSpeed: state.currentSpeed,
                     phase: state.speedPhase,
                     downloadSpeed: state.downloadSpeed,
@@ -2127,8 +1888,6 @@ class DiagnosticPage extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
-  late DiagService _svc;
-  late StreamSubscription<DiagState> _sub;
   DiagState _s = DiagState();
   bool _started = false;
   real_service.DiagnosticoService? _realService;
@@ -2137,14 +1896,11 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
   @override
   void initState() {
     super.initState();
-    _svc = DiagService();
-    _sub = _svc.stream.listen((s) => setState(() => _s = s));
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Inicializar serviço real se disponível
     if (_realService == null) {
       final config = ref.read(configurationProvider).providerConfig;
       final authState = ref.read(authNotifierProvider);
@@ -2173,48 +1929,188 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
           context: context,
           onuService: onuService,
         );
-        // Integrar stream do serviço real com UI
         _realSub = _realService!.stateStream.listen(_handleRealServiceState);
       }
     }
   }
 
   void _handleRealServiceState(real_state.DiagnosticoState realState) {
-    // Mapear estado do serviço real para o estado interno
-    // Speed test data from real service
-    final downloadMbps = realState.customDownloadResultMbps;
-    final uploadMbps = realState.customUploadResultMbps;
+    // Determine Current Sep
+    DiagStep currentStep = DiagStep.device;
+    Set<DiagStep> completedSteps = {};
 
-    if (downloadMbps > 0 || uploadMbps > 0) {
-      // Atualizar o DiagService com dados reais
-      for (final spot in realState.downloadHistory) {
-        _svc.downloadHistory.add(spot.y);
-      }
-      for (final spot in realState.uploadHistory) {
-        _svc.uploadHistory.add(spot.y);
-      }
-      setState(() {});
+    final results = realState.testResultsDisplay;
+
+    // Mapping Logic
+    // 1. Device Info
+    final devInfo = results['deviceInfo'];
+    DeviceInfo? deviceData;
+    if (devInfo != null && devInfo['status'] != real_state.TestStatus.pending) {
+      if (devInfo['status'] == real_state.TestStatus.success)
+        completedSteps.add(DiagStep.device);
+      if (devInfo['status'] == real_state.TestStatus.running)
+        currentStep = DiagStep.device;
+
+      // Parse results to DeviceInfo
+      deviceData = DeviceInfo(
+          model: "Detectado", osVersion: "Detectado"); // Simplificado
     }
+
+    // 2. WiFi
+    final wifiRes = results['wifiInfo'];
+    WifiData? wifiData;
+    if (wifiRes != null && wifiRes['status'] != real_state.TestStatus.pending) {
+      if (wifiRes['status'] == real_state.TestStatus.success ||
+          (wifiRes['status'] == real_state.TestStatus.running &&
+              completedSteps.contains(DiagStep.device))) {
+        currentStep = DiagStep.wifi;
+      }
+      if (wifiRes['status'] == real_state.TestStatus.success)
+        completedSteps.add(DiagStep.wifi);
+
+      if (wifiRes['result'] != null) {
+        wifiData = WifiData(
+            ssid: "Detectado",
+            bssid: "",
+            frequency: "",
+            quality: "",
+            gateway: "",
+            rssi: 0,
+            dnsLatency: 0,
+            dns: []);
+      }
+    }
+
+    // 3. ONU
+    final onuRes = results['onuInfo'];
+    OnuData? onuData;
+    if (onuRes != null && onuRes['status'] != real_state.TestStatus.pending) {
+      if (onuRes['status'] == real_state.TestStatus.running)
+        currentStep = DiagStep.onu;
+      if (onuRes['status'] == real_state.TestStatus.success)
+        completedSteps.add(DiagStep.onu);
+      if (onuRes['result'] != null) {
+        onuData = OnuData(status: "Analisado");
+      }
+    }
+
+    // 4. LAN
+    final lanRes = results['lanScan'];
+    List<LanDevice> lanDevices = [];
+    if (lanRes != null && lanRes['status'] != real_state.TestStatus.pending) {
+      if (lanRes['status'] == real_state.TestStatus.running)
+        currentStep = DiagStep.lan;
+      if (lanRes['status'] == real_state.TestStatus.success)
+        completedSteps.add(DiagStep.lan);
+    }
+
+    // 5. Connectivity (Ping/IP)
+    final pingRes = results['pingGoogle'];
+    void dealConnData(real_state.TestStatus status) {
+      if (status == real_state.TestStatus.running)
+        currentStep = DiagStep.connectivity;
+      if (status == real_state.TestStatus.success)
+        completedSteps.add(DiagStep.connectivity);
+    }
+
+    ConnectivityData? connData;
+    if (pingRes != null && pingRes['status'] != real_state.TestStatus.pending) {
+      dealConnData(pingRes['status']);
+      connData = ConnectivityData(provider: "Detectado");
+    }
+
+    // 6. Tracert
+    final traceRes = results['traceroute'];
+    List<TracertHop> tracertHops = [];
+    if (traceRes != null &&
+        traceRes['status'] != real_state.TestStatus.pending) {
+      if (traceRes['status'] == real_state.TestStatus.running)
+        currentStep = DiagStep.tracert;
+      if (traceRes['status'] == real_state.TestStatus.success)
+        completedSteps.add(DiagStep.tracert);
+
+      final resultStr = traceRes['result'] as String? ?? "";
+      final lines = resultStr.split('\n');
+      for (var line in lines) {
+        if (line.contains(':')) {
+          final parts = line.split(':');
+          final hopNum = int.tryParse(parts[0].trim()) ?? 0;
+          final ip = parts.sublist(1).join(':').trim();
+          if (hopNum > 0) {
+            tracertHops.add(TracertHop(hop: hopNum, ip: ip, latency: 0));
+          }
+        }
+      }
+    }
+
+    // 7. Speed
+    final speedRes = results['speedTestCustom'];
+    final fastRes = results['speedTestFast'];
+    if ((speedRes != null &&
+            speedRes['status'] != real_state.TestStatus.pending) ||
+        (fastRes != null &&
+            fastRes['status'] != real_state.TestStatus.pending)) {
+      currentStep = DiagStep.speed;
+      if (speedRes?['status'] == real_state.TestStatus.success)
+        completedSteps.add(DiagStep.speed);
+    }
+
+    // Parse Speed History
+    List<double> downHist = realState.downloadHistory.map((e) => e.y).toList();
+    List<double> upHist = realState.uploadHistory.map((e) => e.y).toList();
+
+    double currentSpd = 0;
+    SpeedPhase phase = SpeedPhase.idle;
+    // Heuristic for phase
+    if (realState.customDownloadResultMbps > 0 &&
+        realState.customUploadResultMbps == 0) {
+      phase = SpeedPhase.download;
+      if (downHist.isNotEmpty) currentSpd = downHist.last;
+    } else if (realState.customUploadResultMbps > 0) {
+      phase = SpeedPhase.upload;
+      if (upHist.isNotEmpty) currentSpd = upHist.last;
+    }
+
+    // Update State
+    setState(() {
+      _s = DiagState(
+        isRunning: realState.isTesting,
+        isComplete: !realState.isTesting && completedSteps.isNotEmpty,
+        currentStep: currentStep,
+        completedSteps: completedSteps,
+        status: realState.geralStatusMessage,
+        downloadHistory: downHist,
+        uploadHistory: upHist,
+        currentSpeed: currentSpd,
+        downloadSpeed: realState.customDownloadResultMbps,
+        uploadSpeed: realState.customUploadResultMbps,
+        ping: realState.speedTestPingLatency?.toInt() ?? 0,
+        jitter: 0,
+        tracert: tracertHops,
+        speedPhase: phase,
+        device: deviceData,
+        wifi: wifiData,
+        onu: onuData,
+        lan: lanDevices,
+        conn: connData,
+      );
+    });
   }
 
   @override
   void dispose() {
-    _sub.cancel();
     _realSub?.cancel();
     _realService?.dispose();
-    _svc.dispose();
     super.dispose();
   }
 
   void _start() {
     setState(() => _started = true);
-    _svc.start();
-    // Iniciar serviço real para obter dados verdadeiros
     _realService?.runAllTests();
   }
 
   void _cancel() {
-    _svc.cancel();
+    _realService?.stopAllTests();
     setState(() => _started = false);
   }
 
@@ -2223,7 +2119,7 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     if (!_started) {
       return WelcomeScreen(onStart: _start);
     }
-    return DiagnosticScreen(state: _s, service: _svc, onCancel: _cancel);
+    return DiagnosticScreen(state: _s, onCancel: _cancel);
   }
 }
 

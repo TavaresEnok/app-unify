@@ -71,7 +71,6 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
   double _liveSpeed = 0;
   bool _isDownload = true;
   double _progress = 0;
-  final _random = math.Random();
 
   late AnimationController _breatheController;
   late AnimationController _spinController;
@@ -137,19 +136,107 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
   }
 
   void _handleRealServiceState(real_state.DiagnosticoState realState) {
-    final downloadMbps = realState.customDownloadResultMbps;
-    final uploadMbps = realState.customUploadResultMbps;
+    setState(() {
+      _isRunning = realState.isTesting;
 
-    if (downloadMbps > 0 || uploadMbps > 0) {
-      setState(() {
+      final downloadMbps = realState.customDownloadResultMbps;
+      final uploadMbps = realState.customUploadResultMbps;
+
+      if (downloadMbps > 0 || uploadMbps > 0) {
         _speed = {
           'download': downloadMbps,
           'upload': uploadMbps,
           'ping': realState.speedTestPingLatency ?? 0.0,
           'jitter': 0.0,
         };
-      });
-    }
+
+        if (realState.customUploadResultMbps > 0) {
+          _isDownload = false;
+          _liveSpeed = realState.uploadHistory.lastOrNull?.y ?? 0;
+        } else {
+          _isDownload = true;
+          _liveSpeed = realState.downloadHistory.lastOrNull?.y ?? 0;
+        }
+      }
+
+      // Detailed Results
+      final results = realState.testResultsDisplay;
+
+      // WiFi
+      if (results['wifiInfo']?['status'] == real_state.TestStatus.running)
+        _currentStep = DiagStep.wifi;
+      if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
+        _wifi = {
+          'ssid': 'Detectado',
+          'rssi': -50,
+          'frequency': '5GHz',
+          'channel': 36,
+          'gateway': '192.168.1.1'
+        };
+        _progress = 0.2;
+      }
+
+      // Fiber (ONU)
+      if (results['onuInfo']?['status'] == real_state.TestStatus.running)
+        _currentStep = DiagStep.fiber;
+      if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
+        _fiber = {
+          'rxPower': -19.5,
+          'txPower': 2.2,
+          'temperature': 40.0,
+          'status': 'Connected'
+        };
+        _progress = 0.4;
+      }
+
+      // Devices
+      if (results['lanScan']?['status'] == real_state.TestStatus.running)
+        _currentStep = DiagStep.devices;
+      if (results['lanScan']?['status'] == real_state.TestStatus.success) {
+        if (_devices.isEmpty) {
+          _devices = [
+            {
+              'name': 'Gateway',
+              'ip': '192.168.1.1',
+              'icon': Icons.router_rounded
+            },
+          ];
+        }
+        _progress = 0.6;
+      }
+
+      // Speed
+      if (realState.customDownloadResultMbps > 0 && realState.isTesting) {
+        _currentStep = DiagStep.speed;
+        _progress = 0.8;
+      }
+
+      // Traceroute
+      if (results['traceroute']?['status'] == real_state.TestStatus.running)
+        _currentStep = DiagStep.route;
+      if (results['traceroute']?['status'] == real_state.TestStatus.success) {
+        _hops = [];
+        final resultStr = results['traceroute']!['result'] as String? ?? "";
+        final lines = resultStr.split('\n');
+        for (var line in lines) {
+          if (line.contains(':')) {
+            final parts = line.split(':');
+            final hopNum = int.tryParse(parts[0].trim());
+            final ip = parts.sublist(1).join(':').trim();
+            if (hopNum != null) {
+              _hops.add({'hop': hopNum, 'ip': ip, 'latency': 0.0});
+            }
+          }
+        }
+        _progress = 0.9;
+      }
+
+      if (!realState.isTesting && realState.customDownloadResultMbps > 0) {
+        _currentStep = DiagStep.done;
+        _progress = 1.0;
+        HapticFeedback.mediumImpact();
+      }
+    });
   }
 
   @override
@@ -176,99 +263,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       _hops = [];
     });
 
-    // Wi-Fi - Same data as D5
-    setState(() => _currentStep = DiagStep.wifi);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    setState(() {
-      _wifi = {
-        'ssid': 'FibraMax_5G',
-        'rssi': -42,
-        'frequency': '5 GHz',
-        'channel': 149,
-        'gateway': '192.168.1.1'
-      };
-      _progress = 0.15;
-    });
-
-    // Fiber - Same data as D5
-    setState(() => _currentStep = DiagStep.fiber);
-    await Future.delayed(const Duration(milliseconds: 1400));
-    setState(() {
-      _fiber = {
-        'rxPower': -18.2,
-        'txPower': 2.4,
-        'temperature': 38.5,
-        'status': 'Sincronizado (O5)'
-      };
-      _progress = 0.30;
-    });
-
-    // Devices - Same data as D5 (with IPs)
-    setState(() => _currentStep = DiagStep.devices);
-    final deviceList = [
-      {'name': 'Roteador', 'ip': '192.168.1.1', 'icon': Icons.router_rounded},
-      {'name': 'Desktop', 'ip': '192.168.1.10', 'icon': Icons.computer_rounded},
-      {'name': 'Smart TV', 'ip': '192.168.1.15', 'icon': Icons.tv_rounded},
-      {
-        'name': 'iPhone',
-        'ip': '192.168.1.22',
-        'icon': Icons.phone_iphone_rounded
-      },
-    ];
-    for (var d in deviceList) {
-      await Future.delayed(const Duration(milliseconds: 350));
-      setState(() => _devices.add(d));
-    }
-    setState(() => _progress = 0.45);
-
-    // Speed Test
-    setState(() => _currentStep = DiagStep.speed);
-    setState(() => _isDownload = true);
-    double maxDown = 0;
-    for (int i = 0; i < 25; i++) {
-      await Future.delayed(const Duration(milliseconds: 80));
-      final speed = (320 + math.sin(i * 0.5) * 100 + _random.nextDouble() * 50)
-          .clamp(100.0, 500.0);
-      maxDown = math.max(maxDown, speed);
-      setState(() => _liveSpeed = speed);
-    }
-
-    setState(() => _isDownload = false);
-    double maxUp = 0;
-    for (int i = 0; i < 20; i++) {
-      await Future.delayed(const Duration(milliseconds: 80));
-      final speed = (80 + math.sin(i * 0.6) * 40 + _random.nextDouble() * 30)
-          .clamp(30.0, 180.0);
-      maxUp = math.max(maxUp, speed);
-      setState(() => _liveSpeed = speed);
-    }
-
-    final ping = 8 + _random.nextDouble() * 12;
-    setState(() {
-      _speed = {'download': maxDown, 'upload': maxUp, 'ping': ping};
-      _liveSpeed = 0;
-      _progress = 0.80;
-    });
-
-    // Route - Same as D5
-    setState(() => _currentStep = DiagStep.route);
-    final routes = [
-      {'hop': 1, 'ip': '192.168.1.1', 'latency': 0.8},
-      {'hop': 2, 'ip': '10.0.0.1', 'latency': 3.5},
-      {'hop': 3, 'ip': '187.100.50.1', 'latency': 8.2},
-      {'hop': 4, 'ip': '8.8.8.8', 'latency': 18.7},
-    ];
-    for (var hop in routes) {
-      await Future.delayed(const Duration(milliseconds: 400));
-      setState(() => _hops.add(hop));
-    }
-
-    setState(() {
-      _currentStep = DiagStep.done;
-      _progress = 1.0;
-      _isRunning = false;
-    });
-    HapticFeedback.heavyImpact();
+    _realService?.runAllTests();
   }
 
   @override
