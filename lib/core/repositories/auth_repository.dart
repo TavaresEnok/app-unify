@@ -51,6 +51,7 @@ class AuthRepository {
 
     final url = '$apiUrl/check-cpf';
     debugPrint('DEBUG: Enviando login para $url');
+    debugPrint('DEBUG: Body: ${jsonEncode(requestBody)}');
 
     final response = await http
         .post(
@@ -64,12 +65,17 @@ class AuthRepository {
         .timeout(
       const Duration(seconds: 30),
       onTimeout: () {
+        debugPrint('DEBUG: TIMEOUT na requisição!');
         throw Exception('Timeout: Servidor demorou para responder');
       },
     );
 
+    debugPrint('DEBUG: Status code: ${response.statusCode}');
+    debugPrint('DEBUG: Response body: ${response.body}');
+
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      debugPrint('DEBUG: Login bem sucedido! Usuário: ${data['nome']}');
 
       // Return User object directly from API data
       // Note: We still need to call 'saveUserLocally' effectively,
@@ -91,6 +97,7 @@ class AuthRepository {
             : int.tryParse(data['contratoId']?.toString() ?? ''),
       );
     } else {
+      debugPrint('DEBUG: Falha no login - código ${response.statusCode}');
       throw Exception(
           'Falha no login: ${response.statusCode} - ${response.body}');
     }
