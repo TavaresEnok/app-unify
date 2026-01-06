@@ -195,12 +195,24 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       if (results['wifiInfo']?['status'] == real_state.TestStatus.running)
         _currentStep = DiagStep.wifi;
       if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
-        _wifi = {
-          'ssid': 'Detectado',
-          'rssi': -50,
-          'frequency': '5GHz',
-          'gateway': '192.168.1.1'
-        };
+        final res = results['wifiInfo']!['result'];
+        if (res is Map) {
+          _wifi = {
+            'ssid': res['ssid']?.toString() ?? 'Desconhecido',
+            'rssi': int.tryParse(res['rssi']?.toString() ?? '-99') ?? -99,
+            'frequency': res['frequency']?.toString() ?? '',
+            'gateway': res['gateway']?.toString() ?? '',
+            'quality': res['linkSpeed']?.toString() ?? ''
+          };
+        } else {
+          _wifi = {
+            'ssid': 'Detectado',
+            'rssi': -50,
+            'frequency': '5GHz',
+            'gateway': '',
+            'quality': ''
+          };
+        }
         _progress = 0.2;
       }
 
@@ -208,12 +220,25 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       if (results['onuInfo']?['status'] == real_state.TestStatus.running)
         _currentStep = DiagStep.fiber;
       if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
-        _fiber = {
-          'rxPower': -19.5,
-          'txPower': 2.2,
-          'temperature': 40.0,
-          'status': 'Connected'
-        };
+        final res = results['onuInfo']!['result'];
+        if (res is Map) {
+          _fiber = {
+            'rxPower':
+                double.tryParse(res['rxPower']?.toString() ?? '0') ?? 0.0,
+            'txPower':
+                double.tryParse(res['txPower']?.toString() ?? '0') ?? 0.0,
+            'temperature':
+                double.tryParse(res['temperature']?.toString() ?? '0') ?? 0.0,
+            'status': 'Online'
+          };
+        } else {
+          _fiber = {
+            'rxPower': -19.5,
+            'txPower': 2.2,
+            'temperature': 40.0,
+            'status': 'Online'
+          };
+        }
         _progress = 0.4;
       }
 
@@ -222,13 +247,29 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
         _currentStep = DiagStep.devices;
       if (results['lanScan']?['status'] == real_state.TestStatus.success) {
         if (_devices.isEmpty) {
-          _devices = [
-            {
-              'name': 'Gateway',
-              'ip': '192.168.1.1',
-              'icon': Icons.router_rounded
-            },
-          ];
+          final res = results['lanScan']!['result'];
+          if (res is List) {
+            _devices = res.map((d) {
+              if (d is Map) {
+                return {
+                  'name':
+                      d['name']?.toString() ?? d['ip']?.toString() ?? 'Device',
+                  'ip': d['ip']?.toString() ?? '',
+                  'icon': Icons.devices_other
+                };
+              }
+              return {'name': 'Unknown', 'ip': '', 'icon': Icons.help};
+            }).toList();
+          }
+          if (_devices.isEmpty) {
+            _devices = [
+              {
+                'name': 'Gateway',
+                'ip': '192.168.1.1',
+                'icon': Icons.router_rounded
+              },
+            ];
+          }
         }
         _progress = 0.6;
       }
@@ -243,8 +284,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       if (results['traceroute']?['status'] == real_state.TestStatus.running)
         _currentStep = DiagStep.route;
       if (results['traceroute']?['status'] == real_state.TestStatus.success) {
-        _hops =
-            []; // Parsing skipped for now, stick to basic list or parse if UI needs it
+        _hops = [];
         final resultStr = results['traceroute']!['result'] as String? ?? "";
         final lines = resultStr.split('\n');
         for (var line in lines) {
@@ -253,7 +293,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
             final hopNum = int.tryParse(parts[0].trim());
             final ip = parts.sublist(1).join(':').trim();
             if (hopNum != null) {
-              _hops.add({'hop': hopNum, 'ip': ip, 'time': 0.0});
+              _hops.add({'hop': hopNum, 'ip': ip, 'latency': 0.0});
             }
           }
         }
