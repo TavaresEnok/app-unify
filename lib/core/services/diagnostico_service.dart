@@ -697,11 +697,31 @@ class DiagnosticoService {
           stallTimer = Timer(const Duration(seconds: 15), () {
             if (!completer.isCompleted && _currentState.isTesting) {
               internetSpeedTest.cancelTest();
-              _updateTestState('speedTestCustom', TestStatus.error,
-                  "Teste travado (sem progresso).");
+              // If we have data, consider it a success with current values
+              if (_customPeakDownloadMbps > 0) {
+                _updateTestState('speedTestCustom', TestStatus.success,
+                    "Download: ${_customPeakDownloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${_customPeakUploadMbps.toStringAsFixed(1)} Mbps\n(Teste concluído por timeout)");
+              } else {
+                _updateTestState('speedTestCustom', TestStatus.error,
+                    "Teste travado (sem progresso).");
+              }
               if (!completer.isCompleted) completer.complete();
             }
           });
+
+          // Force completion at 95%+ to avoid stalls at high percentages
+          if (percent >= 95 && !isDownload && !completer.isCompleted) {
+            cancelTimers();
+            _updateTestState('speedTestCustom', TestStatus.success,
+                "Download: ${_customPeakDownloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${rate.toStringAsFixed(1)} Mbps");
+            _currentState = _currentState.copyWith(
+              customDownloadResultMbps: _customPeakDownloadMbps,
+              customUploadResultMbps: rate,
+            );
+            _streamController.add(_currentState);
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
 
           if (isDownload) {
             _updateStatus(
