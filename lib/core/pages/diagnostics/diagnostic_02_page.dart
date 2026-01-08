@@ -12,6 +12,8 @@ import '../../services/diagnostico_service.dart' as real_service;
 import '../../services/onu_wifi_service.dart';
 import '../../models/diagnostico_state.dart' as real_state;
 import '../../providers/providers.dart';
+import '../../widgets/troubleshooter_card.dart';
+import '../../utils/pdf_generator_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MODELS
@@ -1410,11 +1412,31 @@ class _ScannerBeamPainter extends CustomPainter {
 class DiagnosticScreen extends StatelessWidget {
   final DiagState state;
   final VoidCallback onCancel;
+  final VoidCallback? onRetry;
+  final VoidCallback? onSharePdf;
+
+  // WiFi Management
+  final bool loadingWifi;
+  final List<WifiNetwork> wifiNetworks;
+  final String? wifiError;
+  final VoidCallback? onFetchWifi;
+  final void Function(WifiNetwork)? onEditWifi;
+
+  // Troubleshooter
+  final real_state.DiagnosticoState? realState;
 
   const DiagnosticScreen({
     super.key,
     required this.state,
     required this.onCancel,
+    this.onRetry,
+    this.onSharePdf,
+    this.loadingWifi = false,
+    this.wifiNetworks = const [],
+    this.wifiError,
+    this.onFetchWifi,
+    this.onEditWifi,
+    this.realState,
   });
 
   Color _rssiColor(int r) => r >= -50
@@ -1452,6 +1474,12 @@ class DiagnosticScreen extends StatelessWidget {
               ),
             ),
             actions: [
+              if (onSharePdf != null)
+                IconButton(
+                  icon: const Icon(Icons.share_rounded, color: Theme.cyan),
+                  onPressed: onSharePdf,
+                  tooltip: 'Compartilhar PDF',
+                ),
               if (state.isRunning)
                 TextButton(
                   onPressed: onCancel,
@@ -1541,6 +1569,8 @@ class DiagnosticScreen extends StatelessWidget {
                   _buildOnuSection(),
                   _buildConnSection(),
                   _buildTracertSection(),
+                  _buildWifiManagementSection(),
+                  _buildTroubleshooterSection(),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -1880,6 +1910,140 @@ class DiagnosticScreen extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildWifiManagementSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          title: 'Gerenciar WiFi (TR-069)',
+          icon: Icons.settings_remote_rounded,
+          color: Theme.cyan,
+          hasData: wifiNetworks.isNotEmpty || wifiError != null || !loadingWifi,
+        ),
+        _HoloCard(
+          isScanning: loadingWifi,
+          accent: Theme.cyan,
+          child: loadingWifi
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: Theme.cyan),
+                  ),
+                )
+              : wifiError != null
+                  ? Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.error_outline, color: Theme.red, size: 40),
+                          const SizedBox(height: 8),
+                          Text(wifiError!,
+                              style: TextStyle(color: Theme.red),
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: onFetchWifi,
+                            icon: const Icon(Icons.refresh, color: Theme.cyan),
+                            label: const Text('Tentar novamente',
+                                style: TextStyle(color: Theme.cyan)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : wifiNetworks.isEmpty
+                      ? Center(
+                          child: Column(
+                            children: [
+                              Icon(Icons.wifi_find,
+                                  color: Theme.textDim, size: 40),
+                              const SizedBox(height: 8),
+                              const Text(
+                                  'Buscar redes WiFi do roteador via TR-069',
+                                  style: TextStyle(color: Theme.textDim),
+                                  textAlign: TextAlign.center),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.cyan),
+                                onPressed: onFetchWifi,
+                                icon: const Icon(Icons.search,
+                                    color: Colors.black),
+                                label: const Text('Buscar Redes WiFi',
+                                    style: TextStyle(color: Colors.black)),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: wifiNetworks.map((network) {
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.bg2,
+                                borderRadius: BorderRadius.circular(12),
+                                border:
+                                    Border.all(color: Theme.cyan.withAlpha(50)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    network.frequency.contains('5')
+                                        ? Icons.wifi
+                                        : Icons.wifi_2_bar,
+                                    color: network.enabled
+                                        ? Theme.green
+                                        : Theme.textDim,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(network.ssid,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white)),
+                                        Text(network.frequency,
+                                            style: const TextStyle(
+                                                color: Theme.textDim,
+                                                fontSize: 12)),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit,
+                                        color: Theme.cyan),
+                                    onPressed: () => onEditWifi?.call(network),
+                                    tooltip: 'Editar WiFi',
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTroubleshooterSection() {
+    if (realState == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 16),
+        TroubleshooterCard(
+          state: realState!,
+          onRetry: onRetry ?? () {},
+          isDarkLayout: true,
+        ),
+      ],
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1897,6 +2061,13 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
   bool _started = false;
   real_service.DiagnosticoService? _realService;
   StreamSubscription<real_state.DiagnosticoState>? _realSub;
+  OnuWifiService? _onuWifiService;
+  real_state.DiagnosticoState? _lastRealState;
+
+  // WiFi Management State
+  bool _loadingWifi = false;
+  List<WifiNetwork> _wifiNetworks = [];
+  String? _wifiError;
 
   @override
   void initState() {
@@ -1927,6 +2098,7 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
             contrato: user.contratoId?.toString(),
             sgpParams: sgpParams,
           );
+          _onuWifiService = onuService;
         }
 
         _realService = real_service.DiagnosticoService(
@@ -2158,6 +2330,7 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
         lan: lanDevices,
         conn: connData,
       );
+      _lastRealState = realState;
     });
   }
 
@@ -2178,12 +2351,151 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     setState(() => _started = false);
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WiFi MANAGEMENT METHODS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _fetchWifiNetworks() async {
+    if (_onuWifiService == null) return;
+    setState(() {
+      _loadingWifi = true;
+      _wifiError = null;
+    });
+    try {
+      final networks = await _onuWifiService!.fetchWifiNetworks();
+      setState(() {
+        _wifiNetworks = networks;
+        _loadingWifi = false;
+      });
+    } catch (e) {
+      setState(() {
+        _wifiError = e.toString().replaceAll('Exception: ', '');
+        _loadingWifi = false;
+      });
+    }
+  }
+
+  void _showEditWifiDialog(BuildContext context, WifiNetwork network) {
+    final ssidController = TextEditingController(text: network.ssid);
+    final passwordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: Text('Editar ${network.frequency}',
+            style: const TextStyle(color: Colors.white)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: ssidController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Nome da Rede (SSID)',
+              labelStyle: TextStyle(color: Theme.cyan),
+              prefixIcon: Icon(Icons.wifi, color: Theme.cyan),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Theme.cyan.withAlpha(100)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Theme.cyan),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: passwordController,
+            obscureText: true,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Nova Senha',
+              labelStyle: TextStyle(color: Theme.purple),
+              prefixIcon: Icon(Icons.lock, color: Theme.purple),
+              hintText: 'Deixe vazio para manter',
+              hintStyle: TextStyle(color: Colors.white38),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Theme.purple.withAlpha(100)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Theme.purple),
+              ),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar', style: TextStyle(color: Theme.textDim)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Theme.cyan),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _updateWifi(
+                  network.id, ssidController.text, passwordController.text);
+            },
+            child: const Text('Salvar', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateWifi(String wifiId, String ssid, String password) async {
+    if (_onuWifiService == null || ssid.isEmpty) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Aplicando alterações no WiFi...')),
+    );
+
+    try {
+      final success = await _onuWifiService!.updateWifi(
+        wifiId: wifiId,
+        ssid: ssid,
+        password: password.isEmpty ? 'keep_current' : password,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success
+                ? 'WiFi atualizado com sucesso!'
+                : 'Falha ao atualizar WiFi'),
+            backgroundColor: success ? Theme.green : Theme.red,
+          ),
+        );
+        if (success) _fetchWifiNetworks();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: Theme.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_started) {
       return WelcomeScreen(onStart: _start);
     }
-    return DiagnosticScreen(state: _s, onCancel: _cancel);
+    return DiagnosticScreen(
+      state: _s,
+      onCancel: _cancel,
+      onRetry: _start,
+      onSharePdf:
+          _lastRealState != null && !_s.isRunning && _s.downloadSpeed > 0
+              ? () => PdfGeneratorService().stopAndSharePdf(_lastRealState!)
+              : null,
+      loadingWifi: _loadingWifi,
+      wifiNetworks: _wifiNetworks,
+      wifiError: _wifiError,
+      onFetchWifi: _fetchWifiNetworks,
+      onEditWifi: (network) => _showEditWifiDialog(context, network),
+      realState: _lastRealState,
+    );
   }
 }
 
