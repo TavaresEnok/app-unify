@@ -1564,6 +1564,11 @@ class DiagnosticScreen extends StatelessWidget {
                     ],
                   ),
                   // Sections
+                  _buildConnectionJourneySection(),
+                  _buildDeviceDetailsSection(),
+                  _buildWifiDetailsSection(),
+                  _buildOnuDetailsSection(),
+                  _buildLanDetailsSection(),
                   _buildDeviceSection(),
                   _buildWifiSection(),
                   _buildOnuSection(),
@@ -2042,6 +2047,504 @@ class DiagnosticScreen extends StatelessWidget {
           isDarkLayout: true,
         ),
       ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PARSING HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  String _parseResultLine(String? resultText, String key) {
+    if (resultText == null || resultText.isEmpty) return "---";
+    try {
+      final line = resultText
+          .split('\n')
+          .firstWhere((l) => l.startsWith(key), orElse: () => '');
+      if (line.isEmpty) return "---";
+      return line.split(':').sublist(1).join(':').trim();
+    } catch (e) {
+      return "---";
+    }
+  }
+
+  Color _getStatusColor(real_state.TestStatus status) {
+    switch (status) {
+      case real_state.TestStatus.success:
+        return Theme.green;
+      case real_state.TestStatus.running:
+        return Theme.cyan;
+      case real_state.TestStatus.error:
+        return Theme.red;
+      default:
+        return Theme.textDim;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONNECTION JOURNEY CARD
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildConnectionJourneySection() {
+    if (realState == null) return const SizedBox.shrink();
+
+    final results = realState!.testResultsDisplay;
+
+    final wifiStatus =
+        results['wifiInfo']?['status'] as real_state.TestStatus? ??
+            real_state.TestStatus.pending;
+    final wifiResult = results['wifiInfo']?['result'] as String?;
+    final gatewayStatus =
+        results['pingGateway']?['status'] as real_state.TestStatus? ??
+            real_state.TestStatus.pending;
+    final gatewayResult = results['pingGateway']?['result'] as String?;
+    final ipStatus = results['publicIp']?['status'] as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    final ipResult = results['publicIp']?['result'] as String?;
+    final googleStatus =
+        results['pingGoogle']?['status'] as real_state.TestStatus? ??
+            real_state.TestStatus.pending;
+    final googleResult = results['pingGoogle']?['result'] as String?;
+    final cloudflareStatus =
+        results['pingCloudflare']?['status'] as real_state.TestStatus? ??
+            real_state.TestStatus.pending;
+    final cloudflareResult = results['pingCloudflare']?['result'] as String?;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          title: 'Jornada da Conexão',
+          icon: Icons.route_rounded,
+          color: Theme.cyan,
+          hasData: wifiStatus != real_state.TestStatus.pending,
+        ),
+        _HoloCard(
+          isScanning: wifiStatus == real_state.TestStatus.running ||
+              gatewayStatus == real_state.TestStatus.running,
+          accent: Theme.cyan,
+          child: Column(
+            children: [
+              _buildJourneyStep(
+                icon: Icons.phone_android_rounded,
+                title: 'Você (Dispositivo)',
+                status: wifiStatus,
+                details: [
+                  ('Sinal', _parseResultLine(wifiResult, 'Força do Sinal:')),
+                  ('SSID', _parseResultLine(wifiResult, 'SSID:')),
+                ],
+              ),
+              _buildJourneyConnector(wifiStatus),
+              _buildJourneyStep(
+                icon: Icons.router_rounded,
+                title: 'Seu Roteador',
+                status: gatewayStatus,
+                details: [
+                  ('IP', _parseResultLine(wifiResult, 'Gateway (Roteador):')),
+                  ('Latência', _parseResultLine(gatewayResult, 'Latência:')),
+                  ('Jitter', _parseResultLine(gatewayResult, 'Jitter:')),
+                ],
+              ),
+              _buildJourneyConnector(gatewayStatus),
+              _buildJourneyStep(
+                icon: Icons.cloud_queue_rounded,
+                title: 'Nossa Rede',
+                status: ipStatus,
+                details: [
+                  ('IPv4', _parseResultLine(ipResult, 'IPv4:')),
+                  ('IPv6', _parseResultLine(ipResult, 'IPv6:')),
+                ],
+              ),
+              _buildJourneyConnector(ipStatus),
+              _buildJourneyStep(
+                icon: Icons.dns_rounded,
+                title: 'Internet (DNS)',
+                status: (googleStatus == real_state.TestStatus.success ||
+                        cloudflareStatus == real_state.TestStatus.success)
+                    ? real_state.TestStatus.success
+                    : googleStatus,
+                details: [
+                  ('Google', '${_parseResultLine(googleResult, 'Latência:')}'),
+                  (
+                    'Cloudflare',
+                    '${_parseResultLine(cloudflareResult, 'Latência:')}'
+                  ),
+                ],
+                isLast: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildJourneyStep({
+    required IconData icon,
+    required String title,
+    required real_state.TestStatus status,
+    required List<(String, String)> details,
+    bool isLast = false,
+  }) {
+    final color = _getStatusColor(status);
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withAlpha(30),
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withAlpha(100)),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13)),
+                    const Spacer(),
+                    if (status == real_state.TestStatus.running)
+                      SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: color))
+                    else
+                      Icon(
+                        status == real_state.TestStatus.success
+                            ? Icons.check_circle
+                            : status == real_state.TestStatus.error
+                                ? Icons.error
+                                : Icons.schedule,
+                        color: color,
+                        size: 14,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 4,
+                  children: details
+                      .map((d) => Text(
+                            '${d.$1}: ${d.$2}',
+                            style:
+                                TextStyle(color: Theme.textDim, fontSize: 11),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJourneyConnector(real_state.TestStatus status) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 17, bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 2,
+            height: 20,
+            color: _getStatusColor(status).withAlpha(60),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENHANCED WIFI DETAILS SECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildWifiDetailsSection() {
+    if (realState == null) return const SizedBox.shrink();
+
+    final wifiResult =
+        realState!.testResultsDisplay['wifiInfo']?['result'] as String?;
+    final status = realState!.testResultsDisplay['wifiInfo']?['status']
+            as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+
+    if (status == real_state.TestStatus.pending) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          title: 'Detalhes WiFi',
+          icon: Icons.info_outline_rounded,
+          color: Theme.pink,
+          hasData: wifiResult != null,
+        ),
+        _HoloCard(
+          isScanning: status == real_state.TestStatus.running,
+          accent: Theme.pink,
+          child: Column(
+            children: [
+              DataRow(
+                  icon: Icons.router,
+                  label: 'BSSID',
+                  value: _parseResultLine(wifiResult, 'BSSID:'),
+                  color: Theme.pink),
+              DataRow(
+                  icon: Icons.computer,
+                  label: 'IP Local',
+                  value: _parseResultLine(wifiResult, 'IP Dispositivo:'),
+                  color: Theme.pink),
+              DataRow(
+                  icon: Icons.dns,
+                  label: 'DNS',
+                  value: _parseResultLine(wifiResult, 'Servidores DNS:'),
+                  color: Theme.pink),
+              DataRow(
+                  icon: Icons.signal_wifi_4_bar,
+                  label: 'Frequência',
+                  value: _parseResultLine(wifiResult, 'Frequência:'),
+                  color: Theme.pink),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENHANCED LAN SCAN SECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildLanDetailsSection() {
+    if (realState == null) return const SizedBox.shrink();
+
+    final lanResult =
+        realState!.testResultsDisplay['lanScan']?['result'] as String?;
+    final status = realState!.testResultsDisplay['lanScan']?['status']
+            as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+
+    if (status == real_state.TestStatus.pending) return const SizedBox.shrink();
+
+    // Parse device count
+    final deviceCount =
+        _parseResultLine(lanResult, 'Dispositivos encontrados:');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          title: 'Dispositivos na Rede',
+          icon: Icons.devices_rounded,
+          color: Theme.purple,
+          hasData: lanResult != null,
+        ),
+        _HoloCard(
+          isScanning: status == real_state.TestStatus.running,
+          accent: Theme.purple,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.devices_other, color: Theme.purple, size: 32),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(deviceCount,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                      const Text('dispositivos encontrados',
+                          style: TextStyle(color: Theme.textDim, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+              if (lanResult != null && lanResult.contains('sub-rede')) ...[
+                const SizedBox(height: 12),
+                Text(
+                  lanResult
+                      .split('\n')
+                      .lastWhere((l) => l.contains('sub-rede'),
+                          orElse: () => '')
+                      .replaceAll('(', '')
+                      .replaceAll(')', ''),
+                  style: TextStyle(color: Theme.textDim, fontSize: 11),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENHANCED DEVICE INFO SECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildDeviceDetailsSection() {
+    if (realState == null) return const SizedBox.shrink();
+
+    final deviceResult =
+        realState!.testResultsDisplay['deviceInfo']?['result'] as String?;
+    final status = realState!.testResultsDisplay['deviceInfo']?['status']
+            as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+
+    if (status == real_state.TestStatus.pending) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          title: 'Info do Dispositivo',
+          icon: Icons.smartphone_rounded,
+          color: Theme.gold,
+          hasData: deviceResult != null,
+        ),
+        _HoloCard(
+          isScanning: status == real_state.TestStatus.running,
+          accent: Theme.gold,
+          child: Column(
+            children: [
+              DataRow(
+                  icon: Icons.wifi,
+                  label: 'Conexão',
+                  value: _parseResultLine(deviceResult, 'Conexão:'),
+                  color: Theme.gold),
+              DataRow(
+                  icon: Icons.android,
+                  label: 'Sistema',
+                  value: _parseResultLine(deviceResult, 'Versão OS:'),
+                  color: Theme.gold),
+              DataRow(
+                  icon: Icons.phone_android,
+                  label: 'Dispositivo',
+                  value: _parseResultLine(deviceResult, 'Dispositivo:'),
+                  color: Theme.gold),
+              DataRow(
+                  icon: Icons.info_outline,
+                  label: 'App',
+                  value: _parseResultLine(deviceResult, 'Versão do App:'),
+                  color: Theme.gold),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENHANCED ONU/FIBRA SECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildOnuDetailsSection() {
+    if (realState == null) return const SizedBox.shrink();
+
+    final onuResult = realState!.testResultsDisplay['onuInfo']?['result'];
+    final status = realState!.testResultsDisplay['onuInfo']?['status']
+            as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+
+    if (status == real_state.TestStatus.pending) return const SizedBox.shrink();
+
+    String rxPower = '---';
+    String txPower = '---';
+    String temperature = '---';
+    String onuModel = '---';
+
+    if (onuResult is Map) {
+      rxPower = onuResult['rxPower']?.toString() ?? '---';
+      txPower = onuResult['txPower']?.toString() ?? '---';
+      temperature = onuResult['temperature']?.toString() ?? '---';
+      onuModel = onuResult['model']?.toString() ?? '---';
+    }
+
+    Color rxColor = Theme.green;
+    final rxValue = double.tryParse(rxPower) ?? 0;
+    if (rxValue < -25)
+      rxColor = Theme.red;
+    else if (rxValue < -20) rxColor = Theme.orange;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          title: 'ONU / Fibra Óptica',
+          icon: Icons.cable_rounded,
+          color: Theme.cyan,
+          hasData: status == real_state.TestStatus.success,
+        ),
+        _HoloCard(
+          isScanning: status == real_state.TestStatus.running,
+          accent: Theme.cyan,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildOnuStat('Rx Power', '$rxPower dBm', rxColor),
+                  ),
+                  Expanded(
+                    child:
+                        _buildOnuStat('Tx Power', '$txPower dBm', Theme.cyan),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildOnuStat(
+                        'Temperatura', '$temperature°C', Theme.orange),
+                  ),
+                  Expanded(
+                    child: _buildOnuStat('Modelo', onuModel, Theme.purple),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOnuStat(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: color.withAlpha(15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: Theme.textDim, fontSize: 11)),
+          const SizedBox(height: 4),
+          Text(value,
+              style: TextStyle(
+                  color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 }
