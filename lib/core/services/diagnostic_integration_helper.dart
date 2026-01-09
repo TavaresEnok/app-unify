@@ -30,7 +30,7 @@ class DiagnosticIntegrationHelper {
     final ping =
         pingResult != null ? int.tryParse(pingResult.split(' ')[0]) ?? 0 : 0;
 
-    final jitter = state.speedTestJitter ?? 0.0;
+    final jitter = 0.0; // TODO: Extract from speed test results when available
     final packetLoss = 0; // Would need to parse from ping result
 
     // Create history entry
