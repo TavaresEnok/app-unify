@@ -28,6 +28,19 @@ import '../../widgets/diagnostics/waiting_box.dart';
 import '../../widgets/diagnostics/welcome_screen.dart';
 import '../../models/diagnostic_enums.dart';
 
+// UX Enhancements - Sprint 1-3
+import '../../models/test_mode.dart';
+import '../../models/network_health_score.dart';
+import '../../models/achievement.dart';
+import '../../widgets/health_score_widget.dart';
+import '../../widgets/test_mode_selector.dart';
+import '../../widgets/comparison_widget.dart';
+import '../../services/diagnostic_integration_helper.dart';
+import '../../services/achievement_service.dart';
+import '../../services/test_history_service.dart';
+import '../../pages/test_history_page.dart';
+import '../../pages/achievements_page.dart';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MODELS
 // ═══════════════════════════════════════════════════════════════════════════
