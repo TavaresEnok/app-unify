@@ -3,7 +3,7 @@
 // INTEGRAÇÃO COM SERVIÇOS REAIS - Janeiro 2026
 
 import 'dart:async';
-import 'dart:math';
+
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +14,19 @@ import '../../models/diagnostico_state.dart' as real_state;
 import '../../providers/providers.dart';
 import '../../widgets/troubleshooter_card.dart';
 import '../../utils/pdf_generator_service.dart';
+import '../../utils/diagnostic_utils.dart';
+import '../../controllers/wifi_management_controller.dart';
+import '../../widgets/diagnostics/diagnostic_theme.dart';
+import '../../widgets/diagnostics/holo_background.dart';
+import '../../widgets/diagnostics/holo_card.dart';
+import '../../widgets/diagnostics/section_title.dart';
+import '../../widgets/diagnostics/diagnostic_data_row.dart';
+import '../../widgets/diagnostics/live_speed_graph.dart';
+import '../../widgets/diagnostics/step_progress_bar.dart';
+import '../../widgets/diagnostics/stat_card.dart';
+import '../../widgets/diagnostics/waiting_box.dart';
+import '../../widgets/diagnostics/welcome_screen.dart';
+import '../../models/diagnostic_enums.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MODELS
@@ -100,9 +113,7 @@ class ConnectivityData {
   });
 }
 
-enum DiagStep { device, wifi, onu, lan, connectivity, speed, tracert }
-
-enum SpeedPhase { idle, download, upload }
+// Enums moved to diagnostic_enums.dart
 
 class DiagState {
   final DiagStep currentStep;
@@ -191,1223 +202,7 @@ class DiagState {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// THEME
-// ═══════════════════════════════════════════════════════════════════════════
-
-class Theme {
-  static const bg1 = Color(0xFF020108);
-  static const bg2 = Color(0xFF08041a);
-  static const bg3 = Color(0xFF100828);
-
-  static const cyan = Color(0xFF00fff2);
-  static const blue = Color(0xFF0088ff);
-  static const purple = Color(0xFFa855f7);
-  static const pink = Color(0xFFff006e);
-  static const green = Color(0xFF00ff88);
-  static const orange = Color(0xFFff8800);
-  static const red = Color(0xFFff2255);
-  static const gold = Color(0xFFffd000);
-
-  static const textPrimary = Colors.white;
-  static const textSecondary = Color(0xAAFFFFFF);
-  static const textDim = Color(0x66FFFFFF);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ANIMATED PARTICLES
-// ═══════════════════════════════════════════════════════════════════════════
-
-class _HoloBackground extends StatefulWidget {
-  final Widget child;
-  const _HoloBackground({required this.child});
-  @override
-  State<_HoloBackground> createState() => _HoloBackgroundState();
-}
-
-class _HoloBackgroundState extends State<_HoloBackground>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) => CustomPaint(
-        painter: _HexagonGridPainter(_ctrl.value, Theme.cyan.withAlpha(15)),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// LIVE SPEED GRAPH - Download & Upload
-// ═══════════════════════════════════════════════════════════════════════════
-
-class LiveSpeedGraph extends StatelessWidget {
-  final List<double> downloadData;
-  final List<double> uploadData;
-  final double currentSpeed;
-  final SpeedPhase phase;
-  final double downloadSpeed;
-  final double uploadSpeed;
-
-  const LiveSpeedGraph({
-    super.key,
-    required this.downloadData,
-    required this.uploadData,
-    required this.currentSpeed,
-    required this.phase,
-    required this.downloadSpeed,
-    required this.uploadSpeed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _HoloCard(
-      isScanning: phase != SpeedPhase.idle,
-      accent: phase == SpeedPhase.download
-          ? Theme.cyan
-          : phase == SpeedPhase.upload
-              ? Theme.purple
-              : null,
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            // Need Container for padding of inner content or just Padding widget
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.white.withAlpha(5), Colors.transparent],
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header with current speed
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'VELOCIDADE EM TEMPO REAL',
-                              style: TextStyle(
-                                color: Colors.white.withAlpha(120),
-                                fontSize: 11,
-                                letterSpacing: 2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  currentSpeed.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    fontSize: 42,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Padding(
-                                  padding: EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    'Mbps',
-                                    style: TextStyle(
-                                      color: Theme.textSecondary,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (phase != SpeedPhase.idle)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: phase == SpeedPhase.download
-                                  ? [Theme.cyan, Theme.blue]
-                                  : [Theme.purple, Theme.pink],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (phase == SpeedPhase.download
-                                        ? Theme.cyan
-                                        : Theme.purple)
-                                    .withAlpha(100),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                phase == SpeedPhase.download
-                                    ? Icons.download_rounded
-                                    : Icons.upload_rounded,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                phase == SpeedPhase.download
-                                    ? 'DOWNLOAD'
-                                    : 'UPLOAD',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Graph
-                  SizedBox(
-                    height: 140,
-                    child: CustomPaint(
-                      size: const Size(double.infinity, 140),
-                      painter: _SpeedGraphPainter(downloadData, uploadData),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Legend and results
-                  Row(
-                    children: [
-                      _LegendItem(
-                        color: Theme.cyan,
-                        label: 'Download',
-                        value: downloadSpeed > 0
-                            ? '${downloadSpeed.toStringAsFixed(1)} Mbps'
-                            : '--',
-                      ),
-                      const SizedBox(width: 24),
-                      _LegendItem(
-                        color: Theme.purple,
-                        label: 'Upload',
-                        value: uploadSpeed > 0
-                            ? '${uploadSpeed.toStringAsFixed(1)} Mbps'
-                            : '--',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String label, value;
-  const _LegendItem({
-    required this.color,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-            boxShadow: [BoxShadow(color: color.withAlpha(100), blurRadius: 6)],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(color: Theme.textDim, fontSize: 11),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _SpeedGraphPainter extends CustomPainter {
-  final List<double> downloadData;
-  final List<double> uploadData;
-
-  _SpeedGraphPainter(this.downloadData, this.uploadData);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final maxPoints = 60;
-
-    // Grid lines
-    for (int i = 0; i <= 4; i++) {
-      final y = size.height * i / 4;
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        Paint()..color = Colors.white.withAlpha(10),
-      );
-    }
-
-    // Draw download line
-    if (downloadData.isNotEmpty) {
-      _drawLine(canvas, size, downloadData, Theme.cyan, maxPoints);
-    }
-
-    // Draw upload line
-    if (uploadData.isNotEmpty) {
-      _drawLine(canvas, size, uploadData, Theme.purple, maxPoints);
-    }
-  }
-
-  void _drawLine(
-    Canvas canvas,
-    Size size,
-    List<double> data,
-    Color color,
-    int maxPoints,
-  ) {
-    if (data.isEmpty) return;
-
-    final maxVal = 500.0;
-    final path = Path();
-    final fillPath = Path();
-
-    for (int i = 0; i < data.length; i++) {
-      final x = i / max(1, maxPoints - 1) * size.width;
-      final y = size.height - (data[i] / maxVal * size.height);
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, size.height);
-        fillPath.lineTo(x, y);
-      } else {
-        path.lineTo(x, y);
-        fillPath.lineTo(x, y);
-      }
-    }
-
-    // Fill under line
-    final lastX = (data.length - 1) / max(1, maxPoints - 1) * size.width;
-    fillPath.lineTo(lastX, size.height);
-    fillPath.close();
-    canvas.drawPath(
-      fillPath,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [color.withAlpha(60), color.withAlpha(0)],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
-    );
-
-    // Line with glow
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 8
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // End dot
-    if (data.isNotEmpty) {
-      final lastY = size.height - (data.last / maxVal * size.height);
-      canvas.drawCircle(Offset(lastX, lastY), 5, Paint()..color = Colors.white);
-      canvas.drawCircle(
-        Offset(lastX, lastY),
-        10,
-        Paint()
-          ..color = color.withAlpha(100)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SpeedGraphPainter old) => true;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// WIDGETS
-// ═══════════════════════════════════════════════════════════════════════════
-
-class _HoloCard extends StatefulWidget {
-  final Widget child;
-  final EdgeInsets padding;
-  final Color? accent;
-  final bool isScanning;
-
-  const _HoloCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.accent,
-    this.isScanning = false,
-  });
-
-  @override
-  State<_HoloCard> createState() => _HoloCardState();
-}
-
-class _HoloCardState extends State<_HoloCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _scanCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _scanCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    if (widget.isScanning) _scanCtrl.repeat();
-  }
-
-  @override
-  void didUpdateWidget(covariant _HoloCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isScanning != oldWidget.isScanning) {
-      if (widget.isScanning) {
-        _scanCtrl.repeat();
-      } else {
-        _scanCtrl.stop();
-        _scanCtrl.reset();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _scanCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = widget.accent ?? Theme.cyan;
-    return CustomPaint(
-      painter: _CornerPainter(color: color),
-      foregroundPainter:
-          widget.isScanning ? _CardScannerPainter(_scanCtrl, color) : null,
-      child: Container(
-        padding: widget.padding,
-        decoration: BoxDecoration(
-          color: color.withAlpha(10),
-          border: Border.all(color: color.withAlpha(40)),
-        ),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-class _CardScannerPainter extends CustomPainter {
-  final Animation<double> animation;
-  final Color color;
-  _CardScannerPainter(this.animation, this.color) : super(repaint: animation);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final y = animation.value * size.height;
-
-    // Scan line
-    canvas.drawLine(
-      Offset(0, y),
-      Offset(size.width, y),
-      Paint()
-        ..color = color.withOpacity(0.8)
-        ..strokeWidth = 2
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
-
-    // Trail
-    final trailRect = Rect.fromLTWH(0, y - 40, size.width, 40);
-    canvas.drawRect(
-      trailRect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [color.withOpacity(0.3), Colors.transparent],
-        ).createShader(trailRect),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _CardScannerPainter old) => true;
-}
-
-class _CornerPainter extends CustomPainter {
-  final Color color;
-  _CornerPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-
-    final double len = 10;
-
-    // Top Left
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, len)
-        ..lineTo(0, 0)
-        ..lineTo(len, 0),
-      paint,
-    );
-    // Top Right
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width - len, 0)
-        ..lineTo(size.width, 0)
-        ..lineTo(size.width, len),
-      paint,
-    );
-    // Bottom Right
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width, size.height - len)
-        ..lineTo(size.width, size.height)
-        ..lineTo(size.width - len, size.height),
-      paint,
-    );
-    // Bottom Left
-    canvas.drawPath(
-      Path()
-        ..moveTo(len, size.height)
-        ..lineTo(0, size.height)
-        ..lineTo(0, size.height - len),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _CornerPainter old) => false;
-}
-
-class SectionTitle extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final bool hasData;
-
-  const SectionTitle({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.color,
-    this.hasData = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [color.withAlpha(80), color.withAlpha(15)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-          if (!hasData)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: color.withAlpha(20),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 10,
-                    height: 10,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Aguardando',
-                    style: TextStyle(color: color, fontSize: 10),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class DataRow extends StatelessWidget {
-  final IconData icon;
-  final String label, value;
-  final Color color;
-
-  const DataRow({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.color = Theme.cyan,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Icon(icon, color: color.withAlpha(180), size: 16),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Theme.textSecondary, fontSize: 13),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class StatCard extends StatelessWidget {
-  final String label, value, unit;
-  final IconData icon;
-  final Color color;
-
-  const StatCard({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _HoloCard(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      accent: color,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [color.withAlpha(80), color.withAlpha(15)],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            unit,
-            style: TextStyle(color: color.withAlpha(150), fontSize: 10),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(color: Theme.textDim, fontSize: 10),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class WaitingBox extends StatelessWidget {
-  const WaitingBox({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _HoloCard(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.hourglass_empty_rounded,
-            color: Colors.white.withAlpha(40),
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          const Text(
-            'Aguardando diagnóstico...',
-            style: TextStyle(color: Theme.textDim, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// STEP PROGRESS BAR
-// ═══════════════════════════════════════════════════════════════════════════
-
-class StepProgressBar extends StatelessWidget {
-  final DiagStep currentStep;
-  final Set<DiagStep> completedSteps;
-  final bool isRunning;
-
-  const StepProgressBar({
-    super.key,
-    required this.currentStep,
-    required this.completedSteps,
-    required this.isRunning,
-  });
-
-  static const steps = [
-    (DiagStep.device, Icons.smartphone, 'Device'),
-    (DiagStep.wifi, Icons.wifi, 'Wi-Fi'),
-    (DiagStep.onu, Icons.router, 'ONU'),
-    (DiagStep.lan, Icons.devices, 'LAN'),
-    (DiagStep.connectivity, Icons.public, 'Rede'),
-    (DiagStep.speed, Icons.speed, 'Speed'),
-    (DiagStep.tracert, Icons.route, 'Rota'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return _HoloCard(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: steps.map((s) {
-          final isCompleted = completedSteps.contains(s.$1);
-          final isCurrent = currentStep == s.$1 && isRunning;
-          final color = isCompleted
-              ? Theme.green
-              : isCurrent
-                  ? Theme.cyan
-                  : Colors.white.withAlpha(40);
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  gradient: isCompleted || isCurrent
-                      ? RadialGradient(
-                          colors: [color.withAlpha(80), color.withAlpha(15)],
-                        )
-                      : null,
-                  color: !isCompleted && !isCurrent
-                      ? Colors.white.withAlpha(8)
-                      : null,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: color, width: 2),
-                  boxShadow: isCurrent
-                      ? [BoxShadow(color: color.withAlpha(100), blurRadius: 10)]
-                      : null,
-                ),
-                child: Icon(
-                  isCompleted ? Icons.check_rounded : s.$2,
-                  color: color,
-                  size: 14,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(s.$3, style: TextStyle(color: color, fontSize: 8)),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// WELCOME SCREEN V3 - DIGITAL PULSE
-// ═══════════════════════════════════════════════════════════════════════════
-
-class WelcomeScreen extends StatefulWidget {
-  final VoidCallback onStart;
-  const WelcomeScreen({super.key, required this.onStart});
-
-  @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
-}
-
-class _WelcomeScreenState extends State<WelcomeScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _gridCtrl, _rotateCtrl, _pulseCtrl, _scanCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _gridCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..repeat();
-    _rotateCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 12),
-    )..repeat();
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-    _scanCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _gridCtrl.dispose();
-    _rotateCtrl.dispose();
-    _pulseCtrl.dispose();
-    _scanCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(color: Color(0xFF02060D)),
-      child: Stack(
-        children: [
-          // 1. Dynamic Hexagon Grid (Background)
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _gridCtrl,
-              builder: (_, __) => CustomPaint(
-                painter: _HexagonGridPainter(
-                  _gridCtrl.value,
-                  Theme.cyan.withAlpha(20),
-                ),
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // V5 Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.cyan.withAlpha(20),
-                          border: Border.all(color: Theme.cyan.withAlpha(100)),
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.cyan.withAlpha(30),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          "QUANTUM NET v5.0",
-                          style: TextStyle(
-                            color: Theme.cyan,
-                            fontSize: 10,
-                            letterSpacing: 2,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      // Network Status
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.hub,
-                            color: Theme.purple.withAlpha(200),
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "MESH ACTIVE",
-                            style: TextStyle(
-                              color: Theme.purple.withAlpha(200),
-                              fontSize: 10,
-                              letterSpacing: 1.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // 2. Center: Scanner Interface (Hybrid V3/V4)
-                Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.heavyImpact();
-                      widget.onStart();
-                    },
-                    child: SizedBox(
-                      width: 280,
-                      height: 280,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Outer Dashed Ring (Slow Rotate)
-                          AnimatedBuilder(
-                            animation: _rotateCtrl,
-                            builder: (_, __) => Transform.rotate(
-                              angle: _rotateCtrl.value * 2 * pi,
-                              child: CustomPaint(
-                                size: const Size(280, 280),
-                                painter: _DashedRingPainter(
-                                  color: Theme.cyan.withAlpha(80),
-                                  dash: 40,
-                                  gap: 20,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Inner Dashed Ring (Fast Counter-Rotate)
-                          AnimatedBuilder(
-                            animation: _rotateCtrl,
-                            builder: (_, __) => Transform.rotate(
-                              angle: -_rotateCtrl.value * 2 * pi * 1.5,
-                              child: CustomPaint(
-                                size: const Size(240, 240),
-                                painter: _DashedRingPainter(
-                                  color: Theme.purple.withAlpha(100),
-                                  dash: 10,
-                                  gap: 10,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Scanner Beam (Active Scan) in Portal
-                          ClipOval(
-                            child: Stack(
-                              children: [
-                                // Glass Core Background
-                                Container(
-                                  width: 200,
-                                  height: 200,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withAlpha(100),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                // The Beam
-                                AnimatedBuilder(
-                                  animation: _scanCtrl,
-                                  builder: (_, __) => CustomPaint(
-                                    size: const Size(200, 200),
-                                    painter: _ScannerBeamPainter(
-                                      _scanCtrl.value,
-                                      Theme.cyan,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Central START Button (Pulsing)
-                          AnimatedBuilder(
-                            animation: _pulseCtrl,
-                            builder: (_, __) => Container(
-                              width: 90,
-                              height: 90,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Theme.cyan.withAlpha(
-                                  (20 + _pulseCtrl.value * 30).toInt(),
-                                ),
-                                border: Border.all(
-                                  color: Theme.cyan.withAlpha(
-                                    (100 + _pulseCtrl.value * 155).toInt(),
-                                  ),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Theme.cyan.withAlpha(
-                                      (50 + _pulseCtrl.value * 50).toInt(),
-                                    ),
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "START",
-                                  style: TextStyle(
-                                    color: Theme.cyan,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Footer
-                Text(
-                  "INITIATE DIAGNOSTIC",
-                  style: TextStyle(
-                    color: Colors.white.withAlpha(100),
-                    fontSize: 12,
-                    letterSpacing: 4,
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ════════════════ Helper Widgets & Painters ════════════════
-
-class _HexagonGridPainter extends CustomPainter {
-  final double scroll;
-  final Color color;
-  _HexagonGridPainter(this.scroll, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final double r = 30; // Hexagon radius
-    // Calculate hex dimensions
-    final double w = sqrt(3) * r;
-    final double h = 2 * r;
-
-    // Offset grid by scroll
-    final double yOffset = (scroll * h * 2) % (h * 3); // Loop smoothly
-
-    for (double y = -h; y < size.height + h; y += h * 0.75) {
-      for (double x = -w; x < size.width + w; x += w) {
-        final double xPos = x + ((y / (h * 0.75)).floor() % 2 == 0 ? w / 2 : 0);
-        final double yPos = y + yOffset;
-        _drawHex(canvas, Offset(xPos, yPos), r, paint);
-      }
-    }
-  }
-
-  void _drawHex(Canvas canvas, Offset center, double r, Paint paint) {
-    final path = Path();
-    for (int i = 0; i < 6; i++) {
-      final angle = (pi / 3) * i;
-      final x = center.dx + r * cos(angle);
-      final y = center.dy + r * sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _HexagonGridPainter old) => old.scroll != scroll;
-}
-
-class _DashedRingPainter extends CustomPainter {
-  final Color color;
-  final double dash;
-  final double gap;
-  _DashedRingPainter({required this.color, this.dash = 20, this.gap = 10});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    double radius = size.width / 2;
-    double circumference = 2 * pi * radius;
-    int count = (circumference / (dash + gap)).floor();
-    double angle = (dash / circumference) * 2 * pi;
-    double space = (gap / circumference) * 2 * pi;
-
-    for (int i = 0; i < count; i++) {
-      canvas.drawArc(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        i * (angle + space),
-        angle,
-        false,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedRingPainter old) => false;
-}
-
-class _ScannerBeamPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  _ScannerBeamPainter(this.progress, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Triangle wave 0->1->0
-    final cycle = (progress * 2);
-    final norm = cycle > 1 ? 2 - cycle : cycle;
-    final y = size.height * norm;
-
-    // Scan line
-    canvas.drawLine(
-      Offset(0, y),
-      Offset(size.width, y),
-      Paint()
-        ..color = color
-        ..strokeWidth = 2,
-    );
-    // Gradient trail (upwards from line)
-    final rect = Rect.fromLTWH(0, y - 50, size.width, 50);
-    // Draw trail
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [color.withAlpha(100), Colors.transparent],
-        ).createShader(rect),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScannerBeamPainter old) =>
-      old.progress != progress;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// DIAGNOSTIC SCREEN
-// ═══════════════════════════════════════════════════════════════════════════
+// Shared widgets moved to lib/core/widgets/diagnostics/
 
 class DiagnosticScreen extends StatelessWidget {
   final DiagState state;
@@ -1415,12 +210,8 @@ class DiagnosticScreen extends StatelessWidget {
   final VoidCallback? onRetry;
   final VoidCallback? onSharePdf;
 
-  // WiFi Management
-  final bool loadingWifi;
-  final List<WifiNetwork> wifiNetworks;
-  final String? wifiError;
-  final VoidCallback? onFetchWifi;
-  final void Function(WifiNetwork)? onEditWifi;
+  // WiFi Management Controller
+  final WifiManagementController? wifiController;
 
   // Troubleshooter
   final real_state.DiagnosticoState? realState;
@@ -1431,30 +222,26 @@ class DiagnosticScreen extends StatelessWidget {
     required this.onCancel,
     this.onRetry,
     this.onSharePdf,
-    this.loadingWifi = false,
-    this.wifiNetworks = const [],
-    this.wifiError,
-    this.onFetchWifi,
-    this.onEditWifi,
+    this.wifiController,
     this.realState,
   });
 
   Color _rssiColor(int r) => r >= -50
-      ? Theme.green
+      ? DiagnosticTheme.green
       : r >= -70
-          ? Theme.orange
-          : Theme.red;
+          ? DiagnosticTheme.orange
+          : DiagnosticTheme.red;
   Color _battColor(int b) => b > 50
-      ? Theme.green
+      ? DiagnosticTheme.green
       : b > 20
-          ? Theme.orange
-          : Theme.red;
+          ? DiagnosticTheme.orange
+          : DiagnosticTheme.red;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFF02060D),
-      child: _HoloBackground(
+      child: HoloBackground(
         child: Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -1476,7 +263,8 @@ class DiagnosticScreen extends StatelessWidget {
             actions: [
               if (onSharePdf != null)
                 IconButton(
-                  icon: const Icon(Icons.share_rounded, color: Theme.cyan),
+                  icon: const Icon(Icons.share_rounded,
+                      color: DiagnosticTheme.cyan),
                   onPressed: onSharePdf,
                   tooltip: 'Compartilhar PDF',
                 ),
@@ -1486,7 +274,7 @@ class DiagnosticScreen extends StatelessWidget {
                   child: const Text(
                     'PARAR',
                     style: TextStyle(
-                      color: Theme.red,
+                      color: DiagnosticTheme.red,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1513,7 +301,7 @@ class DiagnosticScreen extends StatelessWidget {
                     child: Text(
                       state.status,
                       style: const TextStyle(
-                        color: Theme.textSecondary,
+                        color: DiagnosticTheme.textSecondary,
                         fontSize: 13,
                       ),
                     ),
@@ -1538,7 +326,7 @@ class DiagnosticScreen extends StatelessWidget {
                           value: '${state.ping}',
                           unit: 'ms',
                           icon: Icons.timer_outlined,
-                          color: Theme.green,
+                          color: DiagnosticTheme.green,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1548,7 +336,7 @@ class DiagnosticScreen extends StatelessWidget {
                           value: state.jitter.toStringAsFixed(1),
                           unit: 'ms',
                           icon: Icons.graphic_eq,
-                          color: Theme.orange,
+                          color: DiagnosticTheme.orange,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1558,7 +346,7 @@ class DiagnosticScreen extends StatelessWidget {
                           value: '${state.lan.length}',
                           unit: 'devices',
                           icon: Icons.devices,
-                          color: Theme.purple,
+                          color: DiagnosticTheme.purple,
                         ),
                       ),
                     ],
@@ -1594,15 +382,15 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Dispositivo',
           icon: Icons.smartphone,
-          color: Theme.gold,
+          color: DiagnosticTheme.gold,
           hasData: d != null,
         ),
         if (d == null)
           const WaitingBox()
         else
-          _HoloCard(
+          HoloCard(
             isScanning: state.isRunning && state.currentStep == DiagStep.device,
-            accent: Theme.gold,
+            accent: DiagnosticTheme.gold,
             child: Column(
               children: [
                 Row(
@@ -1642,7 +430,7 @@ class DiagnosticScreen extends StatelessWidget {
                         Text(
                           d.isCharging ? 'Carregando' : 'Na bateria',
                           style: const TextStyle(
-                            color: Theme.textDim,
+                            color: DiagnosticTheme.textDim,
                             fontSize: 11,
                           ),
                         ),
@@ -1651,11 +439,11 @@ class DiagnosticScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.phone_android_rounded,
                   label: 'Modelo',
                   value: d.model,
-                  color: Theme.gold,
+                  color: DiagnosticTheme.gold,
                 ),
               ],
             ),
@@ -1672,15 +460,15 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Wi-Fi',
           icon: Icons.wifi,
-          color: Theme.pink,
+          color: DiagnosticTheme.pink,
           hasData: w != null,
         ),
         if (w == null)
           const WaitingBox()
         else
-          _HoloCard(
+          HoloCard(
             isScanning: state.isRunning && state.currentStep == DiagStep.wifi,
-            accent: Theme.pink,
+            accent: DiagnosticTheme.pink,
             child: Column(
               children: [
                 Row(
@@ -1733,11 +521,11 @@ class DiagnosticScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.computer_rounded,
                   label: 'IP Local',
                   value: w.localIp,
-                  color: Theme.green,
+                  color: DiagnosticTheme.green,
                 ),
               ],
             ),
@@ -1754,34 +542,34 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'ONU Fibra',
           icon: Icons.router,
-          color: Theme.purple,
+          color: DiagnosticTheme.purple,
           hasData: o != null,
         ),
         if (o == null)
           const WaitingBox()
         else
-          _HoloCard(
+          HoloCard(
             isScanning: state.isRunning && state.currentStep == DiagStep.onu,
-            accent: Theme.purple,
+            accent: DiagnosticTheme.purple,
             child: Column(
               children: [
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.arrow_downward_rounded,
                   label: 'Sinal RX',
                   value: '${o.signalRx} dBm',
-                  color: Theme.green,
+                  color: DiagnosticTheme.green,
                 ),
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.arrow_upward_rounded,
                   label: 'Sinal TX',
                   value: '${o.signalTx} dBm',
-                  color: Theme.purple,
+                  color: DiagnosticTheme.purple,
                 ),
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.thermostat_rounded,
                   label: 'Temperatura',
                   value: '${o.temperature}°C',
-                  color: Theme.orange,
+                  color: DiagnosticTheme.orange,
                 ),
               ],
             ),
@@ -1798,35 +586,35 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Conectividade',
           icon: Icons.public,
-          color: Theme.orange,
+          color: DiagnosticTheme.orange,
           hasData: c != null,
         ),
         if (c == null)
           const WaitingBox()
         else
-          _HoloCard(
+          HoloCard(
             isScanning:
                 state.isRunning && state.currentStep == DiagStep.connectivity,
-            accent: Theme.orange,
+            accent: DiagnosticTheme.orange,
             child: Column(
               children: [
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.router_rounded,
                   label: 'Ping Roteador',
                   value: '${c.pingRouter} ms',
-                  color: Theme.green,
+                  color: DiagnosticTheme.green,
                 ),
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.public_rounded,
                   label: 'Ping Google',
                   value: '${c.pingGoogle} ms',
-                  color: Theme.cyan,
+                  color: DiagnosticTheme.cyan,
                 ),
-                DataRow(
+                DiagnosticDataRow(
                   icon: Icons.business_rounded,
                   label: 'Provedor',
                   value: c.provider,
-                  color: Theme.pink,
+                  color: DiagnosticTheme.pink,
                 ),
               ],
             ),
@@ -1843,23 +631,23 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Traceroute (${state.tracert.length})',
           icon: Icons.route,
-          color: Theme.gold,
+          color: DiagnosticTheme.gold,
           hasData: hasData,
         ),
         if (!hasData)
           const WaitingBox()
         else
-          _HoloCard(
+          HoloCard(
             isScanning:
                 state.isRunning && state.currentStep == DiagStep.tracert,
-            accent: Theme.gold,
+            accent: DiagnosticTheme.gold,
             child: Column(
               children: state.tracert.map((h) {
                 final c = h.latency < 30
-                    ? Theme.green
+                    ? DiagnosticTheme.green
                     : h.latency < 80
-                        ? Theme.orange
-                        : Theme.red;
+                        ? DiagnosticTheme.orange
+                        : DiagnosticTheme.red;
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
@@ -1917,120 +705,216 @@ class DiagnosticScreen extends StatelessWidget {
   }
 
   Widget _buildWifiManagementSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionTitle(
-          title: 'Gerenciar WiFi (TR-069)',
-          icon: Icons.settings_remote_rounded,
-          color: Theme.cyan,
-          hasData: wifiNetworks.isNotEmpty || wifiError != null || !loadingWifi,
-        ),
-        _HoloCard(
-          isScanning: loadingWifi,
-          accent: Theme.cyan,
-          child: loadingWifi
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(color: Theme.cyan),
-                  ),
-                )
-              : wifiError != null
-                  ? Center(
-                      child: Column(
-                        children: [
-                          Icon(Icons.error_outline, color: Theme.red, size: 40),
-                          const SizedBox(height: 8),
-                          Text(wifiError!,
-                              style: TextStyle(color: Theme.red),
-                              textAlign: TextAlign.center),
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: onFetchWifi,
-                            icon: const Icon(Icons.refresh, color: Theme.cyan),
-                            label: const Text('Tentar novamente',
-                                style: TextStyle(color: Theme.cyan)),
-                          ),
-                        ],
+    if (wifiController == null) return const SizedBox.shrink();
+
+    return ValueListenableBuilder<WifiState>(
+      valueListenable: wifiController!,
+      builder: (context, state, _) {
+        final loadingWifi = state.isLoading;
+        final wifiError = state.error;
+        final wifiNetworks = state.networks;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SectionTitle(
+              title: 'Gerenciar WiFi (TR-069)',
+              icon: Icons.settings_remote_rounded,
+              color: DiagnosticTheme.cyan,
+              hasData:
+                  wifiNetworks.isNotEmpty || wifiError != null || !loadingWifi,
+            ),
+            HoloCard(
+              isScanning: loadingWifi,
+              accent: DiagnosticTheme.cyan,
+              child: loadingWifi
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(
+                            color: DiagnosticTheme.cyan),
                       ),
                     )
-                  : wifiNetworks.isEmpty
+                  : wifiError != null
                       ? Center(
                           child: Column(
                             children: [
-                              Icon(Icons.wifi_find,
-                                  color: Theme.textDim, size: 40),
+                              Icon(Icons.error_outline,
+                                  color: DiagnosticTheme.red, size: 40),
                               const SizedBox(height: 8),
-                              const Text(
-                                  'Buscar redes WiFi do roteador via TR-069',
-                                  style: TextStyle(color: Theme.textDim),
+                              Text(wifiError,
+                                  style: TextStyle(color: DiagnosticTheme.red),
                                   textAlign: TextAlign.center),
                               const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.cyan),
-                                onPressed: onFetchWifi,
-                                icon: const Icon(Icons.search,
-                                    color: Colors.black),
-                                label: const Text('Buscar Redes WiFi',
-                                    style: TextStyle(color: Colors.black)),
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    wifiController!.fetchNetworks(),
+                                icon: const Icon(Icons.refresh,
+                                    color: DiagnosticTheme.cyan),
+                                label: const Text('Tentar novamente',
+                                    style:
+                                        TextStyle(color: DiagnosticTheme.cyan)),
                               ),
                             ],
                           ),
                         )
-                      : Column(
-                          children: wifiNetworks.map((network) {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Theme.bg2,
-                                borderRadius: BorderRadius.circular(12),
-                                border:
-                                    Border.all(color: Theme.cyan.withAlpha(50)),
-                              ),
-                              child: Row(
+                      : wifiNetworks.isEmpty
+                          ? Center(
+                              child: Column(
                                 children: [
-                                  Icon(
-                                    network.frequency.contains('5')
-                                        ? Icons.wifi
-                                        : Icons.wifi_2_bar,
-                                    color: network.enabled
-                                        ? Theme.green
-                                        : Theme.textDim,
-                                    size: 28,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(network.ssid,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white)),
-                                        Text(network.frequency,
-                                            style: const TextStyle(
-                                                color: Theme.textDim,
-                                                fontSize: 12)),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit,
-                                        color: Theme.cyan),
-                                    onPressed: () => onEditWifi?.call(network),
-                                    tooltip: 'Editar WiFi',
+                                  Icon(Icons.wifi_find,
+                                      color: DiagnosticTheme.textDim, size: 40),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                      'Buscar redes WiFi do roteador via TR-069',
+                                      style: TextStyle(
+                                          color: DiagnosticTheme.textDim),
+                                      textAlign: TextAlign.center),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: DiagnosticTheme.cyan),
+                                    onPressed: () =>
+                                        wifiController!.fetchNetworks(),
+                                    icon: const Icon(Icons.search,
+                                        color: Colors.black),
+                                    label: const Text('Buscar Redes WiFi',
+                                        style: TextStyle(color: Colors.black)),
                                   ),
                                 ],
                               ),
-                            );
-                          }).toList(),
-                        ),
+                            )
+                          : Column(
+                              children: wifiNetworks.map((network) {
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: DiagnosticTheme.bg2,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color:
+                                            DiagnosticTheme.cyan.withAlpha(50)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        network.frequency.contains('5')
+                                            ? Icons.wifi
+                                            : Icons.wifi_2_bar,
+                                        color: network.enabled
+                                            ? DiagnosticTheme.green
+                                            : DiagnosticTheme.textDim,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(network.ssid,
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white)),
+                                            Text(network.frequency,
+                                                style: const TextStyle(
+                                                    color:
+                                                        DiagnosticTheme.textDim,
+                                                    fontSize: 12)),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit,
+                                            color: DiagnosticTheme.cyan),
+                                        onPressed: () => _showEditWifiDialog(
+                                            context, network),
+                                        tooltip: 'Editar WiFi',
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditWifiDialog(BuildContext context, WifiNetwork network) {
+    if (wifiController == null) return;
+
+    final ssidController = TextEditingController(text: network.ssid);
+    final passwordController = TextEditingController(text: network.password);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: AlertDialog(
+          backgroundColor: DiagnosticTheme.bg2,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Icon(Icons.edit, color: DiagnosticTheme.cyan),
+            const SizedBox(width: 10),
+            Text('Editar ${network.frequency}',
+                style: const TextStyle(color: Colors.white))
+          ]),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: ssidController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'SSID (Nome da Rede)',
+                labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
+                enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.textDim)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.cyan)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              style: const TextStyle(color: Colors.white),
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Senha',
+                labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
+                enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.textDim)),
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.cyan)),
+              ),
+            ),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar',
+                    style: TextStyle(color: DiagnosticTheme.textDim))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: DiagnosticTheme.cyan),
+              onPressed: () {
+                Navigator.pop(ctx);
+                wifiController!.updateWifi(
+                  context, // Pass context for SnackBar
+                  network.id,
+                  ssidController.text,
+                  passwordController.text,
+                );
+              },
+              child: const Text('Salvar Alterações',
+                  style: TextStyle(color: Colors.black)),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -2054,30 +938,16 @@ class DiagnosticScreen extends StatelessWidget {
   // PARSING HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  String _parseResultLine(String? resultText, String key) {
-    if (resultText == null || resultText.isEmpty) return "---";
-    try {
-      final line = resultText
-          .split('\n')
-          .firstWhere((l) => l.startsWith(key), orElse: () => '');
-      if (line.isEmpty) return "---";
-      return line.split(':').sublist(1).join(':').trim();
-    } catch (e) {
-      return "---";
-    }
-  }
+  // _parseResultLine REMOVED - Using DiagnosticUtils.parseResultLine instead
 
   Color _getStatusColor(real_state.TestStatus status) {
-    switch (status) {
-      case real_state.TestStatus.success:
-        return Theme.green;
-      case real_state.TestStatus.running:
-        return Theme.cyan;
-      case real_state.TestStatus.error:
-        return Theme.red;
-      default:
-        return Theme.textDim;
-    }
+    return DiagnosticUtils.getStatusColor(
+      status,
+      success: DiagnosticTheme.green,
+      running: DiagnosticTheme.cyan,
+      error: DiagnosticTheme.red,
+      pending: DiagnosticTheme.textDim,
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -2115,13 +985,13 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Jornada da Conexão',
           icon: Icons.route_rounded,
-          color: Theme.cyan,
+          color: DiagnosticTheme.cyan,
           hasData: wifiStatus != real_state.TestStatus.pending,
         ),
-        _HoloCard(
+        HoloCard(
           isScanning: wifiStatus == real_state.TestStatus.running ||
               gatewayStatus == real_state.TestStatus.running,
-          accent: Theme.cyan,
+          accent: DiagnosticTheme.cyan,
           child: Column(
             children: [
               _buildJourneyStep(
@@ -2129,8 +999,15 @@ class DiagnosticScreen extends StatelessWidget {
                 title: 'Você (Dispositivo)',
                 status: wifiStatus,
                 details: [
-                  ('Sinal', _parseResultLine(wifiResult, 'Força do Sinal:')),
-                  ('SSID', _parseResultLine(wifiResult, 'SSID:')),
+                  (
+                    'Sinal',
+                    DiagnosticUtils.parseResultLine(
+                        wifiResult, 'Força do Sinal:')
+                  ),
+                  (
+                    'SSID',
+                    DiagnosticUtils.parseResultLine(wifiResult, 'SSID:')
+                  ),
                 ],
               ),
               _buildJourneyConnector(wifiStatus),
@@ -2139,9 +1016,19 @@ class DiagnosticScreen extends StatelessWidget {
                 title: 'Seu Roteador',
                 status: gatewayStatus,
                 details: [
-                  ('IP', _parseResultLine(wifiResult, 'Gateway (Roteador):')),
-                  ('Latência', _parseResultLine(gatewayResult, 'Latência:')),
-                  ('Jitter', _parseResultLine(gatewayResult, 'Jitter:')),
+                  (
+                    'IP',
+                    DiagnosticUtils.parseResultLine(
+                        wifiResult, 'Gateway (Roteador):')
+                  ),
+                  (
+                    'Latência',
+                    DiagnosticUtils.parseResultLine(gatewayResult, 'Latência:')
+                  ),
+                  (
+                    'Jitter',
+                    DiagnosticUtils.parseResultLine(gatewayResult, 'Jitter:')
+                  ),
                 ],
               ),
               _buildJourneyConnector(gatewayStatus),
@@ -2150,8 +1037,8 @@ class DiagnosticScreen extends StatelessWidget {
                 title: 'Nossa Rede',
                 status: ipStatus,
                 details: [
-                  ('IPv4', _parseResultLine(ipResult, 'IPv4:')),
-                  ('IPv6', _parseResultLine(ipResult, 'IPv6:')),
+                  ('IPv4', DiagnosticUtils.parseResultLine(ipResult, 'IPv4:')),
+                  ('IPv6', DiagnosticUtils.parseResultLine(ipResult, 'IPv6:')),
                 ],
               ),
               _buildJourneyConnector(ipStatus),
@@ -2163,10 +1050,13 @@ class DiagnosticScreen extends StatelessWidget {
                     ? real_state.TestStatus.success
                     : googleStatus,
                 details: [
-                  ('Google', '${_parseResultLine(googleResult, 'Latência:')}'),
+                  (
+                    'Google',
+                    '${DiagnosticUtils.parseResultLine(googleResult, 'Latência:')}'
+                  ),
                   (
                     'Cloudflare',
-                    '${_parseResultLine(cloudflareResult, 'Latência:')}'
+                    '${DiagnosticUtils.parseResultLine(cloudflareResult, 'Latência:')}'
                   ),
                 ],
                 isLast: true,
@@ -2239,8 +1129,8 @@ class DiagnosticScreen extends StatelessWidget {
                   children: details
                       .map((d) => Text(
                             '${d.$1}: ${d.$2}',
-                            style:
-                                TextStyle(color: Theme.textDim, fontSize: 11),
+                            style: TextStyle(
+                                color: DiagnosticTheme.textDim, fontSize: 11),
                           ))
                       .toList(),
                 ),
@@ -2288,34 +1178,37 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Detalhes WiFi',
           icon: Icons.info_outline_rounded,
-          color: Theme.pink,
+          color: DiagnosticTheme.pink,
           hasData: wifiResult != null,
         ),
-        _HoloCard(
+        HoloCard(
           isScanning: status == real_state.TestStatus.running,
-          accent: Theme.pink,
+          accent: DiagnosticTheme.pink,
           child: Column(
             children: [
-              DataRow(
+              DiagnosticDataRow(
                   icon: Icons.router,
                   label: 'BSSID',
-                  value: _parseResultLine(wifiResult, 'BSSID:'),
-                  color: Theme.pink),
-              DataRow(
+                  value: DiagnosticUtils.parseResultLine(wifiResult, 'BSSID:'),
+                  color: DiagnosticTheme.pink),
+              DiagnosticDataRow(
                   icon: Icons.computer,
                   label: 'IP Local',
-                  value: _parseResultLine(wifiResult, 'IP Dispositivo:'),
-                  color: Theme.pink),
-              DataRow(
+                  value: DiagnosticUtils.parseResultLine(
+                      wifiResult, 'IP Dispositivo:'),
+                  color: DiagnosticTheme.pink),
+              DiagnosticDataRow(
                   icon: Icons.dns,
                   label: 'DNS',
-                  value: _parseResultLine(wifiResult, 'Servidores DNS:'),
-                  color: Theme.pink),
-              DataRow(
+                  value: DiagnosticUtils.parseResultLine(
+                      wifiResult, 'Servidores DNS:'),
+                  color: DiagnosticTheme.pink),
+              DiagnosticDataRow(
                   icon: Icons.signal_wifi_4_bar,
                   label: 'Frequência',
-                  value: _parseResultLine(wifiResult, 'Frequência:'),
-                  color: Theme.pink),
+                  value: DiagnosticUtils.parseResultLine(
+                      wifiResult, 'Frequência:'),
+                  color: DiagnosticTheme.pink),
             ],
           ),
         ),
@@ -2340,7 +1233,7 @@ class DiagnosticScreen extends StatelessWidget {
 
     // Parse device count
     final deviceCount =
-        _parseResultLine(lanResult, 'Dispositivos encontrados:');
+        DiagnosticUtils.parseResultLine(lanResult, 'Dispositivos encontrados:');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2348,18 +1241,19 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Dispositivos na Rede',
           icon: Icons.devices_rounded,
-          color: Theme.purple,
+          color: DiagnosticTheme.purple,
           hasData: lanResult != null,
         ),
-        _HoloCard(
+        HoloCard(
           isScanning: status == real_state.TestStatus.running,
-          accent: Theme.purple,
+          accent: DiagnosticTheme.purple,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.devices_other, color: Theme.purple, size: 32),
+                  Icon(Icons.devices_other,
+                      color: DiagnosticTheme.purple, size: 32),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2370,7 +1264,8 @@ class DiagnosticScreen extends StatelessWidget {
                               fontSize: 24,
                               fontWeight: FontWeight.bold)),
                       const Text('dispositivos encontrados',
-                          style: TextStyle(color: Theme.textDim, fontSize: 12)),
+                          style: TextStyle(
+                              color: DiagnosticTheme.textDim, fontSize: 12)),
                     ],
                   ),
                 ],
@@ -2384,7 +1279,8 @@ class DiagnosticScreen extends StatelessWidget {
                           orElse: () => '')
                       .replaceAll('(', '')
                       .replaceAll(')', ''),
-                  style: TextStyle(color: Theme.textDim, fontSize: 11),
+                  style:
+                      TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
                 ),
               ],
             ],
@@ -2415,34 +1311,38 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'Info do Dispositivo',
           icon: Icons.smartphone_rounded,
-          color: Theme.gold,
+          color: DiagnosticTheme.gold,
           hasData: deviceResult != null,
         ),
-        _HoloCard(
+        HoloCard(
           isScanning: status == real_state.TestStatus.running,
-          accent: Theme.gold,
+          accent: DiagnosticTheme.gold,
           child: Column(
             children: [
-              DataRow(
+              DiagnosticDataRow(
                   icon: Icons.wifi,
                   label: 'Conexão',
-                  value: _parseResultLine(deviceResult, 'Conexão:'),
-                  color: Theme.gold),
-              DataRow(
+                  value:
+                      DiagnosticUtils.parseResultLine(deviceResult, 'Conexão:'),
+                  color: DiagnosticTheme.gold),
+              DiagnosticDataRow(
                   icon: Icons.android,
                   label: 'Sistema',
-                  value: _parseResultLine(deviceResult, 'Versão OS:'),
-                  color: Theme.gold),
-              DataRow(
+                  value: DiagnosticUtils.parseResultLine(
+                      deviceResult, 'Versão OS:'),
+                  color: DiagnosticTheme.gold),
+              DiagnosticDataRow(
                   icon: Icons.phone_android,
                   label: 'Dispositivo',
-                  value: _parseResultLine(deviceResult, 'Dispositivo:'),
-                  color: Theme.gold),
-              DataRow(
+                  value: DiagnosticUtils.parseResultLine(
+                      deviceResult, 'Dispositivo:'),
+                  color: DiagnosticTheme.gold),
+              DiagnosticDataRow(
                   icon: Icons.info_outline,
                   label: 'App',
-                  value: _parseResultLine(deviceResult, 'Versão do App:'),
-                  color: Theme.gold),
+                  value: DiagnosticUtils.parseResultLine(
+                      deviceResult, 'Versão do App:'),
+                  color: DiagnosticTheme.gold),
             ],
           ),
         ),
@@ -2476,11 +1376,11 @@ class DiagnosticScreen extends StatelessWidget {
       onuModel = onuResult['model']?.toString() ?? '---';
     }
 
-    Color rxColor = Theme.green;
+    Color rxColor = DiagnosticTheme.green;
     final rxValue = double.tryParse(rxPower) ?? 0;
     if (rxValue < -25)
-      rxColor = Theme.red;
-    else if (rxValue < -20) rxColor = Theme.orange;
+      rxColor = DiagnosticTheme.red;
+    else if (rxValue < -20) rxColor = DiagnosticTheme.orange;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2488,12 +1388,12 @@ class DiagnosticScreen extends StatelessWidget {
         SectionTitle(
           title: 'ONU / Fibra Óptica',
           icon: Icons.cable_rounded,
-          color: Theme.cyan,
+          color: DiagnosticTheme.cyan,
           hasData: status == real_state.TestStatus.success,
         ),
-        _HoloCard(
+        HoloCard(
           isScanning: status == real_state.TestStatus.running,
-          accent: Theme.cyan,
+          accent: DiagnosticTheme.cyan,
           child: Column(
             children: [
               Row(
@@ -2502,8 +1402,8 @@ class DiagnosticScreen extends StatelessWidget {
                     child: _buildOnuStat('Rx Power', '$rxPower dBm', rxColor),
                   ),
                   Expanded(
-                    child:
-                        _buildOnuStat('Tx Power', '$txPower dBm', Theme.cyan),
+                    child: _buildOnuStat(
+                        'Tx Power', '$txPower dBm', DiagnosticTheme.cyan),
                   ),
                 ],
               ),
@@ -2511,11 +1411,12 @@ class DiagnosticScreen extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _buildOnuStat(
-                        'Temperatura', '$temperature°C', Theme.orange),
+                    child: _buildOnuStat('Temperatura', '$temperature°C',
+                        DiagnosticTheme.orange),
                   ),
                   Expanded(
-                    child: _buildOnuStat('Modelo', onuModel, Theme.purple),
+                    child: _buildOnuStat(
+                        'Modelo', onuModel, DiagnosticTheme.purple),
                   ),
                 ],
               ),
@@ -2538,7 +1439,8 @@ class DiagnosticScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Theme.textDim, fontSize: 11)),
+          Text(label,
+              style: TextStyle(color: DiagnosticTheme.textDim, fontSize: 11)),
           const SizedBox(height: 4),
           Text(value,
               style: TextStyle(
@@ -2567,10 +1469,8 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
   OnuWifiService? _onuWifiService;
   real_state.DiagnosticoState? _lastRealState;
 
-  // WiFi Management State
-  bool _loadingWifi = false;
-  List<WifiNetwork> _wifiNetworks = [];
-  String? _wifiError;
+  // WiFi Management Controller
+  WifiManagementController? _wifiController;
 
   @override
   void initState() {
@@ -2602,6 +1502,9 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
             sgpParams: sgpParams,
           );
           _onuWifiService = onuService;
+          // Initialize WiFi Controller
+          _wifiController?.dispose(); // Dispose previous if any
+          _wifiController = WifiManagementController(_onuWifiService);
         }
 
         _realService = real_service.DiagnosticoService(
@@ -2841,6 +1744,7 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
   void dispose() {
     _realSub?.cancel();
     _realService?.dispose();
+    _wifiController?.dispose();
     super.dispose();
   }
 
@@ -2855,129 +1759,8 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // WiFi MANAGEMENT METHODS
+  // WiFi MANAGEMENT METHODS - Moved to WifiManagementController
   // ═══════════════════════════════════════════════════════════════════════════
-
-  Future<void> _fetchWifiNetworks() async {
-    if (_onuWifiService == null) return;
-    setState(() {
-      _loadingWifi = true;
-      _wifiError = null;
-    });
-    try {
-      final networks = await _onuWifiService!.fetchWifiNetworks();
-      setState(() {
-        _wifiNetworks = networks;
-        _loadingWifi = false;
-      });
-    } catch (e) {
-      setState(() {
-        _wifiError = e.toString().replaceAll('Exception: ', '');
-        _loadingWifi = false;
-      });
-    }
-  }
-
-  void _showEditWifiDialog(BuildContext context, WifiNetwork network) {
-    final ssidController = TextEditingController(text: network.ssid);
-    final passwordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: Text('Editar ${network.frequency}',
-            style: const TextStyle(color: Colors.white)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-            controller: ssidController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: 'Nome da Rede (SSID)',
-              labelStyle: TextStyle(color: Theme.cyan),
-              prefixIcon: Icon(Icons.wifi, color: Theme.cyan),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Theme.cyan.withAlpha(100)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Theme.cyan),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: 'Nova Senha',
-              labelStyle: TextStyle(color: Theme.purple),
-              prefixIcon: Icon(Icons.lock, color: Theme.purple),
-              hintText: 'Deixe vazio para manter',
-              hintStyle: TextStyle(color: Colors.white38),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Theme.purple.withAlpha(100)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Theme.purple),
-              ),
-            ),
-          ),
-        ]),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancelar', style: TextStyle(color: Theme.textDim)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Theme.cyan),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _updateWifi(
-                  network.id, ssidController.text, passwordController.text);
-            },
-            child: const Text('Salvar', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _updateWifi(String wifiId, String ssid, String password) async {
-    if (_onuWifiService == null || ssid.isEmpty) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Aplicando alterações no WiFi...')),
-    );
-
-    try {
-      final success = await _onuWifiService!.updateWifi(
-        wifiId: wifiId,
-        ssid: ssid,
-        password: password.isEmpty ? 'keep_current' : password,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success
-                ? 'WiFi atualizado com sucesso!'
-                : 'Falha ao atualizar WiFi'),
-            backgroundColor: success ? Theme.green : Theme.red,
-          ),
-        );
-        if (success) _fetchWifiNetworks();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Theme.red),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -2992,11 +1775,7 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
           _lastRealState != null && !_s.isRunning && _s.downloadSpeed > 0
               ? () => PdfGeneratorService().stopAndSharePdf(_lastRealState!)
               : null,
-      loadingWifi: _loadingWifi,
-      wifiNetworks: _wifiNetworks,
-      wifiError: _wifiError,
-      onFetchWifi: _fetchWifiNetworks,
-      onEditWifi: (network) => _showEditWifiDialog(context, network),
+      wifiController: _wifiController,
       realState: _lastRealState,
     );
   }

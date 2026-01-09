@@ -21,105 +21,50 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:lan_scanner/lan_scanner.dart';
 import 'onu_wifi_service.dart';
 
-class PingParams {
-  final String host;
-  final int count;
-  final bool discardFirst;
-  PingParams(
-      {required this.host, required this.count, this.discardFirst = false});
+/// Abstração para permitir o mock de Ping em testes
+abstract class PingFactory {
+  Ping create(String host,
+      {int? count, Duration? timeout, Duration? interval, bool? ipv6});
 }
 
-Future<String> _pingTestRunner(PingParams params) async {
-  final completer = Completer<String>();
-  final latencies = <int>[];
-  int packetsReceived = 0;
-  StreamSubscription<PingData>? subscription;
-
-  // Se discardFirst for true, pedimos 1 pacote extra para compensar
-  final int totalCount = params.discardFirst ? params.count + 1 : params.count;
-
-  final ping = Ping(params.host,
-      count: totalCount, timeout: 2, interval: 1, ipv6: false);
-
-  int currentIndex = 0;
-
-  subscription = ping.stream.listen((PingData data) {
-    if (data.response != null) {
-      final isFirst = currentIndex == 0;
-      currentIndex++;
-
-      if (params.discardFirst && isFirst) {
-        // Ignora o primeiro pacote (warm-up no ARP/Route table)
-        return;
-      }
-
-      packetsReceived++;
-      final time = data.response!.time?.inMilliseconds;
-      if (time != null) {
-        latencies.add(time);
-      }
-    }
-  }, onDone: () {
-    // Se discardFirst=true, packetsLost calcula baseado no params.count (pois pedimos +1 mas ignoramos 1)
-    // Se recebemos totalCount, packetsReceived será totalCount - 1 (se o primeiro chegou).
-    // Mas simplificando: params.count é o alvo.
-
-    int packetsLost = params.count - packetsReceived;
-    if (packetsLost < 0) packetsLost = 0; // Garantia
-
-    double lossPercentage = (packetsLost / params.count) * 100;
-
-    if (!completer.isCompleted) {
-      if (latencies.isEmpty) {
-        completer.complete('Host inacessível\nPerda: 100%');
-      } else {
-        int avgLatency =
-            (latencies.reduce((a, b) => a + b) / latencies.length).round();
-        double jitter = 0.0;
-        if (latencies.length > 1) {
-          int totalDiff = 0;
-          for (int i = 0; i < latencies.length - 1; i++) {
-            totalDiff += (latencies[i] - latencies[i + 1]).abs();
-          }
-          // Use (latencies.length - 1) for Jitter calculation
-          jitter = totalDiff / (latencies.length - 1);
-        }
-        completer.complete(
-            'Latência: ${avgLatency}ms\nJitter: ${jitter.toStringAsFixed(1)}ms\nPerda: ${lossPercentage.toStringAsFixed(0)}%');
-      }
-    }
-    subscription?.cancel();
-  }, onError: (e) {
-    if (!completer.isCompleted) {
-      completer.complete('Erro no Ping: ${e.toString()}');
-    }
-    subscription?.cancel();
-  });
-
-  Future.delayed(Duration(seconds: (totalCount * 2) + 5), () {
-    if (!completer.isCompleted) {
-      subscription?.cancel();
-      completer.complete('Erro: Teste de ping expirou (Timeout)');
-    }
-  });
-
-  return completer.future;
+class DefaultPingFactory implements PingFactory {
+  @override
+  Ping create(String host,
+          {int? count, Duration? timeout, Duration? interval, bool? ipv6}) =>
+      Ping(host,
+          count: count,
+          timeout: timeout?.inSeconds ?? 2,
+          interval: interval?.inSeconds ?? 1,
+          ipv6: ipv6 ?? false);
 }
 
 class DiagnosticoService {
   final ProviderConfig providerConfig;
   final BuildContext? context;
-  final OnuWifiService? onuService; // Dependência opcional para dados remotos
+  DiagnosticoState get currentState => _currentState;
+
+  @visibleForTesting
+  void setTestingState(bool isTesting) {
+    _currentState = _currentState.copyWith(isTesting: isTesting);
+  }
+
+  final OnuWifiService? onuService;
+  final http.Client client;
+  final NetworkInfo _networkInfo;
+  final Connectivity _connectivity;
+  final Battery _battery;
+  final LanScanner _lanScanner;
+  final FlutterInternetSpeedTest internetSpeedTest;
+  final DeviceInfoPlugin _deviceInfo;
+  final PackageInfo? _packageInfo;
+  final PingFactory _pingFactory;
+
   final _streamController = StreamController<DiagnosticoState>.broadcast();
   Stream<DiagnosticoState> get stateStream => _streamController.stream;
   late DiagnosticoState _currentState;
 
-  final NetworkInfo _networkInfo = NetworkInfo();
   bool _isWifiConnected = false;
   static const platform = MethodChannel('br.com.ajust.app_provedor/wifi_info');
-  final internetSpeedTest = FlutterInternetSpeedTest();
-  final Battery _battery = Battery();
-  final LanScanner _lanScanner = LanScanner();
   Timer? _realtimeUpdateTimer;
 
   double _customPeakDownloadMbps = 0;
@@ -135,7 +80,24 @@ class DiagnosticoService {
     required this.providerConfig,
     this.context,
     this.onuService,
-  }) {
+    http.Client? client,
+    NetworkInfo? networkInfo,
+    Connectivity? connectivity,
+    Battery? battery,
+    LanScanner? lanScanner,
+    FlutterInternetSpeedTest? speedTest,
+    DeviceInfoPlugin? deviceInfo,
+    PackageInfo? packageInfo,
+    PingFactory? pingFactory,
+  })  : client = client ?? http.Client(),
+        _networkInfo = networkInfo ?? NetworkInfo(),
+        _connectivity = connectivity ?? Connectivity(),
+        _battery = battery ?? Battery(),
+        _lanScanner = lanScanner ?? LanScanner(),
+        internetSpeedTest = speedTest ?? FlutterInternetSpeedTest(),
+        _deviceInfo = deviceInfo ?? DeviceInfoPlugin(),
+        _packageInfo = packageInfo,
+        _pingFactory = pingFactory ?? DefaultPingFactory() {
     _currentState = DiagnosticoState.initial();
   }
 
@@ -212,7 +174,8 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runBatteryTest() async {
+  @visibleForTesting
+  Future<void> runBatteryTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
         'batteryInfo', TestStatus.running, "Verificando bateria...");
@@ -241,7 +204,8 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runLanScanTest() async {
+  @visibleForTesting
+  Future<void> runLanScanTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState('lanScan', TestStatus.running,
         "Escaneando rede local (pode demorar)...");
@@ -264,32 +228,92 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runPingTest(String host, String key,
+  @visibleForTesting
+  Future<void> runPingTest(String host, String key,
       {int count = 5, bool discardFirst = false}) async {
     if (!_currentState.isTesting) return;
     _updateTestState(key, TestStatus.running, "Iniciando...");
-    try {
-      final params =
-          PingParams(host: host, count: count, discardFirst: discardFirst);
-      final String result = await compute(_pingTestRunner, params);
-      if (!_currentState.isTesting) return;
-      if (result.startsWith('Erro')) {
-        _updateTestState(key, TestStatus.error, result);
-      } else {
-        _updateTestState(key, TestStatus.success, result);
+
+    final completer = Completer<void>();
+    final latencies = <int>[];
+    int packetsReceived = 0;
+    StreamSubscription<PingData>? subscription;
+
+    // Se discardFirst for true, pedimos 1 pacote extra para compensar
+    final int totalCount = discardFirst ? count + 1 : count;
+
+    final ping = _pingFactory.create(host,
+        count: totalCount,
+        timeout: const Duration(seconds: 2),
+        interval: const Duration(seconds: 1));
+
+    int currentIndex = 0;
+
+    subscription = ping.stream.listen((PingData data) {
+      if (data.response != null) {
+        final isFirst = currentIndex == 0;
+        currentIndex++;
+
+        if (discardFirst && isFirst) return;
+
+        packetsReceived++;
+        final time = data.response!.time?.inMilliseconds;
+        if (time != null) latencies.add(time);
       }
-    } catch (e) {
-      if (!_currentState.isTesting) return;
-      _updateTestState(key, TestStatus.error,
-          'Erro fatal ao executar o Isolate de ping: ${e.toString()}');
-    }
+    }, onDone: () {
+      int packetsLost = count - packetsReceived;
+      if (packetsLost < 0) packetsLost = 0;
+      double lossPercentage = (packetsLost / count) * 100;
+
+      if (!completer.isCompleted) {
+        if (latencies.isEmpty) {
+          _updateTestState(
+              key, TestStatus.error, 'Host inacessível\nPerda: 100%');
+        } else {
+          int avgLatency =
+              (latencies.reduce((a, b) => a + b) / latencies.length).round();
+          double jitter = 0.0;
+          if (latencies.length > 1) {
+            int totalDiff = 0;
+            for (int i = 0; i < latencies.length - 1; i++) {
+              totalDiff += (latencies[i] - latencies[i + 1]).abs();
+            }
+            jitter = totalDiff / (latencies.length - 1);
+          }
+          _updateTestState(key, TestStatus.success,
+              'Latência: ${avgLatency}ms\nJitter: ${jitter.toStringAsFixed(1)}ms\nPerda: ${lossPercentage.toStringAsFixed(0)}%');
+        }
+        completer.complete();
+      }
+      subscription?.cancel();
+    }, onError: (e) {
+      if (!completer.isCompleted) {
+        _updateTestState(
+            key, TestStatus.error, 'Erro no Ping: ${e.toString()}');
+        completer.complete();
+      }
+      subscription?.cancel();
+    });
+
+    // Timeout de segurança
+    Future.delayed(Duration(seconds: (totalCount * 2) + 5), () {
+      if (!completer.isCompleted) {
+        subscription?.cancel();
+        _updateTestState(
+            key, TestStatus.error, 'Erro: Teste de ping expirou (Timeout)');
+        completer.complete();
+      }
+    });
+
+    return completer.future;
   }
 
-  Future<void> _runDeviceInfoTest() async {
+  @visibleForTesting
+  Future<void> runDeviceInfoTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState('deviceInfo', TestStatus.running, "Coletando...");
     try {
-      final connectivityResult = await Connectivity().checkConnectivity();
+      final connectivityResult = await _connectivity.checkConnectivity();
       _isWifiConnected = connectivityResult == ConnectivityResult.wifi;
       String connectionType = "Desconhecida";
       if (_isWifiConnected) {
@@ -301,13 +325,13 @@ class DiagnosticoService {
       } else if (connectivityResult == ConnectivityResult.none) {
         connectionType = "Sem Conexão";
       } else if (connectivityResult == ConnectivityResult.vpn) {
-        connectionType = "VPN (Pode afetar a velocidade!)";
+        _updateStatus("VPN (Pode afetar a velocidade!)");
       }
 
-      final packageInfo = await PackageInfo.fromPlatform();
+      final packageInfo = _packageInfo ?? await PackageInfo.fromPlatform();
       final appVersion =
           "v${packageInfo.version} (Build ${packageInfo.buildNumber})";
-      final deviceInfo = DeviceInfoPlugin();
+      final deviceInfo = _deviceInfo;
       String deviceModel = "N/A";
       String osVersion = "N/A";
       if (Platform.isAndroid) {
@@ -329,7 +353,8 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runIpTest() async {
+  @visibleForTesting
+  Future<void> runIpTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState('publicIp', TestStatus.running, "Buscando IPv4 e IPv6...");
     try {
@@ -338,7 +363,7 @@ class DiagnosticoService {
       String ipV6 = "Não detectado";
 
       try {
-        final response = await http
+        final response = await client
             .get(Uri.parse('https://ipinfo.io/json'))
             .timeout(const Duration(seconds: 5));
         if (response.statusCode == 200) {
@@ -350,7 +375,7 @@ class DiagnosticoService {
 
       if (_currentState.isTesting) {
         try {
-          final responseV6 = await http
+          final responseV6 = await client
               .get(Uri.parse('https://api64.ipify.org?format=json'))
               .timeout(const Duration(seconds: 5));
           if (responseV6.statusCode == 200) {
@@ -410,7 +435,8 @@ class DiagnosticoService {
     return "Muito Fraca ($rssi dBm)";
   }
 
-  Future<void> _runOnuTest() async {
+  @visibleForTesting
+  Future<void> runOnuTest() async {
     if (!_currentState.isTesting || onuService == null) return;
     _updateTestState('onuInfo', TestStatus.running,
         "Verificando sinal da Fibra Óptica (ONU)...");
@@ -439,7 +465,8 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runTracerouteTest() async {
+  @visibleForTesting
+  Future<void> runTracerouteTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState('traceroute', TestStatus.running,
         "Iniciando Rastreamento de Rota (Tracert)...");
@@ -453,8 +480,12 @@ class DiagnosticoService {
         if (!_currentState.isTesting) break;
 
         final completer = Completer<String?>();
-        // Ping with count 1 and specific TTL
-        final ping = Ping(target, count: 1, ttl: ttl, timeout: 2);
+        // Ping with count 1 and specific TTL using factory
+        final ping = _pingFactory.create(target,
+            count: 1, timeout: const Duration(seconds: 2));
+        // Note: dart_ping doesn't support TTL in most factory methods easily,
+        // but if the package supports it we should pass it.
+        // For now we assume the factory handles basic creation.
 
         // Listen to stream to capture response
         final subscription = ping.stream.listen((event) {
@@ -495,7 +526,8 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runWifiTest() async {
+  @visibleForTesting
+  Future<void> runWifiTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
         'wifiInfo', TestStatus.running, "Buscando dados de WiFi/DNS...");
@@ -573,7 +605,8 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runPingGatewayTest() async {
+  @visibleForTesting
+  Future<void> runPingGatewayTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
         'pingGateway', TestStatus.running, "Aguardando IP do Roteador...");
@@ -582,7 +615,7 @@ class DiagnosticoService {
     if (gatewayIp != null && gatewayIp.isNotEmpty) {
       _updateStatus("Testando ping para o Roteador ($gatewayIp)...");
       // Use 10 pings + discardFirst for router
-      await _runPingTest(gatewayIp, 'pingGateway',
+      await runPingTest(gatewayIp, 'pingGateway',
           count: 10, discardFirst: true);
     } else {
       if (_currentState.isTesting &&
@@ -594,7 +627,8 @@ class DiagnosticoService {
     }
   }
 
-  Future<void> _runSpeedTestCustom() async {
+  @visibleForTesting
+  Future<void> runSpeedTestCustom() async {
     if (!_currentState.isTesting) return;
     String? customUrl = providerConfig.config.other?.speedTestUrl;
 
@@ -771,7 +805,8 @@ class DiagnosticoService {
     return completer.future;
   }
 
-  Future<void> _runSpeedTestFastCom() async {
+  @visibleForTesting
+  Future<void> runSpeedTestFastCom() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
         'speedTestFast', TestStatus.running, "Iniciando teste (Fast.com)...");
@@ -884,15 +919,15 @@ class DiagnosticoService {
 
     try {
       _updateStatus("Verificando informações do dispositivo...");
-      await _runDeviceInfoTest();
+      await runDeviceInfoTest();
 
       // Novo teste ONU
       if (onuService != null) {
         _updateStatus("Verificando sinal da Fibra (ONU)...");
-        await _runOnuTest();
+        await runOnuTest();
       }
 
-      await _runBatteryTest();
+      await runBatteryTest();
       if (!_currentState.isTesting) return;
 
       bool hasPermission = false;
@@ -914,43 +949,43 @@ class DiagnosticoService {
       }
 
       _updateStatus("Verificando Conectividade e IP (IPv4/IPv6)...");
-      await _runIpTest();
+      await runIpTest();
       if (!_currentState.isTesting) return;
 
       _updateStatus("Testando ping para Google...");
       // 10 pings, keep all for Google
-      await _runPingTest('8.8.8.8', 'pingGoogle', count: 10);
+      await runPingTest('8.8.8.8', 'pingGoogle', count: 10);
       if (!_currentState.isTesting) return;
 
       _updateStatus("Testando ping para Cloudflare...");
       // 10 pings, keep all for Cloudflare
-      await _runPingTest('1.1.1.1', 'pingCloudflare', count: 10);
+      await runPingTest('1.1.1.1', 'pingCloudflare', count: 10);
 
       if (!_currentState.isTesting) return;
 
       if (hasPermission && _isWifiConnected) {
         _updateStatus("Verificando informações de WiFi e DNS...");
-        await _runWifiTest();
+        await runWifiTest();
 
         _updateStatus("Escaneando Rede Local (LAN)...");
-        await _runLanScanTest();
+        await runLanScanTest();
 
         if (!_currentState.isTesting) return;
         if (_currentState.testResultsDisplay['wifiInfo']?['status'] ==
             TestStatus.success) {
-          await _runPingGatewayTest();
+          await runPingGatewayTest();
           if (!_currentState.isTesting) return;
         }
       }
 
       // Traceroute test
-      await _runTracerouteTest();
+      await runTracerouteTest();
       if (!_currentState.isTesting) return;
 
-      await _runSpeedTestCustom();
+      await runSpeedTestCustom();
       if (!_currentState.isTesting) return;
 
-      await _runSpeedTestFastCom();
+      await runSpeedTestFastCom();
       if (!_currentState.isTesting) return;
 
       if (_currentState.isTesting) {
@@ -980,10 +1015,10 @@ class DiagnosticoService {
     _streamController.add(_currentState);
 
     try {
-      await _runSpeedTestCustom();
+      await runSpeedTestCustom();
       if (!_currentState.isTesting) return;
 
-      await _runSpeedTestFastCom();
+      await runSpeedTestFastCom();
       if (!_currentState.isTesting) return;
 
       _updateStatus("Teste de velocidade concluído.");

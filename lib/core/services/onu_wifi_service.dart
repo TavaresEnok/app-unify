@@ -121,6 +121,7 @@ class OnuWifiService {
   final String? senha;
   final String? contrato;
   final Map<String, String> sgpParams;
+  final http.Client client;
 
   OnuWifiService({
     required this.apiUrl,
@@ -128,7 +129,8 @@ class OnuWifiService {
     this.senha,
     this.contrato,
     required this.sgpParams,
-  });
+    http.Client? client,
+  }) : client = client ?? http.Client();
 
   /// Helper to get base proxy URL
   String get _baseUrl {
@@ -149,7 +151,7 @@ class OnuWifiService {
     debugPrint('[ONU-Service] Calling: $url');
 
     try {
-      final response = await http
+      final response = await client
           .post(
             Uri.parse(url),
             headers: {'Content-Type': 'application/json'},
@@ -203,7 +205,7 @@ class OnuWifiService {
     debugPrint('[WiFi-Service] Calling: $url');
 
     try {
-      final response = await http
+      final response = await client
           .post(
             Uri.parse(url),
             headers: {'Content-Type': 'application/json'},
@@ -262,7 +264,7 @@ class OnuWifiService {
     debugPrint('[WiFi-Service] Calling: $url');
 
     try {
-      final response = await http
+      final response = await client
           .post(
             Uri.parse(url),
             headers: {'Content-Type': 'application/json'},
