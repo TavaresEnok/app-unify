@@ -11,7 +11,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/diagnostico_service.dart' as real_service;
 import '../../services/onu_wifi_service.dart';
 import '../../models/diagnostico_state.dart' as real_state;
-import '../../providers/providers.dart'; // ============ COLORS ============
+import '../../providers/providers.dart';
+import '../../widgets/troubleshooter_card.dart';
+import '../../utils/pdf_generator_service.dart';
 
 class AppColors {
   static const bg = Color(0xFFFAFAFA);
@@ -86,6 +88,13 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
   // Integração com serviço real
   real_service.DiagnosticoService? _realService;
   StreamSubscription<real_state.DiagnosticoState>? _realSub;
+  real_state.DiagnosticoState? _lastRealState;
+  OnuWifiService? _onuWifiService;
+
+  // WiFi Management TR-069
+  bool _loadingWifi = false;
+  List<WifiNetwork> _wifiNetworks = [];
+  String? _wifiError;
 
   @override
   void initState() {
@@ -123,6 +132,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
             contrato: user.contratoId?.toString(),
             sgpParams: sgpParams,
           );
+          _onuWifiService = onuService;
         }
 
         _realService = real_service.DiagnosticoService(
@@ -236,6 +246,8 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
         _progress = 1.0;
         HapticFeedback.mediumImpact();
       }
+
+      _lastRealState = realState;
     });
   }
 
@@ -538,6 +550,15 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                         ],
                       ),
                     ),
+                  if (_currentStep == DiagStep.done && _lastRealState != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: IconButton(
+                        onPressed: _sharePdf,
+                        icon: Icon(Icons.share, color: AppColors.primary),
+                        tooltip: 'Compartilhar PDF',
+                      ),
+                    ),
                 ],
               ),
               if (_isRunning || _currentStep != DiagStep.ready) ...[
@@ -591,6 +612,14 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                 if (_devices.isNotEmpty) _buildDevicesCard(),
                 if (_hops.isNotEmpty) _buildRouteCard(),
 
+                // New Features
+                if (_lastRealState != null) _buildConnectionJourneyCard(),
+                if (_lastRealState != null) _buildWifiDetailsCard(),
+                if (_lastRealState != null) _buildOnuDetailsCard(),
+                if (_lastRealState != null) _buildDeviceDetailsCard(),
+                _buildWifiManagementCard(),
+                if (_lastRealState != null) _buildTroubleshooterCard(),
+                
                 // Restart Button
                 if (_currentStep == DiagStep.done) ...[
                   const SizedBox(height: 24),
@@ -1084,6 +1113,370 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       ),
     );
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WIFI MANAGEMENT TR-069
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _fetchWifiNetworks() async {
+    if (_onuWifiService == null) return;
+    setState(() {
+      _loadingWifi = true;
+      _wifiError = null;
+    });
+    try {
+      final networks = await _onuWifiService!.fetchWifiNetworks();
+      setState(() {
+        _wifiNetworks = networks;
+        _loadingWifi = false;
+      });
+    } catch (e) {
+      setState(() {
+        _wifiError = e.toString();
+        _loadingWifi = false;
+      });
+    }
+  }
+
+  void _showEditWifiDialog(BuildContext context, WifiNetwork network) {
+    final ssidController = TextEditingController(text: network.ssid);
+    final passwordController = TextEditingController(text: network.password);
+    showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+              title: Text('Editar ${network.frequency}'),
+              content: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(
+                    controller: ssidController,
+                    decoration: const InputDecoration(labelText: 'SSID')),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Senha')),
+              ]),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancelar')),
+                ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _updateWifi(network.id, ssidController.text,
+                          passwordController.text);
+                    },
+                    child: const Text('Salvar')),
+              ],
+            ));
+  }
+
+  Future<void> _updateWifi(String wifiId, String ssid, String password) async {
+    if (_onuWifiService == null) return;
+    try {
+      await _onuWifiService!
+          .updateWifi(wifiId: wifiId, ssid: ssid, password: password);
+      await _fetchWifiNetworks();
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('WiFi atualizado!')));
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  String _parseResultLine(String? text, String key) {
+    if (text == null || text.isEmpty) return "---";
+    try {
+      final ln = text
+          .split('\n')
+          .firstWhere((l) => l.startsWith(key), orElse: () => '');
+      return ln.isEmpty ? "---" : ln.split(':').sublist(1).join(':').trim();
+    } catch (_) {
+      return "---";
+    }
+  }
+
+  Color _getStatusColor(real_state.TestStatus s) {
+    switch (s) {
+      case real_state.TestStatus.success:
+        return AppColors.success;
+      case real_state.TestStatus.running:
+        return AppColors.primary;
+      case real_state.TestStatus.error:
+        return AppColors.error;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildConnectionJourneyCard() {
+    if (_lastRealState == null) return const SizedBox.shrink();
+    final r = _lastRealState!.testResultsDisplay;
+    final wifiS = r['wifiInfo']?['status'] as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    final wifiR = r['wifiInfo']?['result'] as String?;
+    final gwS = r['pingGateway']?['status'] as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    final gwR = r['pingGateway']?['result'] as String?;
+    final ipS = r['publicIp']?['status'] as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    final ipR = r['publicIp']?['result'] as String?;
+    final gS = r['pingGoogle']?['status'] as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    final gR = r['pingGoogle']?['result'] as String?;
+
+    return _buildTimelineCard(
+      icon: Icons.route_rounded,
+      title: 'Jornada da Conexão',
+      color: AppColors.primary,
+      content: Column(children: [
+        _jStep(Icons.phone_android, 'Dispositivo', wifiS,
+            'Sinal: ${_parseResultLine(wifiR, 'Força do Sinal:')}'),
+        _jStep(Icons.router, 'Roteador', gwS,
+            'Latência: ${_parseResultLine(gwR, 'Latência:')}'),
+        _jStep(Icons.cloud, 'Rede Pública', ipS,
+            'IPv4: ${_parseResultLine(ipR, 'IPv4:')}'),
+        _jStep(Icons.dns, 'DNS Google', gS,
+            'Ping: ${_parseResultLine(gR, 'Latência:')}',
+            isLast: true),
+      ]),
+    );
+  }
+
+  Widget _jStep(
+      IconData icon, String title, real_state.TestStatus s, String detail,
+      {bool isLast = false}) {
+    final c = _getStatusColor(s);
+    return Column(children: [
+      Row(children: [
+        Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: c.withOpacity(0.15),
+                border: Border.all(color: c.withOpacity(0.4))),
+            child: Icon(icon, color: c, size: 14)),
+        const SizedBox(width: 10),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(detail,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 10))
+        ])),
+        Icon(
+            s == real_state.TestStatus.success
+                ? Icons.check_circle
+                : s == real_state.TestStatus.running
+                    ? Icons.sync
+                    : Icons.schedule,
+            color: c,
+            size: 14),
+      ]),
+      if (!isLast)
+        Container(
+            margin: const EdgeInsets.only(left: 13),
+            width: 2,
+            height: 16,
+            color: c.withOpacity(0.2)),
+    ]);
+  }
+
+  Widget _buildWifiDetailsCard() {
+    if (_lastRealState == null) return const SizedBox.shrink();
+    final wifiR =
+        _lastRealState!.testResultsDisplay['wifiInfo']?['result'] as String?;
+    final s = _lastRealState!.testResultsDisplay['wifiInfo']?['status']
+            as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    if (s == real_state.TestStatus.pending) return const SizedBox.shrink();
+    return _buildTimelineCard(
+      icon: Icons.info_outline,
+      title: 'Detalhes WiFi',
+      color: AppColors.accent,
+      content: Column(children: [
+        _detailRow('BSSID', _parseResultLine(wifiR, 'BSSID:')),
+        _detailRow('IP Local', _parseResultLine(wifiR, 'IP Dispositivo:')),
+        _detailRow('DNS', _parseResultLine(wifiR, 'Servidores DNS:')),
+        _detailRow('Frequência', _parseResultLine(wifiR, 'Frequência:')),
+      ]),
+    );
+  }
+
+  Widget _buildOnuDetailsCard() {
+    if (_lastRealState == null) return const SizedBox.shrink();
+    final onuR = _lastRealState!.testResultsDisplay['onuInfo']?['result'];
+    final s = _lastRealState!.testResultsDisplay['onuInfo']?['status']
+            as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    if (s == real_state.TestStatus.pending) return const SizedBox.shrink();
+    String rx = '---', tx = '---', temp = '---', model = '---';
+    if (onuR is Map) {
+      rx = onuR['rxPower']?.toString() ?? '---';
+      tx = onuR['txPower']?.toString() ?? '---';
+      temp = onuR['temperature']?.toString() ?? '---';
+      model = onuR['model']?.toString() ?? '---';
+    }
+    return _buildTimelineCard(
+      icon: Icons.cable,
+      title: 'ONU / Fibra',
+      color: AppColors.primary,
+      content: Column(children: [
+        Row(children: [
+          Expanded(
+              child: _onuStat(
+                  'Rx Power',
+                  '$rx dBm',
+                  (double.tryParse(rx) ?? 0) < -25
+                      ? AppColors.error
+                      : AppColors.success)),
+          const SizedBox(width: 8),
+          Expanded(child: _onuStat('Tx Power', '$tx dBm', AppColors.primary))
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _onuStat('Temp', '$temp°C', Colors.orange)),
+          const SizedBox(width: 8),
+          Expanded(child: _onuStat('Modelo', model, AppColors.accent))
+        ]),
+      ]),
+    );
+  }
+
+  Widget _onuStat(String label, String value, Color c) {
+    return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+            color: c.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: c.withOpacity(0.3))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+          Text(value,
+              style: TextStyle(
+                  color: c, fontSize: 12, fontWeight: FontWeight.bold))
+        ]));
+  }
+
+  Widget _buildDeviceDetailsCard() {
+    if (_lastRealState == null) return const SizedBox.shrink();
+    final devR =
+        _lastRealState!.testResultsDisplay['deviceInfo']?['result'] as String?;
+    final s = _lastRealState!.testResultsDisplay['deviceInfo']?['status']
+            as real_state.TestStatus? ??
+        real_state.TestStatus.pending;
+    if (s == real_state.TestStatus.pending) return const SizedBox.shrink();
+    return _buildTimelineCard(
+      icon: Icons.smartphone,
+      title: 'Dispositivo',
+      color: AppColors.warning,
+      content: Column(children: [
+        _detailRow('Conexão', _parseResultLine(devR, 'Conexão:')),
+        _detailRow('Sistema', _parseResultLine(devR, 'Versão OS:')),
+        _detailRow('Dispositivo', _parseResultLine(devR, 'Dispositivo:')),
+        _detailRow('App', _parseResultLine(devR, 'Versão do App:')),
+      ]),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child:
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(label,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+          Text(value, style: const TextStyle(fontSize: 11))
+        ]));
+  }
+
+  Widget _buildWifiManagementCard() {
+    return _buildTimelineCard(
+      icon: Icons.settings_remote,
+      title: 'Gerenciar WiFi (TR-069)',
+      color: AppColors.primary,
+      content: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (_loadingWifi)
+          const Center(child: CircularProgressIndicator())
+        else if (_wifiError != null)
+          Column(children: [
+            Text(_wifiError!,
+                style: const TextStyle(color: AppColors.error, fontSize: 12)),
+            TextButton(
+                onPressed: _fetchWifiNetworks,
+                child: const Text('Tentar novamente'))
+          ])
+        else if (_wifiNetworks.isEmpty)
+          Center(
+              child: ElevatedButton.icon(
+                  onPressed: _fetchWifiNetworks,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Buscar Redes WiFi')))
+        else
+          Column(
+              children: _wifiNetworks
+                  .map((n) => Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10)),
+                      child: Row(children: [
+                        Icon(
+                            n.frequency.contains('5')
+                                ? Icons.wifi
+                                : Icons.wifi_2_bar,
+                            color: n.enabled ? AppColors.success : Colors.grey),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(n.ssid,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              Text(n.frequency,
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 10))
+                            ])),
+                        IconButton(
+                            icon: const Icon(Icons.edit,
+                                color: AppColors.primary),
+                            onPressed: () => _showEditWifiDialog(context, n))
+                      ])))
+                  .toList()),
+      ]),
+    );
+  }
+
+  Widget _buildTroubleshooterCard() {
+    if (_lastRealState == null) return const SizedBox.shrink();
+    return Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)
+            ]),
+        child: TroubleshooterCard(
+            state: _lastRealState!, onRetry: _startDiagnostic));
+  }
+
+  void _sharePdf() {
+    if (_lastRealState == null) return;
+    PdfGeneratorService().stopAndSharePdf(_lastRealState!);
+  }
+}
+
 }
 
 // ============ GAUGE PAINTER ============
