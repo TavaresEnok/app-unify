@@ -1485,6 +1485,14 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
   // WiFi Management Controller
   WifiManagementController? _wifiController;
 
+  // UX Enhancements State
+  TestMode _selectedTestMode = TestMode.complete;
+  final _integrationHelper = DiagnosticIntegrationHelper();
+  final _achievementService = AchievementService();
+  bool _testSavedToHistory = false;
+  NetworkHealthScore? _healthScore;
+  Map<String, dynamic>? _comparison;
+
   @override
   void initState() {
     super.initState();
