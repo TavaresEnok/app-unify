@@ -838,8 +838,22 @@ class _PainelPageState extends ConsumerState<PainelPage> {
             Container(
               padding: isLayout05 ? const EdgeInsets.all(24) : null,
               decoration: isLayout05
-                  ? Layout03Theme.neumorphicDecoration
-                      .copyWith(shape: BoxShape.circle)
+                  ? BoxDecoration(
+                      color: Layout03Theme.background,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        const BoxShadow(
+                          color: Colors.white,
+                          offset: Offset(-6, -6),
+                          blurRadius: 12,
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFFA3B1C6).withValues(alpha: 0.4),
+                          offset: const Offset(6, 6),
+                          blurRadius: 12,
+                        ),
+                      ],
+                    )
                   : null,
               child: Icon(
                 _pageIcons[_currentPage] ?? Icons.construction,
