@@ -890,7 +890,7 @@ class _DashboardPageState extends State<DashboardPage>
           child: Column(
             children: [
               SizedBox(
-                height: 120,
+                height: 125,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: List.generate(_usageHistory.length, (i) {
@@ -1119,7 +1119,7 @@ class _DashboardPageState extends State<DashboardPage>
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 120,
+          height: 125,
           child: PageView.builder(
             itemCount: promos.length,
             controller: PageController(viewportFraction: 0.92),
