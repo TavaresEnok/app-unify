@@ -55,6 +55,12 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     'faq': 'FAQ',
     'notifications': 'Notificações',
     'trace_route': 'Rota (Tracert)',
+    'wifi': 'Meu Wi-Fi',
+    // Aliases for compatibility
+    'home': 'Dashboard',
+    'diagnostico': 'Diagnóstico',
+    'suporte': 'Suporte',
+    'notificacoes': 'Notificações',
   };
 
   final Map<String, IconData> _pageIcons = {
@@ -69,6 +75,12 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     'my_ip': Icons.public,
     'faq': Icons.help_outline,
     'notifications': Icons.notifications,
+    'wifi': Icons.wifi,
+    // Aliases for compatibility
+    'home': Icons.home,
+    'diagnostico': Icons.wifi_tethering,
+    'suporte': Icons.support_agent,
+    'notificacoes': Icons.notifications,
   };
 
   void _navigateToPage(String pageId) {
@@ -731,6 +743,20 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   }
 
   Widget _buildBody(String layoutType, Usuario usuario, BuildContext context) {
+    // Handle route aliases - redirect to actual routes
+    if (_currentPage == 'home') {
+      _currentPage = 'dashboard';
+    } else if (_currentPage == 'diagnostico') {
+      _currentPage = 'network_diagnostic';
+    } else if (_currentPage == 'suporte') {
+      _currentPage = 'support';
+    } else if (_currentPage == 'notificacoes') {
+      _currentPage = 'notifications';
+    } else if (_currentPage == 'planos') {
+      // Planos não tem página específica - redirecionar para suporte
+      _currentPage = 'support';
+    }
+
     if (_currentPage == 'dashboard') {
       return LayoutSelector.getDashboard(
         layoutType: layoutType,
