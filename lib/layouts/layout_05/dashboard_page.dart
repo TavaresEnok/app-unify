@@ -3,11 +3,16 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'theme.dart';
+import '../../core/providers/providers.dart';
+import '../../core/services/diagnostico_service.dart';
+import '../../core/models/diagnostico_state.dart';
 
-class DashboardPage extends StatefulWidget {
+class DashboardPage extends ConsumerStatefulWidget {
   final String customerName;
   final String planName;
   final String connectionStatus;
@@ -38,16 +43,26 @@ class DashboardPage extends StatefulWidget {
   });
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  ConsumerState<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage>
+class _DashboardPageState extends ConsumerState<DashboardPage>
     with TickerProviderStateMixin {
   int _selectedIndex = 0;
   late AnimationController _pulseController;
   late AnimationController _waveController;
   late AnimationController _dataFlowController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Speed Test State
+  DiagnosticoService? _speedTestService;
+  StreamSubscription? _speedTestSubscription;
+  bool _isSpeedTesting = false;
+  bool _speedTestCompleted = false;
+  double _downloadSpeed = 0.0;
+  double _uploadSpeed = 0.0;
+  int _pingMs = 0;
+  String _speedTestPhase = 'idle'; // idle, ping, download, upload, done
 
   @override
   void initState() {
@@ -71,7 +86,86 @@ class _DashboardPageState extends State<DashboardPage>
     _pulseController.dispose();
     _waveController.dispose();
     _dataFlowController.dispose();
+    _speedTestSubscription?.cancel();
+    _speedTestService?.dispose();
     super.dispose();
+  }
+
+  void _initSpeedTestService() {
+    if (_speedTestService != null) return;
+
+    final configProvider = ref.read(configurationProvider);
+    final providerConfig = configProvider.providerConfig;
+    if (providerConfig == null) return;
+
+    _speedTestService = DiagnosticoService(
+      providerConfig: providerConfig,
+      context: context,
+    );
+
+    _speedTestSubscription = _speedTestService!.stateStream.listen((state) {
+      if (!mounted) return;
+
+      final customStatus =
+          state.testResultsDisplay['speedTestCustom']?['status'];
+      final isRunning = customStatus == TestStatus.running;
+      final isDone = customStatus == TestStatus.success;
+      final isError = customStatus == TestStatus.error;
+
+      setState(() {
+        _isSpeedTesting = isRunning;
+        _speedTestCompleted = isDone || isError;
+
+        if (state.customDownloadResultMbps > 0) {
+          _downloadSpeed = state.customDownloadResultMbps;
+        }
+        if (state.customUploadResultMbps > 0) {
+          _uploadSpeed = state.customUploadResultMbps;
+        }
+        if (state.speedTestPingLatency != null) {
+          _pingMs = state.speedTestPingLatency!.toInt();
+        }
+
+        // Update phase
+        if (isRunning) {
+          if (state.customUploadResultMbps > 1) {
+            _speedTestPhase = 'upload';
+          } else if (state.customDownloadResultMbps > 0) {
+            _speedTestPhase = 'download';
+          } else {
+            _speedTestPhase = 'ping';
+          }
+        } else if (isDone) {
+          _speedTestPhase = 'done';
+        } else if (isError) {
+          _speedTestPhase = 'error';
+        }
+      });
+    });
+  }
+
+  void _startSpeedTest() {
+    _initSpeedTestService();
+    if (_speedTestService == null) return;
+
+    setState(() {
+      _isSpeedTesting = true;
+      _speedTestCompleted = false;
+      _downloadSpeed = 0.0;
+      _uploadSpeed = 0.0;
+      _pingMs = 0;
+      _speedTestPhase = 'ping';
+    });
+
+    _speedTestService!.runSpeedTestsOnly();
+  }
+
+  void _stopSpeedTest() {
+    _speedTestService?.stopAllTests();
+    setState(() {
+      _isSpeedTesting = false;
+      _speedTestPhase = 'idle';
+    });
   }
 
   @override
@@ -460,10 +554,57 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildSpeedTestCard() {
+    // Determine status badge content
+    String statusText;
+    Color statusColor;
+    IconData statusIcon;
+
+    if (_isSpeedTesting) {
+      statusText = _speedTestPhase == 'ping'
+          ? 'Testando ping...'
+          : _speedTestPhase == 'download'
+              ? 'Download...'
+              : _speedTestPhase == 'upload'
+                  ? 'Upload...'
+                  : 'Testando...';
+      statusColor = Layout05Theme.warning;
+      statusIcon = Icons.speed_rounded;
+    } else if (_speedTestCompleted && _speedTestPhase == 'done') {
+      statusText = 'Concluído';
+      statusColor = Layout05Theme.success;
+      statusIcon = Icons.check_circle_rounded;
+    } else if (_speedTestPhase == 'error') {
+      statusText = 'Erro';
+      statusColor = Layout05Theme.error;
+      statusIcon = Icons.error_rounded;
+    } else {
+      statusText = 'Não testado';
+      statusColor = Colors.white.withValues(alpha: 0.5);
+      statusIcon = Icons.info_outline_rounded;
+    }
+
+    // Calculate gauge progress based on current phase
+    double gaugeProgress = 0.0;
+    if (_isSpeedTesting) {
+      if (_speedTestPhase == 'download') {
+        gaugeProgress = (_downloadSpeed / 500).clamp(0.0, 1.0);
+      } else if (_speedTestPhase == 'upload') {
+        gaugeProgress = (_uploadSpeed / 500).clamp(0.0, 1.0);
+      } else {
+        gaugeProgress = 0.1;
+      }
+    } else if (_speedTestCompleted) {
+      gaugeProgress = (_downloadSpeed / 500).clamp(0.0, 1.0);
+    }
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.heavyImpact();
-        widget.onNavigate('speed_test');
+        if (_isSpeedTesting) {
+          _stopSpeedTest();
+        } else {
+          _startSpeedTest();
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(24),
@@ -487,20 +628,31 @@ class _DashboardPageState extends State<DashboardPage>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: statusColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: statusColor.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.info_outline_rounded,
-                          color: Colors.white.withValues(alpha: 0.5), size: 14),
+                      if (_isSpeedTesting)
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: statusColor,
+                          ),
+                        )
+                      else
+                        Icon(statusIcon, color: statusColor, size: 14),
                       const SizedBox(width: 4),
-                      Text('Não testado',
+                      Text(statusText,
                           style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: statusColor,
                               fontSize: 11,
-                              fontWeight: FontWeight.w500)),
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -514,28 +666,64 @@ class _DashboardPageState extends State<DashboardPage>
                   width: 200,
                   height: 200,
                   child: CustomPaint(
-                    painter: _SpeedGaugePainter(0.0, _waveController.value),
+                    painter: _SpeedGaugePainter(
+                        gaugeProgress, _waveController.value),
                     child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: Layout05Theme.primaryGradient,
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  Layout05Theme.primary.withValues(alpha: 0.4),
-                              blurRadius: 25,
-                              spreadRadius: 2,
+                      child: _isSpeedTesting
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _speedTestPhase == 'download'
+                                      ? _downloadSpeed.toStringAsFixed(1)
+                                      : _speedTestPhase == 'upload'
+                                          ? _uploadSpeed.toStringAsFixed(1)
+                                          : '...',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  'Mbps',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Container(
+                              padding: const EdgeInsets.all(28),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: _speedTestCompleted
+                                    ? LinearGradient(colors: [
+                                        Layout05Theme.success,
+                                        Layout05Theme.success
+                                            .withValues(alpha: 0.8)
+                                      ])
+                                    : Layout05Theme.primaryGradient,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (_speedTestCompleted
+                                            ? Layout05Theme.success
+                                            : Layout05Theme.primary)
+                                        .withValues(alpha: 0.4),
+                                    blurRadius: 25,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                _speedTestCompleted
+                                    ? Icons.refresh_rounded
+                                    : Icons.play_arrow_rounded,
+                                color: Colors.white,
+                                size: 50,
+                              ),
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow_rounded,
-                          color: Colors.white,
-                          size: 50,
-                        ),
-                      ),
                     ),
                   ),
                 );
@@ -543,9 +731,20 @@ class _DashboardPageState extends State<DashboardPage>
             ),
             const SizedBox(height: 16),
             Text(
-              'Toque para iniciar',
+              _isSpeedTesting
+                  ? (_speedTestPhase == 'download'
+                      ? 'Testando Download...'
+                      : _speedTestPhase == 'upload'
+                          ? 'Testando Upload...'
+                          : 'Iniciando teste...')
+                  : _speedTestCompleted
+                      ? 'Toque para testar novamente'
+                      : 'Toque para iniciar',
               style: TextStyle(
-                color: Layout05Theme.primary.withValues(alpha: 0.8),
+                color: (_isSpeedTesting
+                        ? Layout05Theme.warning
+                        : Layout05Theme.primary)
+                    .withValues(alpha: 0.8),
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -555,21 +754,37 @@ class _DashboardPageState extends State<DashboardPage>
               children: [
                 Expanded(
                     child: _buildTestResult(
-                        'Ping', '—', Colors.white.withValues(alpha: 0.3))),
+                        'Ping',
+                        _pingMs > 0 ? '${_pingMs}ms' : '—',
+                        _pingMs > 0
+                            ? Layout05Theme.secondary
+                            : Colors.white.withValues(alpha: 0.3))),
                 Container(
                     width: 1,
                     height: 40,
                     color: Colors.white.withValues(alpha: 0.08)),
                 Expanded(
                     child: _buildTestResult(
-                        'Download', '—', Colors.white.withValues(alpha: 0.3))),
+                        'Download',
+                        _downloadSpeed > 0
+                            ? '${_downloadSpeed.toStringAsFixed(1)}'
+                            : '—',
+                        _downloadSpeed > 0
+                            ? Layout05Theme.success
+                            : Colors.white.withValues(alpha: 0.3))),
                 Container(
                     width: 1,
                     height: 40,
                     color: Colors.white.withValues(alpha: 0.08)),
                 Expanded(
                     child: _buildTestResult(
-                        'Upload', '—', Colors.white.withValues(alpha: 0.3))),
+                        'Upload',
+                        _uploadSpeed > 0
+                            ? '${_uploadSpeed.toStringAsFixed(1)}'
+                            : '—',
+                        _uploadSpeed > 0
+                            ? Layout05Theme.primary
+                            : Colors.white.withValues(alpha: 0.3))),
               ],
             ),
           ],
