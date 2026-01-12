@@ -16,6 +16,16 @@ import '../../providers/providers.dart';
 import '../../widgets/troubleshooter_card.dart';
 import '../../utils/pdf_generator_service.dart';
 import '../../controllers/wifi_management_controller.dart';
+
+// UX Enhancements - Sprint 1-3
+import '../../models/test_mode.dart';
+import '../../models/network_health_score.dart';
+import '../../widgets/health_score_widget.dart';
+import '../../widgets/test_mode_selector.dart';
+import '../../widgets/comparison_widget.dart';
+import '../../services/diagnostic_integration_helper.dart';
+import '../../services/achievement_service.dart';
+import '../../services/test_history_service.dart';
 import '../../utils/diagnostic_utils.dart';
 
 // main() function removed for integration - use Diagnostic05Page directly
