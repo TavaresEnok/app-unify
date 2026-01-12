@@ -463,7 +463,7 @@ class _DashboardPageState extends State<DashboardPage>
     return GestureDetector(
       onTap: () {
         HapticFeedback.heavyImpact();
-        widget.onNavigate('diagnostico');
+        widget.onNavigate('speed_test');
       },
       child: Container(
         padding: const EdgeInsets.all(24),
