@@ -855,7 +855,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
           final h = entry.value;
           return _StaggeredItem(
             index: i,
-            key: ValueKey(h['ip']),
+            key: ValueKey('hop_$i'),
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -1266,75 +1266,82 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
         ]));
   }
 
-Widget _buildWifiManagementCard() {
-  return _GlassContainer(
-    padding: const EdgeInsets.all(20),
-    child: ValueListenableBuilder<WifiState>(
-      valueListenable: _wifiController,
-      builder: (context, state, child) {
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Gerenciar WiFi (TR-069)',
-              style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark)),
-          const SizedBox(height: 12),
-          if (state.isLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (state.error != null)
-            Column(children: [
-              Text(state.error!,
-                  style: const TextStyle(color: AppTheme.error, fontSize: 12)),
-              TextButton(
-                  onPressed: _wifiController.fetchNetworks,
-                  child: const Text('Tentar novamente'))
-            ])
-          else if (state.networks.isEmpty)
-            Center(
-                child: ElevatedButton.icon(
-                    onPressed: _wifiController.fetchNetworks,
-                    icon: const Icon(Icons.search),
-                    label: const Text('Buscar Redes WiFi')))
-          else
-            Column(
-                children: state.networks
-                    .map((n) => Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                            color: AppTheme.bgLight,
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Row(children: [
-                          Icon(
-                              n.frequency.contains('5')
-                                  ? Icons.wifi
-                                  : Icons.wifi_2_bar,
-                              color: n.enabled
-                                  ? AppTheme.success
-                                  : AppTheme.textLight),
-                          const SizedBox(width: 10),
-                          Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                Text(n.ssid,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                Text(n.frequency,
-                                    style: const TextStyle(
-                                        color: AppTheme.textGrey, fontSize: 11))
-                              ])),
-                          IconButton(
-                              icon: const Icon(Icons.edit,
-                                  color: AppTheme.primary),
-                              onPressed: () => _showEditWifiDialog(context, n))
-                        ])))
-                    .toList()),
-        ]);
-      },
-    ),
-  );
-}
+  Widget _buildWifiManagementCard() {
+    return _GlassContainer(
+      padding: const EdgeInsets.all(20),
+      child: ValueListenableBuilder<WifiState>(
+        valueListenable: _wifiController,
+        builder: (context, state, child) {
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Gerenciar WiFi (TR-069)',
+                    style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark)),
+                const SizedBox(height: 12),
+                if (state.isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (state.error != null)
+                  Column(children: [
+                    Text(state.error!,
+                        style: const TextStyle(
+                            color: AppTheme.error, fontSize: 12)),
+                    TextButton(
+                        onPressed: _wifiController.fetchNetworks,
+                        child: const Text('Tentar novamente'))
+                  ])
+                else if (state.networks.isEmpty)
+                  Center(
+                      child: ElevatedButton.icon(
+                          onPressed: _wifiController.fetchNetworks,
+                          icon: const Icon(Icons.search),
+                          label: const Text('Buscar Redes WiFi')))
+                else
+                  Column(
+                      children: state.networks
+                          .map((n) => Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                  color: AppTheme.bgLight,
+                                  borderRadius: BorderRadius.circular(12)),
+                              child: Row(children: [
+                                Icon(
+                                    n.frequency.contains('5')
+                                        ? Icons.wifi
+                                        : Icons.wifi_2_bar,
+                                    color: n.enabled
+                                        ? AppTheme.success
+                                        : AppTheme.textLight),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                      Text(n.ssid,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                      Text(n.frequency,
+                                          style: const TextStyle(
+                                              color: AppTheme.textGrey,
+                                              fontSize: 11))
+                                    ])),
+                                IconButton(
+                                    icon: const Icon(Icons.edit,
+                                        color: AppTheme.primary),
+                                    onPressed: () =>
+                                        _showEditWifiDialog(context, n))
+                              ])))
+                          .toList()),
+              ]);
+        },
+      ),
+    );
+  }
+
   Widget _buildTroubleshooterCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
     return Padding(
