@@ -1161,7 +1161,13 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
   Widget _journeyStep(
       IconData icon, String title, real_state.TestStatus s, String detail,
       {bool isLast = false}) {
-    final c = DiagnosticUtils.getStatusColor(s);
+    final c = DiagnosticUtils.getStatusColor(
+      s,
+      success: const Color(0xFF4CAF50),
+      running: const Color(0xFF2196F3),
+      error: const Color(0xFFF44336),
+      pending: const Color(0xFF9E9E9E),
+    );
     return Column(children: [
       Row(children: [
         Container(
