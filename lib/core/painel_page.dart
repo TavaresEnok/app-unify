@@ -61,6 +61,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     'diagnostico': 'Diagnóstico',
     'suporte': 'Suporte',
     'notificacoes': 'Notificações',
+    'financeiro': 'Financeiro',
+    'perfil': 'Perfil',
+    'logout': 'Sair',
   };
 
   final Map<String, IconData> _pageIcons = {
@@ -81,6 +84,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     'diagnostico': Icons.wifi_tethering,
     'suporte': Icons.support_agent,
     'notificacoes': Icons.notifications,
+    'financeiro': Icons.attach_money,
+    'perfil': Icons.person,
+    'logout': Icons.exit_to_app,
   };
 
   void _navigateToPage(String pageId) {
@@ -743,18 +749,42 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   }
 
   Widget _buildBody(String layoutType, Usuario usuario, BuildContext context) {
-    // Handle route aliases - redirect to actual routes
-    if (_currentPage == 'home') {
-      _currentPage = 'dashboard';
-    } else if (_currentPage == 'diagnostico') {
-      _currentPage = 'network_diagnostic';
-    } else if (_currentPage == 'suporte') {
-      _currentPage = 'support';
-    } else if (_currentPage == 'notificacoes') {
-      _currentPage = 'notifications';
-    } else if (_currentPage == 'planos') {
-      // Planos não tem página específica - redirecionar para suporte
-      _currentPage = 'support';
+    // Handle route aliases and special routes - redirect to actual routes
+    // This must be done first before any page checks
+    switch (_currentPage) {
+      case 'home':
+        _currentPage = 'dashboard';
+        break;
+      case 'diagnostico':
+        _currentPage = 'network_diagnostic';
+        break;
+      case 'suporte':
+        _currentPage = 'support';
+        break;
+      case 'notificacoes':
+        _currentPage = 'notifications';
+        break;
+      case 'financeiro':
+        _currentPage = 'invoices';
+        break;
+      case 'planos':
+        // Planos não tem página específica - redirecionar para suporte
+        _currentPage = 'support';
+        break;
+      case 'perfil':
+        // Perfil/Profile não está implementado - redirect to dashboard for now
+        _currentPage = 'dashboard';
+        break;
+      case 'logout':
+        // Handle logout
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(authNotifierProvider.notifier).logout();
+        });
+        return const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
     }
 
     if (_currentPage == 'dashboard') {
