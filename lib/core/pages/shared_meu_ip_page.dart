@@ -39,32 +39,18 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
 
     final theme = Theme.of(context);
     Color backgroundColor;
-    Color appBarColor;
-    Color appBarTextColor;
     if (isDarkLayout) {
       backgroundColor = const Color(0xFF0A0A0A);
-      appBarColor = const Color(0xFF0A0A0A);
-      appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;
-      appBarColor = Layout03Theme.background;
-      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
-      appBarColor = theme.primaryColor;
-      appBarTextColor = Colors.white;
     }
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        title:
-            Text('Meu Endereço IP', style: TextStyle(color: appBarTextColor)),
-        backgroundColor: appBarColor,
-        iconTheme: IconThemeData(color: appBarTextColor),
-        elevation: 0,
-      ),
-      body: FutureBuilder<Map<String, dynamic>>(
+    // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
+    return Container(
+      color: backgroundColor,
+      child: FutureBuilder<Map<String, dynamic>>(
         future: _ipFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

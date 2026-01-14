@@ -45,35 +45,20 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     final themeData = Theme.of(context);
     // Colors setup (condensed for brevity, keeping original logic)
     Color backgroundColor;
-    Color appBarColor;
-    Color appBarTextColor;
-
     if (isDarkLayout) {
       backgroundColor = themeData.scaffoldBackgroundColor;
-      appBarColor = themeData.scaffoldBackgroundColor;
-      appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;
-      appBarColor = Layout03Theme.background;
-      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = Colors.grey[50]!;
-      appBarColor = themeData.primaryColor;
-      appBarTextColor = Colors.white;
     }
 
     final provider = ref.watch(financeiroViewModelProvider);
 
-    return Scaffold(
-        backgroundColor: backgroundColor,
-        appBar: AppBar(
-          title: Text('Faturas', style: TextStyle(color: appBarTextColor)),
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: appBarColor,
-          iconTheme: IconThemeData(color: appBarTextColor),
-        ),
-        body: Builder(builder: (context) {
+    // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
+    return Container(
+        color: backgroundColor,
+        child: Builder(builder: (context) {
           if (provider.state == FinanceiroState.loading) {
             return const SkeletonFinanceiroPage();
           }

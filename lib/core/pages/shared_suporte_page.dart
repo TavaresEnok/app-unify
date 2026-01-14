@@ -35,31 +35,18 @@ class SuportePage extends ConsumerWidget {
 
     final theme = Theme.of(context);
     Color backgroundColor;
-    Color appBarColor;
-    Color appBarTextColor;
     if (isDarkLayout) {
       backgroundColor = theme.scaffoldBackgroundColor;
-      appBarColor = theme.scaffoldBackgroundColor;
-      appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;
-      appBarColor = Layout03Theme.background;
-      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
-      appBarColor = theme.primaryColor;
-      appBarTextColor = Colors.white;
     }
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        title: Text('Suporte', style: TextStyle(color: appBarTextColor)),
-        backgroundColor: appBarColor,
-        iconTheme: IconThemeData(color: appBarTextColor),
-        elevation: 0,
-      ),
-      body: ListView(
+    // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
+    return Container(
+      color: backgroundColor,
+      child: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
           _buildConnectionStatusCard(context, usuario.status, isLayout05,

@@ -55,37 +55,21 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
         layoutType == 'layout_14';
 
     Color backgroundColor;
-    Color appBarColor;
-    Color appBarTextColor;
     if (isDarkLayout) {
-      // Use theme colors for all dark layouts
       backgroundColor = theme.scaffoldBackgroundColor;
-      appBarColor = theme.scaffoldBackgroundColor;
-      appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;
-      appBarColor = Layout03Theme.background;
-      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
-      appBarColor = theme.primaryColor;
-      appBarTextColor = Colors.white;
     }
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        title: Text('Meu Consumo', style: TextStyle(color: appBarTextColor)),
-        backgroundColor: appBarColor,
-        iconTheme: IconThemeData(color: appBarTextColor),
-        elevation: 0,
-      ),
-      body: RefreshIndicator(
+    // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
+    return Container(
+      color: backgroundColor,
+      child: RefreshIndicator(
         onRefresh: () async {
           if (isDarkLayout) {
             await ref.read(consumoViewModelProvider.notifier).loadData();
-          } else {
-            // Refresh logic for other layouts if any, or remove delay
           }
         },
         child: isDarkLayout
@@ -93,30 +77,19 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // Card principal - Plano Ilimitado
                   _buildUnlimitedCard(theme, usuario?.plano ?? 'Plano Fibra',
                       config?.name ?? 'Provedor', isLayout05,
                       isDarkLayout: isDarkLayout),
-
                   const SizedBox(height: 16),
-
-                  // Card de velocidades
                   _buildSpeedCard(theme, usuario, isLayout05,
                       isDarkLayout: isDarkLayout),
-
                   const SizedBox(height: 16),
-
-                  // Card de status da conexão
                   _buildConnectionStatusCard(theme, isLayout05,
                       isDarkLayout: isDarkLayout),
-
                   const SizedBox(height: 16),
-
-                  // Card de benefícios
                   _buildBenefitsCard(theme, isLayout05,
                       isDarkLayout: isDarkLayout),
-
-                  const SizedBox(height: 180), // Padding for BottomNav
+                  const SizedBox(height: 180),
                 ],
               ),
       ),

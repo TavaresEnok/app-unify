@@ -224,20 +224,12 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     final isDarkLayout = layoutType == 'layout_04';
 
     Color backgroundColor;
-    Color appBarColor;
-    Color appBarTextColor;
     if (isDarkLayout) {
       backgroundColor = const Color(0xFF0A0A0A);
-      appBarColor = const Color(0xFF0A0A0A);
-      appBarTextColor = Colors.white;
     } else if (isLayout05) {
       backgroundColor = Layout03Theme.background;
-      appBarColor = Layout03Theme.background;
-      appBarTextColor = Layout03Theme.textDark;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
-      appBarColor = theme.primaryColor;
-      appBarTextColor = Colors.white;
     }
 
     final cardDecoration = isDarkLayout
@@ -249,22 +241,10 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
           )
         : (isLayout05 ? Layout03Theme.neumorphicDecoration : null);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        title: Text('Rota (Tracert)', style: TextStyle(color: appBarTextColor)),
-        backgroundColor: appBarColor,
-        iconTheme: IconThemeData(color: appBarTextColor),
-        actions: [
-          if (_hops.isNotEmpty && !_isRunning)
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: _sharePdf,
-              tooltip: "Compartilhar PDF",
-            )
-        ],
-      ),
-      body: Column(
+    // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
+    return Container(
+      color: backgroundColor,
+      child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
