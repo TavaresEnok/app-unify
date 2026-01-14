@@ -56,16 +56,22 @@ class _DashboardPageState extends State<DashboardPage> {
       'route': 'network_diagnostic'
     },
     {
-      'label': 'Traceroute',
-      'icon': Icons.route_rounded,
-      'color': Layout03Theme.iconSlate,
-      'route': 'trace_route'
-    },
-    {
       'label': 'Contrato',
       'icon': Icons.description_rounded,
       'color': Layout03Theme.iconMauve,
       'route': 'contract'
+    },
+    {
+      'label': 'FAQ',
+      'icon': Icons.help_outline_rounded,
+      'color': Layout03Theme.iconMist,
+      'route': 'faq'
+    },
+    {
+      'label': 'Traceroute',
+      'icon': Icons.route_rounded,
+      'color': Layout03Theme.iconSlate,
+      'route': 'trace_route'
     },
     {
       'label': 'Consumo',
@@ -78,12 +84,6 @@ class _DashboardPageState extends State<DashboardPage> {
       'icon': Icons.public_rounded,
       'color': Layout03Theme.iconStorm,
       'route': 'my_ip'
-    },
-    {
-      'label': 'FAQ',
-      'icon': Icons.help_outline_rounded,
-      'color': Layout03Theme.iconMist,
-      'route': 'faq'
     },
     {
       'label': 'Faturas',
@@ -204,12 +204,6 @@ class _DashboardPageState extends State<DashboardPage> {
               child: const Icon(Icons.notifications_none_rounded,
                   color: Layout03Theme.textMedium, size: 22),
             ),
-            const SizedBox(width: 12),
-            NeuButton(
-              onTap: () {},
-              child: const Icon(Icons.person_outline_rounded,
-                  color: Layout03Theme.primary, size: 22),
-            ),
           ],
         ),
       ],
@@ -326,7 +320,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    isOnline ? 'Estável' : 'Offline',
+                    isOnline ? 'Conectado' : 'Offline',
                     style: const TextStyle(
                         fontSize: 11, color: Layout03Theme.textMedium),
                   ),

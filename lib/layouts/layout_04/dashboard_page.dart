@@ -169,88 +169,94 @@ class _DashboardPageState extends State<DashboardPage> {
 
                     const SizedBox(height: 28),
 
-                    // Balance Card (Main Feature)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: dynamicGradient,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryColor.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Próxima Fatura',
-                                style: TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  widget.connectionStatus,
-                                  style: const TextStyle(
-                                    color: Colors.black87,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                    // Balance Card (Main Feature) - Navigates to Invoices
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        widget.onNavigate('invoices');
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: dynamicGradient,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryColor.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Próxima Fatura',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'R\$ ${widget.billAmount.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_today_rounded,
-                                  size: 14, color: Colors.black54),
-                              const SizedBox(width: 6),
-                              Text(
-                                remainingDays >= 0
-                                    ? 'Vence em $remainingDays dias'
-                                    : 'Vencida há ${remainingDays.abs()} dias',
-                                style: TextStyle(
-                                  color: remainingDays >= 0
-                                      ? Colors.black54
-                                      : Colors.red[900],
-                                  fontSize: 14,
-                                  fontWeight: remainingDays < 0
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    widget.connectionStatus,
+                                    style: const TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'R\$ ${widget.billAmount.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -1,
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_today_rounded,
+                                    size: 14, color: Colors.black54),
+                                const SizedBox(width: 6),
+                                Text(
+                                  remainingDays >= 0
+                                      ? 'Vence em $remainingDays dias'
+                                      : 'Vencida há ${remainingDays.abs()} dias',
+                                  style: TextStyle(
+                                    color: remainingDays >= 0
+                                        ? Colors.black54
+                                        : Colors.red[900],
+                                    fontSize: 14,
+                                    fontWeight: remainingDays < 0
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
@@ -278,7 +284,8 @@ class _DashboardPageState extends State<DashboardPage> {
                             surfaceColor: surfaceColor,
                             textSecondary: textSecondary,
                             borderColor: borderColor),
-                        _buildQuickAction(Icons.wifi_rounded, 'Wi-Fi', 'wifi',
+                        _buildQuickAction(Icons.network_check_rounded,
+                            'Diagnóstico', 'network_diagnostic',
                             primaryColor: primaryColor,
                             surfaceColor: surfaceColor,
                             textSecondary: textSecondary,

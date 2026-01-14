@@ -500,14 +500,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
   }
 
   Widget _buildQuickStats() {
-    // Calculate days until due date
+    // Get color based on days until due date
     final now = DateTime.now();
     final daysUntilDue = widget.billDueDate.difference(now).inDays;
-    final daysText = daysUntilDue < 0
-        ? 'Vencida'
-        : daysUntilDue == 0
-            ? 'Hoje'
-            : '$daysUntilDue dias';
     final daysColor = daysUntilDue < 0
         ? Layout02Theme.red
         : daysUntilDue <= 3
@@ -519,7 +514,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         Expanded(
           child: _buildStatCard(
             'Faturas',
-            daysText,
+            '',
             Icons.receipt_long_rounded,
             daysColor,
             onTap: () => widget.onNavigate('invoices'),
@@ -529,7 +524,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         Expanded(
           child: _buildStatCard(
             'Suporte',
-            'Online',
+            '',
             Icons.headset_mic_rounded,
             Layout02Theme.purple,
             onTap: () => widget.onNavigate('support'),
@@ -539,9 +534,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         Expanded(
           child: _buildStatCard(
             'Consumo',
-            widget.usedGb > 0
-                ? '${widget.usedGb.toStringAsFixed(0)} GB'
-                : 'Livre',
+            '',
             Icons.data_usage_rounded,
             Layout02Theme.cyan,
             onTap: () => widget.onNavigate('internet_usage'),
@@ -626,28 +619,28 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
         'route': 'network_diagnostic'
       },
       {
-        'icon': Icons.route_rounded,
-        'label': 'Tracert',
-        'colors': [Layout02Theme.purple, Layout02Theme.accent],
-        'route': 'trace_route'
-      },
-      {
         'icon': Icons.description_rounded,
         'label': 'Contrato',
         'colors': [Layout02Theme.orange, const Color(0xFFFF6B35)],
         'route': 'contract'
       },
       {
-        'icon': Icons.language_rounded,
-        'label': 'Meu IP',
-        'colors': [Layout02Theme.cyan, Layout02Theme.primary],
-        'route': 'my_ip'
-      },
-      {
         'icon': Icons.quiz_rounded,
         'label': 'FAQ',
         'colors': [const Color(0xFFFF6B9D), Layout02Theme.purple],
         'route': 'faq'
+      },
+      {
+        'icon': Icons.route_rounded,
+        'label': 'Tracert',
+        'colors': [Layout02Theme.purple, Layout02Theme.accent],
+        'route': 'trace_route'
+      },
+      {
+        'icon': Icons.language_rounded,
+        'label': 'Meu IP',
+        'colors': [Layout02Theme.cyan, Layout02Theme.primary],
+        'route': 'my_ip'
       },
       {
         'icon': Icons.wifi_rounded,

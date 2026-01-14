@@ -810,21 +810,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   Widget _buildQuickActions() {
     final actions = [
       {
-        'label': 'Meu\nRoteador',
-        'icon': Icons.router_rounded,
-        'color': Layout05Theme.secondary,
-        'subtitle': '2 devices',
-        'route': 'wifi'
-      },
-      {
-        'label': 'Upgrade\nPlano',
-        'icon': Icons.rocket_launch_rounded,
-        'color': const Color(0xFFFF7043),
-        'subtitle': 'Até 1Gbps',
-        'route': 'planos'
-      },
-      {
-        'label': '2ª Via\nBoleto',
+        'label': 'Faturas',
         'icon': Icons.receipt_long_rounded,
         'color': Layout05Theme.primary,
         'subtitle':
@@ -832,18 +818,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         'route': 'invoices'
       },
       {
-        'label': 'Senha\nWi-Fi',
-        'icon': Icons.wifi_password_rounded,
-        'color': Layout05Theme.success,
-        'subtitle': 'Copiar',
-        'route': 'wifi'
-      },
-      {
         'label': 'Suporte\n24h',
         'icon': Icons.headset_mic_rounded,
         'color': Layout05Theme.warning,
         'subtitle': 'Online',
         'route': 'support'
+      },
+      {
+        'label': 'Diagnóstico\nRede',
+        'icon': Icons.healing_rounded,
+        'color': const Color(0xFF00ACC1),
+        'subtitle': 'Testar',
+        'route': 'network_diagnostic'
+      },
+      {
+        'label': 'Meu\nRoteador',
+        'icon': Icons.router_rounded,
+        'color': Layout05Theme.secondary,
+        'subtitle': '2 devices',
+        'route': 'wifi'
       },
       {
         'label': 'Consumo\nDados',
@@ -867,11 +860,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         'route': 'faq'
       },
       {
-        'label': 'Diagnóstico\nRede',
-        'icon': Icons.healing_rounded,
-        'color': const Color(0xFF00ACC1),
-        'subtitle': 'Testar',
-        'route': 'network_diagnostic'
+        'label': 'Senha\nWi-Fi',
+        'icon': Icons.wifi_password_rounded,
+        'color': Layout05Theme.success,
+        'subtitle': 'Copiar',
+        'route': 'wifi'
       },
       {
         'label': 'Traceroute\nRota',
@@ -1524,7 +1517,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                   _buildNavItem(Icons.speed_rounded, 'Velocidade', 1),
                   _buildCenterNav(),
                   _buildNavItem(Icons.receipt_long_rounded, 'Faturas', 2),
-                  _buildNavItem(Icons.person_rounded, 'Conta', 3),
+                  _buildNavItem(Icons.headset_mic_rounded, 'Suporte', 3),
                 ],
               ),
             ),

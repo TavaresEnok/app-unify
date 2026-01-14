@@ -393,34 +393,34 @@ class _DashboardPageState extends State<DashboardPage>
   Widget _buildQuickActions() {
     final actions = [
       {
-        'label': 'Roteador',
-        'icon': Icons.router_rounded,
-        'color': const Color(0xFF7C4DFF),
-        'route': 'wifi'
-      },
-      {
-        'label': '2ª Via',
+        'label': 'Faturas',
         'icon': Icons.receipt_long_rounded,
         'color': Layout06Theme.primary,
         'route': 'invoices'
-      },
-      {
-        'label': 'Upgrade',
-        'icon': Icons.rocket_launch_rounded,
-        'color': const Color(0xFFFF7043),
-        'route': 'planos'
-      },
-      {
-        'label': 'Wi-Fi',
-        'icon': Icons.wifi_password_rounded,
-        'color': Layout06Theme.secondary,
-        'route': 'wifi'
       },
       {
         'label': 'Suporte',
         'icon': Icons.support_agent_rounded,
         'color': Layout06Theme.warning,
         'route': 'support'
+      },
+      {
+        'label': 'Diagnóstico',
+        'icon': Icons.healing_rounded,
+        'color': const Color(0xFF00ACC1),
+        'route': 'network_diagnostic'
+      },
+      {
+        'label': 'Velocidade',
+        'icon': Icons.speed_rounded,
+        'color': const Color(0xFF7C4DFF),
+        'route': 'speed_test'
+      },
+      {
+        'label': 'Roteador',
+        'icon': Icons.router_rounded,
+        'color': Layout06Theme.secondary,
+        'route': 'wifi'
       },
       {
         'label': 'Consumo',
@@ -439,12 +439,6 @@ class _DashboardPageState extends State<DashboardPage>
         'icon': Icons.help_outline_rounded,
         'color': const Color(0xFF795548),
         'route': 'faq'
-      },
-      {
-        'label': 'Diagnóstico',
-        'icon': Icons.healing_rounded,
-        'color': const Color(0xFF00ACC1),
-        'route': 'network_diagnostic'
       },
       {
         'label': 'Traceroute',
