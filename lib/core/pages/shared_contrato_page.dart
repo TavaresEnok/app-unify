@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
 import '../../core/widgets/dashboard_card.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 
 class ContratoPage extends ConsumerWidget {
   const ContratoPage({super.key});
@@ -17,18 +17,15 @@ class ContratoPage extends ConsumerWidget {
     final theme = Theme.of(context);
     final primaryColor = theme.primaryColor;
 
-    final layoutType = configProvider.providerConfig?.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_04';
-
-    Color backgroundColor;
-    if (isDarkLayout) {
-      backgroundColor = const Color(0xFF0A0A0A);
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-    } else {
-      backgroundColor = theme.scaffoldBackgroundColor;
-    }
+    final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
+    final isLayout03 = SharedThemeHelper.isNeumorphic(layoutType);
+    final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+    final backgroundColor = SharedThemeHelper.getBackgroundColor(layoutType);
+    final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+    final themeTextGrey = SharedThemeHelper.getTextGreyColor(layoutType);
+    final themePrimary = SharedThemeHelper.getPrimaryColor(layoutType);
+    final isLayout05 = isLayout03; // Alias for backward compatibility
+    final neumorphicDecoration = SharedThemeHelper.neumorphicDecoration;
 
     if (usuario == null) {
       return Container(
@@ -48,6 +45,7 @@ class ContratoPage extends ConsumerWidget {
             _buildAdaptiveCard(
               isLayout05: isLayout05,
               isDarkLayout: isDarkLayout,
+              neumorphicDecoration: neumorphicDecoration,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -56,13 +54,11 @@ class ContratoPage extends ConsumerWidget {
                       CircleAvatar(
                         radius: 30,
                         backgroundColor: isLayout05
-                            ? Layout03Theme.primary.withValues(alpha: 0.1)
+                            ? themePrimary.withValues(alpha: 0.1)
                             : primaryColor.withValues(alpha: 0.1),
                         child: Icon(Icons.person,
                             size: 32,
-                            color: isLayout05
-                                ? Layout03Theme.primary
-                                : primaryColor),
+                            color: isLayout05 ? themePrimary : primaryColor),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -75,9 +71,7 @@ class ContratoPage extends ConsumerWidget {
                                 fontWeight: FontWeight.bold,
                                 color: isDarkLayout
                                     ? Colors.white
-                                    : (isLayout05
-                                        ? Layout03Theme.textDark
-                                        : null),
+                                    : (isLayout05 ? themeTextColor : null),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -87,7 +81,7 @@ class ContratoPage extends ConsumerWidget {
                                 color: isDarkLayout
                                     ? const Color(0xFF8E8E93)
                                     : (isLayout05
-                                        ? Layout03Theme.textGrey
+                                        ? themeTextGrey
                                         : textTheme.bodySmall?.color),
                               ),
                             ),
@@ -105,6 +99,7 @@ class ContratoPage extends ConsumerWidget {
             _buildAdaptiveCard(
               isLayout05: isLayout05,
               isDarkLayout: isDarkLayout,
+              neumorphicDecoration: neumorphicDecoration,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -113,7 +108,7 @@ class ContratoPage extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                         color: isDarkLayout
                             ? Colors.white
-                            : (isLayout05 ? Layout03Theme.textDark : null),
+                            : (isLayout05 ? themeTextColor : null),
                       )),
                   const Divider(height: 24),
                   _buildInfoRow(context,
@@ -121,7 +116,9 @@ class ContratoPage extends ConsumerWidget {
                       label: 'Plano',
                       value: usuario.plano,
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themeTextGrey: themeTextGrey,
+                      themeTextColor: themeTextColor),
                   const SizedBox(height: 12),
                   _buildInfoRow(context,
                       icon: Icons.check_circle_outline,
@@ -129,7 +126,9 @@ class ContratoPage extends ConsumerWidget {
                       value: usuario.status,
                       valueColor: _getStatusColor(usuario.status),
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themeTextGrey: themeTextGrey,
+                      themeTextColor: themeTextColor),
                   if (usuario.contratoId != null) ...[
                     const SizedBox(height: 12),
                     _buildInfoRow(context,
@@ -137,7 +136,9 @@ class ContratoPage extends ConsumerWidget {
                         label: 'Contrato ID',
                         value: '#${usuario.contratoId}',
                         isLayout05: isLayout05,
-                        isDarkLayout: isDarkLayout),
+                        isDarkLayout: isDarkLayout,
+                        themeTextGrey: themeTextGrey,
+                        themeTextColor: themeTextColor),
                   ],
                 ],
               ),
@@ -148,6 +149,7 @@ class ContratoPage extends ConsumerWidget {
             _buildAdaptiveCard(
               isLayout05: isLayout05,
               isDarkLayout: isDarkLayout,
+              neumorphicDecoration: neumorphicDecoration,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -156,7 +158,7 @@ class ContratoPage extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                         color: isDarkLayout
                             ? Colors.white
-                            : (isLayout05 ? Layout03Theme.textDark : null),
+                            : (isLayout05 ? themeTextColor : null),
                       )),
                   const Divider(height: 24),
                   _buildInfoRow(context,
@@ -164,14 +166,18 @@ class ContratoPage extends ConsumerWidget {
                       label: 'Valor',
                       value: 'R\$ ${usuario.valorFatura}',
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themeTextGrey: themeTextGrey,
+                      themeTextColor: themeTextColor),
                   const SizedBox(height: 12),
                   _buildInfoRow(context,
                       icon: Icons.calendar_today,
                       label: 'Vencimento',
                       value: 'Dia ${usuario.vencimentoFatura}',
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themeTextGrey: themeTextGrey,
+                      themeTextColor: themeTextColor),
                 ],
               ),
             ),
@@ -182,6 +188,7 @@ class ContratoPage extends ConsumerWidget {
               _buildAdaptiveCard(
                 isLayout05: isLayout05,
                 isDarkLayout: isDarkLayout,
+                neumorphicDecoration: neumorphicDecoration,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -190,7 +197,7 @@ class ContratoPage extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                           color: isDarkLayout
                               ? Colors.white
-                              : (isLayout05 ? Layout03Theme.textDark : null),
+                              : (isLayout05 ? themeTextColor : null),
                         )),
                     const Divider(height: 24),
                     _buildInfoRow(context,
@@ -198,7 +205,9 @@ class ContratoPage extends ConsumerWidget {
                         label: 'Empresa',
                         value: configProvider.providerConfig!.name,
                         isLayout05: isLayout05,
-                        isDarkLayout: isDarkLayout),
+                        isDarkLayout: isDarkLayout,
+                        themeTextGrey: themeTextGrey,
+                        themeTextColor: themeTextColor),
                   ],
                 ),
               ),
@@ -211,7 +220,8 @@ class ContratoPage extends ConsumerWidget {
   Widget _buildAdaptiveCard(
       {required Widget child,
       required bool isLayout05,
-      bool isDarkLayout = false}) {
+      bool isDarkLayout = false,
+      BoxDecoration? neumorphicDecoration}) {
     if (isDarkLayout) {
       return Container(
         decoration: BoxDecoration(
@@ -226,7 +236,7 @@ class ContratoPage extends ConsumerWidget {
     }
     if (isLayout05) {
       return Container(
-        decoration: Layout03Theme.neumorphicDecoration,
+        decoration: neumorphicDecoration,
         padding: const EdgeInsets.all(16),
         child: child,
       );
@@ -240,7 +250,9 @@ class ContratoPage extends ConsumerWidget {
       required String value,
       Color? valueColor,
       required bool isLayout05,
-      bool isDarkLayout = false}) {
+      bool isDarkLayout = false,
+      Color? themeTextGrey,
+      Color? themeTextColor}) {
     final textTheme = Theme.of(context).textTheme;
     return Row(
       children: [
@@ -248,15 +260,13 @@ class ContratoPage extends ConsumerWidget {
             size: 20,
             color: isDarkLayout
                 ? const Color(0xFF00D9FF)
-                : (isLayout05
-                    ? Layout03Theme.textGrey
-                    : textTheme.bodySmall?.color)),
+                : (isLayout05 ? themeTextGrey : textTheme.bodySmall?.color)),
         const SizedBox(width: 12),
         Text('$label:',
             style: textTheme.bodyMedium?.copyWith(
               color: isDarkLayout
                   ? const Color(0xFF8E8E93)
-                  : (isLayout05 ? Layout03Theme.textDark : null),
+                  : (isLayout05 ? themeTextColor : null),
             )),
         const Spacer(),
         Text(
@@ -266,7 +276,7 @@ class ContratoPage extends ConsumerWidget {
             color: valueColor ??
                 (isDarkLayout
                     ? Colors.white
-                    : (isLayout05 ? Layout03Theme.textDark : null)),
+                    : (isLayout05 ? themeTextColor : null)),
           ),
         ),
       ],
