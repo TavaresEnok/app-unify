@@ -15,6 +15,7 @@ import LoginPage from "@/pages/LoginPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ProviderSettingsLayout from "@/components/ProviderSettingsLayout";
 import AppearanceSettings from "@/pages/provider-settings/AppearanceSettings";
+import TypographySettings from "@/pages/provider-settings/TypographySettings";
 import FeaturesSettings from "@/pages/provider-settings/FeaturesSettings";
 import SupportSettings from "@/pages/provider-settings/SupportSettings";
 import CarouselSettings from "@/pages/provider-settings/CarouselSettings";
@@ -49,6 +50,7 @@ const ProviderSettingsRoutes = (
   <Route element={<ProviderSettingsLayout />}>
     <Route index element={<Navigate to="appearance" replace />} />
     <Route path="appearance" element={<AppearanceSettings />} />
+    <Route path="typography" element={<TypographySettings />} />
     <Route path="images" element={<ImagesIconsSettings />} />
     <Route path="menus" element={<MenusSettingsPage />} />
     <Route path="features" element={<FeaturesSettings />} />

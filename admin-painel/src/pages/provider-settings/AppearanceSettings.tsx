@@ -322,14 +322,7 @@ export default function AppearanceSettings() {
                             </div>
                         </div>
 
-                        <div className="flex gap-2">
-                            <Input
-                                value={config.logoUrl || ''}
-                                onChange={e => setConfig((p: any) => ({ ...p, logoUrl: e.target.value }))}
-                                placeholder="Logo URL"
-                            />
-                            <Button variant="secondary" onClick={() => toast.success('URL OK')}>Definir</Button>
-                        </div>
+                        {/* Nota: Logo URL está em Imagens & Ícones */}
 
                         {/* Botão Salvar */}
                         <div className="pt-4 border-t">

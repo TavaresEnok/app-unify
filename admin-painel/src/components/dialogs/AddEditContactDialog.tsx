@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 interface Contact {
   id: string;
   name: string;
-  type: 'phone' | 'email' | 'address';
+  type: 'phone' | 'email' | 'address' | 'whatsapp';
   value: string;
 }
 
@@ -23,7 +23,7 @@ interface AddEditContactDialogProps {
 export default function AddEditContactDialog({ contact, onSave, onDelete }: AddEditContactDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
-  const [type, setType] = useState<'phone' | 'email' | 'address'>('phone');
+  const [type, setType] = useState<'phone' | 'email' | 'address' | 'whatsapp'>('phone');
   const [value, setValue] = useState('');
 
   const isEdit = !!contact;
@@ -56,9 +56,10 @@ export default function AddEditContactDialog({ contact, onSave, onDelete }: AddE
     }
   };
 
-  const getIcon = (type: 'phone' | 'email' | 'address') => {
+  const getIcon = (type: 'phone' | 'email' | 'address' | 'whatsapp') => {
     switch (type) {
       case 'phone': return <Phone className="h-4 w-4" />;
+      case 'whatsapp': return <Phone className="h-4 w-4" />;
       case 'email': return <Mail className="h-4 w-4" />;
       case 'address': return <MapPin className="h-4 w-4" />;
       default: return null;

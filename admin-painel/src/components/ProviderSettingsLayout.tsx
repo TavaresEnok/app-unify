@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
   { name: "Aparência", path: "appearance" },
+  { name: "Tipografia", path: "typography" },
   { name: "Imagens & Ícones", path: "images" },
   { name: "Menus", path: "menus" },
   { name: "Módulos", path: "features" },

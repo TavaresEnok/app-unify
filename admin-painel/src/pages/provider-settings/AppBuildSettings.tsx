@@ -52,38 +52,51 @@ export default function AppBuildSettings() {
 
     const handleBuild = async () => {
         setBuildStatus('building');
-        setBuildProgress('Iniciando build...');
+        setBuildProgress('Iniciando build real...');
         setDownloadUrl(null);
 
         try {
-            const steps = [
-                'Preparando ambiente...',
-                'Compilando código Dart...',
-                'Gerando recursos...',
-                'Empacotando APK...',
-                'Otimizando para ' + (architecture === 'all' ? 'todas arquiteturas' : architecture) + '...',
-                'Finalizando...',
-            ];
+            setBuildProgress('Executando flutter clean...');
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            for (let i = 0; i < steps.length; i++) {
-                setBuildProgress(steps[i]);
-                await new Promise(resolve => setTimeout(resolve, 1500));
+            setBuildProgress('Compilando código Dart...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            setBuildProgress('Gerando APK para ' + architecture + '...');
+
+            // Chama API REAL de build
+            const response = await fetch('http://168.194.13.18:3000/build-apk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    secret: 'CHAVE_SECRETA_MUITO_FORTE_12345',
+                    architecture,
+                    providerId: 'default'
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Build falhou: ${response.statusText}`);
             }
 
-            // APK específico por arquitetura
-            const apkUrls: Record<BuildArchitecture, string> = {
-                'arm64-v8a': '/app-arm64-v8a.apk',
-                'armeabi-v7a': '/app-armeabi-v7a.apk',
-                'all': '/app-release.apk',
-            };
-            setDownloadUrl(apkUrls[architecture]);
+            const result = await response.json();
+
+            if (!result.success || !result.apkUrl) {
+                throw new Error('APK URL não retornada pelo servidor');
+            }
+
+            // Define URL do APK com timestamp para evitar cache
+            setDownloadUrl(result.apkUrl);
             setBuildStatus('success');
-            setBuildProgress('Build concluído com sucesso!');
+            setBuildProgress(`Build concluído! ${result.timestamp}`);
             toast.success('APK gerado com sucesso!');
-        } catch {
+        } catch (error: any) {
             setBuildStatus('error');
-            setBuildProgress('Erro ao gerar APK. Tente novamente.');
+            setBuildProgress(`Erro: ${error.message || 'Erro desconhecido'}`);
             toast.error('Erro ao gerar APK');
+            console.error('[Build Error]', error);
         }
     };
 
