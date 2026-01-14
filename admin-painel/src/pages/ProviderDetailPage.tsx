@@ -5,7 +5,7 @@ import { db } from '@/firebase/config';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save } from 'lucide-react';
-import { SettingsContext, ProviderData, ProviderConfig } from '@/contexts/SettingsContext';
+import { SettingsContext, ProviderData, ProviderConfigLegacy as ProviderConfig } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Breadcrumbs from '@/components/Breadcrumbs';
 
@@ -20,7 +20,7 @@ export default function ProviderDetailPage() {
     const [config, setConfig] = useState<ProviderConfig>({});
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    
+
     const hasLoadedInitialConfig = useRef(false);
 
     useEffect(() => {
@@ -37,7 +37,7 @@ export default function ProviderDetailPage() {
             if (docSnap.exists()) {
                 const data = docSnap.data() as ProviderData;
                 setProvider(data);
-                
+
                 const mergedConfig = {
                     themeColor: data.themeColor,
                     secondaryColor: data.secondaryColor,
@@ -45,7 +45,7 @@ export default function ProviderDetailPage() {
                     socialNetworks: data.socialNetworks,
                     integrations: data.integrations,
                     menuConfig: data.menuConfig,
-                    tips: data.tips || data.dicas, 
+                    tips: data.tips || data.dicas,
                     faq: data.faq,
                     imageCarousel: data.imageCarousel,
                     ...(data.config || {})
@@ -53,7 +53,7 @@ export default function ProviderDetailPage() {
 
                 if (!hasLoadedInitialConfig.current) {
                     setConfig(mergedConfig);
-                    hasLoadedInitialConfig.current = true; 
+                    hasLoadedInitialConfig.current = true;
                 }
             } else {
                 toast.error("Provedor não encontrado.");
@@ -71,7 +71,7 @@ export default function ProviderDetailPage() {
         if (!providerId || !user) return;
         setIsSaving(true);
         const toastId = toast.loading("Salvando configurações...");
-        
+
         // --- CORREÇÃO DO ERRO FIREBASE ---
         // Remove qualquer campo 'undefined' do objeto config antes de enviar.
         // O Firebase não aceita 'undefined'. O JSON stringify/parse é um truque rápido para limpar isso.
@@ -100,10 +100,10 @@ export default function ProviderDetailPage() {
                 type: 'UPDATE_PROVIDER_CONFIG',
                 requesterUid: user.uid,
                 createdAt: serverTimestamp(),
-                payload: { 
-                    providerId, 
+                payload: {
+                    providerId,
                     config: cleanConfig, // Envia a versão limpa
-                    requesterUid: user.uid 
+                    requesterUid: user.uid
                 }
             });
         } catch (error: any) {
@@ -121,7 +121,7 @@ export default function ProviderDetailPage() {
         return <div className="text-center p-8"><h2 className="text-xl font-semibold text-destructive">Não foi possível carregar os dados.</h2></div>;
     }
 
-    const providerIdString = providerId ?? 'firebase'; 
+    const providerIdString = providerId ?? 'firebase';
 
     return (
         <SettingsContext.Provider value={{ config, setConfig, providerId: providerIdString, provider, loading, saveConfig: handleSave, isSaving }}>
@@ -132,9 +132,9 @@ export default function ProviderDetailPage() {
                             <Breadcrumbs />
                             <h1 className="text-2xl md:text-3xl font-bold truncate">Personalização: {provider.name}</h1>
                         </div>
-                        <Button 
-                            onClick={handleSave} 
-                            disabled={isSaving} 
+                        <Button
+                            onClick={handleSave}
+                            disabled={isSaving}
                             className={`shrink-0 shadow-lg transition-all ${isSaving ? 'opacity-80' : 'hover:ring-2 hover:ring-primary/50'}`}
                         >
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
