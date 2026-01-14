@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'theme.dart';
 import '../../core/providers/providers.dart';
+import '../../core/providers/network_state_provider.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/models/diagnostico_state.dart';
 
@@ -1096,67 +1097,129 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   }
 
   Widget _buildNetworkMap() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Consumer(
+      builder: (context, ref, child) {
+        final networkState = ref.watch(networkStateProvider);
+        final configProvider = ref.watch(configurationProvider);
+        final providerName = configProvider.providerConfig?.name;
+
+        // Determina status de cada nó
+        final bool internetActive = networkState.isConnectedToInternet;
+        final bool routerActive = networkState.isWifi ||
+            networkState.status == NetworkConnectionStatus.ethernet;
+        final bool deviceActive = internetActive && routerActive;
+
+        // Determina mensagem de status
+        String statusMessage;
+        Color statusColor;
+        IconData statusIcon;
+
+        if (!networkState.isConnectedToInternet) {
+          statusMessage = 'Sem Conexão';
+          statusColor = Layout05Theme.error;
+          statusIcon = Icons.error_outline;
+        } else if (networkState.isMobileData) {
+          statusMessage = 'Dados Móveis';
+          statusColor = Layout05Theme.accent;
+          statusIcon = Icons.signal_cellular_alt;
+        } else if (networkState.isExternalWifi(providerName)) {
+          statusMessage = 'Wi-Fi Externo';
+          statusColor = Layout05Theme.accent;
+          statusIcon = Icons.wifi;
+        } else if (networkState.isWifi) {
+          statusMessage = 'Tudo OK';
+          statusColor = Layout05Theme.success;
+          statusIcon = Icons.check_circle;
+        } else {
+          statusMessage = 'Verificando...';
+          statusColor = Colors.grey;
+          statusIcon = Icons.sync;
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Mapa da Rede',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Layout05Theme.success.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Mapa da Rede',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold)),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, color: statusColor, size: 12),
+                      const SizedBox(width: 4),
+                      Text(statusMessage,
+                          style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // Mostra SSID se conectado a Wi-Fi
+            if (networkState.isWifi && networkState.wifiName != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Rede: ${networkState.wifiName}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 11,
+                  ),
+                ),
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle,
-                      color: Layout05Theme.success, size: 12),
-                  SizedBox(width: 4),
-                  Text('Tudo OK',
-                      style: TextStyle(
-                          color: Layout05Theme.success,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-                ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: AnimatedBuilder(
+                animation: _dataFlowController,
+                builder: (context, _) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNetworkNode(
+                          'Internet',
+                          Icons.public_rounded,
+                          internetActive ? Layout05Theme.primary : Colors.grey,
+                          internetActive),
+                      _buildNetworkLine(active: internetActive && routerActive),
+                      _buildNetworkNode(
+                          'Roteador',
+                          Icons.router_rounded,
+                          routerActive ? Layout05Theme.secondary : Colors.grey,
+                          routerActive),
+                      _buildNetworkLine(active: deviceActive),
+                      _buildNetworkNode(
+                          'Você',
+                          Icons.phone_iphone_rounded,
+                          deviceActive ? Layout05Theme.success : Colors.grey,
+                          deviceActive),
+                    ],
+                  );
+                },
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-          ),
-          child: AnimatedBuilder(
-            animation: _dataFlowController,
-            builder: (context, _) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNetworkNode('Internet', Icons.public_rounded,
-                      Layout05Theme.primary, true),
-                  _buildNetworkLine(),
-                  _buildNetworkNode('Roteador', Icons.router_rounded,
-                      Layout05Theme.secondary, true),
-                  _buildNetworkLine(),
-                  _buildNetworkNode('Você', Icons.phone_iphone_rounded,
-                      Layout05Theme.success, true),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1195,7 +1258,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     );
   }
 
-  Widget _buildNetworkLine() {
+  Widget _buildNetworkLine({bool active = true}) {
+    final lineColor = active ? Layout05Theme.primary : Colors.grey;
     return AnimatedBuilder(
       animation: _dataFlowController,
       builder: (context, _) {
@@ -1204,7 +1268,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           height: 3,
           child: CustomPaint(
               painter: _DataFlowPainter(
-                  _dataFlowController.value, Layout05Theme.primary)),
+                  active ? _dataFlowController.value : 0, lineColor)),
         );
       },
     );
