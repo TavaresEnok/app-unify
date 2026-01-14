@@ -3,11 +3,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'theme.dart';
+import '../../core/providers/weekly_usage_provider.dart';
 
-class DashboardPage extends StatefulWidget {
+class DashboardPage extends ConsumerStatefulWidget {
   final String customerName;
   final String planName;
   final String connectionStatus;
@@ -38,17 +40,17 @@ class DashboardPage extends StatefulWidget {
   });
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  ConsumerState<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage>
+class _DashboardPageState extends ConsumerState<DashboardPage>
     with TickerProviderStateMixin {
   int _selectedIndex = 0;
   late AnimationController _pulseController;
   late AnimationController _waveController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final List<double> _usageHistory = [120, 180, 250, 200, 280, 320, 342.5];
+  // Dias da semana para o gráfico
   final List<String> _days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
   @override
@@ -831,7 +833,9 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildUsageChart() {
-    final maxUsage = _usageHistory.reduce(math.max);
+    final weeklyState = ref.watch(weeklyUsageProvider);
+    final usageHistory = weeklyState.usageData;
+    final maxUsage = usageHistory.reduce(math.max);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -846,29 +850,44 @@ class _DashboardPageState extends State<DashboardPage>
                   fontSize: 18,
                   fontWeight: FontWeight.bold),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                        color: Layout06Theme.primary, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${widget.usedGb.toStringAsFixed(0)} GB',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 12),
-                  ),
-                ],
+            GestureDetector(
+              onTap: () => ref.read(weeklyUsageProvider.notifier).refresh(),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (weeklyState.isLoading)
+                      const SizedBox(
+                        width: 8,
+                        height: 8,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Layout06Theme.primary,
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                            color: Layout06Theme.primary,
+                            shape: BoxShape.circle),
+                      ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${weeklyState.totalWeeklyUsage.toStringAsFixed(0)} GB',
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -887,9 +906,10 @@ class _DashboardPageState extends State<DashboardPage>
                 height: 125,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(_usageHistory.length, (i) {
-                    final height = (_usageHistory[i] / maxUsage) * 100;
-                    final isToday = i == _usageHistory.length - 1;
+                  children: List.generate(usageHistory.length, (i) {
+                    final height =
+                        maxUsage > 0 ? (usageHistory[i] / maxUsage) * 100 : 0.0;
+                    final isToday = i == usageHistory.length - 1;
                     return Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
