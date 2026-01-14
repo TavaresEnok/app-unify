@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Palette, Type, CreditCard, Zap, Smartphone } from 'lucide-react';
+import { Palette, Type, CreditCard, Zap, Smartphone, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import MobilePreview from '@/components/MobilePreview';
 
@@ -49,7 +49,7 @@ export default function AppearanceSettings() {
     const context = useContext(SettingsContext);
     if (!context) return null;
 
-    const { config, setConfig } = context;
+    const { config, setConfig, saveConfig, isSaving } = context;
 
     // Persist colors per layout using config.strings.layoutThemes
     const updateLayoutThemes = useCallback((newConfig: any, layoutToUpdate: string, values: any) => {
@@ -178,14 +178,38 @@ export default function AppearanceSettings() {
                                     <SelectValue placeholder="Escolha o layout" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="layout_02">Layout 02 - Minimalista</SelectItem>
-                                    <SelectItem value="layout_03">Layout 03 - Neo Digital</SelectItem>
-                                    <SelectItem value="layout_04">Layout 04 - Premium Dark</SelectItem>
-                                    <SelectItem value="layout_05">Layout 05 - Cyber Neon</SelectItem>
+                                    <SelectItem value="layout_02">Layout 02 - Minimalista Light</SelectItem>
+                                    <SelectItem value="layout_03">Layout 03 - Neumorphic Light</SelectItem>
+                                    <SelectItem value="layout_04">Layout 04 - Obsidian Dark</SelectItem>
+                                    <SelectItem value="layout_05">Layout 05 - Cyber Neon Dark</SelectItem>
                                     <SelectItem value="layout_06">Layout 06 - Clean Dark</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
+                        </div>
+
+                        {/* Seletor de Estilo de Diagnóstico */}
+                        <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                            <Label className="flex items-center gap-2 text-sm font-medium">
+                                <Zap className="h-4 w-4" /> Estilo do Diagnóstico
+                            </Label>
+                            <Select
+                                value={config.diagnosticStyle || 'default'}
+                                onValueChange={(val) => setConfig((p: any) => ({ ...p, diagnosticStyle: val }))}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Escolha o estilo do diagnóstico" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Padrão (baseado no layout)</SelectItem>
+                                    <SelectItem value="diagnostic_02">Cyberpunk Dark (gráficos em tempo real)</SelectItem>
+                                    <SelectItem value="diagnostic_03">Elegant Dark (gauge animado)</SelectItem>
+                                    <SelectItem value="diagnostic_05">Clean Light (neumorphic)</SelectItem>
+                                    <SelectItem value="diagnostic_06">Minimal Light (timeline)</SelectItem>
+                                    <SelectItem value="diagnostic_07">Zenith Premium (mesh particles)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">Define a aparência da página de diagnóstico de rede</p>
                         </div>
 
                         {/* Cores Principais */}
@@ -270,6 +294,34 @@ export default function AppearanceSettings() {
                             />
                         </div>
 
+                        {/* Configurações de Serviços (Layout 06) */}
+                        <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                            <Label className="text-sm font-medium">Serviços Exibidos (Layout 06)</Label>
+                            <p className="text-xs text-muted-foreground mb-3">
+                                Controle quais serviços aparecem na seção "Status dos Serviços"
+                            </p>
+                            <div className="flex justify-between items-center py-2">
+                                <Label className="text-sm">Mostrar serviço de TV</Label>
+                                <Switch
+                                    checked={config.other?.showTvService ?? true}
+                                    onCheckedChange={(c) => setConfig((p: any) => ({
+                                        ...p,
+                                        other: { ...(p.other || {}), showTvService: c }
+                                    }))}
+                                />
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                                <Label className="text-sm">Mostrar serviço de Telefone</Label>
+                                <Switch
+                                    checked={config.other?.showPhoneService ?? true}
+                                    onCheckedChange={(c) => setConfig((p: any) => ({
+                                        ...p,
+                                        other: { ...(p.other || {}), showPhoneService: c }
+                                    }))}
+                                />
+                            </div>
+                        </div>
+
                         <div className="flex gap-2">
                             <Input
                                 value={config.logoUrl || ''}
@@ -277,6 +329,21 @@ export default function AppearanceSettings() {
                                 placeholder="Logo URL"
                             />
                             <Button variant="secondary" onClick={() => toast.success('URL OK')}>Definir</Button>
+                        </div>
+
+                        {/* Botão Salvar */}
+                        <div className="pt-4 border-t">
+                            <Button
+                                onClick={saveConfig}
+                                disabled={isSaving}
+                                className="w-full"
+                            >
+                                {isSaving ? (
+                                    <><Loader2 className="animate-spin mr-2 h-4 w-4" />Salvando...</>
+                                ) : (
+                                    <><Save className="mr-2 h-4 w-4" />Salvar Alterações</>
+                                )}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
