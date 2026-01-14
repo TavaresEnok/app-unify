@@ -8,6 +8,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'theme.dart';
 import '../../core/providers/weekly_usage_provider.dart';
+import '../../core/providers/providers.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   final String customerName;
@@ -999,6 +1000,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   }
 
   Widget _buildServiceStatus() {
+    final config = ref.watch(configurationProvider);
+    final otherSettings = config.providerConfig?.config.other;
+    final showTv = otherSettings?.showTvService ?? true;
+    final showPhone = otherSettings?.showPhoneService ?? true;
+
+    // Lista de serviços a mostrar
+    final services = <Widget>[
+      Expanded(
+          child: _buildStatusCard('Internet', 'Operacional',
+              Icons.public_rounded, Layout06Theme.success, true)),
+    ];
+
+    if (showTv) {
+      services.add(const SizedBox(width: 12));
+      services.add(Expanded(
+          child: _buildStatusCard('TV', 'Operacional', Icons.tv_rounded,
+              Layout06Theme.success, true)));
+    }
+
+    if (showPhone) {
+      services.add(const SizedBox(width: 12));
+      services.add(Expanded(
+          child: _buildStatusCard('Telefone', 'Operacional',
+              Icons.phone_rounded, Layout06Theme.success, true)));
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1008,21 +1035,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
               color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-                child: _buildStatusCard('Internet', 'Operacional',
-                    Icons.public_rounded, Layout06Theme.success, true)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: _buildStatusCard('TV', 'Operacional', Icons.tv_rounded,
-                    Layout06Theme.success, true)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: _buildStatusCard('Telefone', 'Manutenção',
-                    Icons.phone_rounded, Layout06Theme.warning, false)),
-          ],
-        ),
+        Row(children: services),
       ],
     );
   }

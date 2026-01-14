@@ -227,16 +227,22 @@ class ConfigSection {
 class OtherSettings {
   final bool useBackgroundImage;
   final String? speedTestUrl;
+  final bool showTvService;
+  final bool showPhoneService;
 
   const OtherSettings({
     this.useBackgroundImage = false,
     this.speedTestUrl,
+    this.showTvService = true,
+    this.showPhoneService = true,
   });
 
   factory OtherSettings.fromJson(Map<String, dynamic> json) {
     return OtherSettings(
       useBackgroundImage: json['useBackgroundImage'] as bool? ?? false,
       speedTestUrl: json['speedTestUrl'] as String?,
+      showTvService: json['showTvService'] as bool? ?? true,
+      showPhoneService: json['showPhoneService'] as bool? ?? true,
     );
   }
 
@@ -244,6 +250,8 @@ class OtherSettings {
     return {
       'useBackgroundImage': useBackgroundImage,
       'speedTestUrl': speedTestUrl,
+      'showTvService': showTvService,
+      'showPhoneService': showPhoneService,
     };
   }
 }
