@@ -3,7 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/services/onu_wifi_service.dart';
 
@@ -84,12 +84,17 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
         final configProvider = ref.watch(configurationProvider);
         final layoutType = configProvider.providerConfig?.layoutType;
-        final isLayout05 = layoutType == 'layout_05';
-        final isDarkLayout = layoutType == 'layout_06' ||
-            layoutType == 'layout_04' ||
-            layoutType == 'layout_01' ||
-            layoutType == 'layout_11' ||
-            layoutType == 'layout_14';
+        final isLayout05 = SharedThemeHelper.isNeumorphic(layoutType) ||
+            layoutType == 'layout_05';
+        final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+
+        final themeBackground =
+            SharedThemeHelper.getBackgroundColor(layoutType);
+        final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+        final themeTextGrey = SharedThemeHelper.getTextGreyColor(layoutType);
+        final themePrimary = SharedThemeHelper.getPrimaryColor(layoutType);
+        final themeSurface = SharedThemeHelper.getCardColor(layoutType);
+        final neumorphicDecoration = SharedThemeHelper.neumorphicDecoration;
 
         final theme = Theme.of(context);
 
@@ -101,9 +106,9 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
           appBarColor = theme.scaffoldBackgroundColor;
           appBarTextColor = Colors.white;
         } else if (isLayout05) {
-          backgroundColor = Layout03Theme.background;
-          appBarColor = Layout03Theme.background;
-          appBarTextColor = Layout03Theme.textDark;
+          backgroundColor = themeBackground;
+          appBarColor = themeBackground;
+          appBarTextColor = themeTextColor;
         } else {
           backgroundColor = theme.scaffoldBackgroundColor;
           appBarColor = theme.primaryColor;
@@ -140,7 +145,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   style: textTheme.bodyLarge?.copyWith(
                       color: state.isTesting
                           ? primaryColor
-                          : (isLayout05 ? Layout03Theme.textDark : null)),
+                          : (isLayout05 ? themeTextColor : null)),
                   textAlign: TextAlign.center),
             ),
             Expanded(
@@ -148,13 +153,22 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 children: [
                   _buildConnectionJourneyCard(context, state,
-                      isLayout05: isLayout05, isDarkLayout: isDarkLayout),
+                      isLayout05: isLayout05,
+                      isDarkLayout: isDarkLayout,
+                      themeTextColor: themeTextColor,
+                      themeTextGrey: themeTextGrey,
+                      themePrimary: themePrimary),
                   const SizedBox(height: 16),
                   _buildOnuSignalCard(context,
                       isLayout05: isLayout05, isDarkLayout: isDarkLayout),
                   const SizedBox(height: 16),
                   _buildSpeedTestCard(context, state, isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themeTextColor: themeTextColor,
+                      themeTextGrey: themeTextGrey,
+                      themePrimary: themePrimary,
+                      themeSurface: themeSurface,
+                      neumorphicDecoration: neumorphicDecoration),
                   const SizedBox(height: 16),
                   _buildWifiManagementCard(context,
                       isLayout05: isLayout05, isDarkLayout: isDarkLayout),
@@ -253,7 +267,11 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
   Widget _buildConnectionJourneyCard(
       BuildContext context, DiagnosticoState state,
-      {bool isLayout05 = false, bool isDarkLayout = false}) {
+      {bool isLayout05 = false,
+      bool isDarkLayout = false,
+      Color? themeTextColor,
+      Color? themeTextGrey,
+      Color? themePrimary}) {
     final wifiStatus =
         state.testResultsDisplay['wifiInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
@@ -356,7 +374,12 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
   Widget _buildSpeedTestCard(
       BuildContext context, DiagnosticoState state, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      {bool isDarkLayout = false,
+      Color? themeTextColor,
+      Color? themeTextGrey,
+      Color? themePrimary,
+      Color? themeSurface,
+      BoxDecoration? neumorphicDecoration}) {
     // Determine state
     final customStatus = state.testResultsDisplay['speedTestCustom']?['status'];
     final fastStatus = state.testResultsDisplay['speedTestFast']?['status'];
@@ -374,12 +397,10 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     double download = 0.0;
     double upload = 0.0;
 
-    final textColor = isDarkLayout
-        ? Colors.white
-        : (isLayout05 ? Layout03Theme.textDark : null);
-    final subTextColor = isDarkLayout
-        ? Colors.white70
-        : (isLayout05 ? Layout03Theme.textGrey : null);
+    final textColor =
+        isDarkLayout ? Colors.white : (isLayout05 ? themeTextColor : null);
+    final subTextColor =
+        isDarkLayout ? Colors.white70 : (isLayout05 ? themeTextGrey : null);
 
     // Simplification for gauge
     if (isCustomRunning) {
@@ -466,7 +487,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                           color: isDarkLayout
                               ? Colors.white
                               : (isLayout05
-                                  ? Layout03Theme.textDark
+                                  ? themeTextColor
                                   : Theme.of(context).primaryColor),
                         )),
                     Text('Mbps',
@@ -587,7 +608,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
       padding: const EdgeInsets.all(8),
       decoration: isLayout05
           ? BoxDecoration(
-              color: Layout03Theme.surface,
+              color: SharedThemeHelper.getCardColor('layout_03'),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.withValues(alpha: 0.1)))
           : BoxDecoration(
@@ -797,7 +818,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
     final textColor = isDarkLayout
         ? Colors.white
-        : (isLayout05 ? Layout03Theme.textDark : null);
+        : (isLayout05 ? SharedThemeHelper.getTextColor('layout_03') : null);
 
     return _buildAdaptiveCard(
       isLayout05: isLayout05,
@@ -1253,15 +1274,15 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   }) {
     final textColor = isDarkLayout
         ? Colors.white
-        : (isLayout05 ? Layout03Theme.textDark : null);
+        : (isLayout05 ? SharedThemeHelper.getTextColor('layout_03') : null);
     final subTextColor = isDarkLayout
         ? Colors.white70
-        : (isLayout05 ? Layout03Theme.textGrey : null);
+        : (isLayout05 ? SharedThemeHelper.getTextGreyColor('layout_03') : null);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: isLayout05
           ? BoxDecoration(
-              color: Layout03Theme.surface,
+              color: SharedThemeHelper.getCardColor('layout_03'),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                   color: isGood
@@ -1417,7 +1438,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
       padding: const EdgeInsets.all(16),
       decoration: isLayout05
           ? BoxDecoration(
-              color: Layout03Theme.surface,
+              color: SharedThemeHelper.getCardColor('layout_03'),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white), // Subtle border
             )
@@ -1440,17 +1461,23 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: isLayout05 ? Layout03Theme.textDark : null)),
+                  color: isLayout05
+                      ? SharedThemeHelper.getTextColor('layout_03')
+                      : null)),
           Text(network.frequency,
               style: TextStyle(
-                  color: isLayout05 ? Layout03Theme.textGrey : Colors.grey[600],
+                  color: isLayout05
+                      ? SharedThemeHelper.getTextGreyColor('layout_03')
+                      : Colors.grey[600],
                   fontSize: 13)),
         ])),
         IconButton(
           icon: const Icon(Icons.edit),
           onPressed: () => _showEditWifiDialog(context, network),
           tooltip: 'Editar WiFi',
-          color: isLayout05 ? Layout03Theme.primary : null,
+          color: isLayout05
+              ? SharedThemeHelper.getPrimaryColor('layout_03')
+              : null,
         ),
       ]),
     );
@@ -1555,7 +1582,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     }
     if (isLayout05) {
       return Container(
-        decoration: Layout03Theme.neumorphicDecoration,
+        decoration: SharedThemeHelper.neumorphicDecoration,
         padding: const EdgeInsets.all(16),
         child: child,
       );
