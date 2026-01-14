@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_03/theme.dart';
 
 class FaqPage extends ConsumerWidget {
   const FaqPage({super.key});
@@ -15,17 +14,32 @@ class FaqPage extends ConsumerWidget {
     final theme = Theme.of(context);
     final primaryColor = theme.primaryColor;
 
-    final layoutType = configProvider.providerConfig?.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_04';
+    final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
 
+    // Determinar se é layout escuro
+    final isDarkLayout = layoutType == 'layout_04' ||
+        layoutType == 'layout_05' ||
+        layoutType == 'layout_06';
+
+    // Cores de fundo por layout
     Color backgroundColor;
-    if (isDarkLayout) {
-      backgroundColor = const Color(0xFF0A0A0A);
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-    } else {
-      backgroundColor = theme.scaffoldBackgroundColor;
+    switch (layoutType) {
+      case 'layout_02':
+        backgroundColor = const Color(0xFFF7FAFC); // Light gray
+        break;
+      case 'layout_03':
+        backgroundColor = const Color(0xFFE8EEF5); // Neumorphic light
+        break;
+      case 'layout_04':
+        backgroundColor = const Color(0xFF0A0A0A); // Obsidian dark
+        break;
+      case 'layout_05':
+        backgroundColor = const Color(0xFF050810); // Cyber neon dark
+        break;
+      case 'layout_06':
+      default:
+        backgroundColor = const Color(0xFF0A0E21); // Clean dark
+        break;
     }
 
     // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
@@ -117,24 +131,45 @@ class FaqPage extends ConsumerWidget {
                             ),
                           );
                         }
-                        if (isLayout05) {
+                        // Layout 03 - Neumorphic style
+                        final isLayout03 = layoutType == 'layout_03';
+                        if (isLayout03) {
+                          const neumorphicBg = Color(0xFFE8EEF5);
+                          const neumorphicPrimary = Color(0xFF00D4FF);
+                          const neumorphicTextDark = Color(0xFF2D3748);
+                          const neumorphicTextGrey = Color(0xFF718096);
                           return Container(
                             margin: const EdgeInsets.symmetric(vertical: 8.0),
-                            decoration: Layout03Theme.neumorphicDecoration,
+                            decoration: BoxDecoration(
+                              color: neumorphicBg,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  offset: const Offset(-6, -6),
+                                  blurRadius: 12,
+                                ),
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  offset: const Offset(6, 6),
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
                             child: ExpansionTile(
                               tilePadding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 4),
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              collapsedIconColor: Layout03Theme.textGrey,
-                              iconColor: Layout03Theme.primary,
+                              collapsedIconColor: neumorphicTextGrey,
+                              iconColor: neumorphicPrimary,
                               leading: CircleAvatar(
-                                backgroundColor: Layout03Theme.primary
-                                    .withValues(alpha: 0.1),
+                                backgroundColor:
+                                    neumorphicPrimary.withValues(alpha: 0.1),
                                 child: Text(
                                   '${index + 1}',
                                   style: const TextStyle(
-                                    color: Layout03Theme.primary,
+                                    color: neumorphicPrimary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -143,7 +178,7 @@ class FaqPage extends ConsumerWidget {
                                 faqItem.question,
                                 style: textTheme.bodyLarge?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: Layout03Theme.textDark,
+                                  color: neumorphicTextDark,
                                 ),
                               ),
                               children: [
@@ -151,7 +186,7 @@ class FaqPage extends ConsumerWidget {
                                 const SizedBox(height: 8),
                                 Text(faqItem.answer,
                                     style: textTheme.bodyMedium?.copyWith(
-                                      color: Layout03Theme.textGrey,
+                                      color: neumorphicTextGrey,
                                     )),
                               ],
                             ),
