@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers/providers.dart';
 
 import '../../core/models/provider_config.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 import '../../layout_selector.dart';
 
 class SuportePage extends ConsumerWidget {
@@ -26,22 +26,18 @@ class SuportePage extends ConsumerWidget {
     }
 
     final layoutType = providerConfig.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_06' ||
-        layoutType == 'layout_04' ||
-        layoutType == 'layout_01' ||
-        layoutType == 'layout_11' ||
-        layoutType == 'layout_14';
 
-    final theme = Theme.of(context);
-    Color backgroundColor;
-    if (isDarkLayout) {
-      backgroundColor = theme.scaffoldBackgroundColor;
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-    } else {
-      backgroundColor = theme.scaffoldBackgroundColor;
-    }
+    // Theme initialization
+    final isLayout03 =
+        SharedThemeHelper.isNeumorphic(layoutType) || layoutType == 'layout_05';
+    final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+
+    final backgroundColor = SharedThemeHelper.getBackgroundColor(layoutType);
+    final themePrimary = SharedThemeHelper.getPrimaryColor(layoutType);
+    final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+    final themeTextGrey = SharedThemeHelper.getTextGreyColor(layoutType);
+    final themeSuccess = SharedThemeHelper.getSuccessColor(layoutType);
+    final neumorphicDecoration = SharedThemeHelper.neumorphicDecoration;
 
     // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
     return Container(
@@ -49,14 +45,24 @@ class SuportePage extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          _buildConnectionStatusCard(context, usuario.status, isLayout05,
-              isDarkLayout: isDarkLayout),
+          _buildConnectionStatusCard(context, usuario.status, isLayout03,
+              isDarkLayout: isDarkLayout,
+              themePrimary: themePrimary,
+              themeTextDark: themeTextColor,
+              themeTextGrey: themeTextGrey,
+              neumorphicDecoration: neumorphicDecoration),
           const SizedBox(height: 24),
           // Removido "Canais de Atendimento" por solicitação - Redundante com o botão de WhatsApp abaixo
           // _buildContactChannelsCard(...),
           // const SizedBox(height: 24),
-          _buildTicketCard(context, providerConfig, isLayout05,
-              isDarkLayout: isDarkLayout),
+          _buildTicketCard(context, providerConfig, isLayout03,
+              isDarkLayout: isDarkLayout,
+              themePrimary: themePrimary,
+              themeTextDark: themeTextColor,
+              themeTextGrey: themeTextGrey,
+              themeSecondary:
+                  themeSuccess, // Using success color as secondary (often green for whatsapp)
+              neumorphicDecoration: neumorphicDecoration),
           const SizedBox(height: 100), // Padding for BottomNav
         ],
       ),
@@ -64,8 +70,12 @@ class SuportePage extends ConsumerWidget {
   }
 
   Widget _buildConnectionStatusCard(
-      BuildContext context, String status, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      BuildContext context, String status, bool isLayout03,
+      {bool isDarkLayout = false,
+      Color? themePrimary,
+      Color? themeTextDark,
+      Color? themeTextGrey,
+      BoxDecoration? neumorphicDecoration}) {
     final theme = Theme.of(context);
     final isOk = status.toLowerCase() == 'ativo';
 
@@ -77,8 +87,8 @@ class SuportePage extends ConsumerWidget {
         border:
             Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
       );
-    } else if (isLayout05) {
-      decoration = Layout03Theme.neumorphicDecoration;
+    } else if (isLayout03) {
+      decoration = neumorphicDecoration ?? const BoxDecoration();
     } else {
       decoration = BoxDecoration(
         color: Colors.white,
@@ -92,10 +102,6 @@ class SuportePage extends ConsumerWidget {
       );
     }
 
-    // final textColor = isDarkLayout ? Colors.white : Colors.black87;
-    // final subtitleColor =
-    //    isDarkLayout ? const Color(0xFF8E8E93) : Colors.grey[600];
-
     return Container(
       decoration: decoration,
       width: double.infinity,
@@ -108,7 +114,7 @@ class SuportePage extends ConsumerWidget {
               'Status da Conexão',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: isLayout05 ? Layout03Theme.textDark : null,
+                color: isLayout03 ? themeTextDark : null,
               ),
             ),
             const SizedBox(height: 16),
@@ -135,7 +141,7 @@ class SuportePage extends ConsumerWidget {
                   status,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isLayout05 ? Layout03Theme.textDark : null,
+                    color: isLayout03 ? themeTextDark : null,
                   ),
                 ),
               ],
@@ -146,13 +152,13 @@ class SuportePage extends ConsumerWidget {
                   ? 'Sua conexão está funcionando normalmente. Se encontrar problemas, tente nosso diagnóstico.'
                   : 'Detectamos um problema com sua conexão. Verifique suas faturas ou entre em contato.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isLayout05 ? Layout03Theme.textGrey : null,
+                color: isLayout03 ? themeTextGrey : null,
               ),
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              child: isLayout05
+              child: isLayout03
                   ? ElevatedButton(
                       onPressed: () {
                         Navigator.push(
@@ -160,7 +166,7 @@ class SuportePage extends ConsumerWidget {
                           MaterialPageRoute(
                             builder: (context) =>
                                 LayoutSelector.getDiagnosticoPage(
-                              layoutType: isLayout05
+                              layoutType: isLayout03
                                   ? 'layout_05'
                                   : (isDarkLayout ? 'layout_06' : 'layout_02'),
                             ),
@@ -168,7 +174,7 @@ class SuportePage extends ConsumerWidget {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Layout03Theme.primary,
+                        backgroundColor: themePrimary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -185,7 +191,7 @@ class SuportePage extends ConsumerWidget {
                           MaterialPageRoute(
                             builder: (context) =>
                                 LayoutSelector.getDiagnosticoPage(
-                              layoutType: isLayout05
+                              layoutType: isLayout03
                                   ? 'layout_05'
                                   : (isDarkLayout ? 'layout_06' : 'layout_02'),
                             ),
@@ -201,8 +207,13 @@ class SuportePage extends ConsumerWidget {
   }
 
   Widget _buildTicketCard(
-      BuildContext context, ProviderConfig? providerConfig, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      BuildContext context, ProviderConfig? providerConfig, bool isLayout03,
+      {bool isDarkLayout = false,
+      Color? themePrimary,
+      Color? themeSecondary,
+      Color? themeTextDark,
+      Color? themeTextGrey,
+      BoxDecoration? neumorphicDecoration}) {
     final theme = Theme.of(context);
 
     BoxDecoration decoration;
@@ -213,8 +224,8 @@ class SuportePage extends ConsumerWidget {
         border:
             Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
       );
-    } else if (isLayout05) {
-      decoration = Layout03Theme.neumorphicDecoration;
+    } else if (isLayout03) {
+      decoration = neumorphicDecoration ?? const BoxDecoration();
     } else {
       decoration = BoxDecoration(
         color: Colors.white,
@@ -228,9 +239,6 @@ class SuportePage extends ConsumerWidget {
       );
     }
 
-    // final textColor = isDarkLayout ? Colors.white : null;
-    // final subtitleColor = isDarkLayout ? const Color(0xFF8E8E93) : null;
-
     return Container(
       decoration: decoration,
       child: Padding(
@@ -242,14 +250,14 @@ class SuportePage extends ConsumerWidget {
               'Precisa de Ajuda?',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: isLayout05 ? Layout03Theme.textDark : null,
+                color: isLayout03 ? themeTextDark : null,
               ),
             ),
             const SizedBox(height: 16),
             Text(
               'Entre em contato diretamente com nosso suporte técnico via WhatsApp.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isLayout05 ? Layout03Theme.textGrey : null,
+                color: isLayout03 ? themeTextGrey : null,
               ),
             ),
             const SizedBox(height: 20),
@@ -311,9 +319,9 @@ class SuportePage extends ConsumerWidget {
                         content: Text('Nenhum canal de suporte encontrado.')),
                   );
                 },
-                style: isLayout05
+                style: isLayout03
                     ? ElevatedButton.styleFrom(
-                        backgroundColor: Layout03Theme.secondary,
+                        backgroundColor: themeSecondary ?? Colors.green,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(

@@ -12,7 +12,7 @@ import 'package:http/http.dart' as http;
 import '../../core/models/fatura.dart';
 import '../../core/providers/financeiro_provider.dart';
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 
 class FinanceiroPage extends ConsumerStatefulWidget {
   const FinanceiroPage({super.key});
@@ -35,23 +35,16 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     }
 
     final layoutType = providerConfig.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_06' ||
-        layoutType == 'layout_04' ||
-        layoutType == 'layout_01' ||
-        layoutType == 'layout_11' ||
-        layoutType == 'layout_14';
+    final isLayout03 = SharedThemeHelper.isNeumorphic(layoutType);
+    final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+    final backgroundColor = SharedThemeHelper.getBackgroundColor(layoutType);
+    final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+    final themeTextGrey = SharedThemeHelper.getTextGreyColor(layoutType);
+
+    final isLayout05 = isLayout03; // Alias for backward compatibility
+    final neumorphicDecoration = SharedThemeHelper.neumorphicDecoration;
 
     final themeData = Theme.of(context);
-    // Colors setup (condensed for brevity, keeping original logic)
-    Color backgroundColor;
-    if (isDarkLayout) {
-      backgroundColor = themeData.scaffoldBackgroundColor;
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-    } else {
-      backgroundColor = Colors.grey[50]!;
-    }
 
     final provider = ref.watch(financeiroViewModelProvider);
 
@@ -114,7 +107,14 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
                   ...displayedOpenInvoices.map((i) => Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: _buildInvoiceCard(context, i, ref, isLayout05,
-                            isDarkLayout: isDarkLayout),
+                            isDarkLayout: isDarkLayout,
+                            neumorphicDecoration: neumorphicDecoration,
+                            themeSuccess:
+                                SharedThemeHelper.getSuccessColor(layoutType),
+                            themeError:
+                                SharedThemeHelper.getErrorColor(layoutType),
+                            themeTextColor: themeTextColor,
+                            themeTextGrey: themeTextGrey),
                       )),
                   if (hiddenCount > 0)
                     Padding(
@@ -169,7 +169,14 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
                   ...paidInvoices.map((i) => Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: _buildInvoiceCard(context, i, ref, isLayout05,
-                            isDarkLayout: isDarkLayout),
+                            isDarkLayout: isDarkLayout,
+                            neumorphicDecoration: neumorphicDecoration,
+                            themeSuccess:
+                                SharedThemeHelper.getSuccessColor(layoutType),
+                            themeError:
+                                SharedThemeHelper.getErrorColor(layoutType),
+                            themeTextColor: themeTextColor,
+                            themeTextGrey: themeTextGrey),
                       )),
                 ]
               ],
@@ -224,7 +231,12 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
 
   Widget _buildInvoiceCard(
       BuildContext context, Fatura fatura, WidgetRef ref, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      {bool isDarkLayout = false,
+      BoxDecoration? neumorphicDecoration,
+      Color? themeSuccess,
+      Color? themeError,
+      Color? themeTextColor,
+      Color? themeTextGrey}) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final currencyFormat =
         NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
@@ -239,13 +251,13 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     if (fatura.isPago) {
       statusColor = isDarkLayout
           ? const Color(0xFF30D158)
-          : (isLayout05 ? Layout03Theme.success : Colors.green);
+          : (isLayout05 ? (themeSuccess ?? Colors.green) : Colors.green);
       statusText = 'Pago';
       statusIcon = Icons.check_circle;
     } else if (fatura.isVencido) {
       statusColor = isDarkLayout
           ? const Color(0xFFFF453A)
-          : (isLayout05 ? Layout03Theme.error : Colors.red);
+          : (isLayout05 ? (themeError ?? Colors.red) : Colors.red);
       statusText = 'Vencido';
       statusIcon = Icons.error;
     }
@@ -259,7 +271,7 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
             Border.all(color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
       );
     } else if (isLayout05) {
-      decoration = Layout03Theme.neumorphicDecoration;
+      decoration = neumorphicDecoration ?? const BoxDecoration();
     } else {
       decoration = BoxDecoration(
         color: Colors.white,
@@ -305,8 +317,12 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
                             color: fatura.isPago
                                 ? (isDarkLayout
                                     ? Colors.white70
-                                    : Colors.black87)
-                                : Colors.grey[600],
+                                    : (isLayout05
+                                        ? themeTextColor
+                                        : Colors.black87))
+                                : (isLayout05
+                                    ? themeTextGrey
+                                    : Colors.grey[600]),
                             fontSize: fatura.isPago ? 15 : 13,
                             fontWeight: fatura.isPago
                                 ? FontWeight.bold

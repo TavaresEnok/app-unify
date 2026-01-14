@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/models/diagnostico_state.dart';
 
@@ -45,8 +45,15 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
     final theme = Theme.of(context);
     final config = ref.watch(configurationProvider);
     final layoutType = config.providerConfig?.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_04';
+
+    final isLayout03 =
+        SharedThemeHelper.isNeumorphic(layoutType) || layoutType == 'layout_05';
+    final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+
+    final themePrimary = SharedThemeHelper.getPrimaryColor(layoutType);
+    final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+    final themeBackground = SharedThemeHelper.getBackgroundColor(layoutType);
+    final themeError = SharedThemeHelper.getErrorColor(layoutType);
 
     // Theme Colors
     Color backgroundColor;
@@ -56,12 +63,17 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
       backgroundColor = const Color(0xFF0A0A0A);
       appBarColor = const Color(0xFF0A0A0A);
       appBarTextColor = Colors.white;
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-      appBarColor = Layout03Theme.background;
-      appBarTextColor = Layout03Theme.textDark;
+    } else if (isLayout03) {
+      backgroundColor = themeBackground;
+      appBarColor = themeBackground;
+      appBarTextColor = themeTextColor;
     } else {
       backgroundColor = theme.scaffoldBackgroundColor;
+      appBarColor =
+          themePrimary; // Using helper primary instead of theme.primaryColor which might be different if context theme isn't updated? Actually theme.primaryColor is usually safe, but let's be consistent.
+      // Wait, theme.primaryColor is what was there. Let's start with helper primary, if inconsistent we can revert.
+      // Existing code: appBarColor = theme.primaryColor;
+
       appBarColor = theme.primaryColor;
       appBarTextColor = Colors.white;
     }
@@ -111,14 +123,19 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
 
         if (isRunning) {
           content = _buildGaugeView(
-              context, state, isLayout05, currentSpeed, isDownload, false,
-              isDarkLayout: isDarkLayout);
+              context, state, isLayout03, currentSpeed, isDownload, false,
+              isDarkLayout: isDarkLayout,
+              themePrimary: themePrimary,
+              themeTextDark: themeTextColor);
         } else if (hasError) {
           final errorMsg = state.testResultsDisplay['speedTestCustom']
                   ?['result'] ??
               state.testResultsDisplay['speedTestFast']?['result'] ??
               "Erro desconhecido ao conectar.";
-          content = _buildErrorView(context, errorMsg, isLayout05);
+          content = _buildErrorView(context, errorMsg, isLayout03,
+              themePrimary: themePrimary,
+              themeTextDark: themeTextColor,
+              themeError: themeError);
         } else if (hasResults) {
           // Reuse Gauge View for Results, but with isFinished=true
           // Calculate final speed to show (likely download or upload based on what we want to emphasize, or maybe download by default)
@@ -127,10 +144,15 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
               : state.fastDownloadResultMbps;
 
           content = _buildGaugeView(
-              context, state, isLayout05, finalSpeed, true, true,
-              isDarkLayout: isDarkLayout);
+              context, state, isLayout03, finalSpeed, true, true,
+              isDarkLayout: isDarkLayout,
+              themePrimary: themePrimary,
+              themeTextDark: themeTextColor);
         } else {
-          content = _buildIdleView(context, isLayout05);
+          content = _buildIdleView(context, isLayout03,
+              themePrimary: themePrimary,
+              themeTextDark: themeTextColor,
+              themeBackground: themeBackground);
         }
 
         return Scaffold(
@@ -168,10 +190,11 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
 
   // --- VIEW: ERROR ---
   Widget _buildErrorView(
-      BuildContext context, String? errorMessage, bool isLayout05) {
+      BuildContext context, String? errorMessage, bool isLayout03,
+      {Color? themePrimary, Color? themeTextDark, Color? themeError}) {
     final theme = Theme.of(context);
     final textColor =
-        isLayout05 ? Layout03Theme.textDark : theme.textTheme.bodyLarge?.color;
+        isLayout03 ? themeTextDark : theme.textTheme.bodyLarge?.color;
 
     return Center(
       child: Padding(
@@ -181,8 +204,7 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
           children: [
             Icon(Icons.signal_wifi_connected_no_internet_4_rounded,
                 size: 80,
-                color:
-                    isLayout05 ? Layout03Theme.error : theme.colorScheme.error),
+                color: isLayout03 ? themeError : theme.colorScheme.error),
             const SizedBox(height: 24),
             Text("Ops! Algo deu errado.",
                 style: TextStyle(
@@ -203,7 +225,7 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
                   style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                   backgroundColor:
-                      isLayout05 ? Layout03Theme.primary : theme.primaryColor,
+                      isLayout03 ? themePrimary : theme.primaryColor,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -216,12 +238,13 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
   }
 
   // --- VIEW: IDLE (Start Button) ---
-  Widget _buildIdleView(BuildContext context, bool isLayout05) {
+  Widget _buildIdleView(BuildContext context, bool isLayout03,
+      {Color? themePrimary, Color? themeTextDark, Color? themeBackground}) {
     final theme = Theme.of(context);
     final primaryColor =
-        isLayout05 ? Layout03Theme.primary : theme.primaryColor;
+        isLayout03 ? themePrimary ?? theme.primaryColor : theme.primaryColor;
     final textColor =
-        isLayout05 ? Layout03Theme.textDark : theme.textTheme.bodyLarge?.color;
+        isLayout03 ? themeTextDark : theme.textTheme.bodyLarge?.color;
 
     return Center(
       child: Column(
@@ -240,8 +263,8 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
               height: 180,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isLayout05 ? Layout03Theme.background : Colors.white,
-                boxShadow: isLayout05
+                color: isLayout03 ? themeBackground : Colors.white,
+                boxShadow: isLayout03
                     ? [
                         const BoxShadow(
                             color: Colors.white,
@@ -318,11 +341,11 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
 
   // --- VIEW: GAUGE (Active & Result) ---
   Widget _buildGaugeView(BuildContext context, DiagnosticoState state,
-      bool isLayout05, double speedMbps, bool isDownload, bool isFinished,
-      {bool isDarkLayout = false}) {
+      bool isLayout03, double speedMbps, bool isDownload, bool isFinished,
+      {bool isDarkLayout = false, Color? themePrimary, Color? themeTextDark}) {
     final theme = Theme.of(context);
     final primaryColor =
-        isLayout05 ? Layout03Theme.primary : theme.primaryColor;
+        isLayout03 ? themePrimary ?? theme.primaryColor : theme.primaryColor;
 
     // Determine max speed for gauge
     double maxGauge = 100;
@@ -352,7 +375,7 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
                         centerSpaceRadius: 100,
                         sections: [
                           PieChartSectionData(
-                            color: isLayout05
+                            color: isLayout03
                                 ? Colors.grey[300]
                                 : Colors.grey[200]!.withValues(alpha: 0.5),
                             value: 75, // 270 degrees
@@ -380,7 +403,7 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
                           color: isFinished
                               ? primaryColor
                               : (isDownload
-                                  ? (isLayout05 ? Colors.cyan : Colors.green)
+                                  ? (isLayout03 ? Colors.cyan : Colors.green)
                                   : Colors.purple),
                           backgroundColor: Colors.transparent,
                           strokeCap: StrokeCap.round,
@@ -407,8 +430,8 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
                               fontWeight: FontWeight.bold,
                               color: isDarkLayout
                                   ? Colors.white
-                                  : (isLayout05
-                                      ? Layout03Theme.textDark
+                                  : (isLayout03
+                                      ? themeTextDark
                                       : theme.textTheme.bodyLarge?.color),
                             )),
                         Text('Mbps',
@@ -493,22 +516,25 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
                         context,
                         'Ping',
                         '${state.speedTestPingLatency?.toStringAsFixed(0) ?? '-'} ms',
-                        isLayout05,
-                        isDarkLayout: isDarkLayout),
+                        isLayout03,
+                        isDarkLayout: isDarkLayout,
+                        themeTextDark: themeTextDark),
                     _buildMiniStat(
                         context,
                         'Download',
                         state.customDownloadResultMbps.toStringAsFixed(1),
-                        isLayout05,
+                        isLayout03,
                         unit: 'Mbps',
-                        isDarkLayout: isDarkLayout),
+                        isDarkLayout: isDarkLayout,
+                        themeTextDark: themeTextDark),
                     _buildMiniStat(
                         context,
                         'Upload',
                         state.customUploadResultMbps.toStringAsFixed(1),
-                        isLayout05,
+                        isLayout03,
                         unit: 'Mbps',
-                        isDarkLayout: isDarkLayout),
+                        isDarkLayout: isDarkLayout,
+                        themeTextDark: themeTextDark),
                   ],
                 ),
 
@@ -603,8 +629,8 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
   // But `_service` is lazy loaded in `didChangeDependencies`.
 
   Widget _buildMiniStat(
-      BuildContext context, String title, String value, bool isLayout05,
-      {String unit = '', bool isDarkLayout = false}) {
+      BuildContext context, String title, String value, bool isLayout03,
+      {String unit = '', bool isDarkLayout = false, Color? themeTextDark}) {
     return Column(
       children: [
         Text(title,
@@ -622,9 +648,7 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
                     fontSize: 20,
                     color: isDarkLayout
                         ? Colors.white
-                        : (isLayout05
-                            ? Layout03Theme.textDark
-                            : Colors.black87))),
+                        : (isLayout03 ? themeTextDark : Colors.black87))),
             if (unit.isNotEmpty)
               Text(" $unit",
                   style: const TextStyle(fontSize: 10, color: Colors.grey))

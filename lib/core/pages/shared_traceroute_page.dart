@@ -2,15 +2,10 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-
 import '../../core/providers/providers.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/dashboard_card.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 
 class SharedTraceRoutePage extends ConsumerStatefulWidget {
   const SharedTraceRoutePage({super.key});
@@ -161,76 +156,21 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     return TraceHop(hop: ttl, ip: ip, time: time, status: status);
   }
 
-  Future<void> _sharePdf() async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Header(
-                level: 0,
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Relatório de Rota (Tracert)',
-                        style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold, fontSize: 18)),
-                    pw.Text(DateTime.now().toString().split('.')[0]),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text('Alvo: ${_ipController.text}'),
-              pw.SizedBox(height: 10),
-              pw.TableHelper.fromTextArray(
-                context: context,
-                data: <List<String>>[
-                  <String>['Salto', 'IP', 'Tempo', 'Status'],
-                  ..._hops.map((hop) =>
-                      [hop.hop.toString(), hop.ip, hop.time, hop.status]),
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    try {
-      final output = await getTemporaryDirectory();
-      final file = File("${output.path}/trace_route_report.pdf");
-      await file.writeAsBytes(await pdf.save());
-      await Share.shareXFiles([XFile(file.path)],
-          text: 'Relatório de Rota (Tracert)');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao compartilhar PDF: $e')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final configProvider = ref.watch(configurationProvider);
     final layoutType = configProvider.providerConfig?.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_04';
 
-    Color backgroundColor;
-    if (isDarkLayout) {
-      backgroundColor = const Color(0xFF0A0A0A);
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-    } else {
-      backgroundColor = theme.scaffoldBackgroundColor;
-    }
+    // Theme variables
+    final isLayout03 =
+        SharedThemeHelper.isNeumorphic(layoutType) || layoutType == 'layout_05';
+    final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+    final backgroundColor = SharedThemeHelper.getBackgroundColor(layoutType);
+    final themePrimary = SharedThemeHelper.getPrimaryColor(layoutType);
+    final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+    final themeTextGrey = SharedThemeHelper.getTextGreyColor(layoutType);
+    final neumorphicDecoration = SharedThemeHelper.neumorphicDecoration;
+    final themeSuccess = SharedThemeHelper.getSuccessColor(layoutType);
 
     final cardDecoration = isDarkLayout
         ? BoxDecoration(
@@ -239,7 +179,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
             border: Border.all(
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
-        : (isLayout05 ? Layout03Theme.neumorphicDecoration : null);
+        : (isLayout03 ? neumorphicDecoration : null);
 
     // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
     return Container(
@@ -252,19 +192,31 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
                 ? Container(
                     decoration: cardDecoration,
                     padding: const EdgeInsets.all(16),
-                    child: _buildInputContent(context, isLayout05,
-                        isDarkLayout: isDarkLayout),
+                    child: _buildInputContent(context, isLayout03,
+                        isDarkLayout: isDarkLayout,
+                        themePrimary: themePrimary,
+                        themeTextDark: themeTextColor,
+                        themeTextGrey: themeTextGrey,
+                        neumorphicDecoration: neumorphicDecoration),
                   )
-                : (isLayout05
+                : (isLayout03
                     ? Container(
-                        decoration: Layout03Theme.neumorphicDecoration,
+                        decoration: neumorphicDecoration,
                         padding: const EdgeInsets.all(16),
-                        child: _buildInputContent(context, isLayout05,
-                            isDarkLayout: isDarkLayout),
+                        child: _buildInputContent(context, isLayout03,
+                            isDarkLayout: isDarkLayout,
+                            themePrimary: themePrimary,
+                            themeTextDark: themeTextColor,
+                            themeTextGrey: themeTextGrey,
+                            neumorphicDecoration: neumorphicDecoration),
                       )
                     : DashboardCard(
-                        child: _buildInputContent(context, isLayout05,
-                            isDarkLayout: isDarkLayout),
+                        child: _buildInputContent(context, isLayout03,
+                            isDarkLayout: isDarkLayout,
+                            themePrimary: themePrimary,
+                            themeTextDark: themeTextColor,
+                            themeTextGrey: themeTextGrey,
+                            neumorphicDecoration: neumorphicDecoration),
                       )),
           ),
           Expanded(
@@ -274,8 +226,13 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
               itemCount: _hops.length,
               itemBuilder: (context, index) {
                 final hop = _hops[index];
-                return _buildHopCard(hop, isLayout05,
-                    isDarkLayout: isDarkLayout);
+                return _buildHopCard(hop, isLayout03,
+                    isDarkLayout: isDarkLayout,
+                    themePrimary: themePrimary,
+                    themeTextDark: themeTextColor,
+                    themeTextGrey: themeTextGrey,
+                    themeSuccess: themeSuccess,
+                    neumorphicDecoration: neumorphicDecoration);
               },
             ),
           ),
@@ -284,11 +241,15 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     );
   }
 
-  Widget _buildInputContent(BuildContext context, bool isLayout05,
-      {bool isDarkLayout = false}) {
-    final textColor = isDarkLayout ? Colors.white : Colors.black87;
-    // final primaryColor =
-    //    isDarkLayout ? const Color(0xFF00D9FF) : Theme.of(context).primaryColor;
+  Widget _buildInputContent(BuildContext context, bool isLayout03,
+      {bool isDarkLayout = false,
+      Color? themePrimary,
+      Color? themeTextDark,
+      Color? themeTextGrey,
+      BoxDecoration? neumorphicDecoration}) {
+    final textColor = isDarkLayout
+        ? Colors.white
+        : (isLayout03 ? themeTextDark : Colors.black87);
 
     return Column(
       children: [
@@ -297,11 +258,15 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
           style: TextStyle(color: textColor),
           decoration: InputDecoration(
             labelText: 'IP ou Domínio de Destino',
-            labelStyle:
-                TextStyle(color: isDarkLayout ? const Color(0xFF8E8E93) : null),
+            labelStyle: TextStyle(
+                color: isDarkLayout
+                    ? const Color(0xFF8E8E93)
+                    : (isLayout03 ? themeTextGrey : null)),
             hintText: 'Ex: 8.8.8.8 ou google.com',
-            hintStyle:
-                TextStyle(color: isDarkLayout ? const Color(0xFF8E8E93) : null),
+            hintStyle: TextStyle(
+                color: isDarkLayout
+                    ? const Color(0xFF8E8E93)
+                    : (isLayout03 ? themeTextGrey : null)),
             border: OutlineInputBorder(
               borderSide: BorderSide(
                   color: isDarkLayout ? const Color(0xFF3A3A3C) : Colors.grey),
@@ -319,11 +284,13 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
                   )
                 : null,
             prefixIcon: Icon(Icons.search,
-                color: isDarkLayout ? const Color(0xFF8E8E93) : null),
-            filled: isLayout05 || isDarkLayout,
+                color: isDarkLayout
+                    ? const Color(0xFF8E8E93)
+                    : (isLayout03 ? themeTextGrey : null)),
+            filled: isLayout03 || isDarkLayout,
             fillColor: isDarkLayout
                 ? const Color(0xFF1C1C1E)
-                : (isLayout05 ? Colors.white.withValues(alpha: 0.5) : null),
+                : (isLayout03 ? Colors.white.withValues(alpha: 0.5) : null),
           ),
           onSubmitted: (_) => _isRunning ? null : _startTraceRoute(),
         ),
@@ -333,14 +300,16 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
                 color: _isRunning
                     ? (isDarkLayout
                         ? const Color(0xFF00D9FF)
-                        : (isLayout05
-                            ? Layout03Theme.primary
+                        : (isLayout03
+                            ? themePrimary
                             : Theme.of(context).primaryColor))
-                    : (isDarkLayout ? const Color(0xFF8E8E93) : Colors.grey))),
+                    : (isDarkLayout
+                        ? const Color(0xFF8E8E93)
+                        : (isLayout03 ? themeTextGrey : Colors.grey)))),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
-          child: isDarkLayout
+          child: isDarkLayout || isLayout03
               ? ElevatedButton.icon(
                   onPressed: () {
                     if (_isRunning) {
@@ -350,11 +319,13 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
                     }
                   },
                   icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow,
-                      color: Colors.black),
+                      color: isDarkLayout ? Colors.black : Colors.white),
                   label: Text(_isRunning ? "Parar" : "Iniciar Rota",
-                      style: const TextStyle(color: Colors.black)),
+                      style: TextStyle(
+                          color: isDarkLayout ? Colors.black : Colors.white)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00D9FF),
+                    backgroundColor:
+                        isDarkLayout ? const Color(0xFF00D9FF) : themePrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -376,8 +347,16 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     );
   }
 
-  Widget _buildHopCard(TraceHop hop, bool isLayout05,
-      {bool isDarkLayout = false}) {
+  Widget _buildHopCard(
+    TraceHop hop,
+    bool isLayout03, {
+    bool isDarkLayout = false,
+    Color? themePrimary,
+    Color? themeTextDark,
+    Color? themeTextGrey,
+    Color? themeSuccess,
+    BoxDecoration? neumorphicDecoration,
+  }) {
     if (isDarkLayout) {
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -409,31 +388,30 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
         ),
       );
     }
-    if (isLayout05) {
+    if (isLayout03) {
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
-        decoration: Layout03Theme.neumorphicDecoration.copyWith(
+        decoration: neumorphicDecoration?.copyWith(
           borderRadius: BorderRadius.circular(12),
         ),
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: hop.status == "Alcançado"
-                ? Layout03Theme.primary
-                : Layout03Theme.textGrey.withValues(alpha: 0.3),
+                ? themePrimary
+                : themeTextGrey?.withValues(alpha: 0.3),
             child: Text("${hop.hop}",
                 style: TextStyle(
                     color: hop.status == "Alcançado"
                         ? Colors.white
-                        : Layout03Theme.textDark)),
+                        : themeTextDark)),
           ),
           title: Text(hop.ip,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Layout03Theme.textDark)),
-          subtitle: Text(hop.status,
-              style: const TextStyle(color: Layout03Theme.textGrey)),
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: themeTextDark)),
+          subtitle: Text(hop.status, style: TextStyle(color: themeTextGrey)),
           trailing: Text(hop.time,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Layout03Theme.textDark)),
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: themeTextDark)),
         ),
       );
     }

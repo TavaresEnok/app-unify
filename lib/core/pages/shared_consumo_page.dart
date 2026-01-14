@@ -4,7 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/providers.dart';
 import '../../core/providers/consumo_provider.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 
 class ConsumoPage extends ConsumerStatefulWidget {
   const ConsumoPage({super.key});
@@ -46,22 +46,16 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
         ref.watch(consumoViewModelProvider); // Watch new provider
     final usuario = authState.value;
     final config = configProvider.providerConfig;
-    final layoutType = config?.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_06' ||
-        layoutType == 'layout_04' ||
-        layoutType == 'layout_01' ||
-        layoutType == 'layout_11' ||
-        layoutType == 'layout_14';
 
-    Color backgroundColor;
-    if (isDarkLayout) {
-      backgroundColor = theme.scaffoldBackgroundColor;
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-    } else {
-      backgroundColor = theme.scaffoldBackgroundColor;
-    }
+    final layoutType = config?.layoutType ?? 'layout_06';
+    final isLayout03 = SharedThemeHelper.isNeumorphic(layoutType);
+    final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+    final backgroundColor = SharedThemeHelper.getBackgroundColor(layoutType);
+    final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+    final themeTextGrey = SharedThemeHelper.getTextGreyColor(layoutType);
+    final themePrimary = SharedThemeHelper.getPrimaryColor(layoutType);
+    final isLayout05 = isLayout03; // Alias for backward compatibility
+    final neumorphicDecoration = SharedThemeHelper.neumorphicDecoration;
 
     // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
     return Container(
@@ -79,16 +73,26 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 children: [
                   _buildUnlimitedCard(theme, usuario?.plano ?? 'Plano Fibra',
                       config?.name ?? 'Provedor', isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      neumorphicDecoration: neumorphicDecoration),
                   const SizedBox(height: 16),
                   _buildSpeedCard(theme, usuario, isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      neumorphicDecoration: neumorphicDecoration,
+                      themePrimary: themePrimary,
+                      themeTextDark: themeTextColor,
+                      themeTextGrey: themeTextGrey),
                   const SizedBox(height: 16),
                   _buildConnectionStatusCard(theme, isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      neumorphicDecoration: neumorphicDecoration,
+                      themePrimary: themePrimary,
+                      themeTextDark: themeTextColor),
                   const SizedBox(height: 16),
                   _buildBenefitsCard(theme, isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      neumorphicDecoration: neumorphicDecoration,
+                      themeTextDark: themeTextColor),
                   const SizedBox(height: 180),
                 ],
               ),
@@ -343,7 +347,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
 
   Widget _buildUnlimitedCard(
       ThemeData theme, String planName, String providerName, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      {bool isDarkLayout = false, BoxDecoration? neumorphicDecoration}) {
     final decoration = isDarkLayout
         ? BoxDecoration(
             color: const Color(0xFF1C1C1E),
@@ -352,7 +356,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout03Theme.neumorphicDecoration
+            ? neumorphicDecoration
             : BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 gradient: LinearGradient(
@@ -453,7 +457,11 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
   }
 
   Widget _buildSpeedCard(ThemeData theme, dynamic usuario, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      {bool isDarkLayout = false,
+      BoxDecoration? neumorphicDecoration,
+      Color? themePrimary,
+      Color? themeTextDark,
+      Color? themeTextGrey}) {
     // Extract speed from plan name (e.g., "100 Mega" -> 100)
     String speedValue = '100';
     String planName = usuario?.plano ?? 'Plano Fibra';
@@ -471,7 +479,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout03Theme.neumorphicDecoration
+            ? neumorphicDecoration
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
@@ -490,9 +498,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
               Row(
                 children: [
                   Icon(Icons.speed,
-                      color: isLayout05
-                          ? Layout03Theme.primary
-                          : theme.primaryColor),
+                      color: isLayout05 ? themePrimary : theme.primaryColor),
                   const SizedBox(width: 12),
                   Text(
                     'Velocidades Contratadas',
@@ -500,7 +506,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       fontWeight: FontWeight.bold,
                       color: isDarkLayout
                           ? Colors.white
-                          : (isLayout05 ? Layout03Theme.textDark : null),
+                          : (isLayout05 ? themeTextDark : null),
                     ),
                   ),
                 ],
@@ -517,6 +523,8 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       Colors.green,
                       isLayout05: isLayout05,
                       isDarkLayout: isDarkLayout,
+                      themeTextDark: themeTextDark,
+                      themeTextGrey: themeTextGrey,
                     ),
                   ),
                   Container(
@@ -533,6 +541,8 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       Colors.blue,
                       isLayout05: isLayout05,
                       isDarkLayout: isDarkLayout,
+                      themeTextDark: themeTextDark,
+                      themeTextGrey: themeTextGrey,
                     ),
                   ),
                 ],
@@ -546,7 +556,10 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
 
   Widget _buildSpeedItem(
       ThemeData theme, String label, String value, IconData icon, Color color,
-      {bool isLayout05 = false, bool isDarkLayout = false}) {
+      {bool isLayout05 = false,
+      bool isDarkLayout = false,
+      Color? themeTextDark,
+      Color? themeTextGrey}) {
     return Column(
       children: [
         Icon(icon, color: color, size: 28),
@@ -557,15 +570,14 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
             fontWeight: FontWeight.bold,
             color: isDarkLayout
                 ? Colors.white
-                : (isLayout05 ? Layout03Theme.textDark : null),
+                : (isLayout05 ? themeTextDark : null),
           ),
         ),
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: isLayout05
-                ? Layout03Theme.textGrey
-                : theme.colorScheme.onSurfaceVariant,
+            color:
+                isLayout05 ? themeTextGrey : theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -573,7 +585,10 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
   }
 
   Widget _buildConnectionStatusCard(ThemeData theme, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      {bool isDarkLayout = false,
+      BoxDecoration? neumorphicDecoration,
+      Color? themePrimary,
+      Color? themeTextDark}) {
     final decoration = isDarkLayout
         ? BoxDecoration(
             color: const Color(0xFF1C1C1E),
@@ -582,7 +597,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout03Theme.neumorphicDecoration
+            ? neumorphicDecoration
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
@@ -601,9 +616,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
               Row(
                 children: [
                   Icon(Icons.wifi,
-                      color: isLayout05
-                          ? Layout03Theme.primary
-                          : theme.primaryColor),
+                      color: isLayout05 ? themePrimary : theme.primaryColor),
                   const SizedBox(width: 12),
                   Text(
                     'Status da Conexão',
@@ -611,7 +624,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       fontWeight: FontWeight.bold,
                       color: isDarkLayout
                           ? Colors.white
-                          : (isLayout05 ? Layout03Theme.textDark : null),
+                          : (isLayout05 ? themeTextDark : null),
                     ),
                   ),
                   const Spacer(),
@@ -685,7 +698,9 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
   }
 
   Widget _buildBenefitsCard(ThemeData theme, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      {bool isDarkLayout = false,
+      BoxDecoration? neumorphicDecoration,
+      Color? themeTextDark}) {
     final decoration = isDarkLayout
         ? BoxDecoration(
             color: const Color(0xFF1C1C1E),
@@ -694,7 +709,7 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout03Theme.neumorphicDecoration
+            ? neumorphicDecoration
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
@@ -720,22 +735,27 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
                       fontWeight: FontWeight.bold,
                       color: isDarkLayout
                           ? Colors.white
-                          : (isLayout05 ? Layout03Theme.textDark : null),
+                          : (isLayout05 ? themeTextDark : null),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               _buildBenefitItem(theme, Icons.all_inclusive,
-                  'Internet ilimitada', isDarkLayout),
+                  'Internet ilimitada', isDarkLayout,
+                  themeTextDark: themeTextDark, isLayout05: isLayout05),
               _buildBenefitItem(
-                  theme, Icons.bolt, 'Velocidade garantida', isDarkLayout),
+                  theme, Icons.bolt, 'Velocidade garantida', isDarkLayout,
+                  themeTextDark: themeTextDark, isLayout05: isLayout05),
               _buildBenefitItem(
-                  theme, Icons.support_agent, 'Suporte 24/7', isDarkLayout),
+                  theme, Icons.support_agent, 'Suporte 24/7', isDarkLayout,
+                  themeTextDark: themeTextDark, isLayout05: isLayout05),
               _buildBenefitItem(
-                  theme, Icons.router, 'Wi-Fi de alta qualidade', isDarkLayout),
+                  theme, Icons.router, 'Wi-Fi de alta qualidade', isDarkLayout,
+                  themeTextDark: themeTextDark, isLayout05: isLayout05),
               _buildBenefitItem(
-                  theme, Icons.security, 'Conexão segura', isDarkLayout),
+                  theme, Icons.security, 'Conexão segura', isDarkLayout,
+                  themeTextDark: themeTextDark, isLayout05: isLayout05),
             ],
           ),
         ),
@@ -744,7 +764,8 @@ class _ConsumoPageState extends ConsumerState<ConsumoPage>
   }
 
   Widget _buildBenefitItem(
-      ThemeData theme, IconData icon, String text, bool isDarkLayout) {
+      ThemeData theme, IconData icon, String text, bool isDarkLayout,
+      {Color? themeTextDark, bool isLayout05 = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(

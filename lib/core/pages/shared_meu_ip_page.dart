@@ -5,7 +5,7 @@ import '../../core/services/meu_ip_service.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/providers.dart';
-import '../../layouts/layout_03/theme.dart';
+import '../../core/utils/shared_theme_helper.dart';
 
 class MeuIpPage extends ConsumerStatefulWidget {
   const MeuIpPage({super.key});
@@ -33,19 +33,15 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
   @override
   Widget build(BuildContext context) {
     final configProvider = ref.watch(configurationProvider);
-    final layoutType = configProvider.providerConfig?.layoutType;
-    final isLayout05 = layoutType == 'layout_05';
-    final isDarkLayout = layoutType == 'layout_04';
-
-    final theme = Theme.of(context);
-    Color backgroundColor;
-    if (isDarkLayout) {
-      backgroundColor = const Color(0xFF0A0A0A);
-    } else if (isLayout05) {
-      backgroundColor = Layout03Theme.background;
-    } else {
-      backgroundColor = theme.scaffoldBackgroundColor;
-    }
+    final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_06';
+    final isLayout03 = SharedThemeHelper.isNeumorphic(layoutType);
+    final isDarkLayout = SharedThemeHelper.isDarkLayout(layoutType);
+    final backgroundColor = SharedThemeHelper.getBackgroundColor(layoutType);
+    final themeTextColor = SharedThemeHelper.getTextColor(layoutType);
+    final themeTextGrey = SharedThemeHelper.getTextGreyColor(layoutType);
+    final themePrimary = SharedThemeHelper.getPrimaryColor(layoutType);
+    final isLayout05 = isLayout03; // Alias for backward compatibility
+    final neumorphicDecoration = SharedThemeHelper.neumorphicDecoration;
 
     // Retorna apenas o conteúdo - PainelPage já fornece Scaffold e AppBar
     return Container(
@@ -86,7 +82,11 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
 
           if (snapshot.hasData) {
             return _buildIpInfoCard(context, snapshot.data!, isLayout05,
-                isDarkLayout: isDarkLayout);
+                isDarkLayout: isDarkLayout,
+                neumorphicDecoration: neumorphicDecoration,
+                themePrimary: themePrimary,
+                themeTextColor: themeTextColor,
+                themeTextGrey: themeTextGrey);
           }
 
           return const SizedBox.shrink();
@@ -104,7 +104,11 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
 
   Widget _buildIpInfoCard(
       BuildContext context, Map<String, dynamic> ipData, bool isLayout05,
-      {bool isDarkLayout = false}) {
+      {bool isDarkLayout = false,
+      BoxDecoration? neumorphicDecoration,
+      Color? themePrimary,
+      Color? themeTextColor,
+      Color? themeTextGrey}) {
     final textTheme = Theme.of(context).textTheme;
     final primaryColor = Theme.of(context).primaryColor;
 
@@ -116,7 +120,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
                 color: const Color(0xFF3A3A3C).withValues(alpha: 0.3)),
           )
         : (isLayout05
-            ? Layout03Theme.neumorphicDecoration
+            ? (neumorphicDecoration ?? const BoxDecoration())
             : BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -130,7 +134,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
 
     final highlightColor = isDarkLayout
         ? const Color(0xFF00D9FF)
-        : (isLayout05 ? Layout03Theme.primary : primaryColor);
+        : (isLayout05 ? (themePrimary ?? primaryColor) : primaryColor);
 
     return Center(
       child: SingleChildScrollView(
@@ -149,7 +153,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
                       style: textTheme.bodyMedium?.copyWith(
                         color: isDarkLayout
                             ? const Color(0xFF8E8E93)
-                            : (isLayout05 ? Layout03Theme.textGrey : null),
+                            : (isLayout05 ? themeTextGrey : null),
                       )),
                   const SizedBox(height: 8),
                   Text(
@@ -166,28 +170,36 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
                       value:
                           "${ipData['city'] ?? 'N/A'}, ${ipData['region'] ?? 'N/A'}",
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themePrimary: themePrimary,
+                      themeTextColor: themeTextColor),
                   const SizedBox(height: 12),
                   _buildInfoRow(context,
                       icon: Icons.public,
                       title: "País",
                       value: ipData['country'] ?? 'N/A',
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themePrimary: themePrimary,
+                      themeTextColor: themeTextColor),
                   const SizedBox(height: 12),
                   _buildInfoRow(context,
                       icon: Icons.router,
                       title: "Provedor",
                       value: ipData['org'] ?? 'Não encontrado',
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themePrimary: themePrimary,
+                      themeTextColor: themeTextColor),
                   const SizedBox(height: 12),
                   _buildInfoRow(context,
                       icon: Icons.access_time,
                       title: "Fuso Horário",
                       value: ipData['timezone'] ?? 'N/A',
                       isLayout05: isLayout05,
-                      isDarkLayout: isDarkLayout),
+                      isDarkLayout: isDarkLayout,
+                      themePrimary: themePrimary,
+                      themeTextColor: themeTextColor),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
@@ -197,7 +209,7 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
                             icon: const Icon(Icons.refresh),
                             label: const Text('Atualizar'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Layout03Theme.primary,
+                              backgroundColor: themePrimary,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
@@ -225,14 +237,18 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
       required String title,
       required String value,
       bool isLayout05 = false,
-      bool isDarkLayout = false}) {
+      bool isDarkLayout = false,
+      Color? themePrimary,
+      Color? themeTextColor}) {
     final textTheme = Theme.of(context).textTheme;
     final color = isDarkLayout
         ? Colors.white
-        : (isLayout05 ? Layout03Theme.textDark : null);
+        : (isLayout05 ? (themeTextColor ?? Colors.black) : null);
     final iconColor = isDarkLayout
         ? const Color(0xFF00D9FF)
-        : (isLayout05 ? Layout03Theme.primary : textTheme.bodySmall?.color);
+        : (isLayout05
+            ? (themePrimary ?? Theme.of(context).primaryColor)
+            : textTheme.bodySmall?.color);
 
     return Row(
       children: [
