@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,13 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Bell, Plus, Send, Trash2, Users, Filter } from 'lucide-react';
+import { Bell, Plus, Send, Trash2, Users, Filter, Loader2 } from 'lucide-react';
+import { db } from '@/firebase/config';
+import { doc, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
 export default function NotificationsManager() {
-  const { config, setConfig, saveConfig, isSaving } = useSettings();
+  const { config, setConfig, saveConfig, isSaving, providerId } = useSettings();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState(config.notifications?.list || []);
   const [newNotif, setNewNotif] = useState({ title: '', message: '', category: 'info', targetAll: true });
   const [filter, setFilter] = useState('all');
+  const [isSending, setIsSending] = useState(false);
 
   const categories = [
     { value: 'urgent', label: 'Urgente', color: 'destructive' },
@@ -37,7 +42,7 @@ export default function NotificationsManager() {
     };
     setNotifications([notif, ...notifications]);
     setNewNotif({ title: '', message: '', category: 'info', targetAll: true });
-    toast.success('Notificação criada!');
+    toast.success('Notificação criada! Clique em "Enviar Push" para entregar aos clientes.');
   };
 
   const deleteNotification = (id: string) => {
@@ -47,8 +52,70 @@ export default function NotificationsManager() {
     }
   };
 
-  const sendToAll = () => {
-    toast.success(`Enviando ${notifications.filter((n: any) => !n.read).length} notificações para todos os clientes!`);
+  // NOVA FUNÇÃO: Enviar Push Real via Cloud Function
+  const sendPushNotification = async (notif: any) => {
+    if (!user) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
+    setIsSending(true);
+    const toastId = toast.loading('Enviando notificação push...');
+
+    try {
+      const requestId = doc(collection(db, 'function_requests')).id;
+      const responseDocRef = doc(db, 'function_responses', requestId);
+
+      // Escuta pela resposta
+      const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          unsubscribe();
+          const response = docSnap.data();
+          if (response.result?.success) {
+            toast.success(response.result.message, { id: toastId });
+          } else {
+            toast.error(`Erro: ${response.error}`, { id: toastId });
+          }
+          setIsSending(false);
+        }
+      });
+
+      // Envia request para Cloud Function
+      await setDoc(doc(db, 'function_requests', requestId), {
+        type: 'SEND_PUSH_NOTIFICATION',
+        requesterUid: user.uid,
+        createdAt: serverTimestamp(),
+        payload: {
+          providerId,
+          title: notif.title,
+          body: notif.message,
+          category: notif.category,
+          targetAll: notif.targetAll,
+          route: notif.route || '',
+        }
+      });
+
+      // Timeout de 30 segundos
+      setTimeout(() => {
+        setIsSending(false);
+      }, 30000);
+
+    } catch (error: any) {
+      toast.error(`Erro: ${error.message}`, { id: toastId });
+      setIsSending(false);
+    }
+  };
+
+  const sendToAll = async () => {
+    const pendingNotifs = notifications.filter((n: any) => !n.sent);
+    if (pendingNotifs.length === 0) {
+      toast.info('Nenhuma notificação pendente para enviar');
+      return;
+    }
+
+    for (const notif of pendingNotifs) {
+      await sendPushNotification(notif);
+    }
   };
 
   const handleSave = async () => {
@@ -57,8 +124,8 @@ export default function NotificationsManager() {
     toast.success('Notificações salvas!');
   };
 
-  const filteredNotifications = filter === 'all' 
-    ? notifications 
+  const filteredNotifications = filter === 'all'
+    ? notifications
     : notifications.filter((n: any) => n.category === filter);
 
   return (

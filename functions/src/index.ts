@@ -406,3 +406,159 @@ export const handleDeleteProviderRequest = onDocumentCreated({
     }
     return null;
 });
+
+// --- 6. FUNÇÃO PARA ENVIAR PUSH NOTIFICATION ---
+// Envia notificação para um cliente específico ou para todos
+export const handleSendPushNotificationRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'SEND_PUSH_NOTIFICATION') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const payload = requestData.payload || {};
+
+    try {
+        if (!requesterUid) {
+            throw new Error("RequesterUID é obrigatório.");
+        }
+
+        // Validação de Permissões
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = user.customClaims?.superAdmin === true;
+        const userProviderId = user.customClaims?.providerId;
+
+        if (!isSuperAdmin && !userProviderId) {
+            throw new Error("Permissão negada.");
+        }
+
+        const providerId = payload.providerId || userProviderId;
+        const { title, body, category, targetAll, targetCpf, route } = payload;
+
+        if (!title || !body) {
+            throw new Error("Título e mensagem são obrigatórios.");
+        }
+
+        // Import messaging dynamically
+        const { getMessaging } = await import("firebase-admin/messaging");
+        const messaging = getMessaging();
+
+        let successCount = 0;
+        let failureCount = 0;
+
+        if (targetCpf) {
+            // Enviar para cliente específico
+            const clientDoc = await db.collection('clientes').doc(targetCpf).get();
+            if (clientDoc.exists) {
+                const fcmToken = clientDoc.data()?.fcmToken;
+                if (fcmToken) {
+                    try {
+                        await messaging.send({
+                            token: fcmToken,
+                            notification: { title, body },
+                            data: { route: route || '', category: category || 'info' },
+                            android: {
+                                priority: 'high',
+                                notification: {
+                                    channelId: 'high_importance_channel',
+                                    priority: 'high' as const,
+                                }
+                            }
+                        });
+                        successCount = 1;
+                    } catch (e: any) {
+                        logger.warn(`Falha ao enviar para ${targetCpf}: ${e.message}`);
+                        failureCount = 1;
+                    }
+                } else {
+                    failureCount = 1;
+                }
+            } else {
+                throw new Error(`Cliente ${targetCpf} não encontrado.`);
+            }
+        } else if (targetAll) {
+            // Enviar para todos os clientes do provedor via topic
+            try {
+                await messaging.send({
+                    topic: `provider_${providerId}`,
+                    notification: { title, body },
+                    data: { route: route || '', category: category || 'info' },
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            channelId: 'high_importance_channel',
+                            priority: 'high' as const,
+                        }
+                    }
+                });
+                successCount = 1;
+                logger.info(`Notificação enviada para topic provider_${providerId}`);
+            } catch (e: any) {
+                logger.error(`Erro ao enviar para topic: ${e.message}`);
+                failureCount = 1;
+            }
+        } else {
+            // Buscar todos os clientes com token FCM
+            const clientsSnapshot = await db.collection('clientes')
+                .where('providerId', '==', providerId)
+                .get();
+
+            const tokens: string[] = [];
+            clientsSnapshot.forEach(doc => {
+                const token = doc.data().fcmToken;
+                if (token) tokens.push(token);
+            });
+
+            if (tokens.length > 0) {
+                const response = await messaging.sendEachForMulticast({
+                    tokens,
+                    notification: { title, body },
+                    data: { route: route || '', category: category || 'info' },
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            channelId: 'high_importance_channel',
+                            priority: 'high' as const,
+                        }
+                    }
+                });
+                successCount = response.successCount;
+                failureCount = response.failureCount;
+            }
+        }
+
+        // Salvar notificação no histórico
+        await db.collection('notifications').add({
+            providerId,
+            title,
+            body,
+            category: category || 'info',
+            targetAll: !!targetAll,
+            targetCpf: targetCpf || null,
+            successCount,
+            failureCount,
+            sentBy: requesterUid,
+            createdAt: FieldValue.serverTimestamp()
+        });
+
+        logger.info(`Notificação enviada: ${successCount} sucesso, ${failureCount} falhas`);
+
+        await writeResponse(responseRef, {
+            result: {
+                success: true,
+                message: `Notificação enviada! ${successCount} entregue(s), ${failureCount} falha(s).`,
+                successCount,
+                failureCount
+            }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em SEND_PUSH_NOTIFICATION ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
