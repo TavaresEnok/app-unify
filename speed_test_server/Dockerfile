@@ -8,8 +8,8 @@ RUN npm init -y && npm install express cors
 # Copiar código fonte
 COPY server.js ./
 
-# Expor porta
-EXPOSE 3002
+# Expor porta 3001 (conforme server.js)
+EXPOSE 3001
 
 # Iniciar aplicação
 CMD ["node", "server.js"]

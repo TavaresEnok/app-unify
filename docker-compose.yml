@@ -16,14 +16,9 @@ services:
       - NODE_ENV=production
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # =======================================
-  # API Service (porta 3001)
+  # API Service - BFF Admin (porta 9136)
   # =======================================
   api-service:
     build:
@@ -32,14 +27,14 @@ services:
     container_name: api-service
     restart: always
     ports:
-      - "3001:3001"
+      - "9136:9136"
     environment:
       - NODE_ENV=production
     networks:
       - app-network
 
   # =======================================
-  # Speed Test Server (porta 3002)
+  # Speed Test Server (porta 3001)
   # =======================================
   speed-test:
     build:
@@ -48,7 +43,7 @@ services:
     container_name: speed-test
     restart: always
     ports:
-      - "3002:3002"
+      - "3001:3001"
     environment:
       - NODE_ENV=production
     networks:

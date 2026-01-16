@@ -8,36 +8,36 @@ cd /home/app/painel-provedores-projeto
 case "$1" in
     start)
         echo "🚀 Iniciando containers..."
-        docker compose up -d
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        sudo docker compose up -d
+        sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         ;;
     stop)
         echo "🛑 Parando containers..."
-        docker compose down
+        sudo docker compose down
         ;;
     restart)
         echo "🔄 Reiniciando containers..."
-        docker compose restart
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        sudo docker compose restart
+        sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         ;;
     status)
         echo "📊 Status dos containers:"
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         ;;
     logs)
         if [ -z "$2" ]; then
             echo "📋 Logs de todos os containers:"
-            docker compose logs --tail=50
+            sudo docker compose logs --tail=50
         else
             echo "📋 Logs de $2:"
-            docker compose logs --tail=100 "$2"
+            sudo docker compose logs --tail=100 "$2"
         fi
         ;;
     rebuild)
         echo "🔨 Reconstruindo containers..."
-        docker compose down
-        docker compose up -d --build
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        sudo docker compose down
+        sudo docker compose up -d --build
+        sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         ;;
     *)
         echo "╔════════════════════════════════════════════╗"
@@ -56,9 +56,9 @@ case "$1" in
         echo ""
         echo "🌐 Endpoints:"
         echo "   Admin Panel: http://168.194.13.18:5173"
-        echo "   Proxy SGP:   http://168.194.13.18:3000"
-        echo "   API Service: http://168.194.13.18:3001"
-        echo "   Speed Test:  http://168.194.13.18:3002"
         echo "   Portainer:   http://168.194.13.18:9000"
+        echo "   Proxy SGP:   http://168.194.13.18:3000"
+        echo "   API Service: http://168.194.13.18:9136"
+        echo "   Speed Test:  http://168.194.13.18:3001"
         ;;
 esac
