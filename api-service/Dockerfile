@@ -17,8 +17,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 
+# Copiar código compilado
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 3000
+# Copiar arquivos de configuração (Firebase serviceAccountKey)
+COPY --from=builder /app/src/config ./dist/config
+
+EXPOSE 3001
 
 CMD [ "node", "dist/index.js" ]
