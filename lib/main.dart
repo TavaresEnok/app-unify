@@ -10,7 +10,11 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 import 'core/providers/providers.dart';
 import 'core/painel_page.dart';
+import 'core/services/push_notification_service.dart';
+import 'core/pages/onboarding_page.dart';
+import 'core/widgets/rating_prompt_dialog.dart';
 import 'layout_selector.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ========================================
 // CONFIGURAÇÃO DO PROVEDOR
@@ -88,12 +92,19 @@ class _AppInitializationWrapperState
 
   Future<void> _initializeApp() async {
     await FirebaseMessaging.instance.requestPermission();
+
+    // Initialize Push Notification Service for foreground handling
+    await PushNotificationService().initialize();
+
     if (mounted) {
       // Usamos read aqui pois é uma ação única na inicialização
       await ref.read(configurationProvider).loadConfig(providerId);
       await ref.read(notificationProvider).loadNotifications();
       // Init Deep Links
       ref.read(deepLinkServiceProvider).init();
+
+      // Subscribe to provider topic for broadcast notifications
+      await PushNotificationService().subscribeToTopic('provider_$providerId');
     }
   }
 
@@ -114,15 +125,46 @@ class _AppInitializationWrapperState
   }
 }
 
-class AuthGate extends ConsumerWidget {
+class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends ConsumerState<AuthGate> {
+  bool _showOnboarding = false;
+  bool _onboardingChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+    // Incrementar contador de uso para rating
+    RatingPromptDialog.incrementUsage();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('onboarding_completed') ?? false;
+    if (mounted) {
+      setState(() {
+        _showOnboarding = !completed;
+        _onboardingChecked = true;
+      });
+    }
+  }
+
+  void _onOnboardingComplete() {
+    setState(() => _showOnboarding = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final config = ref.watch(configurationProvider);
     final authState = ref.watch(authNotifierProvider);
 
-    if (config.isLoading || authState.isLoading) {
+    if (config.isLoading || authState.isLoading || !_onboardingChecked) {
       return const SplashScreen();
     }
 
@@ -130,14 +172,20 @@ class AuthGate extends ConsumerWidget {
       return FatalErrorScreen(error: config.errorMessage!);
     }
 
-    // Se houve erro no carregamento inicial do auth, consideramos deslogado
-    // ou mostramos erro se for crucial.
-    // Para simplificar, se não temos usuário auth e deu erro, é login.
-    // Mas AsyncNotifier geralmente inicia loading -> data(null) se não tiver user.
+    // Mostrar onboarding para novos usuários
+    if (_showOnboarding) {
+      return OnboardingPage(onComplete: _onOnboardingComplete);
+    }
 
     final layoutType = config.providerConfig?.layoutType ?? 'layout_06';
 
     if (authState.value != null) {
+      // Mostrar prompt de avaliação após login (com delay)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) RatingPromptDialog.showIfNeeded(context);
+        });
+      });
       return const PainelPage();
     } else {
       return LayoutSelector.getLoginPage(layoutType: layoutType);

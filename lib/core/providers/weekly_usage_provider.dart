@@ -186,15 +186,19 @@ class WeeklyUsageNotifier extends StateNotifier<WeeklyUsageState> {
 /// Provider global de consumo semanal
 final weeklyUsageProvider =
     StateNotifierProvider<WeeklyUsageNotifier, WeeklyUsageState>((ref) {
-  final configConfig = ref.watch(configurationProvider).providerConfig?.config;
+  final providerConfig = ref.watch(configurationProvider).providerConfig;
+  final configConfig = providerConfig?.config;
   final usuario = ref.watch(authNotifierProvider).value;
 
-  if (configConfig == null || usuario == null) {
+  if (configConfig == null || usuario == null || providerConfig == null) {
     return WeeklyUsageNotifier(null);
   }
 
+  // Use apiUrl from Firebase config (no more hardcoded IP!)
+  final baseApiUrl = providerConfig.apiUrl;
+
   final service = ConsumoService(
-    apiUrl: 'http://168.194.13.18:3000/get-consumption-data',
+    apiUrl: '$baseApiUrl/get-consumption-data',
     sgpParams: {
       'token': configConfig.integrations.apiToken,
       'app': configConfig.integrations.appName,

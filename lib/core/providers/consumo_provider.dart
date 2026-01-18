@@ -75,16 +75,20 @@ class ConsumoViewModel extends StateNotifier<ConsumoState> {
 /// Provider que fornece o ViewModel de Consumo
 final consumoViewModelProvider =
     StateNotifierProvider<ConsumoViewModel, ConsumoState>((ref) {
-  final configConfig = ref.watch(configurationProvider).providerConfig?.config;
+  final providerConfig = ref.watch(configurationProvider).providerConfig;
+  final configConfig = providerConfig?.config;
   final usuario = ref.watch(authNotifierProvider).value;
 
-  if (configConfig == null || usuario == null) {
+  if (configConfig == null || usuario == null || providerConfig == null) {
     return ConsumoViewModel(null);
   }
 
+  // Use apiUrl from Firebase config (no more hardcoded IP!)
+  final baseApiUrl = providerConfig.apiUrl;
+
   // Create service instance
   final service = ConsumoService(
-    apiUrl: 'http://168.194.13.18:3000/get-consumption-data',
+    apiUrl: '$baseApiUrl/get-consumption-data',
     sgpParams: {
       'token': configConfig.integrations.apiToken,
       'app': configConfig.integrations.appName,

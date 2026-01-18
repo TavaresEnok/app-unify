@@ -60,9 +60,22 @@ class ProviderConfig {
       finalApiUrl = finalApiUrl.replaceAll('45.176.56.70', '168.194.13.18');
     }
 
-    // Se não tiver URL, usamos o IP do servidor principal
-    // IMPORTANTE: trim() para remover espaços que podem quebrar a URL
-    final effectiveApiUrl = (finalApiUrl ?? 'http://168.194.13.18:3000').trim();
+    // IMPORTANTE: A URL da API deve ser configurada no Web Admin (Firebase)
+    // Campo: apiUrl no documento do provedor
+    // Exemplo: http://seu-servidor:3000
+    //
+    // O fallback abaixo é apenas para desenvolvimento/emergência.
+    // Se você mudar de servidor, basta atualizar o campo apiUrl no Firebase
+    // e todos os apps receberão a nova URL automaticamente!
+    String effectiveApiUrl;
+    if (finalApiUrl != null && finalApiUrl.isNotEmpty) {
+      effectiveApiUrl = finalApiUrl.trim();
+    } else {
+      // FALLBACK DE EMERGÊNCIA - Configure apiUrl no Firebase!
+      effectiveApiUrl = 'http://168.194.13.18:3000';
+      // ignore: avoid_print
+      print('⚠️ AVISO: apiUrl não configurada no Firebase! Usando fallback.');
+    }
 
     final integrationsMap = (json['integrations'] ??
             legacyConfig['integrations']) as Map<String, dynamic>? ??
