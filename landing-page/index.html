@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Unify - Sistema de Atendimento para Provedores de Internet</title>
+    <meta name="description" content="Aplicativo white-label para provedores de internet. Faturas, suporte, teste de velocidade e muito mais. Personalize com a marca do seu provedor.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="#" class="logo">
+                <span class="logo-icon">📱</span>
+                <span class="logo-text">App<span class="highlight">Unify</span></span>
+            </a>
+            <div class="nav-links">
+                <a href="#features">Recursos</a>
+                <a href="#pricing">Preços</a>
+                <a href="#faq">FAQ</a>
+                <a href="#contact" class="btn btn-nav">Contato</a>
+            </div>
+            <button class="mobile-toggle" id="mobileToggle">☰</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="badge">🚀 Novo: Push Notifications em tempo real</div>
+                <h1>O App que seu <span class="gradient-text">Provedor</span> precisa</h1>
+                <p class="hero-subtitle">
+                    Sistema completo de atendimento ao cliente. Faturas, suporte, teste de velocidade 
+                    e muito mais. Tudo com a <strong>sua marca</strong>.
+                </p>
+                <div class="hero-cta">
+                    <a href="#contact" class="btn btn-primary btn-lg">
+                        Solicitar Demonstração
+                        <span class="btn-arrow">→</span>
+                    </a>
+                    <a href="#features" class="btn btn-ghost btn-lg">
+                        Ver Recursos
+                    </a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number">1000+</span>
+                        <span class="stat-label">Usuários Ativos</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">99.9%</span>
+                        <span class="stat-label">Uptime</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">24/7</span>
+                        <span class="stat-label">Suporte</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="app-header">
+                            <div class="app-logo">📱</div>
+                            <div class="app-title">Olá, João!</div>
+                        </div>
+                        <div class="app-card">
+                            <div class="card-label">Próxima Fatura</div>
+                            <div class="card-value">R$ 89,90</div>
+                            <div class="card-due">Vence em 15/02</div>
+                        </div>
+                        <div class="app-menu">
+                            <div class="menu-item">💳 Faturas</div>
+                            <div class="menu-item">📊 Consumo</div>
+                            <div class="menu-item">⚡ Velocidade</div>
+                            <div class="menu-item">🎧 Suporte</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-bg"></div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Recursos</span>
+                <h2>Tudo que seu cliente precisa em <span class="gradient-text">um só app</span></h2>
+                <p>Desenvolvido especialmente para provedores de internet</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">💳</div>
+                    <h3>Faturas Digitais</h3>
+                    <p>PIX, boleto e cartão. Tudo na palma da mão do cliente.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Teste de Velocidade</h3>
+                    <p>Teste profissional integrado. Cliente verifica a conexão em segundos.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎧</div>
+                    <h3>Suporte Integrado</h3>
+                    <p>Chat direto com sua equipe. Histórico completo de atendimentos.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Consumo em Tempo Real</h3>
+                    <p>Cliente acompanha o uso da internet com gráficos interativos.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔔</div>
+                    <h3>Push Notifications</h3>
+                    <p>Alertas de vencimento, manutenção e promoções direto no celular.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>100% Personalizável</h3>
+                    <p>Cores, logo e nome do seu provedor. App com a sua identidade.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works -->
+    <section class="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Como Funciona</span>
+                <h2>Pronto em <span class="gradient-text">3 passos simples</span></h2>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Contratação</h3>
+                    <p>Escolha o plano ideal para seu provedor</p>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Personalização</h3>
+                    <p>Configure cores, logo e informações</p>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Publicação</h3>
+                    <p>Seu app na Play Store em até 48h</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Preços</span>
+                <h2>Planos que cabem no seu <span class="gradient-text">bolso</span></h2>
+                <p>Sem taxa de setup. Cancele quando quiser.</p>
+            </div>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Starter</h3>
+                        <p>Para provedores iniciantes</p>
+                    </div>
+                    <div class="pricing-price">
+                        <span class="currency">R$</span>
+                        <span class="amount">297</span>
+                        <span class="period">/mês</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>✓ Até 500 clientes</li>
+                        <li>✓ App Android</li>
+                        <li>✓ Painel Admin</li>
+                        <li>✓ Push Notifications</li>
+                        <li>✓ Suporte por email</li>
+                    </ul>
+                    <a href="#contact" class="btn btn-outline">Começar Agora</a>
+                </div>
+                <div class="pricing-card featured">
+                    <div class="pricing-badge">Mais Popular</div>
+                    <div class="pricing-header">
+                        <h3>Professional</h3>
+                        <p>Para provedores em crescimento</p>
+                    </div>
+                    <div class="pricing-price">
+                        <span class="currency">R$</span>
+                        <span class="amount">497</span>
+                        <span class="period">/mês</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>✓ Até 2000 clientes</li>
+                        <li>✓ App Android + iOS</li>
+                        <li>✓ Painel Admin</li>
+                        <li>✓ Push Notifications</li>
+                        <li>✓ Integração SGP</li>
+                        <li>✓ Suporte prioritário</li>
+                    </ul>
+                    <a href="#contact" class="btn btn-primary">Começar Agora</a>
+                </div>
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Enterprise</h3>
+                        <p>Para grandes provedores</p>
+                    </div>
+                    <div class="pricing-price">
+                        <span class="currency">R$</span>
+                        <span class="amount">997</span>
+                        <span class="period">/mês</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>✓ Clientes ilimitados</li>
+                        <li>✓ App Android + iOS</li>
+                        <li>✓ Múltiplos layouts</li>
+                        <li>✓ API personalizada</li>
+                        <li>✓ Gerente de conta</li>
+                        <li>✓ SLA 99.9%</li>
+                    </ul>
+                    <a href="#contact" class="btn btn-outline">Falar com Vendas</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Depoimentos</span>
+                <h2>O que nossos clientes <span class="gradient-text">dizem</span></h2>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                    <p>"Reduziu em 40% as ligações no suporte. Os clientes resolvem tudo pelo app!"</p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">JC</div>
+                        <div>
+                            <div class="author-name">João Carlos</div>
+                            <div class="author-company">Speed Net Telecom</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                    <p>"O app com nossa marca passou credibilidade. Os clientes amaram!"</p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">MS</div>
+                        <div>
+                            <div class="author-name">Maria Santos</div>
+                            <div class="author-company">Vibe Telecom</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+                    <p>"Push notification de fatura aumentou nossa taxa de pagamento em 25%."</p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">RP</div>
+                        <div>
+                            <div class="author-name">Roberto Pereira</div>
+                            <div class="author-company">Fibra Max</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">FAQ</span>
+                <h2>Perguntas <span class="gradient-text">Frequentes</span></h2>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Quanto tempo leva para ter meu app?
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Após a contratação e personalização, seu app estará na Play Store em até 48 horas úteis.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Preciso de conhecimento técnico?
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Não! O painel admin é super intuitivo. Qualquer pessoa consegue configurar cores, logo e enviar notificações.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Integra com meu sistema de gestão?
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Sim! Temos integração nativa com SGP e podemos adaptar para outros sistemas via API.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Posso cancelar a qualquer momento?
+                        <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Sim, sem multa ou fidelidade. Você pode cancelar quando quiser.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta" id="contact">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Pronto para modernizar seu provedor?</h2>
+                <p>Agende uma demonstração gratuita e veja o App Unify em ação.</p>
+                <form class="cta-form" id="contactForm">
+                    <div class="form-row">
+                        <input type="text" placeholder="Seu nome" required>
+                        <input type="text" placeholder="Nome do provedor" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="email" placeholder="Email" required>
+                        <input type="tel" placeholder="WhatsApp" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg btn-full">
+                        Solicitar Demonstração Gratuita
+                        <span class="btn-arrow">→</span>
+                    </button>
+                </form>
+                <p class="cta-note">🔒 Seus dados estão seguros. Não enviamos spam.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <a href="#" class="logo">
+                        <span class="logo-icon">📱</span>
+                        <span class="logo-text">App<span class="highlight">Unify</span></span>
+                    </a>
+                    <p>Sistema de atendimento white-label para provedores de internet.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Links</h4>
+                    <a href="#features">Recursos</a>
+                    <a href="#pricing">Preços</a>
+                    <a href="#faq">FAQ</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Contato</h4>
+                    <a href="mailto:contato@appunify.com.br">contato@appunify.com.br</a>
+                    <a href="https://wa.me/5511999999999">WhatsApp</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 App Unify. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

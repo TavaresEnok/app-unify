@@ -82,6 +82,20 @@ services:
     networks:
       - app-network
 
+  # =======================================
+  # Landing Page - Site de Vendas (porta 80)
+  # =======================================
+  landing-page:
+    build:
+      context: ./landing-page
+      dockerfile: Dockerfile
+    container_name: landing-page
+    restart: always
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
