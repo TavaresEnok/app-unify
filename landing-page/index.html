@@ -1,159 +1,462 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Unify - Sistema de Atendimento para Provedores de Internet</title>
-    <meta name="description" content="Aplicativo white-label para provedores de internet. Faturas, suporte, teste de velocidade e muito mais. Personalize com a marca do seu provedor.">
+    <title>App Unify | O App Definitivo para Provedores de Internet</title>
+    <meta name="description"
+        content="Transforme a experiência dos seus clientes com o app mais completo do mercado. Faturas, suporte, velocidade e muito mais.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
+    <!-- Cursor Glow Effect -->
+    <div class="cursor-glow" id="cursorGlow"></div>
+
     <!-- Navbar -->
     <nav class="navbar">
         <div class="container">
             <a href="#" class="logo">
-                <span class="logo-icon">📱</span>
-                <span class="logo-text">App<span class="highlight">Unify</span></span>
+                <div class="logo-icon">
+                    <svg viewBox="0 0 40 40" fill="none">
+                        <rect width="40" height="40" rx="10" fill="url(#logoGrad)" />
+                        <path d="M12 28V12L20 20L28 12V28" stroke="white" stroke-width="3" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <defs>
+                            <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+                                <stop stop-color="#6366F1" />
+                                <stop offset="1" stop-color="#8B5CF6" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span class="logo-text">App<span class="gradient-text">Unify</span></span>
             </a>
-            <div class="nav-links">
+            <div class="nav-links" id="navLinks">
                 <a href="#features">Recursos</a>
+                <a href="#demo">Demo</a>
                 <a href="#pricing">Preços</a>
-                <a href="#faq">FAQ</a>
-                <a href="#contact" class="btn btn-nav">Contato</a>
+                <a href="#contact" class="btn btn-nav">Agendar Demo</a>
             </div>
-            <button class="mobile-toggle" id="mobileToggle">☰</button>
+            <button class="mobile-toggle" id="mobileToggle">
+                <span></span><span></span><span></span>
+            </button>
         </div>
     </nav>
 
     <!-- Hero Section -->
     <section class="hero">
+        <div class="hero-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+            <div class="grid-lines"></div>
+        </div>
         <div class="container">
             <div class="hero-content">
-                <div class="badge">🚀 Novo: Push Notifications em tempo real</div>
-                <h1>O App que seu <span class="gradient-text">Provedor</span> precisa</h1>
+                <div class="hero-badges">
+                    <span class="badge badge-new">
+                        <span class="pulse"></span>
+                        Novo
+                    </span>
+                    <span class="badge badge-feature">Push Notifications em Tempo Real</span>
+                </div>
+                <h1>
+                    O app que vai
+                    <span class="text-reveal">
+                        <span class="gradient-text-animated">revolucionar</span>
+                    </span>
+                    <br>seu provedor
+                </h1>
                 <p class="hero-subtitle">
-                    Sistema completo de atendimento ao cliente. Faturas, suporte, teste de velocidade 
-                    e muito mais. Tudo com a <strong>sua marca</strong>.
+                    Sistema completo de atendimento com <strong>sua marca</strong>.
+                    Faturas, suporte, teste de velocidade e muito mais em um único app.
                 </p>
                 <div class="hero-cta">
-                    <a href="#contact" class="btn btn-primary btn-lg">
-                        Solicitar Demonstração
-                        <span class="btn-arrow">→</span>
+                    <a href="#contact" class="btn btn-primary btn-glow">
+                        <span>Começar Agora</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                     </a>
-                    <a href="#features" class="btn btn-ghost btn-lg">
-                        Ver Recursos
+                    <a href="#demo" class="btn btn-ghost">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                        <span>Ver Demo</span>
                     </a>
                 </div>
-                <div class="hero-stats">
-                    <div class="stat">
-                        <span class="stat-number">1000+</span>
-                        <span class="stat-label">Usuários Ativos</span>
+                <div class="hero-trust">
+                    <div class="avatars">
+                        <div class="avatar" style="background: linear-gradient(135deg, #6366F1, #8B5CF6);">JC</div>
+                        <div class="avatar" style="background: linear-gradient(135deg, #10B981, #34D399);">MS</div>
+                        <div class="avatar" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">RP</div>
+                        <div class="avatar avatar-more">+47</div>
                     </div>
-                    <div class="stat">
-                        <span class="stat-number">99.9%</span>
-                        <span class="stat-label">Uptime</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">24/7</span>
-                        <span class="stat-label">Suporte</span>
-                    </div>
+                    <p><strong>50+ provedores</strong> já confiam no App Unify</p>
                 </div>
             </div>
-            <div class="hero-image">
-                <div class="phone-mockup">
-                    <div class="phone-screen">
-                        <div class="app-header">
-                            <div class="app-logo">📱</div>
-                            <div class="app-title">Olá, João!</div>
+            <div class="hero-visual">
+                <div class="phone-container">
+                    <div class="phone-glow"></div>
+                    <div class="phone">
+                        <div class="phone-notch"></div>
+                        <div class="phone-screen">
+                            <div class="app-demo">
+                                <div class="demo-header">
+                                    <div class="demo-time">9:41</div>
+                                    <div class="demo-icons">
+                                        <span>📶</span><span>🔋</span>
+                                    </div>
+                                </div>
+                                <div class="demo-greeting">
+                                    <span class="wave">👋</span>
+                                    <div>
+                                        <div class="demo-hello">Olá, João!</div>
+                                        <div class="demo-plan">Plano: Fibra 500 Mega</div>
+                                    </div>
+                                </div>
+                                <div class="demo-card demo-card-primary">
+                                    <div class="card-shine"></div>
+                                    <div class="demo-card-label">Próxima Fatura</div>
+                                    <div class="demo-card-value">R$ 89,90</div>
+                                    <div class="demo-card-info">
+                                        <span>Vence em 15/02</span>
+                                        <button class="demo-btn">Pagar Agora</button>
+                                    </div>
+                                </div>
+                                <div class="demo-speed">
+                                    <div class="speed-gauge">
+                                        <svg viewBox="0 0 120 70">
+                                            <path class="gauge-bg" d="M10,60 A50,50 0 0,1 110,60" fill="none"
+                                                stroke="#2A2F4F" stroke-width="8" stroke-linecap="round" />
+                                            <path class="gauge-fill" d="M10,60 A50,50 0 0,1 110,60" fill="none"
+                                                stroke="url(#speedGrad)" stroke-width="8" stroke-linecap="round"
+                                                stroke-dasharray="157" stroke-dashoffset="30" />
+                                            <defs>
+                                                <linearGradient id="speedGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stop-color="#6366F1" />
+                                                    <stop offset="100%" stop-color="#10B981" />
+                                                </linearGradient>
+                                            </defs>
+                                        </svg>
+                                        <div class="speed-value">487<span>Mbps</span></div>
+                                    </div>
+                                </div>
+                                <div class="demo-menu">
+                                    <div class="menu-item active">
+                                        <span class="menu-icon">🏠</span>
+                                        <span>Início</span>
+                                    </div>
+                                    <div class="menu-item">
+                                        <span class="menu-icon">💳</span>
+                                        <span>Faturas</span>
+                                    </div>
+                                    <div class="menu-item">
+                                        <span class="menu-icon">⚡</span>
+                                        <span>Velocidade</span>
+                                    </div>
+                                    <div class="menu-item">
+                                        <span class="menu-icon">🎧</span>
+                                        <span>Suporte</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="app-card">
-                            <div class="card-label">Próxima Fatura</div>
-                            <div class="card-value">R$ 89,90</div>
-                            <div class="card-due">Vence em 15/02</div>
+                    </div>
+                    <div class="floating-cards">
+                        <div class="float-card float-1">
+                            <span class="float-icon">🔔</span>
+                            <div>
+                                <div class="float-title">Nova Fatura</div>
+                                <div class="float-desc">PIX copiado!</div>
+                            </div>
                         </div>
-                        <div class="app-menu">
-                            <div class="menu-item">💳 Faturas</div>
-                            <div class="menu-item">📊 Consumo</div>
-                            <div class="menu-item">⚡ Velocidade</div>
-                            <div class="menu-item">🎧 Suporte</div>
+                        <div class="float-card float-2">
+                            <span class="float-icon">✅</span>
+                            <div>
+                                <div class="float-title">Velocidade OK</div>
+                                <div class="float-desc">487 Mbps</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="hero-bg"></div>
+        <div class="scroll-indicator">
+            <div class="mouse">
+                <div class="wheel"></div>
+            </div>
+            <span>Role para descobrir</span>
+        </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <section class="stats-bar">
+        <div class="container">
+            <div class="stat-item">
+                <div class="stat-number" data-count="50">0</div>
+                <div class="stat-label">Provedores Ativos</div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="15000">0</div>
+                <div class="stat-suffix">+</div>
+                <div class="stat-label">Usuários do App</div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="99">0</div>
+                <div class="stat-suffix">.9%</div>
+                <div class="stat-label">Uptime Garantido</div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="40">0</div>
+                <div class="stat-suffix">%</div>
+                <div class="stat-label">Menos Chamados</div>
+            </div>
+        </div>
     </section>
 
     <!-- Features Section -->
     <section class="features" id="features">
         <div class="container">
             <div class="section-header">
-                <span class="section-badge">Recursos</span>
-                <h2>Tudo que seu cliente precisa em <span class="gradient-text">um só app</span></h2>
-                <p>Desenvolvido especialmente para provedores de internet</p>
+                <span class="section-tag">Recursos</span>
+                <h2>Tudo que seu cliente precisa.<br><span class="gradient-text">Nada que ele não precise.</span></h2>
+                <p>Desenvolvido por quem entende de provedores</p>
             </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">💳</div>
-                    <h3>Faturas Digitais</h3>
-                    <p>PIX, boleto e cartão. Tudo na palma da mão do cliente.</p>
+            <div class="features-showcase">
+                <div class="feature-tabs">
+                    <button class="feature-tab active" data-tab="faturas">
+                        <span class="tab-icon">💳</span>
+                        <span class="tab-text">Faturas</span>
+                    </button>
+                    <button class="feature-tab" data-tab="velocidade">
+                        <span class="tab-icon">⚡</span>
+                        <span class="tab-text">Velocidade</span>
+                    </button>
+                    <button class="feature-tab" data-tab="suporte">
+                        <span class="tab-icon">🎧</span>
+                        <span class="tab-text">Suporte</span>
+                    </button>
+                    <button class="feature-tab" data-tab="push">
+                        <span class="tab-icon">🔔</span>
+                        <span class="tab-text">Push</span>
+                    </button>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Teste de Velocidade</h3>
-                    <p>Teste profissional integrado. Cliente verifica a conexão em segundos.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎧</div>
-                    <h3>Suporte Integrado</h3>
-                    <p>Chat direto com sua equipe. Histórico completo de atendimentos.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Consumo em Tempo Real</h3>
-                    <p>Cliente acompanha o uso da internet com gráficos interativos.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔔</div>
-                    <h3>Push Notifications</h3>
-                    <p>Alertas de vencimento, manutenção e promoções direto no celular.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <h3>100% Personalizável</h3>
-                    <p>Cores, logo e nome do seu provedor. App com a sua identidade.</p>
+                <div class="feature-content">
+                    <div class="feature-panel active" id="panel-faturas">
+                        <div class="panel-info">
+                            <h3>Faturas Inteligentes</h3>
+                            <p>PIX, boleto e cartão na palma da mão. Seu cliente paga em segundos sem ligar para o
+                                suporte.</p>
+                            <ul class="feature-list">
+                                <li><span class="check">✓</span> Código PIX com 1 clique</li>
+                                <li><span class="check">✓</span> Histórico completo</li>
+                                <li><span class="check">✓</span> Segunda via instantânea</li>
+                                <li><span class="check">✓</span> Promessa de pagamento</li>
+                            </ul>
+                        </div>
+                        <div class="panel-visual">
+                            <div class="mini-phone">
+                                <div class="mini-screen faturas-demo">
+                                    <div class="fatura-card">
+                                        <div class="fatura-status status-open">Em Aberto</div>
+                                        <div class="fatura-value">R$ 89,90</div>
+                                        <div class="fatura-date">Vence: 15/02/2026</div>
+                                        <div class="fatura-actions">
+                                            <button class="fatura-btn pix">
+                                                <span>📋</span> Copiar PIX
+                                            </button>
+                                            <button class="fatura-btn boleto">
+                                                <span>📄</span> Boleto
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="feature-panel" id="panel-velocidade">
+                        <div class="panel-info">
+                            <h3>Teste de Velocidade Pro</h3>
+                            <p>Servidor dedicado na sua infraestrutura. Resultados precisos que você pode confiar.</p>
+                            <ul class="feature-list">
+                                <li><span class="check">✓</span> Download e Upload</li>
+                                <li><span class="check">✓</span> Latência e Jitter</li>
+                                <li><span class="check">✓</span> Histórico de testes</li>
+                                <li><span class="check">✓</span> Compartilhável</li>
+                            </ul>
+                        </div>
+                        <div class="panel-visual">
+                            <div class="speed-demo">
+                                <div class="speed-circle">
+                                    <svg viewBox="0 0 200 200">
+                                        <circle class="speed-bg" cx="100" cy="100" r="80" fill="none" stroke="#2A2F4F"
+                                            stroke-width="12" />
+                                        <circle class="speed-progress" cx="100" cy="100" r="80" fill="none"
+                                            stroke="url(#speedGrad2)" stroke-width="12" stroke-linecap="round"
+                                            stroke-dasharray="502" stroke-dashoffset="100"
+                                            transform="rotate(-90 100 100)" />
+                                        <defs>
+                                            <linearGradient id="speedGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" stop-color="#6366F1" />
+                                                <stop offset="50%" stop-color="#8B5CF6" />
+                                                <stop offset="100%" stop-color="#10B981" />
+                                            </linearGradient>
+                                        </defs>
+                                    </svg>
+                                    <div class="speed-center">
+                                        <div class="speed-num">487</div>
+                                        <div class="speed-unit">Mbps</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="feature-panel" id="panel-suporte">
+                        <div class="panel-info">
+                            <h3>Suporte Direto</h3>
+                            <p>Chat integrado com sua equipe. Histórico completo e abertura de chamados simplificada.
+                            </p>
+                            <ul class="feature-list">
+                                <li><span class="check">✓</span> Chat em tempo real</li>
+                                <li><span class="check">✓</span> Histórico de tickets</li>
+                                <li><span class="check">✓</span> Anexar imagens</li>
+                                <li><span class="check">✓</span> Notificações push</li>
+                            </ul>
+                        </div>
+                        <div class="panel-visual">
+                            <div class="chat-demo">
+                                <div class="chat-bubble user">Minha internet está lenta</div>
+                                <div class="chat-bubble support">Olá! Vou verificar sua conexão...</div>
+                                <div class="chat-bubble support">Tudo normalizado! Pode testar?</div>
+                                <div class="chat-typing">
+                                    <span></span><span></span><span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="feature-panel" id="panel-push">
+                        <div class="panel-info">
+                            <h3>Push Notifications</h3>
+                            <p>Mantenha seus clientes informados. Alertas de fatura, manutenção e promoções direto no
+                                celular.</p>
+                            <ul class="feature-list">
+                                <li><span class="check">✓</span> Fatura vencendo</li>
+                                <li><span class="check">✓</span> Manutenção programada</li>
+                                <li><span class="check">✓</span> Promoções especiais</li>
+                                <li><span class="check">✓</span> Resposta de suporte</li>
+                            </ul>
+                        </div>
+                        <div class="panel-visual">
+                            <div class="push-demo">
+                                <div class="push-notification">
+                                    <div class="push-icon">📱</div>
+                                    <div class="push-content">
+                                        <div class="push-app">App Unify</div>
+                                        <div class="push-title">Fatura Vencendo!</div>
+                                        <div class="push-body">Sua fatura de R$ 89,90 vence amanhã. Toque para pagar.
+                                        </div>
+                                    </div>
+                                    <div class="push-time">agora</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- How it Works -->
-    <section class="how-it-works">
+    <!-- Demo Section -->
+    <section class="demo-section" id="demo">
         <div class="container">
             <div class="section-header">
-                <span class="section-badge">Como Funciona</span>
-                <h2>Pronto em <span class="gradient-text">3 passos simples</span></h2>
+                <span class="section-tag">Demo Interativa</span>
+                <h2>Veja na prática como<br><span class="gradient-text">seu app vai funcionar</span></h2>
             </div>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Contratação</h3>
-                    <p>Escolha o plano ideal para seu provedor</p>
+            <div class="demo-container">
+                <div class="demo-browser">
+                    <div class="browser-header">
+                        <div class="browser-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="browser-url">
+                            <span class="url-lock">🔒</span>
+                            painel.seudominio.com.br
+                        </div>
+                    </div>
+                    <div class="browser-content">
+                        <div class="admin-demo">
+                            <div class="admin-sidebar">
+                                <div class="admin-logo">📊 Admin</div>
+                                <div class="admin-menu">
+                                    <div class="admin-item active">Dashboard</div>
+                                    <div class="admin-item">Provedores</div>
+                                    <div class="admin-item">Aparência</div>
+                                    <div class="admin-item">Notificações</div>
+                                </div>
+                            </div>
+                            <div class="admin-main">
+                                <div class="admin-header">
+                                    <h3>Aparência do App</h3>
+                                    <button class="admin-save">Salvar</button>
+                                </div>
+                                <div class="admin-colors">
+                                    <div class="color-picker">
+                                        <span>Cor Principal</span>
+                                        <div class="colors">
+                                            <div class="color active" style="background: #6366F1;"></div>
+                                            <div class="color" style="background: #10B981;"></div>
+                                            <div class="color" style="background: #F59E0B;"></div>
+                                            <div class="color" style="background: #EF4444;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="layout-picker">
+                                        <span>Layout</span>
+                                        <div class="layouts">
+                                            <div class="layout active">Modern</div>
+                                            <div class="layout">Classic</div>
+                                            <div class="layout">Minimal</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="step-connector"></div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Personalização</h3>
-                    <p>Configure cores, logo e informações</p>
-                </div>
-                <div class="step-connector"></div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Publicação</h3>
-                    <p>Seu app na Play Store em até 48h</p>
+                <div class="demo-features">
+                    <div class="demo-feature">
+                        <div class="df-icon">🎨</div>
+                        <div>
+                            <h4>Personalize em minutos</h4>
+                            <p>Cores, logo e informações do seu provedor</p>
+                        </div>
+                    </div>
+                    <div class="demo-feature">
+                        <div class="df-icon">📱</div>
+                        <div>
+                            <h4>Preview em tempo real</h4>
+                            <p>Veja as mudanças instantaneamente no app</p>
+                        </div>
+                    </div>
+                    <div class="demo-feature">
+                        <div class="df-icon">🚀</div>
+                        <div>
+                            <h4>Deploy automático</h4>
+                            <p>Atualizações sem precisar republicar</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -163,70 +466,85 @@
     <section class="pricing" id="pricing">
         <div class="container">
             <div class="section-header">
-                <span class="section-badge">Preços</span>
-                <h2>Planos que cabem no seu <span class="gradient-text">bolso</span></h2>
-                <p>Sem taxa de setup. Cancele quando quiser.</p>
+                <span class="section-tag">Planos</span>
+                <h2>Investimento que se paga<br><span class="gradient-text">no primeiro mês</span></h2>
+                <p>Sem taxa de setup. Sem fidelidade. Cancele quando quiser.</p>
             </div>
-            <div class="pricing-grid">
+            <div class="pricing-toggle">
+                <span class="toggle-label">Mensal</span>
+                <label class="toggle">
+                    <input type="checkbox" id="pricingToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">Anual <span class="discount">-20%</span></span>
+            </div>
+            <div class="pricing-cards">
                 <div class="pricing-card">
-                    <div class="pricing-header">
+                    <div class="card-header">
+                        <div class="plan-icon">🚀</div>
                         <h3>Starter</h3>
-                        <p>Para provedores iniciantes</p>
+                        <p>Para iniciar sua transformação digital</p>
                     </div>
-                    <div class="pricing-price">
-                        <span class="currency">R$</span>
-                        <span class="amount">297</span>
-                        <span class="period">/mês</span>
+                    <div class="card-price">
+                        <span class="price-currency">R$</span>
+                        <span class="price-amount" data-monthly="297" data-yearly="237">297</span>
+                        <span class="price-period">/mês</span>
                     </div>
-                    <ul class="pricing-features">
-                        <li>✓ Até 500 clientes</li>
-                        <li>✓ App Android</li>
-                        <li>✓ Painel Admin</li>
-                        <li>✓ Push Notifications</li>
-                        <li>✓ Suporte por email</li>
+                    <ul class="card-features">
+                        <li><span class="cf-check">✓</span> Até 500 clientes</li>
+                        <li><span class="cf-check">✓</span> App Android</li>
+                        <li><span class="cf-check">✓</span> Painel Admin completo</li>
+                        <li><span class="cf-check">✓</span> Push Notifications</li>
+                        <li><span class="cf-check">✓</span> Suporte por email</li>
+                        <li class="cf-disabled"><span class="cf-x">✕</span> App iOS</li>
+                        <li class="cf-disabled"><span class="cf-x">✕</span> Múltiplos layouts</li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline">Começar Agora</a>
+                    <a href="#contact" class="btn btn-outline btn-full">Começar Agora</a>
                 </div>
-                <div class="pricing-card featured">
-                    <div class="pricing-badge">Mais Popular</div>
-                    <div class="pricing-header">
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Mais Escolhido</div>
+                    <div class="card-header">
+                        <div class="plan-icon">⚡</div>
                         <h3>Professional</h3>
                         <p>Para provedores em crescimento</p>
                     </div>
-                    <div class="pricing-price">
-                        <span class="currency">R$</span>
-                        <span class="amount">497</span>
-                        <span class="period">/mês</span>
+                    <div class="card-price">
+                        <span class="price-currency">R$</span>
+                        <span class="price-amount" data-monthly="497" data-yearly="397">497</span>
+                        <span class="price-period">/mês</span>
                     </div>
-                    <ul class="pricing-features">
-                        <li>✓ Até 2000 clientes</li>
-                        <li>✓ App Android + iOS</li>
-                        <li>✓ Painel Admin</li>
-                        <li>✓ Push Notifications</li>
-                        <li>✓ Integração SGP</li>
-                        <li>✓ Suporte prioritário</li>
+                    <ul class="card-features">
+                        <li><span class="cf-check">✓</span> Até 2.000 clientes</li>
+                        <li><span class="cf-check">✓</span> App Android + iOS</li>
+                        <li><span class="cf-check">✓</span> Painel Admin completo</li>
+                        <li><span class="cf-check">✓</span> Push Notifications</li>
+                        <li><span class="cf-check">✓</span> Integração SGP</li>
+                        <li><span class="cf-check">✓</span> Suporte prioritário</li>
+                        <li><span class="cf-check">✓</span> 3 layouts inclusos</li>
                     </ul>
-                    <a href="#contact" class="btn btn-primary">Começar Agora</a>
+                    <a href="#contact" class="btn btn-primary btn-glow btn-full">Começar Agora</a>
                 </div>
                 <div class="pricing-card">
-                    <div class="pricing-header">
+                    <div class="card-header">
+                        <div class="plan-icon">🏢</div>
                         <h3>Enterprise</h3>
-                        <p>Para grandes provedores</p>
+                        <p>Para grandes operações</p>
                     </div>
-                    <div class="pricing-price">
-                        <span class="currency">R$</span>
-                        <span class="amount">997</span>
-                        <span class="period">/mês</span>
+                    <div class="card-price">
+                        <span class="price-currency">R$</span>
+                        <span class="price-amount" data-monthly="997" data-yearly="797">997</span>
+                        <span class="price-period">/mês</span>
                     </div>
-                    <ul class="pricing-features">
-                        <li>✓ Clientes ilimitados</li>
-                        <li>✓ App Android + iOS</li>
-                        <li>✓ Múltiplos layouts</li>
-                        <li>✓ API personalizada</li>
-                        <li>✓ Gerente de conta</li>
-                        <li>✓ SLA 99.9%</li>
+                    <ul class="card-features">
+                        <li><span class="cf-check">✓</span> Clientes ilimitados</li>
+                        <li><span class="cf-check">✓</span> App Android + iOS</li>
+                        <li><span class="cf-check">✓</span> API personalizada</li>
+                        <li><span class="cf-check">✓</span> Todos os layouts</li>
+                        <li><span class="cf-check">✓</span> Gerente de conta</li>
+                        <li><span class="cf-check">✓</span> SLA 99.9%</li>
+                        <li><span class="cf-check">✓</span> Onboarding dedicado</li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline">Falar com Vendas</a>
+                    <a href="#contact" class="btn btn-outline btn-full">Falar com Vendas</a>
                 </div>
             </div>
         </div>
@@ -236,40 +554,66 @@
     <section class="testimonials">
         <div class="container">
             <div class="section-header">
-                <span class="section-badge">Depoimentos</span>
-                <h2>O que nossos clientes <span class="gradient-text">dizem</span></h2>
+                <span class="section-tag">Resultados Reais</span>
+                <h2>O que provedores dizem<br><span class="gradient-text">sobre o App Unify</span></h2>
             </div>
-            <div class="testimonials-grid">
-                <div class="testimonial-card">
-                    <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
-                    <p>"Reduziu em 40% as ligações no suporte. Os clientes resolvem tudo pelo app!"</p>
-                    <div class="testimonial-author">
-                        <div class="author-avatar">JC</div>
-                        <div>
-                            <div class="author-name">João Carlos</div>
-                            <div class="author-company">Speed Net Telecom</div>
+            <div class="testimonials-slider">
+                <div class="testimonial-track" id="testimonialTrack">
+                    <div class="testimonial-card">
+                        <div class="tc-content">
+                            <div class="tc-stars">★★★★★</div>
+                            <p>"Reduziu 40% das ligações no suporte. Os clientes resolvem tudo pelo app sem precisar
+                                ligar!"</p>
+                        </div>
+                        <div class="tc-author">
+                            <div class="tc-avatar" style="background: linear-gradient(135deg, #6366F1, #8B5CF6);">JC
+                            </div>
+                            <div>
+                                <div class="tc-name">João Carlos</div>
+                                <div class="tc-role">Diretor - Speed Net Telecom</div>
+                            </div>
+                        </div>
+                        <div class="tc-metric">
+                            <span class="metric-value">-40%</span>
+                            <span class="metric-label">chamados</span>
                         </div>
                     </div>
-                </div>
-                <div class="testimonial-card">
-                    <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
-                    <p>"O app com nossa marca passou credibilidade. Os clientes amaram!"</p>
-                    <div class="testimonial-author">
-                        <div class="author-avatar">MS</div>
-                        <div>
-                            <div class="author-name">Maria Santos</div>
-                            <div class="author-company">Vibe Telecom</div>
+                    <div class="testimonial-card">
+                        <div class="tc-content">
+                            <div class="tc-stars">★★★★★</div>
+                            <p>"O app com nossa marca passou credibilidade profissional. Nossos clientes amaram a
+                                experiência!"</p>
+                        </div>
+                        <div class="tc-author">
+                            <div class="tc-avatar" style="background: linear-gradient(135deg, #10B981, #34D399);">MS
+                            </div>
+                            <div>
+                                <div class="tc-name">Maria Santos</div>
+                                <div class="tc-role">CEO - Vibe Telecom</div>
+                            </div>
+                        </div>
+                        <div class="tc-metric">
+                            <span class="metric-value">4.9★</span>
+                            <span class="metric-label">avaliação</span>
                         </div>
                     </div>
-                </div>
-                <div class="testimonial-card">
-                    <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
-                    <p>"Push notification de fatura aumentou nossa taxa de pagamento em 25%."</p>
-                    <div class="testimonial-author">
-                        <div class="author-avatar">RP</div>
-                        <div>
-                            <div class="author-name">Roberto Pereira</div>
-                            <div class="author-company">Fibra Max</div>
+                    <div class="testimonial-card">
+                        <div class="tc-content">
+                            <div class="tc-stars">★★★★★</div>
+                            <p>"Push notification de fatura vencendo aumentou nossa taxa de pagamento em dia em 25%!"
+                            </p>
+                        </div>
+                        <div class="tc-author">
+                            <div class="tc-avatar" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">RP
+                            </div>
+                            <div>
+                                <div class="tc-name">Roberto Pereira</div>
+                                <div class="tc-role">Gerente - Fibra Max</div>
+                            </div>
+                        </div>
+                        <div class="tc-metric">
+                            <span class="metric-value">+25%</span>
+                            <span class="metric-label">pagamentos</span>
                         </div>
                     </div>
                 </div>
@@ -280,72 +624,137 @@
     <!-- FAQ -->
     <section class="faq" id="faq">
         <div class="container">
-            <div class="section-header">
-                <span class="section-badge">FAQ</span>
-                <h2>Perguntas <span class="gradient-text">Frequentes</span></h2>
-            </div>
-            <div class="faq-list">
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Quanto tempo leva para ter meu app?
-                        <span class="faq-icon">+</span>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Após a contratação e personalização, seu app estará na Play Store em até 48 horas úteis.</p>
-                    </div>
+            <div class="faq-layout">
+                <div class="faq-header">
+                    <span class="section-tag">FAQ</span>
+                    <h2>Perguntas<br><span class="gradient-text">Frequentes</span></h2>
+                    <p>Não encontrou sua dúvida? <a href="#contact">Fale conosco</a></p>
                 </div>
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Preciso de conhecimento técnico?
-                        <span class="faq-icon">+</span>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Não! O painel admin é super intuitivo. Qualquer pessoa consegue configurar cores, logo e enviar notificações.</p>
+                <div class="faq-list">
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>Quanto tempo leva para ter meu app?</span>
+                            <span class="faq-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Após a contratação e envio das informações (logo, cores, dados), seu app estará na Play
+                                Store em <strong>até 48 horas úteis</strong>.</p>
+                        </div>
                     </div>
-                </div>
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Integra com meu sistema de gestão?
-                        <span class="faq-icon">+</span>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Sim! Temos integração nativa com SGP e podemos adaptar para outros sistemas via API.</p>
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>Preciso de conhecimento técnico?</span>
+                            <span class="faq-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Não! O painel admin é super intuitivo. Qualquer pessoa consegue configurar cores, enviar
+                                notificações e gerenciar tudo.</p>
+                        </div>
                     </div>
-                </div>
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Posso cancelar a qualquer momento?
-                        <span class="faq-icon">+</span>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Sim, sem multa ou fidelidade. Você pode cancelar quando quiser.</p>
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>Integra com meu sistema de gestão?</span>
+                            <span class="faq-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Sim! Temos integração nativa com <strong>SGP</strong> e podemos adaptar para outros
+                                sistemas via API.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>E se eu quiser cancelar?</span>
+                            <span class="faq-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Sem multa, sem fidelidade. Você pode cancelar a qualquer momento sem burocracia.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>O app fica com minha marca mesmo?</span>
+                            <span class="faq-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>100%! O app aparece com o nome do seu provedor na Play Store, seu logo, suas cores e
+                                informações de contato.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- CTA -->
+    <!-- CTA Section -->
     <section class="cta" id="contact">
+        <div class="cta-bg">
+            <div class="cta-orb orb-1"></div>
+            <div class="cta-orb orb-2"></div>
+        </div>
         <div class="container">
             <div class="cta-content">
-                <h2>Pronto para modernizar seu provedor?</h2>
-                <p>Agende uma demonstração gratuita e veja o App Unify em ação.</p>
-                <form class="cta-form" id="contactForm">
-                    <div class="form-row">
-                        <input type="text" placeholder="Seu nome" required>
-                        <input type="text" placeholder="Nome do provedor" required>
+                <div class="cta-left">
+                    <span class="section-tag section-tag-light">Pronto para começar?</span>
+                    <h2>Transforme a experiência<br>dos seus clientes hoje</h2>
+                    <p>Agende uma demonstração gratuita e veja o App Unify em ação no seu provedor.</p>
+                    <div class="cta-benefits">
+                        <div class="cta-benefit">
+                            <span class="cb-icon">✓</span>
+                            <span>Demo personalizada</span>
+                        </div>
+                        <div class="cta-benefit">
+                            <span class="cb-icon">✓</span>
+                            <span>Sem compromisso</span>
+                        </div>
+                        <div class="cta-benefit">
+                            <span class="cb-icon">✓</span>
+                            <span>Resposta em 24h</span>
+                        </div>
                     </div>
-                    <div class="form-row">
-                        <input type="email" placeholder="Email" required>
-                        <input type="tel" placeholder="WhatsApp" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-lg btn-full">
-                        Solicitar Demonstração Gratuita
-                        <span class="btn-arrow">→</span>
-                    </button>
-                </form>
-                <p class="cta-note">🔒 Seus dados estão seguros. Não enviamos spam.</p>
+                </div>
+                <div class="cta-form-container">
+                    <form class="cta-form" id="contactForm">
+                        <div class="form-group">
+                            <input type="text" id="nome" placeholder=" " required>
+                            <label for="nome">Seu nome</label>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" id="provedor" placeholder=" " required>
+                            <label for="provedor">Nome do provedor</label>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" id="email" placeholder=" " required>
+                            <label for="email">Email corporativo</label>
+                        </div>
+                        <div class="form-group">
+                            <input type="tel" id="whatsapp" placeholder=" " required>
+                            <label for="whatsapp">WhatsApp</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-glow btn-full btn-lg">
+                            <span>Agendar Demonstração</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                        <p class="form-note">🔒 Seus dados estão seguros. Zero spam.</p>
+                    </form>
+                </div>
             </div>
         </div>
     </section>
@@ -353,32 +762,79 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <div class="footer-content">
+            <div class="footer-main">
                 <div class="footer-brand">
                     <a href="#" class="logo">
-                        <span class="logo-icon">📱</span>
-                        <span class="logo-text">App<span class="highlight">Unify</span></span>
+                        <div class="logo-icon">
+                            <svg viewBox="0 0 40 40" fill="none">
+                                <rect width="40" height="40" rx="10" fill="url(#logoGrad2)" />
+                                <path d="M12 28V12L20 20L28 12V28" stroke="white" stroke-width="3"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                                <defs>
+                                    <linearGradient id="logoGrad2" x1="0" y1="0" x2="40" y2="40">
+                                        <stop stop-color="#6366F1" />
+                                        <stop offset="1" stop-color="#8B5CF6" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <span class="logo-text">App<span class="gradient-text">Unify</span></span>
                     </a>
-                    <p>Sistema de atendimento white-label para provedores de internet.</p>
+                    <p>Sistema completo de atendimento white-label para provedores de internet.</p>
+                    <div class="footer-social">
+                        <a href="#" class="social-link">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
+                            </svg>
+                        </a>
+                        <a href="#" class="social-link">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                            </svg>
+                        </a>
+                        <a href="#" class="social-link">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                            </svg>
+                        </a>
+                    </div>
                 </div>
                 <div class="footer-links">
-                    <h4>Links</h4>
+                    <h4>Produto</h4>
                     <a href="#features">Recursos</a>
                     <a href="#pricing">Preços</a>
-                    <a href="#faq">FAQ</a>
+                    <a href="#demo">Demo</a>
+                    <a href="#">Changelog</a>
                 </div>
                 <div class="footer-links">
-                    <h4>Contato</h4>
-                    <a href="mailto:contato@appunify.com.br">contato@appunify.com.br</a>
-                    <a href="https://wa.me/5511999999999">WhatsApp</a>
+                    <h4>Empresa</h4>
+                    <a href="#">Sobre</a>
+                    <a href="#">Blog</a>
+                    <a href="#">Carreiras</a>
+                    <a href="#contact">Contato</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Suporte</h4>
+                    <a href="#">Central de Ajuda</a>
+                    <a href="#">Documentação</a>
+                    <a href="#">Status</a>
+                    <a href="#">API</a>
                 </div>
             </div>
             <div class="footer-bottom">
                 <p>© 2026 App Unify. Todos os direitos reservados.</p>
+                <div class="footer-legal">
+                    <a href="#">Termos</a>
+                    <a href="#">Privacidade</a>
+                </div>
             </div>
         </div>
     </footer>
 
     <script src="script.js"></script>
 </body>
+
 </html>
