@@ -10,12 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initSmoothScroll();
     initNavbarScroll();
     initStatsCounter();
-    initFeatureTabs();
     initPricingToggle();
     initFAQ();
     initScrollAnimations();
     initContactForm();
-    initTestimonialSlider();
+    initTimeline();
+    initSatisfactionBars();
 
     console.log('🚀 App Unify Premium Landing loaded!');
 });
@@ -36,7 +36,6 @@ function initCursorGlow() {
     });
 
     function animate() {
-        // Smooth follow
         currentX += (mouseX - currentX) * 0.1;
         currentY += (mouseY - currentY) * 0.1;
 
@@ -63,7 +62,6 @@ function initMobileMenu() {
         toggle.classList.toggle('active');
     });
 
-    // Close on link click
     navLinks.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', () => {
             navLinks.classList.remove('active');
@@ -71,7 +69,6 @@ function initMobileMenu() {
         });
     });
 
-    // Add mobile menu styles dynamically
     const style = document.createElement('style');
     style.textContent = `
         @media (max-width: 768px) {
@@ -111,7 +108,7 @@ function initSmoothScroll() {
             e.preventDefault();
             const target = document.querySelector(this.getAttribute('href'));
             if (target) {
-                const offset = 80; // Navbar height
+                const offset = 80;
                 const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
                 window.scrollTo({ top, behavior: 'smooth' });
             }
@@ -126,8 +123,6 @@ function initNavbarScroll() {
     const navbar = document.querySelector('.navbar');
     if (!navbar) return;
 
-    let lastScroll = 0;
-
     window.addEventListener('scroll', () => {
         const currentScroll = window.pageYOffset;
 
@@ -138,8 +133,6 @@ function initNavbarScroll() {
             navbar.style.background = 'rgba(10, 10, 15, 0.8)';
             navbar.style.boxShadow = 'none';
         }
-
-        lastScroll = currentScroll;
     });
 }
 
@@ -158,8 +151,6 @@ function initStatsCounter() {
         const animate = (currentTime) => {
             const elapsed = currentTime - start;
             const progress = Math.min(elapsed / duration, 1);
-
-            // Easing function for smooth animation
             const easeOutQuart = 1 - Math.pow(1 - progress, 4);
             const current = Math.floor(target * easeOutQuart);
 
@@ -175,7 +166,6 @@ function initStatsCounter() {
         requestAnimationFrame(animate);
     };
 
-    // Intersection Observer for triggering animation
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -186,58 +176,6 @@ function initStatsCounter() {
     }, { threshold: 0.5 });
 
     stats.forEach(stat => observer.observe(stat));
-}
-
-// ===================================
-// Feature Tabs
-// ===================================
-function initFeatureTabs() {
-    const tabs = document.querySelectorAll('.feature-tab');
-    const panels = document.querySelectorAll('.feature-panel');
-
-    if (!tabs.length || !panels.length) return;
-
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const tabId = tab.dataset.tab;
-
-            // Update tabs
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-
-            // Update panels with fade effect
-            panels.forEach(panel => {
-                panel.classList.remove('active');
-                if (panel.id === `panel-${tabId}`) {
-                    panel.classList.add('active');
-                    // Trigger animations in panel
-                    triggerPanelAnimations(panel);
-                }
-            });
-        });
-    });
-}
-
-function triggerPanelAnimations(panel) {
-    // Reset and replay speed animation
-    const speedProgress = panel.querySelector('.speed-progress');
-    if (speedProgress) {
-        speedProgress.style.animation = 'none';
-        speedProgress.offsetHeight; // Trigger reflow
-        speedProgress.style.animation = 'speedAnim 2s ease-out forwards';
-    }
-
-    // Animate chat bubbles
-    const chatBubbles = panel.querySelectorAll('.chat-bubble');
-    chatBubbles.forEach((bubble, i) => {
-        bubble.style.opacity = '0';
-        bubble.style.transform = 'translateY(20px)';
-        setTimeout(() => {
-            bubble.style.transition = 'all 0.4s ease';
-            bubble.style.opacity = '1';
-            bubble.style.transform = 'translateY(0)';
-        }, i * 200);
-    });
 }
 
 // ===================================
@@ -255,8 +193,6 @@ function initPricingToggle() {
         amounts.forEach(amount => {
             const monthly = amount.dataset.monthly;
             const yearly = amount.dataset.yearly;
-
-            // Animate the number change
             const current = parseInt(amount.textContent);
             const target = isYearly ? parseInt(yearly) : parseInt(monthly);
 
@@ -271,7 +207,6 @@ function animateNumber(el, from, to, duration) {
     const animate = (currentTime) => {
         const elapsed = currentTime - start;
         const progress = Math.min(elapsed / duration, 1);
-
         const current = Math.floor(from + (to - from) * progress);
         el.textContent = current;
 
@@ -297,14 +232,12 @@ function initFAQ() {
         question.addEventListener('click', () => {
             const isActive = item.classList.contains('active');
 
-            // Close all others
             items.forEach(other => {
                 if (other !== item) {
                     other.classList.remove('active');
                 }
             });
 
-            // Toggle current
             item.classList.toggle('active', !isActive);
         });
     });
@@ -315,7 +248,7 @@ function initFAQ() {
 // ===================================
 function initScrollAnimations() {
     const elements = document.querySelectorAll(
-        '.feature-card, .pricing-card, .testimonial-card, .demo-feature, .step, .cta-form-container'
+        '.feature-card, .pricing-card, .testimonial-card, .sec-badge, .cta-form-container'
     );
 
     elements.forEach(el => {
@@ -337,13 +270,8 @@ function initScrollAnimations() {
 
     elements.forEach(el => observer.observe(el));
 
-    // Stagger animation for grid items
     document.querySelectorAll('.pricing-cards .pricing-card').forEach((card, i) => {
         card.style.transitionDelay = `${i * 0.1}s`;
-    });
-
-    document.querySelectorAll('.demo-features .demo-feature').forEach((feature, i) => {
-        feature.style.transitionDelay = `${i * 0.1}s`;
     });
 }
 
@@ -360,7 +288,6 @@ function initContactForm() {
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalHTML = submitBtn.innerHTML;
 
-        // Get form data
         const formData = {
             nome: document.getElementById('nome').value,
             provedor: document.getElementById('provedor').value,
@@ -368,7 +295,6 @@ function initContactForm() {
             whatsapp: document.getElementById('whatsapp').value
         };
 
-        // Loading state
         submitBtn.innerHTML = `
             <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="60" stroke-linecap="round">
@@ -380,10 +306,8 @@ function initContactForm() {
         submitBtn.disabled = true;
 
         try {
-            // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Success state
             submitBtn.innerHTML = `
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 6L9 17l-5-5"/>
@@ -392,13 +316,9 @@ function initContactForm() {
             `;
             submitBtn.style.background = 'linear-gradient(135deg, #10B981, #34D399)';
 
-            // Reset form
             form.reset();
-
-            // Show success message
             showToast('success', `Obrigado, ${formData.nome}! Entraremos em contato em breve.`);
 
-            // Reset button after delay
             setTimeout(() => {
                 submitBtn.innerHTML = originalHTML;
                 submitBtn.style.background = '';
@@ -434,7 +354,6 @@ function showToast(type, message) {
         <span class="toast-message">${message}</span>
     `;
 
-    // Add toast styles if not exists
     if (!document.getElementById('toastStyles')) {
         const style = document.createElement('style');
         style.id = 'toastStyles';
@@ -489,43 +408,53 @@ function showToast(type, message) {
 }
 
 // ===================================
-// Testimonial Slider
+// Timeline Animation
 // ===================================
-function initTestimonialSlider() {
-    const track = document.getElementById('testimonialTrack');
-    if (!track) return;
+function initTimeline() {
+    const timeline = document.querySelector('.timeline');
+    const steps = document.querySelectorAll('.timeline-step');
 
-    // Clone cards for infinite scroll effect
-    const cards = track.querySelectorAll('.testimonial-card');
-    cards.forEach(card => {
-        const clone = card.cloneNode(true);
-        track.appendChild(clone);
-    });
+    if (!timeline || !steps.length) return;
 
-    let scrollAmount = 0;
-    const cardWidth = 404; // card width + gap
-    const totalWidth = cardWidth * cards.length;
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                timeline.classList.add('animated');
 
-    function autoScroll() {
-        scrollAmount += 0.5;
-        if (scrollAmount >= totalWidth) {
-            scrollAmount = 0;
-        }
-        track.style.transform = `translateX(-${scrollAmount}px)`;
-        requestAnimationFrame(autoScroll);
-    }
+                steps.forEach((step, i) => {
+                    setTimeout(() => {
+                        step.classList.add('active');
+                    }, i * 500);
+                });
 
-    // Start auto scroll
-    autoScroll();
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.3 });
 
-    // Pause on hover
-    track.addEventListener('mouseenter', () => {
-        track.style.animationPlayState = 'paused';
-    });
+    observer.observe(timeline);
+}
 
-    track.addEventListener('mouseleave', () => {
-        track.style.animationPlayState = 'running';
-    });
+// ===================================
+// Satisfaction Bars
+// ===================================
+function initSatisfactionBars() {
+    const bars = document.querySelectorAll('.sat-bar');
+
+    if (!bars.length) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const value = entry.target.dataset.value;
+                entry.target.style.setProperty('--value', value);
+                entry.target.classList.add('animated');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.5 });
+
+    bars.forEach(bar => observer.observe(bar));
 }
 
 // ===================================
@@ -534,14 +463,12 @@ function initTestimonialSlider() {
 window.addEventListener('scroll', () => {
     const scrollY = window.pageYOffset;
 
-    // Parallax for orbs
     const orbs = document.querySelectorAll('.gradient-orb');
     orbs.forEach((orb, i) => {
         const speed = 0.05 * (i + 1);
         orb.style.transform = `translateY(${scrollY * speed}px)`;
     });
 
-    // Parallax for phone
     const phone = document.querySelector('.phone');
     if (phone && scrollY < window.innerHeight) {
         phone.style.transform = `translateY(${scrollY * 0.1}px)`;
@@ -552,7 +479,6 @@ window.addEventListener('scroll', () => {
 // Phone Demo Animations
 // ===================================
 (function initPhoneDemo() {
-    // Animate speed gauge on load
     setTimeout(() => {
         const gaugeFill = document.querySelector('.gauge-fill');
         if (gaugeFill) {
@@ -560,7 +486,6 @@ window.addEventListener('scroll', () => {
         }
     }, 1500);
 
-    // Random notification effect
     const floatCards = document.querySelectorAll('.float-card');
 
     function showNotification(card) {
