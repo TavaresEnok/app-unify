@@ -7,6 +7,8 @@ import '../../core/providers/providers.dart';
 import '../../core/utils/shared_theme_helper.dart';
 import '../../core/services/diagnostico_service.dart';
 import '../../core/models/diagnostico_state.dart';
+import '../../core/models/test_mode.dart';
+import '../../core/services/diagnostic_integration_helper.dart';
 
 class SharedSpeedTestPage extends ConsumerStatefulWidget {
   const SharedSpeedTestPage({super.key});
@@ -180,8 +182,50 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
     );
   }
 
-  void _startTest() {
-    _service.runSpeedTestsOnly();
+  Future<void> _startTest() async {
+    await _service.runSpeedTestsOnly();
+    if (mounted) {
+      _saveResult();
+    }
+  }
+
+  Future<void> _saveResult() async {
+    final state = _service.currentState;
+
+    // Check if test was successful (at least one result)
+    if (state.customDownloadResultMbps > 0 ||
+        state.fastDownloadResultMbps > 0) {
+      try {
+        final config = ref.read(configurationProvider);
+        final auth = ref.read(authNotifierProvider);
+        final providerId = config.providerConfig?.id;
+
+        // Extract client info if user is logged in
+        Map<String, dynamic>? clientInfo;
+        final user = auth.value;
+
+        if (user != null) {
+          clientInfo = {
+            'id': user
+                .cpfCnpj, // Using CPF/CNPJ as ID if contractId is null? Or just keep it map
+            'name': user.nome,
+            'plan': user.plano,
+          };
+          // If we have contractId, maybe use it? But cpfCnpj is a good key.
+        }
+
+        await DiagnosticIntegrationHelper().saveTestResult(
+          state: state,
+          testMode: TestMode
+              .quick, // Speed test page is usually "Quick" or "SpeedOnly"
+          providerId: providerId,
+          clientInfo: clientInfo,
+          contractedSpeed: null, // We could parse from plan if available
+        );
+      } catch (e) {
+        debugPrint('Error auto-saving result: $e');
+      }
+    }
   }
 
   void _stopTest() {

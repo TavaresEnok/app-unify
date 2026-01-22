@@ -10,11 +10,13 @@ import '../services/test_history_service.dart';
 class DiagnosticIntegrationHelper {
   final TestHistoryService _historyService = TestHistoryService();
 
-  // Save completed test to history
+  // Save completed test to history (local + cloud)
   Future<void> saveTestResult({
     required DiagnosticoState state,
     required TestMode testMode,
     double? contractedSpeed,
+    String? providerId,
+    Map<String, dynamic>? clientInfo,
   }) async {
     // Calculate health score
     final healthScore = NetworkHealthScore.calculate(
@@ -49,8 +51,17 @@ class DiagnosticIntegrationHelper {
       },
     );
 
-    // Save to history
+    // Save to local history
     await _historyService.saveTest(entry);
+
+    // Save to cloud if provider and client info available
+    if (providerId != null && clientInfo != null) {
+      await _historyService.saveTestToCloud(
+        entry: entry,
+        providerId: providerId,
+        clientInfo: clientInfo,
+      );
+    }
   }
 
   // Get comparison with last test

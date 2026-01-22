@@ -1,7 +1,12 @@
 // Test History Service
-// Persists and retrieves test history using SharedPreferences
+// Persists and retrieves test history using SharedPreferences and Firebase
 
 import 'dart:convert';
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/test_history.dart';
 
@@ -9,7 +14,9 @@ class TestHistoryService {
   static const String _key = 'test_history';
   static const int _maxEntries = 30;
 
-  // Save test result
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Save test result locally
   Future<void> saveTest(TestHistoryEntry entry) async {
     final prefs = await SharedPreferences.getInstance();
     final history = await getHistory();
@@ -17,7 +24,7 @@ class TestHistoryService {
     // Add new entry at the beginning
     history.insert(0, entry);
 
-    // Keep only last 30 entries
+    // Keep only last 30 entries locally
     if (history.length > _maxEntries) {
       history.removeRange(_maxEntries, history.length);
     }
@@ -25,6 +32,100 @@ class TestHistoryService {
     // Save to SharedPreferences
     final jsonList = history.map((e) => e.toJson()).toList();
     await prefs.setString(_key, jsonEncode(jsonList));
+  }
+
+  /// Save test result to Firestore for remote access
+  /// [entry] - The test result to save
+  /// [providerId] - The provider's Firebase document ID
+  /// [clientInfo] - Map containing 'id', 'name', 'plan' from SGP
+  Future<void> saveTestToCloud({
+    required TestHistoryEntry entry,
+    required String providerId,
+    required Map<String, dynamic> clientInfo,
+  }) async {
+    try {
+      final deviceInfo = await _getDeviceInfo();
+      final connectionType = await _getConnectionType();
+
+      await _firestore
+          .collection('providers')
+          .doc(providerId)
+          .collection('diagnostic_results')
+          .add({
+        // Test data
+        ...entry.toJson(),
+        // Client info from SGP
+        'clientId': clientInfo['id'] ?? '',
+        'clientName': clientInfo['name'] ?? 'Desconhecido',
+        'clientPlan': clientInfo['plan'] ?? '',
+        // Connection info
+        'connectionType': connectionType,
+        // Device info
+        'deviceInfo': deviceInfo,
+        // Server timestamp for consistency
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print(
+          '✅ Diagnostic result saved to cloud for client: ${clientInfo['name']}');
+    } catch (e) {
+      print('❌ Error saving diagnostic to cloud: $e');
+      // Don't throw - cloud save failure shouldn't break the app flow
+    }
+  }
+
+  /// Get connection type (wifi, mobile, ethernet)
+  Future<String> _getConnectionType() async {
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      switch (connectivityResult) {
+        case ConnectivityResult.wifi:
+          return 'wifi';
+        case ConnectivityResult.mobile:
+          return 'mobile';
+        case ConnectivityResult.ethernet:
+          return 'ethernet';
+        default:
+          return 'unknown';
+      }
+    } catch (e) {
+      return 'unknown';
+    }
+  }
+
+  /// Get device information
+  Future<Map<String, dynamic>> _getDeviceInfo() async {
+    try {
+      final deviceInfoPlugin = DeviceInfoPlugin();
+      final packageInfo = await PackageInfo.fromPlatform();
+
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfoPlugin.androidInfo;
+        return {
+          'model': '${androidInfo.manufacturer} ${androidInfo.model}',
+          'os': 'Android ${androidInfo.version.release}',
+          'appVersion': packageInfo.version,
+        };
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfoPlugin.iosInfo;
+        return {
+          'model': iosInfo.utsname.machine,
+          'os': 'iOS ${iosInfo.systemVersion}',
+          'appVersion': packageInfo.version,
+        };
+      }
+      return {
+        'model': 'Unknown',
+        'os': Platform.operatingSystem,
+        'appVersion': packageInfo.version,
+      };
+    } catch (e) {
+      return {
+        'model': 'Unknown',
+        'os': 'Unknown',
+        'appVersion': 'Unknown',
+      };
+    }
   }
 
   // Get all history
