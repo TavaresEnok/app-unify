@@ -84,7 +84,7 @@ export default function DiagnosticHistoryPage() {
         if (!providerId) return;
 
         const q = query(
-            collection(db, 'providers', providerId, 'diagnostic_results'),
+            collection(db, 'provedores', providerId, 'diagnostic_results'),
             orderBy('createdAt', 'desc')
         );
 
@@ -107,7 +107,7 @@ export default function DiagnosticHistoryPage() {
     const handleDelete = async (id: string) => {
         if (!providerId) return;
         try {
-            await deleteDoc(doc(db, 'providers', providerId, 'diagnostic_results', id));
+            await deleteDoc(doc(db, 'provedores', providerId, 'diagnostic_results', id));
             toast.success('Registro excluído com sucesso');
         } catch (error) {
             console.error('Error deleting:', error);

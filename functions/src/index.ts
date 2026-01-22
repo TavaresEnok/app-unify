@@ -176,7 +176,7 @@ export const handleUpdateProviderDetailsRequest = onDocumentCreated({
             throw new Error("Permissão negada.");
         }
 
-        const providerRef = db.collection("providers").doc(providerId);
+        const providerRef = db.collection("provedores").doc(providerId);
 
         // Prepara dados para atualização
         const updateData: any = {
