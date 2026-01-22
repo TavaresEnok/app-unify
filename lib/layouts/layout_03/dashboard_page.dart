@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/providers.dart';
 import 'theme.dart';
 import 'widgets/neu_button.dart';
 import 'widgets/feature_tile.dart';
@@ -180,13 +182,18 @@ class _DashboardPageState extends State<DashboardPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'NetConnect',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Layout03Theme.textDark,
-                  ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final configProvider = ref.watch(configurationProvider);
+                    return Text(
+                      configProvider.providerConfig?.name ?? 'Seu Provedor',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Layout03Theme.textDark,
+                      ),
+                    );
+                  },
                 ),
                 Text(
                   'Olá, ${widget.customerName.split(' ').first}! 👋',
