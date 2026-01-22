@@ -19,7 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ========================================
 // CONFIGURAÇÃO DO PROVEDOR
 // ========================================
-const String providerId = '3kdrQFcCkRga234iB1YX';
+const String providerId = 'vibe';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
