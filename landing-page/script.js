@@ -1,24 +1,21 @@
 // ===================================
-// App Unify Premium Landing Page
-// Advanced Interactions & Effects
+// App Unify Premium Hybrid
+// Script.js
 // ===================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize all modules
+    // Initialize Core Modules
     initCursorGlow();
     initMobileMenu();
     initSmoothScroll();
     initNavbarScroll();
     initStatsCounter();
     initPricingToggle();
-    initFAQ();
     initScrollAnimations();
-    initContactForm();
-    initTimeline();
-    initSatisfactionBars();
-    initThemeToggle();
+    initTestimonialSlider();
+    initContactForm(); // Keep form logic
 
-    console.log('🚀 App Unify Premium Landing loaded!');
+    console.log('🚀 App Unify Hybrid Premium loaded!');
 });
 
 // ===================================
@@ -70,34 +67,38 @@ function initMobileMenu() {
         });
     });
 
-    const style = document.createElement('style');
-    style.textContent = `
-        @media (max-width: 768px) {
-            .nav-links.active {
-                display: flex;
-                flex-direction: column;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: rgba(10, 10, 15, 0.98);
-                backdrop-filter: blur(20px);
-                padding: 24px;
-                gap: 16px;
-                border-bottom: 1px solid rgba(255,255,255,0.1);
+    // Add CSS for mobile menu if not present
+    if (!document.getElementById('mobileMenuStyles')) {
+        const style = document.createElement('style');
+        style.id = 'mobileMenuStyles';
+        style.textContent = `
+            @media (max-width: 768px) {
+                .nav-links.active {
+                    display: flex;
+                    flex-direction: column;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: rgba(5, 5, 10, 0.95);
+                    backdrop-filter: blur(20px);
+                    padding: 30px;
+                    gap: 20px;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                .mobile-toggle.active span:nth-child(1) {
+                    transform: rotate(45deg) translate(5px, 5px);
+                }
+                .mobile-toggle.active span:nth-child(2) {
+                    opacity: 0;
+                }
+                .mobile-toggle.active span:nth-child(3) {
+                    transform: rotate(-45deg) translate(5px, -5px);
+                }
             }
-            .mobile-toggle.active span:nth-child(1) {
-                transform: rotate(45deg) translate(5px, 5px);
-            }
-            .mobile-toggle.active span:nth-child(2) {
-                opacity: 0;
-            }
-            .mobile-toggle.active span:nth-child(3) {
-                transform: rotate(-45deg) translate(5px, -5px);
-            }
-        }
-    `;
-    document.head.appendChild(style);
+        `;
+        document.head.appendChild(style);
+    }
 }
 
 // ===================================
@@ -109,7 +110,7 @@ function initSmoothScroll() {
             e.preventDefault();
             const target = document.querySelector(this.getAttribute('href'));
             if (target) {
-                const offset = 80;
+                const offset = 90;
                 const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
                 window.scrollTo({ top, behavior: 'smooth' });
             }
@@ -125,42 +126,58 @@ function initNavbarScroll() {
     if (!navbar) return;
 
     window.addEventListener('scroll', () => {
-        const currentScroll = window.pageYOffset;
-
-        if (currentScroll > 100) {
-            navbar.style.background = 'rgba(10, 10, 15, 0.95)';
+        if (window.pageYOffset > 50) {
+            navbar.style.background = 'rgba(5, 5, 10, 0.9)';
             navbar.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.3)';
         } else {
-            navbar.style.background = 'rgba(10, 10, 15, 0.8)';
+            navbar.style.background = 'rgba(5, 5, 10, 0.8)';
             navbar.style.boxShadow = 'none';
         }
     });
 }
 
 // ===================================
-// Stats Counter Animation
+// Stats Counter (Updated Selector)
 // ===================================
 function initStatsCounter() {
-    const stats = document.querySelectorAll('.stat-number[data-count]');
+    // Selects elements with data-count attribute
+    const stats = document.querySelectorAll('[data-count]');
+
     if (!stats.length) return;
 
     const animateCounter = (el) => {
-        const target = parseInt(el.dataset.count);
-        const duration = 2000;
+        const rawTarget = el.dataset.count;
+        const isFloat = rawTarget.includes('.');
+        const target = parseFloat(rawTarget);
+
+        const duration = 2000; // ms
         const start = performance.now();
 
         const animate = (currentTime) => {
             const elapsed = currentTime - start;
             const progress = Math.min(elapsed / duration, 1);
-            const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-            const current = Math.floor(target * easeOutQuart);
 
-            el.textContent = current.toLocaleString('pt-BR');
+            // EaseOutExpo
+            const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
+            let current = target * ease;
+
+            // Format number
+            if (isFloat) {
+                el.innerText = current.toFixed(1) + (rawTarget.includes('%') ? '%' : '/5');
+            } else {
+                el.innerText = '+' + Math.floor(current).toLocaleString('pt-BR') + 'k';
+            }
+
+            // Special fix for specific formats based on original text
+            // (Simpler: just reset to original text at end)
             if (progress < 1) {
                 requestAnimationFrame(animate);
             } else {
-                el.textContent = target.toLocaleString('pt-BR');
+                // Restore original format from parsing
+                if (el.dataset.count === '50000') el.innerText = '+50k';
+                if (el.dataset.count === '4.9') el.innerText = '4.9/5';
+                if (el.dataset.count === '99.9') el.innerText = '99.9%';
             }
         };
 
@@ -183,8 +200,8 @@ function initStatsCounter() {
 // Pricing Toggle
 // ===================================
 function initPricingToggle() {
-    const toggle = document.getElementById('pricingToggle');
-    const amounts = document.querySelectorAll('.price-amount');
+    const toggle = document.getElementById('billingToggle');
+    const amounts = document.querySelectorAll('.amount');
 
     if (!toggle || !amounts.length) return;
 
@@ -192,92 +209,99 @@ function initPricingToggle() {
         const isYearly = toggle.checked;
 
         amounts.forEach(amount => {
-            const monthly = amount.dataset.monthly;
-            const yearly = amount.dataset.yearly;
-            const current = parseInt(amount.textContent);
-            const target = isYearly ? parseInt(yearly) : parseInt(monthly);
+            const monthly = amount.dataset.m;
+            const yearly = amount.dataset.y;
+            const target = isYearly ? yearly : monthly;
 
-            animateNumber(amount, current, target, 300);
+            // Simple fade text swap
+            amount.style.opacity = '0';
+            setTimeout(() => {
+                amount.textContent = target;
+                amount.style.opacity = '1';
+            }, 200);
         });
-    });
-}
 
-function animateNumber(el, from, to, duration) {
-    const start = performance.now();
-
-    const animate = (currentTime) => {
-        const elapsed = currentTime - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const current = Math.floor(from + (to - from) * progress);
-        el.textContent = current;
-
-        if (progress < 1) {
-            requestAnimationFrame(animate);
-        } else {
-            el.textContent = to;
-        }
-    };
-
-    requestAnimationFrame(animate);
-}
-
-// ===================================
-// FAQ Accordion
-// ===================================
-function initFAQ() {
-    const items = document.querySelectorAll('.faq-item');
-
-    items.forEach(item => {
-        const question = item.querySelector('.faq-question');
-
-        question.addEventListener('click', () => {
-            const isActive = item.classList.contains('active');
-
-            items.forEach(other => {
-                if (other !== item) {
-                    other.classList.remove('active');
-                }
-            });
-
-            item.classList.toggle('active', !isActive);
-        });
+        // Toggle active text class
+        document.querySelectorAll('.toggle-text').forEach(el => el.classList.toggle('active'));
     });
 }
 
 // ===================================
-// Scroll Animations
+// Scroll Animations (Updated)
 // ===================================
 function initScrollAnimations() {
+    // Elements to reveal
     const elements = document.querySelectorAll(
-        '.feature-card, .pricing-card, .testimonial-card, .sec-badge, .cta-form-container'
+        '.feature-row, .pricing-card-minimal, .testimonial-card-clean, .cta-box'
     );
 
     elements.forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(40px)';
-        el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        el.style.transition = 'opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1)';
     });
 
     const observer = new IntersectionObserver((entries) => {
-        entries.forEach((entry, index) => {
+        entries.forEach((entry) => {
             if (entry.isIntersecting) {
-                setTimeout(() => {
-                    entry.target.classList.add('animate-in');
-                }, index * 50);
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
                 observer.unobserve(entry.target);
             }
         });
-    }, { threshold: 0.1, rootMargin: '-50px' });
+    }, { threshold: 0.15 });
 
     elements.forEach(el => observer.observe(el));
+}
 
-    document.querySelectorAll('.pricing-cards .pricing-card').forEach((card, i) => {
-        card.style.transitionDelay = `${i * 0.1}s`;
+// ===================================
+// Testimonials Slider (Basic Infinite)
+// ===================================
+function initTestimonialSlider() {
+    // Clone items for infinite effect
+    const track = document.querySelector('.slider-track');
+    if (!track) return;
+
+    // Copy content for smooth loop if needed, or stick to CSS scroll
+    // The clean version often uses simple CSS overflow-x which we did in styles.
+    // So this might just be for drag behavior?
+    // Let's keep it simple: Mouse Drag support
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    const wrapper = document.querySelector('.slider-wrapper');
+    if (!wrapper) return;
+
+    wrapper.addEventListener('mousedown', (e) => {
+        isDown = true;
+        wrapper.style.cursor = 'grabbing';
+        startX = e.pageX - wrapper.offsetLeft;
+        scrollLeft = wrapper.scrollLeft;
+    });
+
+    wrapper.addEventListener('mouseleave', () => {
+        isDown = false;
+        wrapper.style.cursor = 'grab';
+    });
+
+    wrapper.addEventListener('mouseup', () => {
+        isDown = false;
+        wrapper.style.cursor = 'grab';
+    });
+
+    wrapper.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - wrapper.offsetLeft;
+        const walk = (x - startX) * 2; // scroll-fast
+        wrapper.scrollLeft = scrollLeft - walk;
     });
 }
 
 // ===================================
-// Contact Form
+// Contact Form (Mock)
 // ===================================
 function initContactForm() {
     const form = document.getElementById('contactForm');
@@ -285,251 +309,26 @@ function initContactForm() {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const btn = form.querySelector('button');
+        const originalText = btn.innerText;
 
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalHTML = submitBtn.innerHTML;
+        btn.disabled = true;
+        btn.innerText = 'Enviando...';
 
-        const formData = {
-            nome: document.getElementById('nome').value,
-            provedor: document.getElementById('provedor').value,
-            email: document.getElementById('email').value,
-            whatsapp: document.getElementById('whatsapp').value
-        };
+        // Mock delay
+        await new Promise(r => setTimeout(r, 1500));
 
-        submitBtn.innerHTML = `
-            <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="60" stroke-linecap="round">
-                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-                </circle>
-            </svg>
-            <span>Enviando...</span>
-        `;
-        submitBtn.disabled = true;
+        btn.style.background = '#10B981';
+        btn.innerText = 'Enviado!';
 
-        try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            submitBtn.innerHTML = `
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 6L9 17l-5-5"/>
-                </svg>
-                <span>Enviado com sucesso!</span>
-            `;
-            submitBtn.style.background = 'linear-gradient(135deg, #10B981, #34D399)';
-
-            form.reset();
-            showToast('success', `Obrigado, ${formData.nome}! Entraremos em contato em breve.`);
-
-            setTimeout(() => {
-                submitBtn.innerHTML = originalHTML;
-                submitBtn.style.background = '';
-                submitBtn.disabled = false;
-            }, 3000);
-
-        } catch (error) {
-            submitBtn.innerHTML = `
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M15 9l-6 6M9 9l6 6"/>
-                </svg>
-                <span>Erro ao enviar</span>
-            `;
-            submitBtn.style.background = '#EF4444';
-
-            showToast('error', 'Ocorreu um erro. Tente novamente.');
-
-            setTimeout(() => {
-                submitBtn.innerHTML = originalHTML;
-                submitBtn.style.background = '';
-                submitBtn.disabled = false;
-            }, 3000);
-        }
-    });
-}
-
-function showToast(type, message) {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-        <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
-        <span class="toast-message">${message}</span>
-    `;
-
-    if (!document.getElementById('toastStyles')) {
-        const style = document.createElement('style');
-        style.id = 'toastStyles';
-        style.textContent = `
-            .toast {
-                position: fixed;
-                bottom: 24px;
-                right: 24px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 16px 24px;
-                background: #1E1E2A;
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 12px;
-                color: white;
-                font-size: 0.95rem;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-                animation: slideIn 0.4s ease, slideOut 0.4s ease forwards 4s;
-                z-index: 10000;
-            }
-            .toast-success { border-left: 4px solid #10B981; }
-            .toast-error { border-left: 4px solid #EF4444; }
-            .toast-icon {
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 0.8rem;
-            }
-            .toast-success .toast-icon { background: rgba(16,185,129,0.2); color: #10B981; }
-            .toast-error .toast-icon { background: rgba(239,68,68,0.2); color: #EF4444; }
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 4500);
-}
-
-// ===================================
-// Timeline Animation
-// ===================================
-function initTimeline() {
-    const timeline = document.querySelector('.timeline');
-    const steps = document.querySelectorAll('.timeline-step');
-
-    if (!timeline || !steps.length) return;
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                timeline.classList.add('animated');
-
-                steps.forEach((step, i) => {
-                    setTimeout(() => {
-                        step.classList.add('active');
-                    }, i * 500);
-                });
-
-                observer.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.3 });
-
-    observer.observe(timeline);
-}
-
-// ===================================
-// Satisfaction Bars
-// ===================================
-function initSatisfactionBars() {
-    const bars = document.querySelectorAll('.sat-bar');
-
-    if (!bars.length) return;
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const value = entry.target.dataset.value;
-                entry.target.style.setProperty('--value', value);
-                entry.target.classList.add('animated');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.5 });
-
-    bars.forEach(bar => observer.observe(bar));
-}
-
-// ===================================
-// Parallax Effects
-// ===================================
-window.addEventListener('scroll', () => {
-    const scrollY = window.pageYOffset;
-
-    const orbs = document.querySelectorAll('.gradient-orb');
-    orbs.forEach((orb, i) => {
-        const speed = 0.05 * (i + 1);
-        orb.style.transform = `translateY(${scrollY * speed}px)`;
-    });
-
-    const phone = document.querySelector('.phone');
-    if (phone && scrollY < window.innerHeight) {
-        phone.style.transform = `translateY(${scrollY * 0.1}px)`;
-    }
-});
-
-// ===================================
-// Phone Demo Animations
-// ===================================
-(function initPhoneDemo() {
-    setTimeout(() => {
-        const gaugeFill = document.querySelector('.gauge-fill');
-        if (gaugeFill) {
-            gaugeFill.style.strokeDashoffset = '30';
-        }
-    }, 1500);
-
-    const floatCards = document.querySelectorAll('.float-card');
-
-    function showNotification(card) {
-        card.style.opacity = '0';
-        card.style.transform = 'translateX(30px)';
+        // Show success
+        alert('Obrigado! Entraremos em contato em breve.');
 
         setTimeout(() => {
-            card.style.transition = 'all 0.5s ease';
-            card.style.opacity = '1';
-            card.style.transform = 'translateX(0)';
-        }, Math.random() * 2000);
-    }
-
-    floatCards.forEach(card => {
-        showNotification(card);
-        setInterval(() => showNotification(card), 8000);
-    });
-})();
-
-// ===================================
-// Theme Toggle
-// ===================================
-function initThemeToggle() {
-    const toggle = document.getElementById('themeToggle');
-    const root = document.documentElement;
-    const storedTheme = localStorage.getItem('theme');
-
-    // Set initial theme
-    if (storedTheme) {
-        root.setAttribute('data-theme', storedTheme);
-    }
-
-    if (!toggle) return;
-
-    toggle.addEventListener('click', () => {
-        const currentTheme = root.getAttribute('data-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        
-        root.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        
-        // Add subtle animation effect
-        toggle.style.transform = 'scale(0.9)';
-        setTimeout(() => toggle.style.transform = '', 200);
+            form.reset();
+            btn.style.background = ''; // reset
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }, 3000);
     });
 }

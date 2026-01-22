@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Unify | O App Definitivo para Provedores de Internet</title>
+    <title>App Unify | O App Premium para Provedores</title>
     <meta name="description"
-        content="Transforme a experiência dos seus clientes com o app mais completo do mercado. Faturas, suporte, velocidade e muito mais.">
+        content="O sistema definitivo para provedores. Faturas, suporte e velocidade em um app white-label premium.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -16,7 +16,6 @@
 </head>
 
 <body>
-    <!-- Cursor Glow Effect -->
     <div class="cursor-glow" id="cursorGlow"></div>
 
     <!-- Navbar -->
@@ -25,451 +24,315 @@
             <a href="#" class="logo">
                 <div class="logo-icon">
                     <svg viewBox="0 0 40 40" fill="none">
-                        <rect width="40" height="40" rx="10" fill="url(#logoGrad)" />
+                        <rect width="40" height="40" rx="12" fill="url(#logoGrad)" />
                         <path d="M12 28V12L20 20L28 12V28" stroke="white" stroke-width="3" stroke-linecap="round"
                             stroke-linejoin="round" />
                         <defs>
                             <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
-                                <stop stop-color="#6366F1" />
-                                <stop offset="1" stop-color="#8B5CF6" />
+                                <stop stop-color="#4F46E5" />
+                                <stop offset="1" stop-color="#7C3AED" />
                             </linearGradient>
                         </defs>
                     </svg>
                 </div>
-                <span class="logo-text">App<span class="gradient-text">Unify</span></span>
+                <span class="logo-text">AppUnify</span>
             </a>
             <div class="nav-links" id="navLinks">
                 <a href="#features">Recursos</a>
-                <a href="#video">Demo</a>
-                <a href="#pricing">Preços</a>
-                <a href="#contact" class="btn btn-nav">Agendar Demo</a>
+                <a href="#how-it-works">Como Funciona</a>
+                <a href="#testimonials">Casos de Sucesso</a>
+                <a href="#pricing">Planos</a>
             </div>
-            <button id="themeToggle" class="theme-toggle" aria-label="Alternar Tema">
-                <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="5"></circle>
-                    <line x1="12" y1="1" x2="12" y2="3"></line>
-                    <line x1="12" y1="21" x2="12" y2="23"></line>
-                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                    <line x1="1" y1="12" x2="3" y2="12"></line>
-                    <line x1="21" y1="12" x2="23" y2="12"></line>
-                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                </svg>
-                <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                </svg>
-            </button>
+            <div class="nav-actions">
+                <a href="#contact" class="btn btn-sm btn-outline">Área do Cliente</a>
+                <a href="#contact" class="btn btn-sm btn-primary btn-glow">Agendar Demo</a>
+            </div>
             <button class="mobile-toggle" id="mobileToggle">
                 <span></span><span></span><span></span>
             </button>
         </div>
     </nav>
 
-    <!-- Hero Section with Wave -->
+    <!-- Hero Section -->
     <section class="hero">
         <div class="hero-bg">
-            <div class="gradient-orb orb-1"></div>
-            <div class="gradient-orb orb-2"></div>
-            <div class="gradient-orb orb-3"></div>
-            <div class="grid-lines"></div>
+            <div class="mesh-gradient"></div>
+            <div class="grid-overlay"></div>
         </div>
         <div class="container">
             <div class="hero-content">
-                <div class="hero-badges">
-                    <span class="badge badge-new">
-                        <span class="pulse"></span>
-                        Novo
-                    </span>
-                    <span class="badge badge-feature">🔥 Push Notifications em Tempo Real</span>
+                <div class="hero-badge fade-in-up">
+                    <span class="status-dot"></span>
+                    <span>Novo: Integração via PIX Automático</span>
                 </div>
-                <h1>
-                    O app que vai
-                    <span class="text-reveal">
-                        <span class="gradient-text-animated">revolucionar</span>
-                    </span>
-                    <br>seu provedor
+                <h1 class="fade-in-up delay-1">
+                    Eleve o nível do seu<br>
+                    <span class="gradient-text">Provedor de Internet</span>
                 </h1>
-                <p class="hero-subtitle">
-                    Sistema completo de atendimento com <strong>sua marca</strong>.
-                    Faturas, suporte, teste de velocidade e muito mais em um único app.
+                <p class="hero-subtitle fade-in-up delay-2">
+                    Um aplicativo exclusivo com a <strong>sua marca</strong>.
+                    Automatize o atendimento, reduza a inadimplência e encante seus clientes com uma experiência
+                    premium.
                 </p>
-                <div class="hero-cta">
-                    <a href="#contact" class="btn btn-primary btn-glow">
+                <div class="hero-cta fade-in-up delay-3">
+                    <a href="#contact" class="btn btn-lg btn-primary btn-glow">
                         <span>Começar Agora</span>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
                     </a>
-                    <a href="#video" class="btn btn-glass">
-                        <div class="play-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z" />
-                            </svg>
-                        </div>
-                        <span>Ver Demo</span>
+                    <a href="#video-demo" class="btn btn-lg btn-glass">
+                        <span class="play-icon-sm">▶</span>
+                        <span>Ver Vídeo</span>
                     </a>
                 </div>
-                <div class="hero-trust">
-                    <div class="avatars">
-                        <div class="avatar" style="background: linear-gradient(135deg, #6366F1, #8B5CF6);">JC</div>
-                        <div class="avatar" style="background: linear-gradient(135deg, #10B981, #34D399);">MS</div>
-                        <div class="avatar" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">RP</div>
-                        <div class="avatar" style="background: linear-gradient(135deg, #EC4899, #F472B6);">AL</div>
-                        <div class="avatar avatar-more">+47</div>
+                <div class="hero-metrics fade-in-up delay-4">
+                    <div class="metric-item">
+                        <strong data-count="50000">+50k</strong>
+                        <span>Usuários Ativos</span>
                     </div>
-                    <p><strong>50+ provedores</strong> já confiam no App Unify</p>
+                    <div class="metric-divider"></div>
+                    <div class="metric-item">
+                        <strong data-count="4.9">4.9/5</strong>
+                        <span>Avaliação Média</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-item">
+                        <strong data-count="99.9">99.9%</strong>
+                        <span>Uptime</span>
+                    </div>
                 </div>
             </div>
-            <div class="hero-visual">
-                <div class="phone-container">
-                    <div class="phone-glow"></div>
-                    <div class="phone">
-                        <div class="phone-notch"></div>
+
+            <div class="hero-visual fade-in-up delay-5">
+                <div class="phone-wrapper">
+                    <div class="phone-mockup">
                         <div class="phone-screen">
-                            <div class="app-demo">
-                                <div class="demo-header">
-                                    <div class="demo-time">9:41</div>
-                                    <div class="demo-icons">
-                                        <span>📶</span><span>🔋</span>
+                            <!-- Simulated App UI -->
+                            <div class="app-ui">
+                                <div class="app-header">
+                                    <div class="app-greeting">
+                                        <div class="avatar-circle"></div>
+                                        <div class="greeting-text">
+                                            <span>Olá, Ricardo</span>
+                                            <small>Plano Turbo 600MB</small>
+                                        </div>
+                                    </div>
+                                    <div class="app-notif-badge">2</div>
+                                </div>
+                                <div class="app-card highlight-card">
+                                    <div class="card-row">
+                                        <span>Fatura Atual</span>
+                                        <span class="status-pill warning">Vence Hoje</span>
+                                    </div>
+                                    <div class="card-price">R$ 99,90</div>
+                                    <div class="card-actions">
+                                        <button class="app-btn primary">Copiar PIX</button>
+                                        <button class="app-btn secondary">Código de Barras</button>
                                     </div>
                                 </div>
-                                <div class="demo-greeting">
-                                    <div>
-                                        <div class="demo-hello">Olá, João!</div>
-                                        <div class="demo-plan">Plano: Fibra 500 Mega</div>
+                                <div class="quick-actions">
+                                    <div class="qa-item">
+                                        <div class="qa-icon wifi"></div>
+                                        <span>Wi-Fi</span>
                                     </div>
-                                </div>
-                                <div class="demo-card demo-card-primary">
-                                    <div class="card-shine"></div>
-                                    <div class="demo-card-label">Próxima Fatura</div>
-                                    <div class="demo-card-value">R$ 89,90</div>
-                                    <div class="demo-card-info">
-                                        <span>Vence em 15/02</span>
-                                        <button class="demo-btn">Pagar Agora</button>
+                                    <div class="qa-item">
+                                        <div class="qa-icon speed"></div>
+                                        <span>Teste</span>
                                     </div>
-                                </div>
-                                <div class="demo-speed">
-                                    <div class="speed-gauge">
-                                        <svg viewBox="0 0 120 70">
-                                            <path class="gauge-bg" d="M10,60 A50,50 0 0,1 110,60" fill="none"
-                                                stroke="#2A2F4F" stroke-width="8" stroke-linecap="round" />
-                                            <path class="gauge-fill" d="M10,60 A50,50 0 0,1 110,60" fill="none"
-                                                stroke="url(#speedGrad)" stroke-width="8" stroke-linecap="round"
-                                                stroke-dasharray="157" stroke-dashoffset="30" />
-                                            <defs>
-                                                <linearGradient id="speedGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                    <stop offset="0%" stop-color="#6366F1" />
-                                                    <stop offset="100%" stop-color="#10B981" />
-                                                </linearGradient>
-                                            </defs>
-                                        </svg>
-                                        <div class="speed-value">487<span>Mbps</span></div>
-                                    </div>
-                                </div>
-                                <div class="demo-menu">
-                                    <div class="menu-item active">
-                                        <span class="menu-icon">🏠</span>
-                                        <span>Início</span>
-                                    </div>
-                                    <div class="menu-item">
-                                        <span class="menu-icon">💳</span>
-                                        <span>Faturas</span>
-                                    </div>
-                                    <div class="menu-item">
-                                        <span class="menu-icon">⚡</span>
-                                        <span>Velocidade</span>
-                                    </div>
-                                    <div class="menu-item">
-                                        <span class="menu-icon">🎧</span>
+                                    <div class="qa-item">
+                                        <div class="qa-icon support"></div>
                                         <span>Suporte</span>
                                     </div>
+                                    <div class="qa-item">
+                                        <div class="qa-icon more"></div>
+                                        <span>Mais</span>
+                                    </div>
+                                </div>
+                                <div class="app-banner">
+                                    <span>🚀 Indique um amigo e ganhe desconto!</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="floating-cards">
-                        <div class="float-card float-1">
-                            <span class="float-icon">🔔</span>
-                            <div>
-                                <div class="float-title">Nova Fatura</div>
-                                <div class="float-desc">PIX copiado!</div>
-                            </div>
+                    <!-- Floating Elements -->
+                    <div class="floating-card fc-left">
+                        <div class="fc-icon success">✓</div>
+                        <div class="fc-content">
+                            <strong>Pagamento Confirmado</strong>
+                            <span>há 2 minutos</span>
                         </div>
-                        <div class="float-card float-2">
-                            <span class="float-icon">✅</span>
-                            <div>
-                                <div class="float-title">Velocidade OK</div>
-                                <div class="float-desc">487 Mbps</div>
-                            </div>
+                    </div>
+                    <div class="floating-card fc-right">
+                        <div class="fc-speed">
+                            <strong>620</strong> <small>Mbps</small>
                         </div>
+                        <div class="fc-graph"></div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Wave Animation -->
-        <div class="wave-container">
-            <svg class="wave wave-1" viewBox="0 0 1440 120" preserveAspectRatio="none">
-                <path d="M0,60 C360,120 720,0 1080,60 C1260,90 1380,80 1440,60 L1440,120 L0,120 Z"
-                    fill="rgba(99, 102, 241, 0.1)" />
-            </svg>
-            <svg class="wave wave-2" viewBox="0 0 1440 120" preserveAspectRatio="none">
-                <path d="M0,80 C360,20 720,100 1080,40 C1260,10 1380,30 1440,60 L1440,120 L0,120 Z"
-                    fill="rgba(139, 92, 246, 0.08)" />
-            </svg>
-            <svg class="wave wave-3" viewBox="0 0 1440 120" preserveAspectRatio="none">
-                <path d="M0,40 C360,100 720,20 1080,80 C1260,100 1380,90 1440,60 L1440,120 L0,120 Z"
-                    fill="var(--dark-100)" />
-            </svg>
-        </div>
     </section>
 
-    <!-- Stats Bar with Big Numbers -->
-    <section class="stats-bar">
-        <div class="container">
-            <div class="stat-item">
-                <div class="stat-icon">👥</div>
-                <div class="stat-content">
-                    <div class="stat-number" data-count="15000">0</div>
-                    <div class="stat-suffix">+</div>
-                </div>
-                <div class="stat-label">Usuários Ativos</div>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-                <div class="stat-icon">🏢</div>
-                <div class="stat-content">
-                    <div class="stat-number" data-count="50">0</div>
-                    <div class="stat-suffix">+</div>
-                </div>
-                <div class="stat-label">Provedores</div>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-                <div class="stat-icon">⚡</div>
-                <div class="stat-content">
-                    <div class="stat-number" data-count="99">0</div>
-                    <div class="stat-suffix">.9%</div>
-                </div>
-                <div class="stat-label">Uptime</div>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-                <div class="stat-icon">📉</div>
-                <div class="stat-content">
-                    <div class="stat-number" data-count="40">0</div>
-                    <div class="stat-suffix">%</div>
-                </div>
-                <div class="stat-label">Menos Chamados</div>
+    <!-- Trusted By (Clean Marquee) -->
+    <section class="trusted-by">
+        <p>Integrado com as melhores plataformas</p>
+        <div class="marquee-track-clean">
+            <div class="marquee-content-clean">
+                <span>IXC Soft</span>
+                <span>MK Solutions</span>
+                <span>SGP</span>
+                <span>RBX Soft</span>
+                <span>Vigo</span>
+                <span>RadiusNet</span>
+                <span>HubSoft</span>
+                <span>IXC Soft</span>
+                <span>MK Solutions</span>
+                <span>SGP</span>
+                <span>RBX Soft</span>
+                <span>Vigo</span>
+                <span>RadiusNet</span>
+                <span>HubSoft</span>
             </div>
         </div>
     </section>
 
-    <!-- Tech Marquee -->
-    <section class="tech-marquee">
-        <div class="marquee-track">
-            <div class="marquee-content">
-                <div class="tech-item"><span>🔥</span> Firebase</div>
-                <div class="tech-item"><span>📱</span> Flutter</div>
-                <div class="tech-item"><span>⚛️</span> React</div>
-                <div class="tech-item"><span>🟢</span> Node.js</div>
-                <div class="tech-item"><span>🐳</span> Docker</div>
-                <div class="tech-item"><span>☁️</span> Cloud</div>
-                <div class="tech-item"><span>🔒</span> SSL/TLS</div>
-                <div class="tech-item"><span>📊</span> Analytics</div>
-                <div class="tech-item"><span>🔥</span> Firebase</div>
-                <div class="tech-item"><span>📱</span> Flutter</div>
-                <div class="tech-item"><span>⚛️</span> React</div>
-                <div class="tech-item"><span>🟢</span> Node.js</div>
-                <div class="tech-item"><span>🐳</span> Docker</div>
-                <div class="tech-item"><span>☁️</span> Cloud</div>
-                <div class="tech-item"><span>🔒</span> SSL/TLS</div>
-                <div class="tech-item"><span>📊</span> Analytics</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Features Section (Zig-Zag Layout) -->
+    <!-- Detailed Features (Zig Zag) -->
     <section class="features-detailed" id="features">
         <div class="container">
-            <div class="section-header">
-                <span class="section-tag">✨ Recursos Premium</span>
-                <h2>Tudo que seu cliente precisa<br><span class="gradient-text">em uma experiência única</span></h2>
-                <p>Desenvolvido para encantar e reter seus assinantes.</p>
-            </div>
-
-            <!-- Feature 1: Financeiro -->
+            <!-- Feature 1 -->
             <div class="feature-row">
                 <div class="feature-text">
                     <div class="feature-icon-box">💳</div>
-                    <h3>Gestão Financeira Descomplicada</h3>
+                    <h2>Gestão Financeira<br>Simplificada</h2>
                     <p>Facilite a vida do seu cliente com segundas vias automáticas, desbloqueio em confiança e
                         pagamentos instantâneos via PIX.</p>
                     <ul class="feature-list">
                         <li>
                             <span class="check-icon">✓</span>
-                            <div><strong>PIX Copia e Cola</strong><span>Reconhecimento instantâneo</span></div>
+                            <div>
+                                <strong>PIX Copia e Cola</strong>
+                                <span>Reconhecimento instantâneo do pagamento</span>
+                            </div>
                         </li>
                         <li>
                             <span class="check-icon">✓</span>
-                            <div><strong>Desbloqueio Automático</strong><span>Redução de chamados</span></div>
+                            <div>
+                                <strong>Desbloqueio Automático</strong>
+                                <span>Reduz chamados de suporte financeiro</span>
+                            </div>
                         </li>
                         <li>
                             <span class="check-icon">✓</span>
-                            <div><strong>Histórico Completo</strong><span>Todas as faturas na mão</span></div>
+                            <div>
+                                <strong>Histórico Completo</strong>
+                                <span>Todas as faturas na palma da mão</span>
+                            </div>
                         </li>
                     </ul>
                 </div>
                 <div class="feature-visual">
                     <div class="visual-card-glass">
-                        <div class="mini-fatura">
-                            <div class="mf-header">
-                                <span>Fatura Atual</span>
-                                <span class="badge-status">Aberta</span>
+                        <div class="invoice-demo">
+                            <div class="id-header">
+                                <span>Fatura #99283</span>
+                                <span class="badge-success">Paga</span>
                             </div>
-                            <div class="mf-value">R$ 99,90</div>
-                            <div class="mf-actions">
-                                <div class="mf-btn primary">Copiar PIX</div>
-                                <div class="mf-btn secondary">Código de Barras</div>
-                            </div>
-                            <div class="mf-timeline">
-                                <div class="dot active"></div>
-                                <div class="line active"></div>
-                                <div class="dot active"></div>
-                                <div class="line"></div>
-                                <div class="dot"></div>
+                            <div class="id-amount">R$ 99,90</div>
+                            <div class="id-timeline">
+                                <div class="idt-item active">Gerada</div>
+                                <div class="idt-item active">Enviada</div>
+                                <div class="idt-item active">Visualizada</div>
+                                <div class="idt-item active">Paga</div>
                             </div>
                         </div>
-                        <!-- Floating Notification -->
-                        <div class="mini-notif floating-element">
-                            <div class="mn-icon">📱</div>
-                            <div class="mn-text">
-                                <strong>Pagamento Confirmado!</strong>
-                                <span>Internet liberada em 3s</span>
+                        <div class="invoice-notification">
+                            <div class="in-icon">💸</div>
+                            <div class="in-text">
+                                <strong>Pagamento Recebido</strong>
+                                <span>Cliente: Ricardo Silva</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Feature 2: Diagnóstico (Reversed) -->
+            <!-- Feature 2 -->
             <div class="feature-row reversed">
                 <div class="feature-text">
                     <div class="feature-icon-box">⚡</div>
-                    <h3>Diagnóstico Inteligente</h3>
+                    <h2>Diagnóstico de Rede<br>Inteligente</h2>
                     <p>Ferramentas avançadas para que o próprio cliente verifique a conexão, reduzindo drasticamente o
                         número de chamados técnicos.</p>
                     <ul class="feature-list">
                         <li>
                             <span class="check-icon">✓</span>
-                            <div><strong>Speed Test Integrado</strong><span>Servidor local preciso</span></div>
+                            <div>
+                                <strong>Speed Test Integrado</strong>
+                                <span>Servidor local para resultados precisos</span>
+                            </div>
                         </li>
                         <li>
                             <span class="check-icon">✓</span>
-                            <div><strong>Auto-Diagnóstico</strong><span>Verifica Wi-Fi e Conexão</span></div>
+                            <div>
+                                <strong>Auto-Diagnóstico</strong>
+                                <span>Verificação de conectividade e Wi-Fi</span>
+                            </div>
                         </li>
                     </ul>
                 </div>
                 <div class="feature-visual">
                     <div class="visual-card-glass">
-                        <div class="mini-gauge-large">
-                            <svg viewBox="0 0 200 120" class="gauge-svg">
-                                <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="rgba(255,255,255,0.1)"
-                                    stroke-width="12" stroke-linecap="round" />
-                                <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="url(#gaugeGrad)"
-                                    stroke-width="12" stroke-linecap="round" stroke-dasharray="251"
-                                    stroke-dashoffset="60" class="gauge-anim" />
-                                <defs>
-                                    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stop-color="#6366F1" />
-                                        <stop offset="100%" stop-color="#10B981" />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div class="gauge-data">
-                                <span class="gd-val">620</span>
-                                <span class="gd-unit">MEGA</span>
+                        <div class="speedtest-demo">
+                            <div class="gauge-circle">
+                                <div class="gauge-value">500</div>
+                                <div class="gauge-label">MEGA</div>
                             </div>
-                        </div>
-                        <div class="mini-stats-row">
-                            <div class="ms-item"><span>Ping</span><strong>4ms</strong></div>
-                            <div class="ms-item"><span>Jitter</span><strong>2ms</strong></div>
-                            <div class="ms-item"><span>Loss</span><strong>0%</strong></div>
+                            <div class="speed-stats">
+                                <div class="ss-item">
+                                    <small>Ping</small>
+                                    <strong>4ms</strong>
+                                </div>
+                                <div class="ss-item">
+                                    <small>Jitter</small>
+                                    <strong>1ms</strong>
+                                </div>
+                                <div class="ss-item">
+                                    <small>Loss</small>
+                                    <strong>0%</strong>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Feature 3: Suporte -->
+            <!-- Feature 3 -->
             <div class="feature-row">
                 <div class="feature-text">
                     <div class="feature-icon-box">💬</div>
-                    <h3>Atendimento Centralizado</h3>
+                    <h2>Atendimento<br>Centralizado</h2>
                     <p>Unifique seus canais de atendimento. Chat, WhatsApp e abertura de chamados diretamente pelo
                         aplicativo.</p>
-                    <ul class="feature-list">
-                        <li>
-                            <span class="check-icon">✓</span>
-                            <div><strong>Chat Integrado</strong><span>Conversa em tempo real</span></div>
-                        </li>
-                        <li>
-                            <span class="check-icon">✓</span>
-                            <div><strong>Botão WhatsApp</strong><span>Redirecionamento inteligente</span></div>
-                        </li>
-                    </ul>
+                    <a href="#contact" class="btn-link">Conhecer módulo de suporte →</a>
                 </div>
                 <div class="feature-visual">
                     <div class="visual-card-glass">
-                        <div class="mini-chat-ui">
-                            <div class="chat-msg left">
-                                <p>Minha internet está oscilando um pouco.</p>
-                                <span>10:42</span>
+                        <div class="chat-demo">
+                            <div class="msg left">
+                                <div class="msg-bubble">Minha internet está lenta oscilando</div>
+                                <div class="msg-time">10:42</div>
                             </div>
-                            <div class="chat-msg right">
-                                <p>Olá! Verifiquei aqui e há uma manutenção na sua região. Previsão de retorno: 11:30.
-                                </p>
-                                <span>10:42</span>
+                            <div class="msg right">
+                                <div class="msg-bubble">Olá! Detectamos uma manutenção na sua região. Previsão de
+                                    retorno: 14:00.</div>
+                                <div class="msg-time">10:42</div>
                             </div>
-                            <div class="chat-msg left">
-                                <p>Ah, entendi! Obrigado pelo aviso.</p>
-                                <span>10:43</span>
+                            <div class="msg left">
+                                <div class="msg-bubble">Ah, entendi! Obrigado pelo aviso rápido.</div>
+                                <div class="msg-time">10:43</div>
                             </div>
-                            <div class="chat-input-mock">Digite sua mensagem...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    <!-- Video Section -->
-    <section class="video-section" id="video">
-        <div class="container">
-            <div class="section-header">
-                <span class="section-tag">🎬 Veja em Ação</span>
-                <h2>Assista uma demonstração<br><span class="gradient-text">do App Unify</span></h2>
-            </div>
-            <div class="video-container">
-                <div class="video-frame">
-                    <div class="video-overlay" id="videoOverlay">
-                        <div class="play-button">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z" />
-                            </svg>
-                        </div>
-                        <span>Assistir Demo (2:30)</span>
-                    </div>
-                    <div class="video-bg">
-                        <div class="vbg-phone"></div>
-                        <div class="vbg-features">
-                            <div class="vbg-item">💳 Faturas</div>
-                            <div class="vbg-item">⚡ Velocidade</div>
-                            <div class="vbg-item">🎧 Suporte</div>
-                            <div class="vbg-item">🔔 Push</div>
                         </div>
                     </div>
                 </div>
@@ -477,293 +340,134 @@
         </div>
     </section>
 
-    <!-- How it Works - Timeline -->
-    <section class="how-it-works">
+    <!-- Pricing Section (Clean Cards) -->
+    <section class="pricing-premium" id="pricing">
         <div class="container">
-            <div class="section-header">
-                <span class="section-tag">🚀 Como Funciona</span>
-                <h2>Seu app pronto em<br><span class="gradient-text">3 passos simples</span></h2>
-            </div>
-            <div class="timeline">
-                <div class="timeline-line">
-                    <div class="timeline-fill"></div>
-                </div>
-                <div class="timeline-step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <div class="step-icon">📝</div>
-                        <h3>Contratação</h3>
-                        <p>Escolha o plano ideal e envie suas informações</p>
+            <div class="section-center">
+                <span class="tag">Investimento</span>
+                <h2>Planos transparentes</h2>
+                <div class="toggle-container">
+                    <span class="toggle-text active">Mensal</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="billingToggle">
+                        <label for="billingToggle"></label>
                     </div>
-                </div>
-                <div class="timeline-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <div class="step-icon">🎨</div>
-                        <h3>Personalização</h3>
-                        <p>Configure cores, logo e informações do provedor</p>
-                    </div>
-                </div>
-                <div class="timeline-step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <div class="step-icon">🚀</div>
-                        <h3>Publicação</h3>
-                        <p>Seu app na Play Store em até 48 horas</p>
-                    </div>
+                    <span class="toggle-text">Anual <span class="discount-pill">-20%</span></span>
                 </div>
             </div>
-        </div>
-    </section>
 
-    <!-- App Screenshots -->
-    <section class="screenshots">
-        <div class="container">
-            <div class="section-header">
-                <span class="section-tag">📱 Screenshots</span>
-                <h2>Veja o app<br><span class="gradient-text">em detalhes</span></h2>
-            </div>
-            <div class="screenshots-slider" id="screenshotsSlider">
-                <div class="screenshot-track">
-                    <div class="screenshot-item">
-                        <div class="ss-phone">
-                            <div class="ss-screen ss-home">
-                                <div class="ssh-header">🏠 Dashboard</div>
-                                <div class="ssh-card"></div>
-                                <div class="ssh-menu"></div>
-                            </div>
-                        </div>
-                        <span>Dashboard</span>
-                    </div>
-                    <div class="screenshot-item">
-                        <div class="ss-phone">
-                            <div class="ss-screen ss-faturas">
-                                <div class="ssh-header">💳 Faturas</div>
-                                <div class="ssf-list">
-                                    <div class="ssf-item"></div>
-                                    <div class="ssf-item"></div>
-                                    <div class="ssf-item"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <span>Faturas</span>
-                    </div>
-                    <div class="screenshot-item active">
-                        <div class="ss-phone">
-                            <div class="ss-screen ss-speed">
-                                <div class="ssh-header">⚡ Velocidade</div>
-                                <div class="ssp-gauge"></div>
-                                <div class="ssp-result">487 Mbps</div>
-                            </div>
-                        </div>
-                        <span>Teste de Velocidade</span>
-                    </div>
-                    <div class="screenshot-item">
-                        <div class="ss-phone">
-                            <div class="ss-screen ss-suporte">
-                                <div class="ssh-header">🎧 Suporte</div>
-                                <div class="sss-chat">
-                                    <div class="sss-msg"></div>
-                                    <div class="sss-msg right"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <span>Suporte</span>
-                    </div>
-                    <div class="screenshot-item">
-                        <div class="ss-phone">
-                            <div class="ss-screen ss-perfil">
-                                <div class="ssh-header">👤 Perfil</div>
-                                <div class="ssu-avatar"></div>
-                                <div class="ssu-info"></div>
-                            </div>
-                        </div>
-                        <span>Perfil</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Security Section -->
-    <section class="security">
-        <div class="container">
-            <div class="security-content">
-                <div class="security-info">
-                    <span class="section-tag section-tag-light">🔒 Segurança</span>
-                    <h2>Seus dados protegidos<br><span class="gradient-text">por padrão</span></h2>
-                    <p>Utilizamos as melhores práticas de segurança para proteger os dados dos seus clientes.</p>
-                </div>
-                <div class="security-badges">
-                    <div class="sec-badge">
-                        <div class="sb-icon">🔐</div>
-                        <div class="sb-value">256-bit</div>
-                        <div class="sb-label">Criptografia AES</div>
-                    </div>
-                    <div class="sec-badge">
-                        <div class="sb-icon">🛡️</div>
-                        <div class="sb-value">0</div>
-                        <div class="sb-label">Incidentes de Segurança</div>
-                    </div>
-                    <div class="sec-badge">
-                        <div class="sb-icon">☁️</div>
-                        <div class="sb-value">Firebase</div>
-                        <div class="sb-label">Infraestrutura Google</div>
-                    </div>
-                    <div class="sec-badge">
-                        <div class="sb-icon">✅</div>
-                        <div class="sb-value">LGPD</div>
-                        <div class="sb-label">100% Compatível</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Pricing -->
-    <section class="pricing" id="pricing">
-        <div class="container">
-            <div class="section-header">
-                <span class="section-tag">💰 Planos</span>
-                <h2>Investimento que se paga<br><span class="gradient-text">no primeiro mês</span></h2>
-                <p>Sem taxa de setup. Sem fidelidade. Cancele quando quiser.</p>
-            </div>
-            <div class="pricing-toggle">
-                <span class="toggle-label">Mensal</span>
-                <label class="toggle">
-                    <input type="checkbox" id="pricingToggle">
-                    <span class="toggle-slider"></span>
-                </label>
-                <span class="toggle-label">Anual <span class="discount">-20%</span></span>
-            </div>
-            <div class="pricing-cards">
-                <div class="pricing-card">
-                    <div class="card-header">
-                        <div class="plan-icon">🚀</div>
+            <div class="pricing-grid">
+                <!-- Starter -->
+                <div class="pricing-card-minimal">
+                    <div class="pc-header">
                         <h3>Starter</h3>
-                        <p>Para iniciar sua transformação digital</p>
+                        <div class="pc-price">
+                            <span class="currency">R$</span>
+                            <span class="amount" data-m="297" data-y="237">297</span>
+                            <span class="period">/mês</span>
+                        </div>
+                        <p class="pc-desc">Ideal para provedores em crescimento</p>
                     </div>
-                    <div class="card-price">
-                        <span class="price-currency">R$</span>
-                        <span class="price-amount" data-monthly="297" data-yearly="237">297</span>
-                        <span class="price-period">/mês</span>
-                    </div>
-                    <ul class="card-features">
-                        <li><span class="cf-check">✓</span> Até 500 clientes</li>
-                        <li><span class="cf-check">✓</span> App Android</li>
-                        <li><span class="cf-check">✓</span> Painel Admin completo</li>
-                        <li><span class="cf-check">✓</span> Push Notifications</li>
-                        <li><span class="cf-check">✓</span> Suporte por email</li>
-                        <li class="cf-disabled"><span class="cf-x">✕</span> App iOS</li>
+                    <div class="pc-divider"></div>
+                    <ul class="pc-features">
+                        <li><span>Até 1.000 clientes</span></li>
+                        <li><span>App Android</span></li>
+                        <li><span>Integração Básica</span></li>
+                        <li><span>Suporte por Email</span></li>
                     </ul>
                     <a href="#contact" class="btn btn-outline btn-full">Começar Agora</a>
                 </div>
-                <div class="pricing-card popular">
-                    <div class="popular-badge">🔥 Mais Escolhido</div>
-                    <div class="card-header">
-                        <div class="plan-icon">⚡</div>
+
+                <!-- Pro -->
+                <div class="pricing-card-minimal featured">
+                    <div class="popular-tag">Mais Escolhido</div>
+                    <div class="pc-header">
                         <h3>Professional</h3>
-                        <p>Para provedores em crescimento</p>
+                        <div class="pc-price">
+                            <span class="currency">R$</span>
+                            <span class="amount" data-m="497" data-y="397">497</span>
+                            <span class="period">/mês</span>
+                        </div>
+                        <p class="pc-desc">Automação total para sua operação</p>
                     </div>
-                    <div class="card-price">
-                        <span class="price-currency">R$</span>
-                        <span class="price-amount" data-monthly="497" data-yearly="397">497</span>
-                        <span class="price-period">/mês</span>
-                    </div>
-                    <ul class="card-features">
-                        <li><span class="cf-check">✓</span> Até 2.000 clientes</li>
-                        <li><span class="cf-check">✓</span> App Android + iOS</li>
-                        <li><span class="cf-check">✓</span> Painel Admin completo</li>
-                        <li><span class="cf-check">✓</span> Push Notifications</li>
-                        <li><span class="cf-check">✓</span> Integração SGP</li>
-                        <li><span class="cf-check">✓</span> Suporte prioritário</li>
+                    <div class="pc-divider"></div>
+                    <ul class="pc-features">
+                        <li><span>Até 5.000 clientes</span></li>
+                        <li><span>App Android + iOS</span></li>
+                        <li><span>Integração Completa (API)</span></li>
+                        <li><span>Push Notifications</span></li>
+                        <li><span>Suporte Prioritário</span></li>
                     </ul>
                     <a href="#contact" class="btn btn-primary btn-glow btn-full">Começar Agora</a>
                 </div>
-                <div class="pricing-card">
-                    <div class="card-header">
-                        <div class="plan-icon">🏢</div>
+
+                <!-- Enterprise -->
+                <div class="pricing-card-minimal">
+                    <div class="pc-header">
                         <h3>Enterprise</h3>
-                        <p>Para grandes operações</p>
+                        <div class="pc-price">
+                            <span class="currency">R$</span>
+                            <span class="amount" data-m="997" data-y="797">997</span>
+                            <span class="period">/mês</span>
+                        </div>
+                        <p class="pc-desc">Para grandes operações ISP</p>
                     </div>
-                    <div class="card-price">
-                        <span class="price-currency">R$</span>
-                        <span class="price-amount" data-monthly="997" data-yearly="797">997</span>
-                        <span class="price-period">/mês</span>
-                    </div>
-                    <ul class="card-features">
-                        <li><span class="cf-check">✓</span> Clientes ilimitados</li>
-                        <li><span class="cf-check">✓</span> App Android + iOS</li>
-                        <li><span class="cf-check">✓</span> API personalizada</li>
-                        <li><span class="cf-check">✓</span> Todos os layouts</li>
-                        <li><span class="cf-check">✓</span> Gerente de conta</li>
-                        <li><span class="cf-check">✓</span> SLA 99.9%</li>
+                    <div class="pc-divider"></div>
+                    <ul class="pc-features">
+                        <li><span>Clientes Ilimitados</span></li>
+                        <li><span>App White-label Total</span></li>
+                        <li><span>Gestor de Conta Dedicado</span></li>
+                        <li><span>SLA Diferenciado</span></li>
+                        <li><span>Customizações</span></li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline btn-full">Falar com Vendas</a>
-                </div>
-            </div>
-            <div class="pricing-guarantee">
-                <div class="guarantee-badge">
-                    <span class="gb-icon">🛡️</span>
-                    <div>
-                        <strong>100% Garantia de Satisfação</strong>
-                        <span>30 dias para testar ou seu dinheiro de volta</span>
-                    </div>
+                    <a href="#contact" class="btn btn-outline btn-full">Falar com Consultor</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Testimonials with Metrics -->
-    <section class="testimonials">
+    <!-- Testimonials Slider (Refined) -->
+    <section class="testimonials-slider" id="testimonials">
         <div class="container">
-            <div class="section-header">
-                <span class="section-tag">⭐ Resultados Reais</span>
-                <h2>O que provedores dizem<br><span class="gradient-text">sobre nós</span></h2>
+            <div class="section-center">
+                <h2>Quem usa, recomenda</h2>
             </div>
-            <div class="testimonials-grid">
-                <div class="testimonial-card">
-                    <div class="tc-metric">
-                        <span class="metric-value">-40%</span>
-                        <span class="metric-label">chamados</span>
-                    </div>
-                    <div class="tc-stars">★★★★★</div>
-                    <p>"Reduziu 40% das ligações no suporte. Os clientes resolvem tudo pelo app!"</p>
-                    <div class="tc-author">
-                        <div class="tc-avatar" style="background: linear-gradient(135deg, #6366F1, #8B5CF6);">JC</div>
-                        <div>
-                            <div class="tc-name">João Carlos</div>
-                            <div class="tc-role">Diretor - Speed Net</div>
+            <div class="slider-wrapper">
+                <div class="slider-track">
+                    <!-- Cards will be cloned by JS -->
+                    <div class="testimonial-card-clean">
+                        <div class="tc-rating">★★★★★</div>
+                        <p>"O melhor investimento que fizemos no ano. A redução de inadimplência pagou o app no primeiro
+                            mês."</p>
+                        <div class="tc-user">
+                            <div class="tc-avatar c1">RC</div>
+                            <div>
+                                <strong>Roberto Campos</strong>
+                                <span>CEO, SpeedNet Fibra</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="testimonial-card featured">
-                    <div class="tc-metric">
-                        <span class="metric-value">4.9★</span>
-                        <span class="metric-label">avaliação</span>
-                    </div>
-                    <div class="tc-stars">★★★★★</div>
-                    <p>"O app com nossa marca passou credibilidade profissional. Clientes amaram!"</p>
-                    <div class="tc-author">
-                        <div class="tc-avatar" style="background: linear-gradient(135deg, #10B981, #34D399);">MS</div>
-                        <div>
-                            <div class="tc-name">Maria Santos</div>
-                            <div class="tc-role">CEO - Vibe Telecom</div>
+                    <div class="testimonial-card-clean">
+                        <div class="tc-rating">★★★★★</div>
+                        <p>"Meus clientes adoram a facilidade de pegar a segunda via do boleto. O suporte agradeceu!"
+                        </p>
+                        <div class="tc-user">
+                            <div class="tc-avatar c2">AL</div>
+                            <div>
+                                <strong>Ana Lima</strong>
+                                <span>Gerente, Conecta Mais</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="testimonial-card">
-                    <div class="tc-metric">
-                        <span class="metric-value">+25%</span>
-                        <span class="metric-label">pagamentos</span>
-                    </div>
-                    <div class="tc-stars">★★★★★</div>
-                    <p>"Push notification de fatura aumentou pagamentos em dia em 25%!"</p>
-                    <div class="tc-author">
-                        <div class="tc-avatar" style="background: linear-gradient(135deg, #F59E0B, #FBBF24);">RP</div>
-                        <div>
-                            <div class="tc-name">Roberto Pereira</div>
-                            <div class="tc-role">Gerente - Fibra Max</div>
+                    <div class="testimonial-card-clean">
+                        <div class="tc-rating">★★★★★</div>
+                        <p>"A integração com o MK Solutions foi perfeita. Tudo funciona em tempo real."</p>
+                        <div class="tc-user">
+                            <div class="tc-avatar c3">MS</div>
+                            <div>
+                                <strong>Marcos Silva</strong>
+                                <span>Diretor, Future Link</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -771,227 +475,57 @@
         </div>
     </section>
 
-    <!-- Satisfaction Bar -->
-    <section class="satisfaction-bar">
+    <!-- CTA Final -->
+    <section class="cta-final">
         <div class="container">
-            <div class="sat-content">
-                <h3>Satisfação dos Clientes</h3>
-                <div class="sat-bars">
-                    <div class="sat-item">
-                        <div class="sat-label">Facilidade de uso</div>
-                        <div class="sat-bar-wrap">
-                            <div class="sat-bar" data-value="98"></div>
-                            <span class="sat-value">98%</span>
-                        </div>
-                    </div>
-                    <div class="sat-item">
-                        <div class="sat-label">Suporte</div>
-                        <div class="sat-bar-wrap">
-                            <div class="sat-bar" data-value="96"></div>
-                            <span class="sat-value">96%</span>
-                        </div>
-                    </div>
-                    <div class="sat-item">
-                        <div class="sat-label">Recomendariam</div>
-                        <div class="sat-bar-wrap">
-                            <div class="sat-bar" data-value="94"></div>
-                            <span class="sat-value">94%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="faq" id="faq">
-        <div class="container">
-            <div class="faq-layout">
-                <div class="faq-header">
-                    <span class="section-tag">❓ FAQ</span>
-                    <h2>Perguntas<br><span class="gradient-text">Frequentes</span></h2>
-                    <p>Não encontrou? <a href="#contact">Fale conosco</a></p>
-                </div>
-                <div class="faq-list">
-                    <div class="faq-item">
-                        <button class="faq-question">
-                            <span>⏱️ Quanto tempo leva para ter meu app?</span>
-                            <span class="faq-icon">+</span>
-                        </button>
-                        <div class="faq-answer">
-                            <p>Após a contratação e envio das informações, seu app estará na Play Store em <strong>até
-                                    48 horas úteis</strong>.</p>
-                        </div>
-                    </div>
-                    <div class="faq-item">
-                        <button class="faq-question">
-                            <span>💻 Preciso de conhecimento técnico?</span>
-                            <span class="faq-icon">+</span>
-                        </button>
-                        <div class="faq-answer">
-                            <p>Não! O painel admin é super intuitivo. Qualquer pessoa consegue configurar cores e enviar
-                                notificações.</p>
-                        </div>
-                    </div>
-                    <div class="faq-item">
-                        <button class="faq-question">
-                            <span>🔗 Integra com meu sistema de gestão?</span>
-                            <span class="faq-icon">+</span>
-                        </button>
-                        <div class="faq-answer">
-                            <p>Sim! Temos integração nativa com <strong>SGP</strong> e podemos adaptar para outros
-                                sistemas via API.</p>
-                        </div>
-                    </div>
-                    <div class="faq-item">
-                        <button class="faq-question">
-                            <span>❌ E se eu quiser cancelar?</span>
-                            <span class="faq-icon">+</span>
-                        </button>
-                        <div class="faq-answer">
-                            <p>Sem multa, sem fidelidade. Você pode cancelar a qualquer momento sem burocracia.</p>
-                        </div>
-                    </div>
-                    <div class="faq-item">
-                        <button class="faq-question">
-                            <span>🏷️ O app fica com minha marca?</span>
-                            <span class="faq-icon">+</span>
-                        </button>
-                        <div class="faq-answer">
-                            <p>100%! O app aparece com o nome do seu provedor, seu logo, suas cores na Play Store.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="cta" id="contact">
-        <div class="cta-bg">
-            <div class="cta-orb orb-1"></div>
-            <div class="cta-orb orb-2"></div>
-        </div>
-        <div class="container">
-            <div class="cta-content">
-                <div class="cta-left">
-                    <span class="section-tag section-tag-light">🚀 Pronto para começar?</span>
-                    <h2>Transforme a experiência<br>dos seus clientes hoje</h2>
-                    <p>Agende uma demonstração gratuita e veja o App Unify em ação.</p>
-                    <div class="cta-benefits">
-                        <div class="cta-benefit">
-                            <span class="cb-icon">✓</span>
-                            <span>Demo personalizada</span>
-                        </div>
-                        <div class="cta-benefit">
-                            <span class="cb-icon">✓</span>
-                            <span>Sem compromisso</span>
-                        </div>
-                        <div class="cta-benefit">
-                            <span class="cb-icon">✓</span>
-                            <span>Resposta em 24h</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="cta-form-container">
-                    <form class="cta-form" id="contactForm">
-                        <div class="form-group">
-                            <input type="text" id="nome" placeholder=" " required>
-                            <label for="nome">Seu nome</label>
-                        </div>
-                        <div class="form-group">
-                            <input type="text" id="provedor" placeholder=" " required>
-                            <label for="provedor">Nome do provedor</label>
-                        </div>
-                        <div class="form-group">
-                            <input type="email" id="email" placeholder=" " required>
-                            <label for="email">Email corporativo</label>
-                        </div>
-                        <div class="form-group">
-                            <input type="tel" id="whatsapp" placeholder=" " required>
-                            <label for="whatsapp">WhatsApp</label>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-glow btn-full btn-lg">
-                            <span>Agendar Demonstração</span>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                        <p class="form-note">🔒 Seus dados estão seguros. Zero spam.</p>
+            <div class="cta-box">
+                <div class="cta-content">
+                    <h2>Pronto para digitalizar seu provedor?</h2>
+                    <p>Junte-se a mais de 50 provedores que transformaram seu atendimento com o App Unify.</p>
+                    <form class="cta-form-inline" id="contactForm">
+                        <input type="email" placeholder="Digite seu melhor e-mail" required>
+                        <button type="submit" class="btn btn-primary">Agendar Demo Grátis</button>
                     </form>
+                    <p class="cta-note">Teste grátis por 14 dias. Sem cartão de crédito.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="footer">
+    <footer class="footer-clean">
         <div class="container">
-            <div class="footer-main">
-                <div class="footer-brand">
-                    <a href="#" class="logo">
-                        <div class="logo-icon">
-                            <svg viewBox="0 0 40 40" fill="none">
-                                <rect width="40" height="40" rx="10" fill="url(#logoGrad2)" />
-                                <path d="M12 28V12L20 20L28 12V28" stroke="white" stroke-width="3"
-                                    stroke-linecap="round" stroke-linejoin="round" />
-                                <defs>
-                                    <linearGradient id="logoGrad2" x1="0" y1="0" x2="40" y2="40">
-                                        <stop stop-color="#6366F1" />
-                                        <stop offset="1" stop-color="#8B5CF6" />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                        </div>
-                        <span class="logo-text">App<span class="gradient-text">Unify</span></span>
-                    </a>
-                    <p>Sistema completo de atendimento white-label para provedores de internet.</p>
-                    <div class="footer-social">
-                        <a href="#" class="social-link">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                            </svg>
-                        </a>
-                        <a href="#" class="social-link">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.164 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
-                            </svg>
-                        </a>
-                        <a href="#" class="social-link">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z" />
-                            </svg>
-                        </a>
-                    </div>
+            <div class="footer-row">
+                <div class="footer-col brand-col">
+                    <a href="#" class="logo-text">AppUnify</a>
+                    <p>Tecnologia de ponta para provedores de internet que buscam excelência.</p>
                 </div>
-                <div class="footer-links">
+                <div class="footer-col">
                     <h4>Produto</h4>
-                    <a href="#features">Recursos</a>
-                    <a href="#pricing">Preços</a>
-                    <a href="#video">Demo</a>
+                    <a href="#">Recursos</a>
+                    <a href="#">Planos</a>
+                    <a href="#">Integrações</a>
+                    <a href="#">Changelog</a>
                 </div>
-                <div class="footer-links">
+                <div class="footer-col">
                     <h4>Empresa</h4>
-                    <a href="#">Sobre</a>
+                    <a href="#">Sobre Nós</a>
+                    <a href="#">Carreiras</a>
                     <a href="#">Blog</a>
-                    <a href="#contact">Contato</a>
+                    <a href="#">Contato</a>
                 </div>
-                <div class="footer-links">
-                    <h4>Suporte</h4>
-                    <a href="#">Central de Ajuda</a>
-                    <a href="#">Documentação</a>
-                    <a href="#">Status</a>
+                <div class="footer-col">
+                    <h4>Social</h4>
+                    <a href="#">Instagram</a>
+                    <a href="#">LinkedIn</a>
+                    <a href="#">Twitter</a>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>© 2026 App Unify. Todos os direitos reservados.</p>
-                <div class="footer-legal">
-                    <a href="#">Termos</a>
+                <p>&copy; 2026 App Unify. Todos os direitos reservados.</p>
+                <div class="legal-links">
                     <a href="#">Privacidade</a>
+                    <a href="#">Termos</a>
                 </div>
             </div>
         </div>
