@@ -3,6 +3,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 // O getAnalytics é opcional, mas vamos mantê-lo como está na sua configuração.
 import { getAnalytics } from "firebase/analytics";
 
@@ -21,6 +22,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app);
 const analytics = getAnalytics(app); // Inicializa o Analytics
 
-export { auth, db, analytics };
+export { auth, db, functions, analytics };
+

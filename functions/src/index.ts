@@ -3,6 +3,11 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { getAuth } from "firebase-admin/auth";
 import * as logger from "firebase-functions/logger";
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs";
+import { spawn } from "child_process";
+import * as https from "https";
 
 // Inicialização do Firebase Admin
 initializeApp();
@@ -562,3 +567,540 @@ export const handleSendPushNotificationRequest = onDocumentCreated({
     }
     return null;
 });
+
+// TEMPORARY: Fix Vibe Provider Document
+import { onRequest } from "firebase-functions/v2/https";
+
+export const fixVibeProvider = onRequest(async (req, res) => {
+    try {
+        logger.info("🔧 Fixing Vibe provider document...");
+
+        // 1. Copy document
+        const sourceDoc = await db.collection('provedores').doc('3kdrQFcCkRga234iB1YX').get();
+        if (!sourceDoc.exists) {
+            throw new Error('Source document not found');
+        }
+
+        const data = sourceDoc.data();
+        await db.collection('provedores').doc('vibe').set(data!);
+        logger.info("✅ Document copied to provedores/vibe");
+
+        // 2. Update user token
+        const user = await auth.getUserByEmail('vibe@gmail.com');
+        await auth.setCustomUserClaims(user.uid, { providerId: 'vibe' });
+        logger.info("✅ Token updated for vibe@gmail.com");
+
+        res.json({
+            success: true,
+            message: "Provider fixed! Logout and login again."
+        });
+    } catch (error: any) {
+        logger.error("❌ Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- 8. FUNÇÃO PARA DASHBOARD DO PROVEDOR (ESPECÍFICO) ---
+export const handleGetProviderDashboardDataRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'GET_PROVIDER_DASHBOARD_DATA') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const providerId = requestData.payload?.providerId;
+
+    try {
+        if (!providerId || !requesterUid) throw new Error("ProviderID e RequesterUID são obrigatórios.");
+
+        // 1. Contar Clientes (simulado ou real se tiver subcoleção)
+        // Tentamos ler da subcoleção 'clientes' (padronizada)
+        let clientCount = 0;
+        const clientsSnap = await db.collection(`provedores/${providerId}/clientes`).get();
+        clientCount = clientsSnap.size;
+
+        // Se tiver 0, tenta ler de subcoleção antiga 'users' se existir
+        if (clientCount === 0) {
+            const usersSnap = await db.collection(`provedores/${providerId}/users`).get();
+            clientCount += usersSnap.size;
+        }
+
+        // 2. Contar Tickets
+        let openTicketsCount = 0;
+        // Tickets podem estar na raiz com providerId ou em subcoleção
+        const ticketsSnap = await db.collection('tickets')
+            .where('providerId', '==', providerId)
+            .where('status', 'in', ['Aberto', 'Em Andamento'])
+            .get();
+        openTicketsCount = ticketsSnap.size;
+
+        // 3. Tickets Recentes
+        const recentTicketsSnap = await db.collection('tickets')
+            .where('providerId', '==', providerId)
+            .orderBy('updatedAt', 'desc')
+            .limit(5)
+            .get();
+
+        const recentTickets = recentTicketsSnap.docs.map(doc => {
+            const d = doc.data();
+            return {
+                id: doc.id,
+                subject: d.subject || 'Sem assunto',
+                status: d.status || 'Aberto',
+                updatedAt: d.updatedAt
+            };
+        });
+
+        await writeResponse(responseRef, {
+            result: {
+                stats: {
+                    totalClients: clientCount,
+                    openTicketsCount: openTicketsCount
+                },
+                recentTickets
+            }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em GET_PROVIDER_DASHBOARD_DATA ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+
+// --- 9. FUNÇÃO PROXY SGP (REAL SYNC) ---
+// Trata sincronização e listagem de clientes conectando-se ao SGP Externo
+export const handleSgpApiProxyRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1",
+    timeoutSeconds: 300, // Aumentado para suportar sincronização demorada
+    memory: "512MiB"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'SGP_API_PROXY') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const payload = requestData.payload || {};
+    const { action, providerId, params } = payload;
+
+    try {
+        if (!providerId) throw new Error("ProviderID obrigatório.");
+
+        // 1. Buscar Credenciais do SGP no Provedor
+        const providerDoc = await db.collection('provedores').doc(providerId).get();
+        if (!providerDoc.exists) throw new Error("Provedor não encontrado.");
+
+        const pData = providerDoc.data() || {};
+        const config = {
+            url: pData.integrations?.sgpBaseUrl || pData.details?.systemUrl || pData.sgpBaseUrl,
+            token: pData.integrations?.apiToken || pData.details?.apiToken || pData.apiToken,
+            app: pData.integrations?.appName || pData.details?.appName || pData.appName || 'APP-PROVEDOR'
+        };
+
+        if (!config.url || !config.token) {
+            throw new Error("Configurações do SGP (URL/Token) incompletas no cadastro do provedor.");
+        }
+
+        // callSgp removido - agora usamos o proxy local
+
+        if (action === 'sync') {
+            // Lógica de Sincronização VIA PROXY LOCAL (para bypass de IP)
+            logger.info(`[SYNC] Iniciando sincronização VIA PROXY para ${providerId}...`);
+            await writeResponse(responseRef, { status: "running", message: "Sincronizando via proxy..." }, requesterUid);
+
+            const clientsRef = db.collection(`provedores/${providerId}/clientes`);
+            const PROXY_URL = 'http://168.194.13.18:3005';
+            const PROXY_SECRET = 'CHAVE_SECRETA_MUITO_FORTE_12345';
+
+            try {
+                // 1. Chamar o proxy para sincronizar com SGP (proxy tem acesso liberado)
+                // Usar AbortController para timeout de 5 minutos (tempo suficiente para ~200 páginas)
+                logger.info(`[SYNC] Chamando proxy /sync-clients (timeout 5min)...`);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 minutos
+
+                const syncResponse = await fetch(`${PROXY_URL}/sync-clients`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        secret: PROXY_SECRET,
+                        providerId: providerId,
+                        sgpBaseUrl: config.url,
+                        params: {
+                            token: config.token,
+                            app: config.app
+                        }
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!syncResponse.ok && syncResponse.status !== 409) {
+                    const errorText = await syncResponse.text();
+                    throw new Error(`Proxy sync failed: ${syncResponse.status} - ${errorText}`);
+                }
+
+                const syncResult: any = await syncResponse.json();
+                logger.info(`[SYNC] Proxy sincronizou ${syncResult.count || 0} clientes com SGP.`);
+
+                // 2. Buscar clientes do cache do proxy (em lotes)
+                let totalSynced = 0;
+                let offset = 0;
+                const limit = 100;
+
+                while (true) {
+                    logger.info(`[SYNC] Buscando do proxy: offset=${offset}, limit=${limit}...`);
+                    const getResponse = await fetch(`${PROXY_URL}/get-cached-clients`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            secret: PROXY_SECRET,
+                            providerId: providerId,
+                            params: { limit, offset }
+                        })
+                    });
+
+                    if (!getResponse.ok) {
+                        throw new Error(`Proxy get-cached-clients failed: ${getResponse.status}`);
+                    }
+
+                    const getData: any = await getResponse.json();
+                    const clientes = getData.clientes || [];
+
+                    if (clientes.length === 0) break;
+
+                    // Batch Write no Firestore
+                    const batches = [];
+                    let currentBatch = db.batch();
+                    let count = 0;
+
+                    for (const client of clientes) {
+                        const docId = client.cpfcnpj ? client.cpfcnpj.replace(/[^0-9]/g, '') : null;
+                        if (!docId) continue;
+
+                        const clientDocRef = clientsRef.doc(docId);
+                        currentBatch.set(clientDocRef, {
+                            ...client,
+                            id: client.id,
+                            nome: client.nome,
+                            cpfcnpj: client.cpfcnpj,
+                            contratos: client.contratos || [],
+                            updatedAt: FieldValue.serverTimestamp(),
+                            providerId: providerId
+                        }, { merge: true });
+
+                        count++;
+                        if (count >= 400) {
+                            batches.push(currentBatch.commit());
+                            currentBatch = db.batch();
+                            count = 0;
+                        }
+                    }
+                    if (count > 0) batches.push(currentBatch.commit());
+
+                    await Promise.all(batches);
+                    totalSynced += clientes.length;
+
+                    if (clientes.length < limit) break;
+                    offset += limit;
+                }
+
+                logger.info(`[SYNC] Total Sincronizado no Firestore: ${totalSynced}`);
+
+                await writeResponse(responseRef, {
+                    result: {
+                        count: totalSynced,
+                        message: `Sincronização via proxy concluída! ${totalSynced} clientes atualizados.`
+                    }
+                }, requesterUid);
+
+            } catch (error: any) {
+                logger.error(`[SYNC] Erro na sincronização via proxy: ${error.message}`);
+                await writeResponse(responseRef, { status: "error", message: `Erro: ${error.message}` }, requesterUid);
+            }
+
+        } else if (action === 'get') {
+            // Listagem de clientes do Firestore (Inalterado, mas agora com dados reais)
+            const limit = params?.limit || 25;
+            const offset = params?.offset || 0;
+            const searchTerm = params?.searchTerm || '';
+
+            let query: FirebaseFirestore.Query = db.collection(`provedores/${providerId}/clientes`);
+
+            if (searchTerm) {
+                query = query.where('nome', '>=', searchTerm).where('nome', '<=', searchTerm + '\uf8ff');
+            }
+
+            query = query.orderBy('nome');
+
+            // Aviso: Offset em queries grandes é caro, mas ok para MVP Admin
+            if (offset > 0) query = query.offset(offset);
+            query = query.limit(limit);
+
+            const snapshot = await query.get();
+
+            // Contagem total
+            const countQuery = db.collection(`provedores/${providerId}/clientes`);
+            const countSnap = await countQuery.count().get();
+            const total = countSnap.data().count;
+
+            const clientes = snapshot.docs.map(doc => doc.data());
+
+            // Fallback se Firestore vazio: Tenta buscar 1 página do SGP em tempo real (opcional)
+            // Se o usuário nunca clicou em sync, vai estar vazio.
+            if (total === 0 && !searchTerm) {
+                logger.info("Cache vazio. Tentando sync rápido da primeira página...");
+                // (Opcional - mas pode demorar a resposta. Melhor deixar o usuário clicar em sync explícito)
+            }
+
+            await writeResponse(responseRef, {
+                result: {
+                    clientes,
+                    paginacao: { total, limit, offset }
+                }
+            }, requesterUid);
+        } else {
+            throw new Error(`Ação '${action}' não suportada.`);
+        }
+
+    } catch (error: any) {
+        logger.error(`Erro em SGP_API_PROXY ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+
+// --- 10. FUNÇÃO PARA LISTAR TICKETS (PROVEDOR) ---
+export const handleGetProviderTicketsRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'GET_PROVIDER_TICKETS') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const providerId = requestData.payload?.providerId;
+
+    try {
+        if (!providerId) throw new Error("ProviderID obrigatório.");
+
+        // Buscar tickets do provedor
+        const ticketsSnap = await db.collection('tickets')
+            .where('providerId', '==', providerId)
+            .orderBy('updatedAt', 'desc')
+            .get();
+
+        const tickets = ticketsSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        await writeResponse(responseRef, {
+            tickets
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em GET_PROVIDER_TICKETS ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+
+// ===========================================
+// APK GENERATOR (SUPER ADMIN ONLY)
+// ===========================================
+
+export const generateApk = onCall(
+    {
+        timeoutSeconds: 540, // 9 minutes (Build takes time)
+        memory: "256MiB", // Standard memory for spawning process
+        region: "southamerica-east1",
+    },
+    async (request) => {
+        // 1. Auth Check
+        if (!request.auth || !request.auth.token.superAdmin) {
+            throw new HttpsError(
+                "permission-denied",
+                "Apenas Super Admin pode gerar APKs."
+            );
+        }
+
+        const { providerId, appName, logoUrl } = request.data;
+        if (!providerId || !appName || !logoUrl) {
+            throw new HttpsError(
+                "invalid-argument",
+                "providerId, appName e logoUrl são obrigatórios."
+            );
+        }
+
+        logger.info(`Starting APK Generation for ${providerId} (${appName})...`);
+
+        // 2. Download Logo to Temp
+        const tempFilePath = path.join(os.tmpdir(), `logo_${providerId}_${Date.now()}.png`);
+
+        await new Promise<void>((resolve, reject) => {
+            const file = fs.createWriteStream(tempFilePath);
+            https.get(logoUrl, (response) => {
+                response.pipe(file);
+                file.on('finish', () => {
+                    file.close();
+                    resolve();
+                });
+            }).on('error', (err) => {
+                fs.unlink(tempFilePath, () => { });
+                reject(err);
+            });
+        });
+
+        // 3. Run Python Script
+        const scriptPath = "/home/app/painel-provedores-projeto/admin-script/gerar_apk.py";
+        const projectRoot = "/home/app/painel-provedores-projeto"; // CWD for script
+
+        return new Promise((resolve, reject) => {
+            const pythonProcess = spawn(
+                "python3",
+                [
+                    scriptPath,
+                    "--id",
+                    providerId,
+                    "--nome",
+                    appName,
+                    "--logo",
+                    tempFilePath,
+                ],
+                { cwd: projectRoot }
+            );
+
+            let output = "";
+            let errorOutput = "";
+
+            pythonProcess.stdout.on("data", (data) => {
+                const str = data.toString();
+                output += str;
+                logger.info(`[APK Gen]: ${str}`);
+            });
+
+            pythonProcess.stderr.on("data", (data) => {
+                const str = data.toString();
+                errorOutput += str;
+                logger.error(`[APK Gen Error]: ${str}`);
+            });
+
+            pythonProcess.on("close", (code) => {
+                // Cleanup temp logo
+                fs.unlink(tempFilePath, () => { });
+
+                if (code === 0) {
+                    // Parse output to find final path if needed, or just return success
+                    // Extract generated APK path from logs if possible, but for now just return success
+                    resolve({
+                        success: true,
+                        message: "APK Gerado com sucesso!",
+                        logs: output
+                    });
+                } else {
+                    reject(new HttpsError("internal", `Falha no script (Exit ${code})`, { logs: output, error: errorOutput }));
+                }
+            });
+        });
+    }
+);
+
+// ===========================================
+// ADMIN USER MANAGEMENT
+// ===========================================
+
+export const handleListAdminUsersRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'LIST_ADMIN_USERS') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+
+    try {
+        if (!requesterUid) throw new Error("RequesterUID obrigatório.");
+
+        // Check Permissions (Super Admin only for full list)
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = user.customClaims?.superAdmin === true;
+
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada. Apenas Super Admin.");
+        }
+
+        // List users (limit 1000 for MVP)
+        const listUsersResult = await auth.listUsers(1000);
+
+        const users = listUsersResult.users.map(u => ({
+            uid: u.uid,
+            email: u.email,
+            superAdmin: u.customClaims?.superAdmin === true,
+            providerId: u.customClaims?.providerId || null
+        }));
+
+        await writeResponse(responseRef, {
+            result: { users }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em LIST_ADMIN_USERS ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+
+export const handleDeleteAdminUserRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'DELETE_ADMIN_USER') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const targetUid = requestData.payload?.uid;
+
+    try {
+        if (!requesterUid || !targetUid) throw new Error("Dados incompletos.");
+
+        // Check Permissions
+        const user = await auth.getUser(requesterUid);
+        if (!user.customClaims?.superAdmin) throw new Error("Permissão negada.");
+
+        if (requesterUid === targetUid) throw new Error("Você não pode se apagar.");
+
+        await auth.deleteUser(targetUid);
+
+        await writeResponse(responseRef, {
+            result: { success: true, message: "Usuário apagado." }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em DELETE_ADMIN_USER ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+
+
+

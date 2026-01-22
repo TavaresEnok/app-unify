@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, Server, Users, Brush, Bell, MessageSquare, ShieldCheck, Menu, X } from "lucide-react";
+import { LayoutDashboard, Server, Users, Brush, Bell, MessageSquare, ShieldCheck, Menu, X, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -78,6 +78,7 @@ export default function MainLayout() {
             <NavLink to="/provedor/minha-empresa" onClick={onNavigate}><Button variant="ghost" className={getNavLinkClass("/provedor/minha-empresa")}><Server className="mr-4 h-5 w-5" />Minha Empresa</Button></NavLink>
             <NavLink to="/provedor/personalizacao" onClick={onNavigate}><Button variant="ghost" className={getNavLinkClass("/provedor/personalizacao")}><Brush className="mr-4 h-5 w-5" />Personalização</Button></NavLink>
             <NavLink to="/provedor/tickets" onClick={onNavigate}><Button variant="ghost" className={getNavLinkClass("/provedor/tickets")}><MessageSquare className="mr-4 h-5 w-5" />Suporte</Button></NavLink>
+            <NavLink to="/provedor/diagnosticos" onClick={onNavigate}><Button variant="ghost" className={getNavLinkClass("/provedor/diagnosticos")}><Activity className="mr-4 h-5 w-5" />Diagnósticos</Button></NavLink>
           </>
         )}
       </nav>

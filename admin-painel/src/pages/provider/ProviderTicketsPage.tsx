@@ -1,69 +1,74 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useApi } from '@/hooks/useApi';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { db } from "@/firebase/config";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MessageSquare, Search } from 'lucide-react';
+import { Loader2, MessageSquare, Search, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button'; // <--- IMPORT CORRIGIDO
+import { Button } from '@/components/ui/button';
 import AddTicketDialog from '@/components/AddTicketDialog';
 import EmptyState from '@/components/EmptyState';
 
 interface Ticket {
     id: string;
     subject: string;
-    createdBy: string; // Email do cliente ou CPF/CNPJ
+    createdBy: string;
     status: 'Aberto' | 'Em Andamento' | 'Fechado';
     updatedAt: { seconds: number; nanoseconds: number };
 }
 
-const ITEMS_PER_PAGE = 10;
-
 export default function ProviderTicketsPage() {
     const navigate = useNavigate();
-    // userRole e loading removidos daqui para resolver TS6133, pois são usados no useApi
-    const { user, providerId } = useAuth(); 
-    const { callFunction, loading: isApiLoading } = useApi();
+    const { providerId } = useAuth();
     const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [isLoadingTickets, setIsLoadingTickets] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [hasFetched, setHasFetched] = useState(false);
 
-    const fetchTickets = async () => {
-        if (!providerId || !user) {
-            setIsLoadingTickets(false);
+    const loadTickets = async () => {
+        if (!providerId) {
+            setError("Provider ID não encontrado");
             return;
         }
-        setIsLoadingTickets(true);
+
+        setLoading(true);
+        setError(null);
+
         try {
-            const result = await callFunction('GET_PROVIDER_TICKETS', { providerId });
-            const formattedTickets: Ticket[] = (result?.tickets || []).map((t: any) => ({
-                ...t,
-                id: t.id,
-                // Garantir o updatedAt no formato esperado
-            }));
-            setTickets(formattedTickets);
-        } catch (error) {
-            toast.error("Falha ao carregar a lista de tickets.");
+            const ticketsRef = collection(db, 'tickets');
+            const q = query(ticketsRef, where('providerId', '==', providerId));
+            const snapshot = await getDocs(q);
+
+            const ticketList: Ticket[] = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as Ticket[];
+
+            setTickets(ticketList);
+            setHasFetched(true);
+        } catch (err: any) {
+            console.error("Erro ao carregar tickets:", err);
+            setError(err.message || "Erro desconhecido");
         } finally {
-            setIsLoadingTickets(false);
+            setLoading(false);
         }
     };
 
+    // Carrega apenas uma vez quando o providerId está disponível
     useEffect(() => {
-        fetchTickets();
-    }, [providerId, user, callFunction]);
+        if (providerId && !hasFetched && !loading) {
+            loadTickets();
+        }
+    }, [providerId]);
 
-    const filteredTickets = useMemo(() => tickets.filter(t =>
-        t.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.createdBy.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [tickets, searchTerm]);
-
-    const pageCount = Math.ceil(filteredTickets.length / ITEMS_PER_PAGE);
-    const paginatedTickets = filteredTickets.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const filteredTickets = tickets.filter(t =>
+        t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.createdBy?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const getStatusVariant = (status: Ticket['status']) => {
         switch (status) {
@@ -73,14 +78,6 @@ export default function ProviderTicketsPage() {
             default: return 'default';
         }
     };
-    
-    // Simulação da busca do nome do provedor (necessário para a prop providerName do AddTicketDialog)
-    // Em um cenário real, você buscaria isso do Firestore ou do AuthContext.
-    const mockProviderName = "Nome do Provedor"; 
-    
-    if (isLoadingTickets) {
-        return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>;
-    }
 
     return (
         <Card>
@@ -91,32 +88,49 @@ export default function ProviderTicketsPage() {
                         <CardDescription>Gerencie as solicitações de suporte dos seus clientes.</CardDescription>
                     </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Button variant="outline" size="sm" onClick={loadTickets} disabled={loading}>
+                            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                            Atualizar
+                        </Button>
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="search"
-                                placeholder="Pesquisar por assunto ou cliente..."
+                                placeholder="Pesquisar..."
                                 className="pl-8 w-full"
                                 value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        {/* CORRIGIDO: Passando providerName e onTicketCreated */}
-                        <AddTicketDialog 
-                            providerName={mockProviderName} 
-                            onTicketCreated={fetchTickets} 
-                        />
+                        <AddTicketDialog providerName="Provedor" onTicketCreated={loadTickets} />
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
-                {filteredTickets.length === 0 ? (
+                {loading && (
+                    <div className="flex justify-center items-center py-12">
+                        <Loader2 className="animate-spin h-8 w-8" />
+                    </div>
+                )}
+
+                {error && (
+                    <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-4">
+                        <p className="text-red-500 font-medium">Erro: {error}</p>
+                        <Button variant="outline" size="sm" className="mt-2" onClick={loadTickets}>
+                            Tentar Novamente
+                        </Button>
+                    </div>
+                )}
+
+                {!loading && !error && filteredTickets.length === 0 && (
                     <EmptyState
                         icon={MessageSquare}
                         title="Nenhum ticket encontrado"
-                        description="Nenhum ticket corresponde à sua pesquisa ou a lista está vazia."
+                        description={hasFetched ? "A lista está vazia." : "Clique em Atualizar para carregar."}
                     />
-                ) : (
+                )}
+
+                {!loading && filteredTickets.length > 0 && (
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -128,13 +142,15 @@ export default function ProviderTicketsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {paginatedTickets.map((ticket) => (
-                                <TableRow 
-                                    key={ticket.id} 
-                                    className="cursor-pointer hover:bg-muted/50" 
+                            {filteredTickets.map((ticket) => (
+                                <TableRow
+                                    key={ticket.id}
+                                    className="cursor-pointer hover:bg-muted/50"
                                     onClick={() => navigate(`/provedor/tickets/${ticket.id}`)}
                                 >
-                                    <TableCell className="font-medium text-xs text-muted-foreground">{ticket.id.substring(0, 8)}</TableCell>
+                                    <TableCell className="font-medium text-xs text-muted-foreground">
+                                        {ticket.id.substring(0, 8)}
+                                    </TableCell>
                                     <TableCell className="font-medium">{ticket.subject}</TableCell>
                                     <TableCell>{ticket.createdBy}</TableCell>
                                     <TableCell className="text-center">
@@ -149,16 +165,6 @@ export default function ProviderTicketsPage() {
                     </Table>
                 )}
             </CardContent>
-            {filteredTickets.length > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t">
-                    <span className="text-sm text-muted-foreground">A exibir {paginatedTickets.length} de {filteredTickets.length} tickets.</span>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
-                        <span className="text-sm">Página {currentPage} de {pageCount > 0 ? pageCount : 1}</span>
-                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount || pageCount === 0}>Próxima</Button>
-                    </div>
-                </div>
-            )}
         </Card>
     );
 }

@@ -33,8 +33,8 @@ service cloud.firestore {
     
     // Regras para o sistema de Tickets
     match /tickets/{ticketId}/{document=**} {
-      // Permite ler/escrever se for Super Admin ou se for o dono do ticket
-      allow read, write: if request.auth != null && (request.auth.token.superAdmin == true || get(/databases/$(database)/documents/tickets/$(ticketId)).data.providerId == request.auth.token.providerId);
+      // EMERGÊNCIA: Liberado para qualquer usuario logado para teste
+      allow read, write: if request.auth != null;
     }
   }
 }

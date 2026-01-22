@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -44,6 +44,24 @@
                 <a href="#pricing">Preços</a>
                 <a href="#contact" class="btn btn-nav">Agendar Demo</a>
             </div>
+            <button id="themeToggle" class="theme-toggle" aria-label="Alternar Tema">
+                <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
             <button class="mobile-toggle" id="mobileToggle">
                 <span></span><span></span><span></span>
             </button>
@@ -120,7 +138,6 @@
                                     </div>
                                 </div>
                                 <div class="demo-greeting">
-                                    <span class="wave">👋</span>
                                     <div>
                                         <div class="demo-hello">Olá, João!</div>
                                         <div class="demo-plan">Plano: Fibra 500 Mega</div>
@@ -275,98 +292,157 @@
         </div>
     </section>
 
-    <!-- Features Grid -->
-    <section class="features" id="features">
+    <!-- Features Section (Zig-Zag Layout) -->
+    <section class="features-detailed" id="features">
         <div class="container">
             <div class="section-header">
-                <span class="section-tag">✨ Recursos</span>
-                <h2>Tudo que seu cliente precisa<br><span class="gradient-text">em um só lugar</span></h2>
-                <p>Desenvolvido especialmente para provedores de internet</p>
+                <span class="section-tag">✨ Recursos Premium</span>
+                <h2>Tudo que seu cliente precisa<br><span class="gradient-text">em uma experiência única</span></h2>
+                <p>Desenvolvido para encantar e reter seus assinantes.</p>
             </div>
-            <div class="features-grid">
-                <div class="feature-card feature-large">
-                    <div class="feature-icon-wrap">
-                        <div class="feature-icon">💳</div>
-                    </div>
-                    <h3>Faturas Digitais</h3>
-                    <p>PIX, boleto e cartão de crédito. Tudo na palma da mão do cliente.</p>
-                    <ul class="feature-checks">
-                        <li>✓ Código PIX com 1 clique</li>
-                        <li>✓ Segunda via instantânea</li>
-                        <li>✓ Histórico completo</li>
+
+            <!-- Feature 1: Financeiro -->
+            <div class="feature-row">
+                <div class="feature-text">
+                    <div class="feature-icon-box">💳</div>
+                    <h3>Gestão Financeira Descomplicada</h3>
+                    <p>Facilite a vida do seu cliente com segundas vias automáticas, desbloqueio em confiança e
+                        pagamentos instantâneos via PIX.</p>
+                    <ul class="feature-list">
+                        <li>
+                            <span class="check-icon">✓</span>
+                            <div><strong>PIX Copia e Cola</strong><span>Reconhecimento instantâneo</span></div>
+                        </li>
+                        <li>
+                            <span class="check-icon">✓</span>
+                            <div><strong>Desbloqueio Automático</strong><span>Redução de chamados</span></div>
+                        </li>
+                        <li>
+                            <span class="check-icon">✓</span>
+                            <div><strong>Histórico Completo</strong><span>Todas as faturas na mão</span></div>
+                        </li>
                     </ul>
-                    <div class="feature-visual">
+                </div>
+                <div class="feature-visual">
+                    <div class="visual-card-glass">
                         <div class="mini-fatura">
-                            <div class="mf-status">Em Aberto</div>
-                            <div class="mf-value">R$ 89,90</div>
-                            <div class="mf-btn">Pagar com PIX</div>
+                            <div class="mf-header">
+                                <span>Fatura Atual</span>
+                                <span class="badge-status">Aberta</span>
+                            </div>
+                            <div class="mf-value">R$ 99,90</div>
+                            <div class="mf-actions">
+                                <div class="mf-btn primary">Copiar PIX</div>
+                                <div class="mf-btn secondary">Código de Barras</div>
+                            </div>
+                            <div class="mf-timeline">
+                                <div class="dot active"></div>
+                                <div class="line active"></div>
+                                <div class="dot active"></div>
+                                <div class="line"></div>
+                                <div class="dot"></div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrap">
-                        <div class="feature-icon">⚡</div>
-                    </div>
-                    <h3>Teste de Velocidade</h3>
-                    <p>Servidor dedicado na sua infraestrutura.</p>
-                    <div class="mini-gauge">
-                        <div class="mg-value">487</div>
-                        <div class="mg-unit">Mbps</div>
-                        <div class="mg-bar">
-                            <div class="mg-fill"></div>
+                        <!-- Floating Notification -->
+                        <div class="mini-notif floating-element">
+                            <div class="mn-icon">📱</div>
+                            <div class="mn-text">
+                                <strong>Pagamento Confirmado!</strong>
+                                <span>Internet liberada em 3s</span>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrap">
-                        <div class="feature-icon">🎧</div>
-                    </div>
-                    <h3>Suporte Integrado</h3>
-                    <p>Chat direto com sua equipe de atendimento.</p>
-                    <div class="mini-chat">
-                        <div class="mc-bubble user">Preciso de ajuda</div>
-                        <div class="mc-bubble support">Olá! Como posso ajudar?</div>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrap">
-                        <div class="feature-icon">🔔</div>
-                    </div>
-                    <h3>Push Notifications</h3>
-                    <p>Alertas de fatura, manutenção e promoções.</p>
-                    <div class="mini-notif">
-                        <div class="mn-icon">📱</div>
-                        <div class="mn-text">Fatura vence amanhã!</div>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrap">
-                        <div class="feature-icon">🎨</div>
-                    </div>
-                    <h3>100% Personalizável</h3>
-                    <p>Cores, logo e nome do seu provedor.</p>
-                    <div class="mini-colors">
-                        <div class="mc-dot" style="background: #6366F1;"></div>
-                        <div class="mc-dot" style="background: #10B981;"></div>
-                        <div class="mc-dot" style="background: #F59E0B;"></div>
-                        <div class="mc-dot" style="background: #EC4899;"></div>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon-wrap">
-                        <div class="feature-icon">📊</div>
-                    </div>
-                    <h3>Consumo em Tempo Real</h3>
-                    <p>Gráficos de uso da internet.</p>
-                    <div class="mini-chart">
-                        <div class="bar" style="height: 40%"></div>
-                        <div class="bar" style="height: 65%"></div>
-                        <div class="bar" style="height: 50%"></div>
-                        <div class="bar" style="height: 80%"></div>
-                        <div class="bar" style="height: 55%"></div>
                     </div>
                 </div>
             </div>
+
+            <!-- Feature 2: Diagnóstico (Reversed) -->
+            <div class="feature-row reversed">
+                <div class="feature-text">
+                    <div class="feature-icon-box">⚡</div>
+                    <h3>Diagnóstico Inteligente</h3>
+                    <p>Ferramentas avançadas para que o próprio cliente verifique a conexão, reduzindo drasticamente o
+                        número de chamados técnicos.</p>
+                    <ul class="feature-list">
+                        <li>
+                            <span class="check-icon">✓</span>
+                            <div><strong>Speed Test Integrado</strong><span>Servidor local preciso</span></div>
+                        </li>
+                        <li>
+                            <span class="check-icon">✓</span>
+                            <div><strong>Auto-Diagnóstico</strong><span>Verifica Wi-Fi e Conexão</span></div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="feature-visual">
+                    <div class="visual-card-glass">
+                        <div class="mini-gauge-large">
+                            <svg viewBox="0 0 200 120" class="gauge-svg">
+                                <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="rgba(255,255,255,0.1)"
+                                    stroke-width="12" stroke-linecap="round" />
+                                <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="url(#gaugeGrad)"
+                                    stroke-width="12" stroke-linecap="round" stroke-dasharray="251"
+                                    stroke-dashoffset="60" class="gauge-anim" />
+                                <defs>
+                                    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#6366F1" />
+                                        <stop offset="100%" stop-color="#10B981" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div class="gauge-data">
+                                <span class="gd-val">620</span>
+                                <span class="gd-unit">MEGA</span>
+                            </div>
+                        </div>
+                        <div class="mini-stats-row">
+                            <div class="ms-item"><span>Ping</span><strong>4ms</strong></div>
+                            <div class="ms-item"><span>Jitter</span><strong>2ms</strong></div>
+                            <div class="ms-item"><span>Loss</span><strong>0%</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature 3: Suporte -->
+            <div class="feature-row">
+                <div class="feature-text">
+                    <div class="feature-icon-box">💬</div>
+                    <h3>Atendimento Centralizado</h3>
+                    <p>Unifique seus canais de atendimento. Chat, WhatsApp e abertura de chamados diretamente pelo
+                        aplicativo.</p>
+                    <ul class="feature-list">
+                        <li>
+                            <span class="check-icon">✓</span>
+                            <div><strong>Chat Integrado</strong><span>Conversa em tempo real</span></div>
+                        </li>
+                        <li>
+                            <span class="check-icon">✓</span>
+                            <div><strong>Botão WhatsApp</strong><span>Redirecionamento inteligente</span></div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="feature-visual">
+                    <div class="visual-card-glass">
+                        <div class="mini-chat-ui">
+                            <div class="chat-msg left">
+                                <p>Minha internet está oscilando um pouco.</p>
+                                <span>10:42</span>
+                            </div>
+                            <div class="chat-msg right">
+                                <p>Olá! Verifiquei aqui e há uma manutenção na sua região. Previsão de retorno: 11:30.
+                                </p>
+                                <span>10:42</span>
+                            </div>
+                            <div class="chat-msg left">
+                                <p>Ah, entendi! Obrigado pelo aviso.</p>
+                                <span>10:43</span>
+                            </div>
+                            <div class="chat-input-mock">Digite sua mensagem...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </section>
 

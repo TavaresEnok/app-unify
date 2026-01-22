@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
 import { db } from '@/firebase/config';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 
 // Lista de todas as ações possíveis
-type ApiAction = 
+type ApiAction =
   | 'UPDATE_PROVIDER_CONFIG'
-  | 'SEND_SCOPED_NOTIFICATION' 
-  | 'SEND_SCOPED_NOTIFICATION_SEGMENTED' 
+  | 'SEND_SCOPED_NOTIFICATION'
+  | 'SEND_SCOPED_NOTIFICATION_SEGMENTED'
   | 'SGP_API_PROXY'
   | 'GET_DASHBOARD_DATA'
   | 'LIST_ADMIN_USERS'
@@ -34,10 +34,10 @@ type ApiAction =
   | 'DELETE_PROVIDER_BACKUP';
 
 export function useApi() {
-  const { user, userRole, providerId: authProviderId } = useAuth(); 
+  const { user, userRole, providerId: authProviderId } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const callFunction = <T extends object>(type: ApiAction, payload: T): Promise<any> => {
+  const callFunction = useCallback(<T extends object>(type: ApiAction, payload: T): Promise<any> => {
     return new Promise((resolve, reject) => {
       if (!user) {
         toast.error("Erro de autenticação", { description: "Utilizador não encontrado. Por favor, faça login novamente." });
@@ -59,29 +59,25 @@ export function useApi() {
             toast.error("Erro no servidor", { description: response.error });
             reject(new Error(response.error));
           } else {
-            // Evita toast de sucesso para GETs
             if (type.startsWith('GET_') || type.startsWith('LIST_')) {
-                resolve(response.result);
+              resolve(response.result);
             } else {
-                toast.success("Sucesso!", { description: response.result?.message || "Operação concluída." });
-                resolve(response.result);
+              toast.success("Sucesso!", { description: response.result?.message || "Operação concluída." });
+              resolve(response.result);
             }
           }
         }
       });
 
-      // ===== LÓGICA DE INJEÇÃO DE providerId (SEGURANÇA) =====
-      let finalPayload: any = { ...payload, requesterUid: user.uid };
-
-      // Se o usuário for um admin de provedor, FORÇA o providerId do token dele.
+      let finalPayload: any = { ...payload };
       if (userRole === 'providerAdmin' && authProviderId) {
         finalPayload.providerId = authProviderId;
       }
-      // ===================================
 
       setDoc(requestDocRef, {
         type,
         createdAt: serverTimestamp(),
+        requesterUid: user.uid,
         payload: finalPayload,
       }).catch(error => {
         unsubscribe();
@@ -90,7 +86,7 @@ export function useApi() {
         reject(error);
       });
     });
-  };
+  }, [user, userRole, authProviderId]);
 
-  return { callFunction, loading };
+  return useMemo(() => ({ callFunction, loading }), [callFunction, loading]);
 }

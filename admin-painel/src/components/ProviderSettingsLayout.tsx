@@ -19,6 +19,10 @@ const menuItems = [
   { name: "Mensagens", path: "messages" },
   { name: "Outros", path: "other" },
   { name: "Backup/Restore", path: "backup" },
+];
+
+const superAdminItems = [
+  ...menuItems,
   { name: "📱 Gerar App", path: "app-build" },
 ];
 
@@ -37,7 +41,7 @@ export default function ProviderSettingsLayout() {
     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-8">
       <aside className="md:col-span-1">
         <nav className="flex flex-col gap-1">
-          {menuItems.map(item => (
+          {(userRole === 'superAdmin' ? superAdminItems : menuItems).map(item => (
             <NavLink key={item.path} to={`${basePath}/${item.path}`}>
               <Button variant="ghost" className={navLinkClass(item.path)}>
                 {item.name}

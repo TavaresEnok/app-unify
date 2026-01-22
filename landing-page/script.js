@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initContactForm();
     initTimeline();
     initSatisfactionBars();
+    initThemeToggle();
 
     console.log('🚀 App Unify Premium Landing loaded!');
 });
@@ -504,3 +505,31 @@ window.addEventListener('scroll', () => {
         setInterval(() => showNotification(card), 8000);
     });
 })();
+
+// ===================================
+// Theme Toggle
+// ===================================
+function initThemeToggle() {
+    const toggle = document.getElementById('themeToggle');
+    const root = document.documentElement;
+    const storedTheme = localStorage.getItem('theme');
+
+    // Set initial theme
+    if (storedTheme) {
+        root.setAttribute('data-theme', storedTheme);
+    }
+
+    if (!toggle) return;
+
+    toggle.addEventListener('click', () => {
+        const currentTheme = root.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        root.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        
+        // Add subtle animation effect
+        toggle.style.transform = 'scale(0.9)';
+        setTimeout(() => toggle.style.transform = '', 200);
+    });
+}

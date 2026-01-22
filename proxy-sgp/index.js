@@ -125,13 +125,13 @@ async function callSgpApi(params) {
             console.log(`[SGP-API] Usando método GET com query params`);
             response = await axios.get(url, {
                 params: rest,
-                timeout: 30000
+                timeout: 60000
             });
         } else if (useJson) {
             console.log(`[SGP-API] Usando Content-Type: application/json`);
             response = await axios.post(url, rest, {
                 headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
+                timeout: 60000
             });
         } else {
             // Para outros endpoints, usa form-urlencoded (igual ao PHP)
@@ -144,7 +144,7 @@ async function callSgpApi(params) {
             }
             response = await axios.post(url, formData.toString(), {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                timeout: 30000
+                timeout: 60000
             });
         }
 
@@ -294,37 +294,136 @@ app.post('/get-consumption-data', async (req, res) => {
     }
 });
 // 2. Rotas Sincronização Clientes
+const activeSyncs = new Set();
+
 app.post('/sync-clients', async (req, res) => {
     const { secret, params, providerId, sgpBaseUrl } = req.body;
     if (secret !== PROXY_SECRET_KEY) return res.status(403).json({ error: "Acesso não autorizado." });
+
+    // Evitar concorrência para o mesmo provedor
+    if (activeSyncs.has(providerId)) {
+        return res.status(409).json({ error: "Já existe uma sincronização em andamento para este provedor." });
+    }
+    activeSyncs.add(providerId);
+
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
-    try {
-        const phpParams = { ...params, url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/') };
-        const firstPageData = await executePhp(phpParams);
-        if (!firstPageData?.paginacao?.total) throw new Error("API SGP inválida.");
-        let allClients = firstPageData.clientes || [];
-        db.serialize(() => {
-            db.run(`DROP TABLE IF EXISTS ${tableName}`);
-            db.run(`CREATE TABLE IF NOT EXISTS ${tableName} (id INTEGER PRIMARY KEY, nome TEXT, cpfcnpj TEXT, contratos TEXT)`, () => {
+
+    // Helper para salvar lote
+    const saveBatch = (clients) => {
+        return new Promise((resolve, reject) => {
+            db.serialize(() => {
+                db.run("BEGIN TRANSACTION");
                 const stmt = db.prepare(`INSERT OR REPLACE INTO ${tableName} (id, nome, cpfcnpj, contratos) VALUES (?, ?, ?, ?)`);
-                allClients.forEach(c => { if (c?.id) stmt.run(c.id, c.nome, c.cpfcnpj, JSON.stringify(c.contratos)); });
-                stmt.finalize(() => res.status(200).json({ message: "Sincronizado", count: allClients.length }));
+                clients.forEach(c => {
+                    if (c?.id) stmt.run(c.id, c.nome, c.cpfcnpj, JSON.stringify(c.contratos));
+                });
+                stmt.finalize();
+                db.run("COMMIT", (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
             });
         });
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    };
+
+    try {
+        console.log(`[SYNC] Iniciando sincronização incremental para ${providerId}...`);
+
+        // Criar tabela se não existir (apenas na primeira vez)
+        await new Promise((resolve, reject) => {
+            db.run(`CREATE TABLE IF NOT EXISTS ${tableName} (id INTEGER PRIMARY KEY, nome TEXT, cpfcnpj TEXT, contratos TEXT)`, (err) => {
+                if (err) reject(err); else resolve();
+            });
+        });
+
+        // Loop principal
+        const firstPageParams = { ...params, limit: 100, pagina: 1, url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/') };
+        const firstPageData = await executePhp(firstPageParams);
+
+        if (!firstPageData?.paginacao?.total) throw new Error("API SGP inválida.");
+
+        const totalClients = firstPageData.paginacao.total;
+        const totalPages = firstPageData.paginacao.ultima_pagina || Math.ceil(totalClients / 100);
+
+        console.log(`[SYNC] Total: ${totalClients}, Páginas: ${totalPages}`);
+
+        // Salva página 1
+        if (firstPageData.clientes?.length) {
+            await saveBatch(firstPageData.clientes);
+            console.log(`[SYNC] Página 1 salva (${firstPageData.clientes.length} clientes).`);
+        }
+
+        // Responde imediatamente para não dar timeout no client
+        res.status(200).json({
+            message: "Sincronização iniciada em background.",
+            totalEstimate: totalClients,
+            status: "processing"
+        });
+
+        // Processamento em background das demais páginas
+        (async () => {
+            let totalSaved = firstPageData.clientes?.length || 0;
+
+            for (let page = 2; page <= totalPages; page++) {
+                try {
+                    // Verificar se ainda devemos continuar (opcional)
+                    const pageParams = { ...params, limit: 100, pagina: page, url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/') };
+                    const pageData = await executePhp(pageParams);
+
+                    if (pageData?.clientes?.length) {
+                        await saveBatch(pageData.clientes);
+                        totalSaved += pageData.clientes.length;
+                        console.log(`[SYNC] Página ${page}/${totalPages} salva (+${pageData.clientes.length}). Total: ${totalSaved}`);
+                    } else {
+                        break;
+                    }
+                    // Delay maior para evitar timeout do SGP
+                    await new Promise(r => setTimeout(r, 500));
+                } catch (err) {
+                    console.error(`[SYNC] Erro página ${page}: ${err.message}`);
+                }
+            }
+            console.log(`[SYNC] Finalizado. Total salvo: ${totalSaved}`);
+            activeSyncs.delete(providerId);
+        })();
+
+    } catch (error) {
+        activeSyncs.delete(providerId);
+        console.error(`[SYNC] Erro fatal: ${error.message}`);
+        // Se ainda não respondeu (erro na pg 1), responde agora
+        if (!res.headersSent) res.status(500).json({ error: error.message });
+    }
 });
 app.post('/get-cached-clients', (req, res) => {
     const { secret, providerId } = req.body;
     const { limit = 25, offset = 0, searchTerm = '' } = req.body.params || {};
+
     if (secret !== PROXY_SECRET_KEY) return res.status(403).json({ error: "Acesso não autorizado." });
+
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
+    console.log(`[CACHE] Buscando clientes para ${providerId}: limit=${limit}, offset=${offset}, search="${searchTerm}"`);
+
     const searchQuery = `%${searchTerm}%`;
     db.get(`SELECT COUNT(*) as total FROM ${tableName} WHERE nome LIKE ? OR cpfcnpj LIKE ?`, [searchQuery, searchQuery], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            if (err.message.includes('no such table')) {
+                console.warn(`[CACHE] Tabela ${tableName} não existe ainda.`);
+                return res.status(200).json({ clientes: [], paginacao: { total: 0, limit, offset } });
+            }
+            console.error(`[CACHE] Erro Count: ${err.message}`);
+            return res.status(500).json({ error: err.message });
+        }
+
         const total = row ? row.total : 0;
+        console.log(`[CACHE] Total encontrado: ${total}`);
+
         db.all(`SELECT * FROM ${tableName} WHERE nome LIKE ? OR cpfcnpj LIKE ? LIMIT ? OFFSET ?`, [searchQuery, searchQuery, limit, offset], (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
+            if (err) {
+                console.error(`[CACHE] Erro Select: ${err.message}`);
+                return res.status(500).json({ error: err.message });
+            }
             const clients = rows.map(r => ({ ...r, contratos: JSON.parse(r.contratos || '[]') }));
+            console.log(`[CACHE] Retornando ${clients.length} clientes.`);
             res.status(200).json({ clientes: clients, paginacao: { total, limit, offset } });
         });
     });
@@ -837,4 +936,10 @@ app.post('/build-apk', async (req, res) => {
     }
 });
 
-app.listen(3000, '0.0.0.0', () => { console.log(`✅ Proxy SGP PROD rodando na porta 3000`); });
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+const PORT = process.env.PORT || 3005;
+app.listen(PORT, '0.0.0.0', () => { console.log(`✅ Proxy SGP PROD rodando na porta ${PORT}`); });

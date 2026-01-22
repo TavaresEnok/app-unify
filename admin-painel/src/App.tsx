@@ -32,6 +32,7 @@ import PersonalizedTextsSettings from "@/pages/provider-settings/PersonalizedTex
 import ProviderDashboardPage from "./pages/provider/ProviderDashboardPage";
 import NotificationSenderPage from "./pages/provider/NotificationSenderPage";
 import ProviderClientsPage from "./pages/provider/ProviderClientsPage";
+import DiagnosticHistoryPage from "./pages/provider/DiagnosticHistoryPage";
 import ClientDetailPage from "./pages/provider/ClientDetailPage";
 import AdminTicketsPage from "./pages/AdminTicketsPage";
 import ProviderTicketsPage from "./pages/provider/ProviderTicketsPage";
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="provedor/clientes/:clientId" element={<ClientDetailPage />} />
             <Route path="provedor/minha-empresa" element={<MyCompanyPage />} />
             <Route path="provedor/tickets" element={<ProviderTicketsPage />} />
+            <Route path="provedor/diagnosticos" element={<DiagnosticHistoryPage />} />
             <Route path="provedor/tickets/:ticketId" element={<TicketDetailPage />} />
             <Route path="provedor/personalizacao" element={<ProviderDetailPage />}>
               {ProviderSettingsRoutes}

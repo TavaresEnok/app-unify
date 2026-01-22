@@ -24,18 +24,30 @@ export default function ProviderDetailPage() {
     const hasLoadedInitialConfig = useRef(false);
 
     useEffect(() => {
+        // DEBUG: Log provider ID resolution
+        console.log('🔍 [ProviderDetailPage] Resolving provider ID:', {
+            providerIdFromParams,
+            providerIdFromAuth,
+            userRole,
+            resolvedProviderId: providerId
+        });
+
         if (!providerId) {
             toast.error("ID do provedor não identificado.");
+            console.error('❌ [ProviderDetailPage] No providerId available');
             setLoading(false);
             return;
         }
 
         hasLoadedInitialConfig.current = false;
 
+        console.log('📡 [ProviderDetailPage] Fetching document from: provedores/', providerId);
         const docRef = doc(db, "provedores", providerId);
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            console.log('📄 [ProviderDetailPage] Document exists:', docSnap.exists());
             if (docSnap.exists()) {
                 const data = docSnap.data() as ProviderData;
+                console.log('✅ [ProviderDetailPage] Provider data loaded:', data.name);
                 setProvider(data);
 
                 const mergedConfig = {
@@ -56,11 +68,13 @@ export default function ProviderDetailPage() {
                     hasLoadedInitialConfig.current = true;
                 }
             } else {
+                console.error('❌ [ProviderDetailPage] Document NOT found for providerId:', providerId);
                 toast.error("Provedor não encontrado.");
                 if (userRole === 'superAdmin') navigate('/provedores');
             }
             setLoading(false);
         }, (error) => {
+            console.error('❌ [ProviderDetailPage] Firestore error:', error);
             toast.error(`Erro ao buscar provedor: ${error.message}`);
             setLoading(false);
         });
