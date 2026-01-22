@@ -48,26 +48,27 @@ class TestHistoryService {
       final connectionType = await _getConnectionType();
 
       await _firestore
-          .collection('providers')
+          .collection('provedores')
           .doc(providerId)
           .collection('diagnostic_results')
           .add({
-        // Test data
-        ...entry.toJson(),
-        // Client info from SGP
-        'clientId': clientInfo['id'] ?? '',
-        'clientName': clientInfo['name'] ?? 'Desconhecido',
-        'clientPlan': clientInfo['plan'] ?? '',
-        // Connection info
-        'connectionType': connectionType,
-        // Device info
-        'deviceInfo': deviceInfo,
-        // Server timestamp for consistency
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            // Test data
+            ...entry.toJson(),
+            // Client info from SGP
+            'clientId': clientInfo['id'] ?? '',
+            'clientName': clientInfo['name'] ?? 'Desconhecido',
+            'clientPlan': clientInfo['plan'] ?? '',
+            // Connection info
+            'connectionType': connectionType,
+            // Device info
+            'deviceInfo': deviceInfo,
+            // Server timestamp for consistency
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       print(
-          '✅ Diagnostic result saved to cloud for client: ${clientInfo['name']}');
+        '✅ Diagnostic result saved to cloud for client: ${clientInfo['name']}',
+      );
     } catch (e) {
       print('❌ Error saving diagnostic to cloud: $e');
       // Don't throw - cloud save failure shouldn't break the app flow
@@ -120,11 +121,7 @@ class TestHistoryService {
         'appVersion': packageInfo.version,
       };
     } catch (e) {
-      return {
-        'model': 'Unknown',
-        'os': 'Unknown',
-        'appVersion': 'Unknown',
-      };
+      return {'model': 'Unknown', 'os': 'Unknown', 'appVersion': 'Unknown'};
     }
   }
 
@@ -139,7 +136,8 @@ class TestHistoryService {
       final jsonList = jsonDecode(jsonString) as List;
       return jsonList
           .map(
-              (json) => TestHistoryEntry.fromJson(json as Map<String, dynamic>))
+            (json) => TestHistoryEntry.fromJson(json as Map<String, dynamic>),
+          )
           .toList();
     } catch (e) {
       print('Error loading test history: $e');
@@ -171,19 +169,21 @@ class TestHistoryService {
 
     final avgDownload =
         history.map((e) => e.downloadSpeed).reduce((a, b) => a + b) /
-            history.length;
+        history.length;
     final avgUpload =
         history.map((e) => e.uploadSpeed).reduce((a, b) => a + b) /
-            history.length;
+        history.length;
     final avgPing =
         history.map((e) => e.ping).reduce((a, b) => a + b) ~/ history.length;
     final avgScore =
         history.map((e) => e.healthScore).reduce((a, b) => a + b) ~/
-            history.length;
-    final bestScore =
-        history.map((e) => e.healthScore).reduce((a, b) => a > b ? a : b);
-    final worstScore =
-        history.map((e) => e.healthScore).reduce((a, b) => a < b ? a : b);
+        history.length;
+    final bestScore = history
+        .map((e) => e.healthScore)
+        .reduce((a, b) => a > b ? a : b);
+    final worstScore = history
+        .map((e) => e.healthScore)
+        .reduce((a, b) => a < b ? a : b);
 
     return {
       'avgDownload': avgDownload,
