@@ -186,7 +186,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   builder: (context, ref, _) {
                     final configProvider = ref.watch(configurationProvider);
                     return Text(
-                      configProvider.providerConfig?.name ?? 'Seu Provedor',
+                      configProvider.providerConfig?.name ?? 'Provedor Online',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -933,13 +933,20 @@ class _DashboardPageState extends State<DashboardPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'NetConnect',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Layout03Theme.textDark,
-                        ),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final configProvider =
+                              ref.watch(configurationProvider);
+                          return Text(
+                            configProvider.providerConfig?.name ??
+                                'Seu Provedor',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Layout03Theme.textDark,
+                            ),
+                          );
+                        },
                       ),
                       Text(
                         widget.planName,

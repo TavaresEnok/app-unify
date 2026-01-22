@@ -80,9 +80,14 @@ class ProviderConfig {
     final integrationsMap = (json['integrations'] ??
             legacyConfig['integrations']) as Map<String, dynamic>? ??
         {};
-    final providerName = json['name'] as String? ??
+    var providerName = json['name'] as String? ??
         integrationsMap['appName'] as String? ??
         'Provedor';
+
+    // FIX: Prevent legacy/template name "NetConnect" from appearing
+    if (providerName.toLowerCase().replaceAll(' ', '') == 'netconnect') {
+      providerName = 'Seu Provedor';
+    }
 
     // [NEW] Extrai systemUrl de details para fallback
     final detailsMap = json['details'] as Map<String, dynamic>? ?? {};
