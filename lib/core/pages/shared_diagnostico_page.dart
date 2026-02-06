@@ -196,7 +196,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 160),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               child: AppButton(
                 icon: state.isTesting
                     ? Icons.stop_circle_outlined
@@ -318,6 +318,9 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                     isDarkLayout: isDarkLayout),
                 _buildJourneyInfo(
                     context, "SSID:", _parseResultLine(wifiResult, "SSID:"),
+                    isDarkLayout: isDarkLayout),
+                _buildJourneyInfo(context, "DNS:",
+                    _parseResultBlock(wifiResult, "Servidores DNS:"),
                     isDarkLayout: isDarkLayout)
               ]),
           _buildJourneyStep(context,

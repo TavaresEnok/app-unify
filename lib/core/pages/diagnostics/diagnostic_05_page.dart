@@ -109,7 +109,6 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
 
   // Simulated data
   Map<String, dynamic>? _wifi;
-  Map<String, dynamic>? _fiber;
   List<Map<String, dynamic>> _devices = [];
   Map<String, dynamic>? _speed;
   List<Map<String, dynamic>> _hops = [];
@@ -146,11 +145,18 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
     if (_realService == null) {
       final config = ref.read(configurationProvider).providerConfig;
       if (config != null) {
+        debugPrint('[Diag05] ====== INITIALIZING SERVICES ======');
+        debugPrint('[Diag05] Config API URL: ${config.apiUrl}');
         OnuWifiService? onuService;
         final authState = ref.read(authNotifierProvider);
         final user = authState.value;
+        debugPrint('[Diag05] User: ${user?.cpfCnpj ?? "NULL"}');
         if (user != null) {
           final integrations = config.config.integrations;
+          debugPrint('[Diag05] SGP Base URL: ${integrations.sgpBaseUrl}');
+          debugPrint(
+              '[Diag05] API Token: ${integrations.apiToken.substring(0, 10)}...');
+          debugPrint('[Diag05] App Name: ${integrations.appName}');
           Map<String, String> sgpParams = {
             'sgpBaseUrl': integrations.sgpBaseUrl,
             'token': integrations.apiToken,
@@ -165,6 +171,10 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           );
           _onuWifiService = onuService;
           _wifiController = WifiManagementController(_onuWifiService);
+          debugPrint('[Diag05] OnuWifiService CREATED successfully');
+        } else {
+          debugPrint(
+              '[Diag05] WARNING: User is NULL, OnuWifiService NOT created!');
         }
 
         _realService = real_service.DiagnosticoService(
@@ -172,6 +182,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           context: context,
           onuService: onuService,
         );
+        debugPrint(
+            '[Diag05] DiagnosticoService created with onuService: ${onuService != null}');
         _realSub = _realService!.stateStream.listen(_handleRealServiceState);
       }
     }
@@ -221,18 +233,26 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
         if (res is Map) {
           _wifi = {
             'ssid': res['ssid']?.toString() ?? 'Desconhecido',
-            'rssi': int.tryParse(res['rssi']?.toString() ?? '-99') ?? -99,
+            'rssi': res['signalStrength']?.toString() ?? '---',
             'frequency': res['frequency']?.toString() ?? '',
             'gateway': res['gateway']?.toString() ?? '',
-            'quality': res['linkSpeed']?.toString() ?? ''
+            'quality': _getSignalText(res['signalStrength']),
+            'channel': res['channel']?.toString() ?? '---',
+            'security': res['security']?.toString() ?? '---',
+            'bssid': res['bssid']?.toString() ?? '---',
+            'ip': res['ip']?.toString() ?? '---',
+            'dns': res['dns']?.toString() ?? '---',
           };
         } else {
+          // Fallback parsing if String (Legacy)
           _wifi = {
             'ssid': 'Detectado',
-            'rssi': -50,
-            'frequency': '5GHz',
+            'rssi': '-50',
+            'frequency': 'N/A',
             'gateway': '',
-            'quality': ''
+            'quality': 'Bom',
+            'channel': '---',
+            'security': '---'
           };
         }
         _progress = 0.2;
@@ -242,26 +262,12 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       if (results['onuInfo']?['status'] == real_state.TestStatus.running)
         _currentStep = DiagStep.fiber;
       if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
-        final res = results['onuInfo']!['result'];
-        if (res is Map) {
-          _fiber = {
-            'rxPower':
-                double.tryParse(res['rxPower']?.toString() ?? '0') ?? 0.0,
-            'txPower':
-                double.tryParse(res['txPower']?.toString() ?? '0') ?? 0.0,
-            'temperature':
-                double.tryParse(res['temperature']?.toString() ?? '0') ?? 0.0,
-            'status': 'Online'
-          };
-        } else {
-          _fiber = {
-            'rxPower': -19.5,
-            'txPower': 2.2,
-            'temperature': 40.0,
-            'status': 'Online'
-          };
-        }
         _progress = 0.4;
+      } else if (results['onuInfo']?['status'] == real_state.TestStatus.error) {
+        final errorMsg =
+            results['onuInfo']?['result']?.toString() ?? 'Erro desconhecido';
+        debugPrint('❌ Erro na ONU (UI): $errorMsg');
+        _progress = 0.4; // Avança mesmo com erro para não travar
       }
 
       // Devices
@@ -359,6 +365,16 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
     }
   }
 
+  String _getSignalText(dynamic rssiVal) {
+    if (rssiVal == null) return "---";
+    final r = int.tryParse(rssiVal.toString());
+    if (r == null) return rssiVal.toString();
+    if (r >= -50) return "Excelente";
+    if (r >= -60) return "Bom";
+    if (r >= -70) return "Regular";
+    return "Fraco";
+  }
+
   Future<void> _startDiagnostic() async {
     if (_isRunning) return;
     HapticFeedback.mediumImpact();
@@ -367,7 +383,6 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       _isRunning = true;
       _progress = 0;
       _wifi = null;
-      _fiber = null;
       _devices = [];
       _speed = null;
       _hops = [];
@@ -467,11 +482,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                                 delay: 100,
                                 child: _buildWifiContent(),
                                 accentColor: AppColors.primary),
-                          if (_fiber != null)
-                            _AnimatedCard(
-                                delay: 200,
-                                child: _buildFiberContent(),
-                                accentColor: AppColors.secondary),
+                          // REMOVIDO: Card de Fibra duplicado (O usuário prefere o 'ONU / Fibra' abaixo)
+                          // if (_fiber != null) ...
                           if (_devices.isNotEmpty)
                             _AnimatedCard(
                                 delay: 300,
@@ -482,15 +494,16 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                                 delay: 400,
                                 child: _buildRouteContent(),
                                 accentColor: AppColors.warning),
-                          // NEW SECTIONS
-                          if (_lastRealState != null)
+                          // NEW SECTIONS - Only show when diagnostic is complete
+                          if (_currentStep == DiagStep.done &&
+                              _lastRealState != null) ...[
                             _buildConnectionJourneyCard(),
-                          if (_lastRealState != null) _buildWifiDetailsCard(),
-                          if (_lastRealState != null) _buildOnuDetailsCard(),
-                          if (_lastRealState != null) _buildDeviceDetailsCard(),
-                          _buildWifiManagementCard(),
-                          if (_lastRealState != null)
+                            _buildWifiDetailsCard(),
+                            _buildOnuDetailsCard(),
+                            _buildDeviceDetailsCard(),
+                            _buildWifiManagementCard(),
                             _buildTroubleshooterCard(),
+                          ],
                           if (_currentStep == DiagStep.done)
                             _buildActionButtons(),
                           const SizedBox(height: 40),
@@ -974,38 +987,13 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
         _InfoRow(
             icon: Icons.signal_cellular_alt_rounded,
             label: "Sinal",
-            value: "${_wifi!['rssi']} dBm"),
+            value: "${_wifi!['rssi']}"),
         _InfoRow(
             icon: Icons.router_rounded,
             label: "Frequência",
             value: _wifi!['frequency']),
-      ],
-    );
-  }
-
-  Widget _buildFiberContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(
-            icon: Icons.cable_rounded,
-            title: "Fibra Óptica",
-            color: AppColors.secondary),
-        const SizedBox(height: 16),
         _InfoRow(
-            icon: Icons.check_circle_rounded,
-            label: "Status",
-            value: _fiber!['status'],
-            valueColor: AppColors.success,
-            isBold: true),
-        _InfoRow(
-            icon: Icons.arrow_downward_rounded,
-            label: "Potência RX",
-            value: "${_fiber!['rxPower']} dBm"),
-        _InfoRow(
-            icon: Icons.arrow_upward_rounded,
-            label: "Potência TX",
-            value: "${_fiber!['txPower']} dBm"),
+            icon: Icons.tune_rounded, label: "Canal", value: _wifi!['channel']),
       ],
     );
   }
@@ -1390,8 +1378,6 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
 
   Widget _buildWifiDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
-    final wifiR =
-        _lastRealState!.testResultsDisplay['wifiInfo']?['result'] as String?;
     final s = _lastRealState!.testResultsDisplay['wifiInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1415,14 +1401,12 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                       fontWeight: FontWeight.bold, fontSize: 15))
             ]),
             const SizedBox(height: 12),
-            _detailRow(
-                'BSSID', DiagnosticUtils.parseResultLine(wifiR, 'BSSID:')),
-            _detailRow('IP Local',
-                DiagnosticUtils.parseResultLine(wifiR, 'IP Dispositivo:')),
-            _detailRow('DNS',
-                DiagnosticUtils.parseResultLine(wifiR, 'Servidores DNS:')),
-            _detailRow('Frequência',
-                DiagnosticUtils.parseResultLine(wifiR, 'Frequência:')),
+            _detailRow('BSSID', _wifi!['bssid'] ?? '---'),
+            _detailRow('IP Local', _wifi!['ip'] ?? '---'),
+            _detailRow('DNS', _wifi!['dns']?.replaceAll('\n', ', ') ?? '---'),
+            _detailRow('Frequência', _wifi!['frequency'] ?? '---'),
+            _detailRow('Canal', _wifi!['channel'] ?? '---'),
+            _detailRow('Segurança', _wifi!['security'] ?? '---'),
           ]),
         ));
   }
@@ -1434,12 +1418,20 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
     if (s == real_state.TestStatus.pending) return const SizedBox.shrink();
-    String rx = '---', tx = '---', temp = '---', model = '---';
+    String rx = '---',
+        tx = '---',
+        temp = '---',
+        model = '---',
+        volts = '---',
+        bias = '---';
+
     if (onuR is Map) {
       rx = onuR['rxPower']?.toString() ?? '---';
       tx = onuR['txPower']?.toString() ?? '---';
       temp = onuR['temperature']?.toString() ?? '---';
       model = onuR['model']?.toString() ?? '---';
+      volts = onuR['voltage']?.toString() ?? '---';
+      bias = onuR['biasCurrent']?.toString() ?? '---';
     }
     return _AnimatedCard(
         delay: 600,
@@ -1476,6 +1468,14 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
               Expanded(child: _onuStat('Temp', '$temp°C', Colors.orange)),
               const SizedBox(width: 8),
               Expanded(child: _onuStat('Modelo', model, AppColors.secondary))
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                  child: _onuStat('Voltagem', '$volts V', Colors.blueGrey)),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: _onuStat('Bias Current', '$bias mA', Colors.blueGrey))
             ]),
           ]),
         ));

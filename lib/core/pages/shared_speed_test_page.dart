@@ -159,23 +159,25 @@ class _SharedSpeedTestPageState extends ConsumerState<SharedSpeedTestPage> {
 
         return Scaffold(
           backgroundColor: backgroundColor,
-          appBar: AppBar(
-            title: Text('Teste de Velocidade',
-                style: TextStyle(color: appBarTextColor)),
-            backgroundColor: appBarColor,
-            iconTheme: IconThemeData(color: appBarTextColor),
-            elevation: 0,
-            centerTitle: true,
-            actions: [
-              if (!isRunning && hasResults)
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () {
-                    _startTest();
-                  },
-                )
-            ],
-          ),
+          appBar: layoutType == 'layout_02'
+              ? null
+              : AppBar(
+                  title: Text('Teste de Velocidade',
+                      style: TextStyle(color: appBarTextColor)),
+                  backgroundColor: appBarColor,
+                  iconTheme: IconThemeData(color: appBarTextColor),
+                  elevation: 0,
+                  centerTitle: true,
+                  actions: [
+                    if (!isRunning && hasResults)
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed: () {
+                          _startTest();
+                        },
+                      )
+                  ],
+                ),
           body: content,
         );
       },

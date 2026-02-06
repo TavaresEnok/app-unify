@@ -93,18 +93,32 @@ class _LoginPageState extends ConsumerState<LoginPage>
     final config = ref.watch(configurationProvider).providerConfig;
     final providerName = config?.name ?? 'Provedor';
 
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
+    final secondary = theme.colorScheme.secondary;
+
+    // Calculate dark variants dynamically
+    final hslPrimary = HSLColor.fromColor(primary);
+    final primaryDark = hslPrimary
+        .withLightness((hslPrimary.lightness - 0.2).clamp(0.0, 1.0))
+        .toColor();
+    final deepBackground = hslPrimary
+        .withLightness((hslPrimary.lightness - 0.4).clamp(0.0, 1.0))
+        .withSaturation(0.6)
+        .toColor(); // Darker, slightly desaturated
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Layout02Theme.primary,
-              Layout02Theme.primaryDark,
-              Color(0xFF002966),
+              primary,
+              primaryDark,
+              deepBackground, // Dynamic dark background
             ],
-            stops: [0.0, 0.5, 1.0],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
@@ -116,11 +130,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
               child: Column(
                 children: [
                   const SizedBox(height: 60),
-                  _buildLogo(config?.config.logoUrl),
+                  _buildLogo(config?.config.logoUrl, secondary),
                   const SizedBox(height: 20),
-                  _buildWelcomeText(providerName),
+                  _buildWelcomeText(providerName, secondary),
                   const SizedBox(height: 50),
-                  _buildLoginCard(),
+                  _buildLoginCard(theme, primary, secondary),
                   const SizedBox(height: 30),
                   _buildFooter(),
                   const SizedBox(height: 40),
@@ -133,7 +147,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
-  Widget _buildLogo(String? logoUrl) {
+  Widget _buildLogo(String? logoUrl, Color secondary) {
     return Container(
       width: 100,
       height: 100,
@@ -146,7 +160,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         ),
         boxShadow: [
           BoxShadow(
-            color: Layout02Theme.secondary.withOpacity(0.3),
+            color: secondary.withOpacity(0.3),
             blurRadius: 30,
             spreadRadius: 5,
           ),
@@ -178,12 +192,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
-  Widget _buildWelcomeText(String providerName) {
+  Widget _buildWelcomeText(String providerName, Color secondary) {
     return Column(
       children: [
         ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Layout02Theme.secondary],
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [Colors.white, secondary],
           ).createShader(bounds),
           child: Text(
             providerName,
@@ -208,7 +222,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
-  Widget _buildLoginCard() {
+  Widget _buildLoginCard(ThemeData theme, Color primary, Color secondary) {
+    final errorColor = theme.colorScheme.error; // Use theme error color
+
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -225,12 +241,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Entrar',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: Layout02Theme.textDark,
+              color: Layout02Theme.textDark, // Keep dark text for card
             ),
           ),
           const SizedBox(height: 8),
@@ -264,8 +280,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ),
               prefixIcon: Container(
                 margin: const EdgeInsets.only(left: 16, right: 12),
-                child: const Icon(Icons.person_rounded,
-                    color: Layout02Theme.primary, size: 24),
+                child: Icon(Icons.person_rounded, color: primary, size: 24),
               ),
               prefixIconConstraints:
                   const BoxConstraints(minWidth: 0, minHeight: 0),
@@ -277,13 +292,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide:
-                    const BorderSide(color: Layout02Theme.primary, width: 2),
+                borderSide: BorderSide(color: primary, width: 2),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide:
-                    const BorderSide(color: Layout02Theme.red, width: 1.5),
+                borderSide: BorderSide(color: errorColor, width: 1.5),
               ),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -296,19 +309,18 @@ class _LoginPageState extends ConsumerState<LoginPage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Layout02Theme.red.withOpacity(0.1),
+                color: errorColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline,
-                      color: Layout02Theme.red, size: 20),
+                  Icon(Icons.error_outline, color: errorColor, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        color: Layout02Theme.red,
+                      style: TextStyle(
+                        color: errorColor,
                         fontSize: 14,
                       ),
                     ),
@@ -319,13 +331,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
           ],
 
           const SizedBox(height: 28),
-          _buildLoginButton(),
+          _buildLoginButton(primary, secondary),
         ],
       ),
     );
   }
 
-  Widget _buildLoginButton() {
+  Widget _buildLoginButton(Color primary, Color secondary) {
     return GestureDetector(
       onTap: _isLoading ? null : _handleLogin,
       child: AnimatedContainer(
@@ -334,18 +346,19 @@ class _LoginPageState extends ConsumerState<LoginPage>
         decoration: BoxDecoration(
           gradient: _isLoading
               ? LinearGradient(
-                  colors: [
-                    Layout02Theme.grey,
-                    Layout02Theme.grey.withOpacity(0.8)
-                  ],
+                  colors: [Colors.grey, Colors.grey.withOpacity(0.8)],
                 )
-              : Layout02Theme.primaryGradient,
+              : LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [primary, secondary],
+                ),
           borderRadius: BorderRadius.circular(18),
           boxShadow: _isLoading
               ? null
               : [
                   BoxShadow(
-                    color: Layout02Theme.primary.withOpacity(0.4),
+                    color: primary.withOpacity(0.4),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),

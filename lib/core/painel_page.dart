@@ -25,8 +25,11 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   void initState() {
     super.initState();
     // Refresh data in background when Painel opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _refreshData();
+      if (mounted) {
+        await _syncNotifications();
+      }
     });
   }
 
@@ -34,12 +37,23 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     final config = ref.read(configurationProvider).providerConfig;
     if (config != null) {
       // Refresh Configuration (for WhatsApp changes etc)
-      ref.read(configurationProvider).loadConfig(config.id);
+      await ref.read(configurationProvider).loadConfig(config.id);
 
       // Refresh User Data (for Balance 0.00 fix)
       if (ref.read(authNotifierProvider).value != null) {
-        ref.read(authNotifierProvider.notifier).refreshUserData(config);
+        await ref.read(authNotifierProvider.notifier).refreshUserData(config);
       }
+    }
+  }
+
+  Future<void> _syncNotifications() async {
+    final usuario = ref.read(authNotifierProvider).value;
+    final config = ref.read(configurationProvider).providerConfig;
+
+    if (usuario != null && config != null) {
+      await ref
+          .read(notificationProvider)
+          .syncRemoteNotifications(usuario, config.id);
     }
   }
 
@@ -212,12 +226,14 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     }
 
     // Default AppBar for Layout 04, Layout 06, etc. OR Layout 02 non-dashboard pages
-    final primaryColor = Theme.of(context).primaryColor;
+    // Use themeConfig colors for Layout 02 to respect web admin settings
+    final themeConfig = ref.watch(themeProvider).config;
+    final primaryColor = themeConfig.colors.primary;
     final bool isDarkLayout =
         layoutType == 'layout_04' || layoutType == 'layout_06';
     Color bgColor;
     if (isLayout02) {
-      bgColor = const Color(0xFF673AB7); // Purple for Layout 02
+      bgColor = primaryColor; // Use dynamic primary color from themeConfig
     } else if (isDarkLayout) {
       bgColor = const Color(0xFF0A0A0A); // Pure black for Layout 04/06
     } else {

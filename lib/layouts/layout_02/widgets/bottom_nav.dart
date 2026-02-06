@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme.dart';
 
 /// Layout 02 Premium Bottom Navigation Bar
 /// Design com ShaderMask gradiente e expansão animada do texto
@@ -20,7 +19,7 @@ class Layout02BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
@@ -39,7 +38,7 @@ class Layout02BottomNav extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: items.asMap().entries.map((entry) {
-              return _buildNavItem(entry.key, entry.value);
+              return _buildNavItem(context, entry.key, entry.value);
             }).toList(),
           ),
         ),
@@ -47,7 +46,16 @@ class Layout02BottomNav extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(int index, BottomNavItem item) {
+  Widget _buildNavItem(BuildContext context, int index, BottomNavItem item) {
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
+    final secondary = theme.colorScheme.secondary;
+
+    // Calculate primaryLight dynamically (lighter version of primary)
+    final hsl = HSLColor.fromColor(primary);
+    final primaryLight =
+        hsl.withLightness((hsl.lightness + 0.15).clamp(0.0, 1.0)).toColor();
+
     final isSelected = currentIndex == index;
     return GestureDetector(
       onTap: () {
@@ -64,8 +72,11 @@ class Layout02BottomNav extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           gradient: isSelected
-              ? const LinearGradient(
-                  colors: [Color(0x200066FF), Color(0x1000D9FF)],
+              ? LinearGradient(
+                  colors: [
+                    primary.withOpacity(0.12),
+                    secondary.withOpacity(0.06)
+                  ],
                 )
               : null,
           borderRadius: BorderRadius.circular(16),
@@ -77,14 +88,11 @@ class Layout02BottomNav extends StatelessWidget {
               duration: const Duration(milliseconds: 250),
               child: ShaderMask(
                 shaderCallback: isSelected
-                    ? (bounds) => const LinearGradient(
-                          colors: [
-                            Layout02Theme.primary,
-                            Layout02Theme.secondary
-                          ],
+                    ? (bounds) => LinearGradient(
+                          colors: [primary, secondary],
                         ).createShader(bounds)
-                    : (bounds) => LinearGradient(
-                          colors: [Layout02Theme.grey, Layout02Theme.grey],
+                    : (bounds) => const LinearGradient(
+                          colors: [Colors.grey, Colors.grey],
                         ).createShader(bounds),
                 child: Icon(
                   item.icon,
@@ -100,11 +108,8 @@ class Layout02BottomNav extends StatelessWidget {
                   ? Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: ShaderMask(
-                        shaderCallback: (bounds) => const LinearGradient(
-                          colors: [
-                            Layout02Theme.primary,
-                            Layout02Theme.primaryLight
-                          ],
+                        shaderCallback: (bounds) => LinearGradient(
+                          colors: [primary, primaryLight],
                         ).createShader(bounds),
                         child: Text(
                           item.label,

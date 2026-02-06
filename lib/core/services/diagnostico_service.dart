@@ -23,19 +23,31 @@ import 'onu_wifi_service.dart';
 
 /// Abstração para permitir o mock de Ping em testes
 abstract class PingFactory {
-  Ping create(String host,
-      {int? count, Duration? timeout, Duration? interval, bool? ipv6});
+  Ping create(
+    String host, {
+    int? count,
+    Duration? timeout,
+    Duration? interval,
+    bool? ipv6,
+  });
 }
 
 class DefaultPingFactory implements PingFactory {
   @override
-  Ping create(String host,
-          {int? count, Duration? timeout, Duration? interval, bool? ipv6}) =>
-      Ping(host,
-          count: count,
-          timeout: timeout?.inSeconds ?? 2,
-          interval: interval?.inSeconds ?? 1,
-          ipv6: ipv6 ?? false);
+  Ping create(
+    String host, {
+    int? count,
+    Duration? timeout,
+    Duration? interval,
+    bool? ipv6,
+  }) =>
+      Ping(
+        host,
+        count: count,
+        timeout: timeout?.inSeconds ?? 2,
+        interval: interval?.inSeconds ?? 1,
+        ipv6: ipv6 ?? false,
+      );
 }
 
 class DiagnosticoService {
@@ -112,16 +124,13 @@ class DiagnosticoService {
     _streamController.add(_currentState);
   }
 
-  void _updateTestState(String key, TestStatus status, String? result) {
+  void _updateTestState(String key, TestStatus status, dynamic result) {
     if (_streamController.isClosed) return;
     final newResults = Map<String, Map<String, dynamic>>.from(
-        _currentState.testResultsDisplay);
-    newResults[key] = {
-      ...?newResults[key],
-      'status': status,
-      'result': result,
-    };
-    if (key == 'wifiInfo' && status == TestStatus.success) {
+      _currentState.testResultsDisplay,
+    );
+    newResults[key] = {...?newResults[key], 'status': status, 'result': result};
+    if (key == 'wifiInfo' && status == TestStatus.success && result is String) {
       final gatewayIp = _parseResultLine(result, "Gateway (Roteador):");
       if (gatewayIp != "---") {
         newResults[key]?['gatewayIp'] = gatewayIp;
@@ -168,8 +177,9 @@ class DiagnosticoService {
     _realtimeUpdateTimer = null;
     if (_currentState.isTesting) {
       _currentState = _currentState.copyWith(
-          isTesting: false,
-          geralStatusMessage: "Diagnóstico interrompido pelo usuário.");
+        isTesting: false,
+        geralStatusMessage: "Diagnóstico interrompido pelo usuário.",
+      );
       if (!_streamController.isClosed) _streamController.add(_currentState);
     }
   }
@@ -178,13 +188,18 @@ class DiagnosticoService {
   Future<void> runBatteryTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
-        'batteryInfo', TestStatus.running, "Verificando bateria...");
+      'batteryInfo',
+      TestStatus.running,
+      "Verificando bateria...",
+    );
     try {
       final level = await _battery.batteryLevel;
       final state = await _battery.batteryState;
       String stateStr = "Desconhecido";
+      bool isCharging = false;
       if (state == BatteryState.charging) {
         stateStr = "Carregando";
+        isCharging = true;
       } else if (state == BatteryState.discharging) {
         stateStr = "Descarregando";
       } else if (state == BatteryState.full) {
@@ -196,32 +211,59 @@ class DiagnosticoService {
         warning = "\n⚠️ Bateria baixa! O Wi-Fi pode perder potência.";
       }
 
-      _updateTestState('batteryInfo', TestStatus.success,
-          "Nível: $level%\nEstado: $stateStr$warning");
+      // Atualizar com dados estruturados para a UI poder ler
+      final resultText = "Nível: $level%\nEstado: $stateStr$warning";
+      final newResults = Map<String, Map<String, dynamic>>.from(
+        _currentState.testResultsDisplay,
+      );
+      newResults['batteryInfo'] = {
+        ...?newResults['batteryInfo'],
+        'status': TestStatus.success,
+        'result': {
+          'batteryLevel': level,
+          'isCharging': isCharging,
+          'stateStr': stateStr,
+        },
+        'displayText': resultText,
+      };
+      _currentState = _currentState.copyWith(testResultsDisplay: newResults);
+      _streamController.add(_currentState);
     } catch (e) {
       _updateTestState(
-          'batteryInfo', TestStatus.error, "Erro ao ler bateria: $e");
+        'batteryInfo',
+        TestStatus.error,
+        "Erro ao ler bateria: $e",
+      );
     }
   }
 
   @visibleForTesting
   Future<void> runLanScanTest() async {
     if (!_currentState.isTesting) return;
-    _updateTestState('lanScan', TestStatus.running,
-        "Escaneando rede local (pode demorar)...");
+    _updateTestState(
+      'lanScan',
+      TestStatus.running,
+      "Escaneando rede local (pode demorar)...",
+    );
     try {
       final String? ip = await _networkInfo.getWifiIP();
       if (ip == null) {
-        _updateTestState('lanScan', TestStatus.error,
-            "Não foi possível obter o IP para escanear.");
+        _updateTestState(
+          'lanScan',
+          TestStatus.error,
+          "Não foi possível obter o IP para escanear.",
+        );
         return;
       }
       final String subnet = ip.substring(0, ip.lastIndexOf('.'));
       final List<Host> hosts = await _lanScanner.quickIcmpScanAsync(subnet);
 
       if (!_currentState.isTesting) return;
-      _updateTestState('lanScan', TestStatus.success,
-          "Dispositivos encontrados: ${hosts.length}\n(Na sub-rede $subnet.x)");
+      _updateTestState(
+        'lanScan',
+        TestStatus.success,
+        "Dispositivos encontrados: ${hosts.length}\n(Na sub-rede $subnet.x)",
+      );
     } catch (e) {
       if (!_currentState.isTesting) return;
       _updateTestState('lanScan', TestStatus.error, "Erro no scanner: $e");
@@ -229,8 +271,12 @@ class DiagnosticoService {
   }
 
   @visibleForTesting
-  Future<void> runPingTest(String host, String key,
-      {int count = 5, bool discardFirst = false}) async {
+  Future<void> runPingTest(
+    String host,
+    String key, {
+    int count = 5,
+    bool discardFirst = false,
+  }) async {
     if (!_currentState.isTesting) return;
     _updateTestState(key, TestStatus.running, "Iniciando...");
 
@@ -242,65 +288,83 @@ class DiagnosticoService {
     // Se discardFirst for true, pedimos 1 pacote extra para compensar
     final int totalCount = discardFirst ? count + 1 : count;
 
-    final ping = _pingFactory.create(host,
-        count: totalCount,
-        timeout: const Duration(seconds: 2),
-        interval: const Duration(seconds: 1));
+    final ping = _pingFactory.create(
+      host,
+      count: totalCount,
+      timeout: const Duration(seconds: 2),
+      interval: const Duration(seconds: 1),
+    );
 
     int currentIndex = 0;
 
-    subscription = ping.stream.listen((PingData data) {
-      if (data.response != null) {
-        final isFirst = currentIndex == 0;
-        currentIndex++;
+    subscription = ping.stream.listen(
+      (PingData data) {
+        if (data.response != null) {
+          final isFirst = currentIndex == 0;
+          currentIndex++;
 
-        if (discardFirst && isFirst) return;
+          if (discardFirst && isFirst) return;
 
-        packetsReceived++;
-        final time = data.response!.time?.inMilliseconds;
-        if (time != null) latencies.add(time);
-      }
-    }, onDone: () {
-      int packetsLost = count - packetsReceived;
-      if (packetsLost < 0) packetsLost = 0;
-      double lossPercentage = (packetsLost / count) * 100;
-
-      if (!completer.isCompleted) {
-        if (latencies.isEmpty) {
-          _updateTestState(
-              key, TestStatus.error, 'Host inacessível\nPerda: 100%');
-        } else {
-          int avgLatency =
-              (latencies.reduce((a, b) => a + b) / latencies.length).round();
-          double jitter = 0.0;
-          if (latencies.length > 1) {
-            int totalDiff = 0;
-            for (int i = 0; i < latencies.length - 1; i++) {
-              totalDiff += (latencies[i] - latencies[i + 1]).abs();
-            }
-            jitter = totalDiff / (latencies.length - 1);
-          }
-          _updateTestState(key, TestStatus.success,
-              'Latência: ${avgLatency}ms\nJitter: ${jitter.toStringAsFixed(1)}ms\nPerda: ${lossPercentage.toStringAsFixed(0)}%');
+          packetsReceived++;
+          final time = data.response!.time?.inMilliseconds;
+          if (time != null) latencies.add(time);
         }
-        completer.complete();
-      }
-      subscription?.cancel();
-    }, onError: (e) {
-      if (!completer.isCompleted) {
-        _updateTestState(
-            key, TestStatus.error, 'Erro no Ping: ${e.toString()}');
-        completer.complete();
-      }
-      subscription?.cancel();
-    });
+      },
+      onDone: () {
+        int packetsLost = count - packetsReceived;
+        if (packetsLost < 0) packetsLost = 0;
+        double lossPercentage = (packetsLost / count) * 100;
+
+        if (!completer.isCompleted) {
+          if (latencies.isEmpty) {
+            _updateTestState(
+              key,
+              TestStatus.error,
+              'Host inacessível\nPerda: 100%',
+            );
+          } else {
+            int avgLatency =
+                (latencies.reduce((a, b) => a + b) / latencies.length).round();
+            double jitter = 0.0;
+            if (latencies.length > 1) {
+              int totalDiff = 0;
+              for (int i = 0; i < latencies.length - 1; i++) {
+                totalDiff += (latencies[i] - latencies[i + 1]).abs();
+              }
+              jitter = totalDiff / (latencies.length - 1);
+            }
+            _updateTestState(
+              key,
+              TestStatus.success,
+              'Latência: ${avgLatency}ms\nJitter: ${jitter.toStringAsFixed(1)}ms\nPerda: ${lossPercentage.toStringAsFixed(0)}%',
+            );
+          }
+          completer.complete();
+        }
+        subscription?.cancel();
+      },
+      onError: (e) {
+        if (!completer.isCompleted) {
+          _updateTestState(
+            key,
+            TestStatus.error,
+            'Erro no Ping: ${e.toString()}',
+          );
+          completer.complete();
+        }
+        subscription?.cancel();
+      },
+    );
 
     // Timeout de segurança
     Future.delayed(Duration(seconds: (totalCount * 2) + 5), () {
       if (!completer.isCompleted) {
         subscription?.cancel();
         _updateTestState(
-            key, TestStatus.error, 'Erro: Teste de ping expirou (Timeout)');
+          key,
+          TestStatus.error,
+          'Erro: Teste de ping expirou (Timeout)',
+        );
         completer.complete();
       }
     });
@@ -348,8 +412,11 @@ class DiagnosticoService {
           "Conexão: $connectionType\nDispositivo: $deviceModel\nVersão OS: $osVersion\nVersão do App: $appVersion";
       _updateTestState('deviceInfo', TestStatus.success, resultString);
     } catch (e) {
-      _updateTestState('deviceInfo', TestStatus.error,
-          "Erro ao obter dados do dispositivo.");
+      _updateTestState(
+        'deviceInfo',
+        TestStatus.error,
+        "Erro ao obter dados do dispositivo.",
+      );
     }
   }
 
@@ -395,11 +462,17 @@ class DiagnosticoService {
       if (!_currentState.isTesting) return;
 
       if (ipV4 != "N/A") {
-        _updateTestState('publicIp', TestStatus.success,
-            'IPv4: $ipV4\nIPv6: $ipV6\nProvedor: $org');
+        _updateTestState(
+          'publicIp',
+          TestStatus.success,
+          'IPv4: $ipV4\nIPv6: $ipV6\nProvedor: $org',
+        );
       } else {
-        _updateTestState('publicIp', TestStatus.error,
-            'Falha ao conectar aos servidores de IP.');
+        _updateTestState(
+          'publicIp',
+          TestStatus.error,
+          'Falha ao conectar aos servidores de IP.',
+        );
       }
     } catch (e) {
       if (!_currentState.isTesting) return;
@@ -410,11 +483,16 @@ class DiagnosticoService {
   Future<bool> _requestLocationPermission() async {
     if (!Platform.isAndroid) return true;
     var status = await Permission.location.request();
-    if (context == null || !context!.mounted) return false;
+    final ctx = context;
+    if (ctx == null || !ctx.mounted) return false;
     if (!status.isGranted) {
-      ScaffoldMessenger.of(context!).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(
           content: Text(
-              'Permissão de localização é necessária para obter informações de WiFi.')));
+            'Permissão de localização é necessária para obter informações de WiFi.',
+          ),
+        ),
+      );
     }
     return status.isGranted;
   }
@@ -438,91 +516,109 @@ class DiagnosticoService {
   @visibleForTesting
   Future<void> runOnuTest() async {
     if (!_currentState.isTesting || onuService == null) return;
-    _updateTestState('onuInfo', TestStatus.running,
-        "Verificando sinal da Fibra Óptica (ONU)...");
+    _updateTestState(
+      'onuInfo',
+      TestStatus.running,
+      "Verificando sinal da Fibra Óptica (ONU)...",
+    );
     try {
       final onuData = await onuService!.fetchOnuSignal();
 
-      String status = "Offline";
-      if (onuData.isOnline) {
-        status = "Online (${onuData.signalQuality})";
-      }
+      // Return data as Map for diagnostic pages to properly display
+      final resultMap = {
+        'rxPower': onuData.signalRx,
+        'txPower': onuData.signalTx,
+        'temperature': onuData.temperature,
+        'voltage': onuData.voltage,
+        'isOnline': onuData.isOnline,
+        'status': onuData.connectionStatus,
+        'model': onuData.model,
+        'serialNumber': onuData.serialNumber,
+        'oltName': onuData.oltName,
+        'slot': onuData.slot,
+        'pon': onuData.pon,
+        'onuId': onuData.onuId,
+        'signalQuality': onuData.signalQuality,
+        'mode': onuData.mode,
+        'vlan': onuData.vlan,
+        'cto': onuData.cto,
+        'lastUpdate': onuData.lastUpdate,
+      };
 
-      String details =
-          "Status: $status\nSinal RX: ${onuData.signalRxDisplay}\nSinal TX: ${onuData.signalTxDisplay}\nModelo: ${onuData.model}";
-
-      if (onuData.temperature != null) {
-        details += "\nTemp: ${onuData.temperature}°C";
-      }
-
-      _updateTestState('onuInfo', TestStatus.success, details);
+      _updateTestState('onuInfo', TestStatus.success, resultMap);
     } catch (e) {
       // Se falhar o remoto, não é crítico, apenas avisamos
       // _updateTestState('onuInfo', TestStatus.error, "Erro ONU: $e");
       // Mas para UX, talvez seja melhor mostrar aviso
-      _updateTestState('onuInfo', TestStatus.error,
-          "Falha ao obter dados da ONU:\n${e.toString().replaceAll('Exception:', '').trim()}");
+      _updateTestState(
+        'onuInfo',
+        TestStatus.error,
+        "Falha ao obter dados da ONU:\n${e.toString().replaceAll('Exception:', '').trim()}",
+      );
     }
   }
 
   @visibleForTesting
   Future<void> runTracerouteTest() async {
     if (!_currentState.isTesting) return;
-    _updateTestState('traceroute', TestStatus.running,
-        "Iniciando Rastreamento de Rota (Tracert)...");
+    _updateTestState(
+      'traceroute',
+      TestStatus.running,
+      "Iniciando Rastreamento de Rota (Tracert)...",
+    );
 
     final target = '8.8.8.8';
-    List<String> hops = [];
-    int maxHops = 15; // Limit hops
 
     try {
-      for (int ttl = 1; ttl <= maxHops; ttl++) {
-        if (!_currentState.isTesting) break;
+      // Usa o servidor para executar traceroute real
+      final apiUri = Uri.parse(providerConfig.apiUrl);
+      final baseUrl = '${apiUri.scheme}://${apiUri.host}:${apiUri.port}';
+      final url = '$baseUrl/diagnostic/traceroute';
 
-        final completer = Completer<String?>();
-        // Ping with count 1 and specific TTL using factory
-        final ping = _pingFactory.create(target,
-            count: 1, timeout: const Duration(seconds: 2));
-        // Note: dart_ping doesn't support TTL in most factory methods easily,
-        // but if the package supports it we should pass it.
-        // For now we assume the factory handles basic creation.
+      final response = await client
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'target': target, 'maxHops': 15}),
+          )
+          .timeout(const Duration(seconds: 35));
 
-        // Listen to stream to capture response
-        final subscription = ping.stream.listen((event) {
-          if (event.response != null) {
-            // Se tiver resposta (mesmo TTL expired), pegamos o IP
-            if (event.response?.ip != null) {
-              if (!completer.isCompleted)
-                completer.complete(event.response!.ip);
-            }
-          } else if (event.error != null) {
-            // Error can happen, ignore
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final hopsData = data['data']?['hops'] as List<dynamic>?;
+
+        if (hopsData != null && hopsData.isNotEmpty) {
+          List<String> hops = [];
+          for (final hop in hopsData) {
+            final hopNum = hop['hop'];
+            final ip = hop['ip'] ?? '*';
+            final time = hop['time'] ?? '*';
+            hops.add("$hopNum: $ip ($time)");
           }
-        });
-
-        // Wait for result or timeout (2.5s)
-        final ip = await completer.future
-            .timeout(const Duration(milliseconds: 2500), onTimeout: () => null);
-        await subscription.cancel();
-
-        final hopIp = ip ?? '*';
-        final hopLine = "$ttl: $hopIp";
-        hops.add(hopLine);
-
-        // Update live status
-        _updateTestState('traceroute', TestStatus.running, hops.join('\n'));
-
-        if (hopIp == target) {
           _updateTestState('traceroute', TestStatus.success, hops.join('\n'));
-          return;
+        } else {
+          _updateTestState(
+            'traceroute',
+            TestStatus.error,
+            "Nenhum resultado de traceroute recebido.",
+          );
+        }
+      } else {
+        // Tenta parsear erro
+        try {
+          final error = json.decode(response.body);
+          throw Exception(error['error']?['message'] ?? 'Erro no servidor');
+        } catch (_) {
+          throw Exception('Erro no servidor (${response.statusCode})');
         }
       }
-      // If loop finishes without reaching target
-      hops.add("Max hops reached.");
-      _updateTestState('traceroute', TestStatus.success, hops.join('\n'));
     } catch (e) {
       if (!_currentState.isTesting) return;
-      _updateTestState('traceroute', TestStatus.error, "Erro no Tracert: $e");
+      _updateTestState(
+        'traceroute',
+        TestStatus.error,
+        "Erro no Tracert: ${e.toString().replaceAll('Exception:', '').trim()}",
+      );
     }
   }
 
@@ -530,7 +626,10 @@ class DiagnosticoService {
   Future<void> runWifiTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
-        'wifiInfo', TestStatus.running, "Buscando dados de WiFi/DNS...");
+      'wifiInfo',
+      TestStatus.running,
+      "Buscando dados de WiFi/DNS...",
+    );
 
     // Se temos serviço remoto e permissão, tentamos buscar dados do roteador também
     List<WifiNetwork>? remoteNetworks;
@@ -543,8 +642,10 @@ class DiagnosticoService {
     }
 
     try {
-      String? wifiName =
-          (await _networkInfo.getWifiName())?.replaceAll("\"", "");
+      String? wifiName = (await _networkInfo.getWifiName())?.replaceAll(
+        "\"",
+        "",
+      );
       String? wifiBSSID = await _networkInfo.getWifiBSSID();
       String? wifiIPv4 = await _networkInfo.getWifiIP();
       String? wifiGatewayIP = await _networkInfo.getWifiGatewayIP();
@@ -568,7 +669,8 @@ class DiagnosticoService {
               : "Nenhum DNS encontrado";
         } catch (e) {
           debugPrint(
-              "ALERTA: Falha ao chamar o MethodChannel 'getWifiDetails'. O código nativo pode estar faltando. $e");
+            "ALERTA: Falha ao chamar o MethodChannel 'getWifiDetails'. O código nativo pode estar faltando. $e",
+          );
         }
       }
 
@@ -584,24 +686,58 @@ class DiagnosticoService {
       String resultString =
           "SSID: ${wifiName ?? 'N/A'}\nFrequência: $wifiFrequencyBand\nForça do Sinal: $wifiSignalStrength\nBSSID: ${wifiBSSID ?? 'N/A'}\nIP Dispositivo: ${wifiIPv4 ?? 'N/A'}\nGateway (Roteador): ${wifiGatewayIP ?? 'N/A'}\nServidores DNS:\n$dnsServers\nTempo DNS: ${dnsTimeMs >= 0 ? '$dnsTimeMs ms' : 'Falha'}";
 
+      String? remoteChannel;
+      String? remoteSecurity;
+
       // Append Remote info if available
       if (remoteNetworks != null && remoteNetworks.isNotEmpty) {
         final mySsid = wifiName;
         // Find matching remote network
-        final match = remoteNetworks.firstWhere((n) => n.ssid == mySsid,
-            orElse: () =>
-                WifiNetwork(id: '', ssid: '', frequency: '', enabled: false));
+        final match = remoteNetworks.firstWhere(
+          (n) => n.ssid == mySsid,
+          orElse: () => WifiNetwork(
+            id: '',
+            ssid: '',
+            frequency: '',
+            enabled: false,
+          ),
+        );
         if (match.id.isNotEmpty) {
           resultString +=
               "\n\n[Roteador Remoto]\nSSID: ${match.ssid}\nFreq: ${match.frequency}";
+          if (match.channel != null) {
+            resultString += "\nCanal: ${match.channel}";
+            remoteChannel = match.channel;
+          }
+          if (match.security != null) {
+            resultString += "\nSegurança: ${match.security}";
+            remoteSecurity = match.security;
+          }
         }
       }
 
-      _updateTestState('wifiInfo', TestStatus.success, resultString);
+      final resultMap = {
+        'ssid': wifiName ?? 'N/A',
+        'frequency': wifiFrequencyBand,
+        'signalStrength': wifiSignalStrength,
+        'bssid': wifiBSSID ?? 'N/A',
+        'ip': wifiIPv4 ?? 'N/A',
+        'gateway': wifiGatewayIP ?? 'N/A',
+        'dns': dnsServers,
+        'dnsTime': dnsTimeMs,
+        'channel': remoteChannel ?? 'N/A',
+        'security': remoteSecurity ?? 'WPA2-PSK', // Default assumption
+        'display': resultString // Legacy string support
+      };
+
+      _updateTestState('wifiInfo', TestStatus.success, resultMap);
     } catch (e) {
       if (!_currentState.isTesting) return;
-      _updateTestState('wifiInfo', TestStatus.error,
-          'Erro ao obter informações: ${e.toString()}');
+      _updateTestState(
+        'wifiInfo',
+        TestStatus.error,
+        'Erro ao obter informações: ${e.toString()}',
+      );
     }
   }
 
@@ -609,20 +745,30 @@ class DiagnosticoService {
   Future<void> runPingGatewayTest() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
-        'pingGateway', TestStatus.running, "Aguardando IP do Roteador...");
+      'pingGateway',
+      TestStatus.running,
+      "Aguardando IP do Roteador...",
+    );
     final String? gatewayIp =
         _currentState.testResultsDisplay['wifiInfo']?['gatewayIp'] as String?;
     if (gatewayIp != null && gatewayIp.isNotEmpty) {
       _updateStatus("Testando ping para o Roteador ($gatewayIp)...");
       // Use 10 pings + discardFirst for router
-      await runPingTest(gatewayIp, 'pingGateway',
-          count: 10, discardFirst: true);
+      await runPingTest(
+        gatewayIp,
+        'pingGateway',
+        count: 10,
+        discardFirst: true,
+      );
     } else {
       if (_currentState.isTesting &&
           _currentState.testResultsDisplay['pingGateway']?['status'] !=
               TestStatus.error) {
-        _updateTestState('pingGateway', TestStatus.error,
-            'Não foi possível obter IP do roteador no teste WiFi.');
+        _updateTestState(
+          'pingGateway',
+          TestStatus.error,
+          'Não foi possível obter IP do roteador no teste WiFi.',
+        );
       }
     }
   }
@@ -638,8 +784,8 @@ class DiagnosticoService {
     try {
       final apiUri = Uri.parse(providerConfig.apiUrl);
       if (apiUri.host.isNotEmpty) {
-        // Assume SpeedTest is adjacent on port 3001
-        defaultSpeedTestUrl = 'http://${apiUri.host}:3001';
+        // Assume SpeedTest is adjacent on port 8033 (migrated from 3001)
+        defaultSpeedTestUrl = 'http://${apiUri.host}:8033';
       }
     } catch (_) {
       // Ignore parse error, stick to librespeed
@@ -653,35 +799,80 @@ class DiagnosticoService {
       _updateStatus("Usando servidor padrão: $customUrl");
     }
 
-    _updateTestState('speedTestCustom', TestStatus.running,
-        "Iniciando teste (Servidor Próprio)...");
+    _updateTestState(
+      'speedTestCustom',
+      TestStatus.running,
+      "Iniciando teste (Servidor Próprio)...",
+    );
 
     final completer = Completer<void>();
     _downloadHistoryCounter = 0;
     _uploadHistoryCounter = 0;
     _customPeakDownloadMbps = 0;
     _customPeakUploadMbps = 0;
-    _currentState =
-        _currentState.copyWith(downloadHistory: [], uploadHistory: []);
+    _currentState = _currentState.copyWith(
+      downloadHistory: [],
+      uploadHistory: [],
+    );
     _streamController.add(_currentState);
 
-    // TIMERS
-    Timer? stallTimer;
+    // Timer de segurança
     Timer? maxDurationTimer;
 
-    void cancelTimers() {
-      stallTimer?.cancel();
+    void cancelTimer() {
       maxDurationTimer?.cancel();
     }
 
     try {
-      // 1. Max Duration Timer: Hard limit per test (prevents 2 min waits)
-      maxDurationTimer = Timer(const Duration(seconds: 40), () {
+      // 0. Latency Check to Custom Server
+      double customLatency = 0;
+      try {
+        final uri = Uri.parse(customUrl);
+        final pingHost = uri.host;
+        if (pingHost.isNotEmpty) {
+          _updateStatus("Medindo latência para $pingHost...");
+          final ping = _pingFactory.create(
+            pingHost,
+            count: 3,
+            timeout: const Duration(seconds: 1),
+          );
+          double totalTime = 0;
+          int successCount = 0;
+          await for (final event in ping.stream) {
+            if (event.response != null && event.response!.time != null) {
+              totalTime += event.response!.time!.inMilliseconds;
+              successCount++;
+            }
+          }
+          if (successCount > 0) {
+            customLatency = totalTime / successCount;
+            _updateStatus(
+              "Latência medida: ${customLatency.toStringAsFixed(1)} ms",
+            );
+          }
+        }
+      } catch (e) {
+        // Ignorar erro de ping no debug
+      }
+
+      // 1. Timer de segurança apenas (60s para garantir que complete todo o teste)
+      maxDurationTimer = Timer(const Duration(seconds: 60), () {
         if (!completer.isCompleted && _currentState.isTesting) {
           internetSpeedTest.cancelTest();
-          // Accept current result as final if we timed out but had data
-          _updateTestState(
-              'speedTestCustom', TestStatus.success, "Tempo limite atingido.");
+          // Se temos dados, usar como resultado final
+          if (_customPeakDownloadMbps > 0) {
+            _updateTestState(
+              'speedTestCustom',
+              TestStatus.success,
+              "Download: ${_customPeakDownloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${_customPeakUploadMbps.toStringAsFixed(1)} Mbps",
+            );
+          } else {
+            _updateTestState(
+              'speedTestCustom',
+              TestStatus.error,
+              "Tempo limite atingido.",
+            );
+          }
           if (!completer.isCompleted) completer.complete();
         }
       });
@@ -689,7 +880,7 @@ class DiagnosticoService {
       internetSpeedTest.startTesting(
         downloadTestServer: customUrl,
         uploadTestServer: customUrl,
-        // fileSize: 20000000, // Optional: Limit file size if supported to speed up
+        fileSizeInBytes: 5000000, // 5MB - Teste rápido
         onStarted: () {
           if (!_currentState.isTesting) {
             internetSpeedTest.cancelTest();
@@ -698,20 +889,29 @@ class DiagnosticoService {
           _updateStatus("Testando Download (Servidor Personalizado)...");
         },
         onCompleted: (TestResult download, TestResult upload) {
-          cancelTimers();
+          cancelTimer();
           if (!_currentState.isTesting) return;
           final downloadMbps = download.transferRate;
           final uploadMbps = upload.transferRate;
 
-          _updateTestState('speedTestCustom', TestStatus.success,
-              "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps");
-
-          double latencia = _extractLatencyFromResult(
-              _currentState.testResultsDisplay['pingGoogle']?['result']);
+          // Usar latência customizada se disponível
+          double latencia = customLatency;
           if (latencia == 0) {
             latencia = _extractLatencyFromResult(
-                _currentState.testResultsDisplay['pingCloudflare']?['result']);
+              _currentState.testResultsDisplay['pingGoogle']?['result'],
+            );
           }
+          if (latencia == 0) {
+            latencia = _extractLatencyFromResult(
+              _currentState.testResultsDisplay['pingCloudflare']?['result'],
+            );
+          }
+
+          _updateTestState(
+            'speedTestCustom',
+            TestStatus.success,
+            "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps\nPing: ${latencia.toStringAsFixed(0)} ms",
+          );
 
           _currentState = _currentState.copyWith(
             customDownloadResultMbps: downloadMbps,
@@ -726,64 +926,38 @@ class DiagnosticoService {
           final rate = data.transferRate;
           final isDownload = data.type == TestType.download;
 
-          // 2. Stall Timer: Reset only on progress
-          stallTimer?.cancel();
-          stallTimer = Timer(const Duration(seconds: 15), () {
-            if (!completer.isCompleted && _currentState.isTesting) {
-              internetSpeedTest.cancelTest();
-              // If we have data, consider it a success with current values
-              if (_customPeakDownloadMbps > 0) {
-                _updateTestState('speedTestCustom', TestStatus.success,
-                    "Download: ${_customPeakDownloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${_customPeakUploadMbps.toStringAsFixed(1)} Mbps\n(Teste concluído por timeout)");
-              } else {
-                _updateTestState('speedTestCustom', TestStatus.error,
-                    "Teste travado (sem progresso).");
-              }
-              if (!completer.isCompleted) completer.complete();
-            }
-          });
-
-          // Force completion at 95%+ to avoid stalls at high percentages
-          if (percent >= 95 && !isDownload && !completer.isCompleted) {
-            cancelTimers();
-            _updateTestState('speedTestCustom', TestStatus.success,
-                "Download: ${_customPeakDownloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${rate.toStringAsFixed(1)} Mbps");
-            _currentState = _currentState.copyWith(
-              customDownloadResultMbps: _customPeakDownloadMbps,
-              customUploadResultMbps: rate,
-            );
-            _streamController.add(_currentState);
-            if (!completer.isCompleted) completer.complete();
-            return;
-          }
-
           if (isDownload) {
             _updateStatus(
-                "Testando Download... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+              "Testando Download... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)",
+            );
             if (rate > _customPeakDownloadMbps) _customPeakDownloadMbps = rate;
             final newHistory = List<FlSpot>.from(_currentState.downloadHistory);
             newHistory.add(FlSpot(_downloadHistoryCounter.toDouble(), rate));
             _downloadHistoryCounter++;
             _currentState = _currentState.copyWith(
-                downloadHistory: newHistory, customDownloadResultMbps: rate);
+              downloadHistory: newHistory,
+              customDownloadResultMbps: rate,
+            );
           } else {
             _updateStatus(
-                "Testando Upload... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+              "Testando Upload... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)",
+            );
             if (rate > _customPeakUploadMbps) _customPeakUploadMbps = rate;
             final newHistory = List<FlSpot>.from(_currentState.uploadHistory);
             newHistory.add(FlSpot(_uploadHistoryCounter.toDouble(), rate));
             _uploadHistoryCounter++;
             _currentState = _currentState.copyWith(
-                uploadHistory: newHistory, customUploadResultMbps: rate);
+              uploadHistory: newHistory,
+              customUploadResultMbps: rate,
+            );
           }
           _streamController.add(_currentState);
         },
         onError: (String errorMessage, String speedTestError) {
-          cancelTimers();
+          cancelTimer();
           if (!_currentState.isTesting) return;
 
           String cleanError = errorMessage;
-          // Enhanced Error Parsing
           if (errorMessage.toLowerCase().contains("socketexception") ||
               errorMessage.toLowerCase().contains("connection refused") ||
               errorMessage.contains("CONNECTION_ERROR") ||
@@ -796,9 +970,12 @@ class DiagnosticoService {
         },
       );
     } catch (e) {
-      cancelTimers();
+      cancelTimer();
       _updateTestState(
-          'speedTestCustom', TestStatus.error, "Erro ao iniciar: $e");
+        'speedTestCustom',
+        TestStatus.error,
+        "Erro ao iniciar: $e",
+      );
       if (!completer.isCompleted) completer.complete();
     }
 
@@ -809,14 +986,19 @@ class DiagnosticoService {
   Future<void> runSpeedTestFastCom() async {
     if (!_currentState.isTesting) return;
     _updateTestState(
-        'speedTestFast', TestStatus.running, "Iniciando teste (Fast.com)...");
+      'speedTestFast',
+      TestStatus.running,
+      "Iniciando teste (Fast.com)...",
+    );
     final completer = Completer<void>();
     _fastDownloadHistoryCounter = 0;
     _fastUploadHistoryCounter = 0;
     _fastPeakDownloadMbps = 0;
     _fastPeakUploadMbps = 0;
-    _currentState =
-        _currentState.copyWith(fastDownloadHistory: [], fastUploadHistory: []);
+    _currentState = _currentState.copyWith(
+      fastDownloadHistory: [],
+      fastUploadHistory: [],
+    );
     _streamController.add(_currentState);
 
     // SAFETY TIMEOUT: Ensure test doesn't hang forever
@@ -826,13 +1008,17 @@ class DiagnosticoService {
       safeguardTimer = Timer(const Duration(seconds: 45), () {
         if (!completer.isCompleted && _currentState.isTesting) {
           internetSpeedTest.cancelTest();
-          _updateTestState('speedTestFast', TestStatus.error,
-              "Tempo limite excedido (Fast.com).");
+          _updateTestState(
+            'speedTestFast',
+            TestStatus.error,
+            "Tempo limite excedido (Fast.com).",
+          );
           if (!completer.isCompleted) completer.complete();
         }
       });
 
       internetSpeedTest.startTesting(
+        fileSizeInBytes: 5000000, // 5MB - Teste rápido
         onStarted: () {
           if (!_currentState.isTesting) {
             internetSpeedTest.cancelTest();
@@ -845,11 +1031,15 @@ class DiagnosticoService {
           if (!_currentState.isTesting) return;
           final downloadMbps = download.transferRate;
           final uploadMbps = upload.transferRate;
-          _updateTestState('speedTestFast', TestStatus.success,
-              "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps");
+          _updateTestState(
+            'speedTestFast',
+            TestStatus.success,
+            "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps",
+          );
           _currentState = _currentState.copyWith(
-              fastDownloadResultMbps: downloadMbps,
-              fastUploadResultMbps: uploadMbps);
+            fastDownloadResultMbps: downloadMbps,
+            fastUploadResultMbps: uploadMbps,
+          );
           _streamController.add(_currentState);
           if (!completer.isCompleted) completer.complete();
         },
@@ -863,33 +1053,45 @@ class DiagnosticoService {
           safeguardTimer = Timer(const Duration(seconds: 20), () {
             if (!completer.isCompleted && _currentState.isTesting) {
               internetSpeedTest.cancelTest();
-              _updateTestState('speedTestFast', TestStatus.error,
-                  "Teste travado (sem progresso).");
+              _updateTestState(
+                'speedTestFast',
+                TestStatus.error,
+                "Teste travado (sem progresso).",
+              );
               if (!completer.isCompleted) completer.complete();
             }
           });
 
           if (isDownload) {
             _updateStatus(
-                "Testando Download (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+              "Testando Download (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)",
+            );
             if (rate > _fastPeakDownloadMbps) _fastPeakDownloadMbps = rate;
-            final newHistory =
-                List<FlSpot>.from(_currentState.fastDownloadHistory);
-            newHistory
-                .add(FlSpot(_fastDownloadHistoryCounter.toDouble(), rate));
+            final newHistory = List<FlSpot>.from(
+              _currentState.fastDownloadHistory,
+            );
+            newHistory.add(
+              FlSpot(_fastDownloadHistoryCounter.toDouble(), rate),
+            );
             _fastDownloadHistoryCounter++;
             _currentState = _currentState.copyWith(
-                fastDownloadHistory: newHistory, fastDownloadResultMbps: rate);
+              fastDownloadHistory: newHistory,
+              fastDownloadResultMbps: rate,
+            );
           } else {
             _updateStatus(
-                "Testando Upload (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)");
+              "Testando Upload (Fast.com)... ${rate.toStringAsFixed(1)} Mbps (${percent.toStringAsFixed(0)}%)",
+            );
             if (rate > _fastPeakUploadMbps) _fastPeakUploadMbps = rate;
-            final newHistory =
-                List<FlSpot>.from(_currentState.fastUploadHistory);
+            final newHistory = List<FlSpot>.from(
+              _currentState.fastUploadHistory,
+            );
             newHistory.add(FlSpot(_fastUploadHistoryCounter.toDouble(), rate));
             _fastUploadHistoryCounter++;
             _currentState = _currentState.copyWith(
-                fastUploadHistory: newHistory, fastUploadResultMbps: rate);
+              fastUploadHistory: newHistory,
+              fastUploadResultMbps: rate,
+            );
           }
           _streamController.add(_currentState);
         },
@@ -897,14 +1099,20 @@ class DiagnosticoService {
           safeguardTimer?.cancel();
           if (!_currentState.isTesting) return;
           _updateTestState(
-              'speedTestFast', TestStatus.error, "Erro: $errorMessage");
+            'speedTestFast',
+            TestStatus.error,
+            "Erro: $errorMessage",
+          );
           if (!completer.isCompleted) completer.complete();
         },
       );
     } catch (e) {
       safeguardTimer?.cancel();
       _updateTestState(
-          'speedTestFast', TestStatus.error, "Erro ao iniciar: $e");
+        'speedTestFast',
+        TestStatus.error,
+        "Erro ao iniciar: $e",
+      );
       if (!completer.isCompleted) completer.complete();
     }
 
@@ -914,7 +1122,9 @@ class DiagnosticoService {
   Future<void> runAllTests() async {
     if (_currentState.isTesting) return;
     _currentState = DiagnosticoState.initial().copyWith(
-        isTesting: true, geralStatusMessage: "Iniciando diagnóstico...");
+      isTesting: true,
+      geralStatusMessage: "Iniciando diagnóstico...",
+    );
     _streamController.add(_currentState);
 
     try {
@@ -937,15 +1147,27 @@ class DiagnosticoService {
         if (!_currentState.isTesting) return;
         if (!hasPermission) {
           _updateTestState(
-              'wifiInfo', TestStatus.error, 'Permissão de localização negada.');
-          _updateTestState('pingGateway', TestStatus.error,
-              'Requer info WiFi (permissão negada).');
+            'wifiInfo',
+            TestStatus.error,
+            'Permissão de localização negada.',
+          );
+          _updateTestState(
+            'pingGateway',
+            TestStatus.error,
+            'Requer info WiFi (permissão negada).',
+          );
         }
       } else {
         _updateTestState(
-            'wifiInfo', TestStatus.error, 'Não conectado ao WiFi.');
+          'wifiInfo',
+          TestStatus.error,
+          'Não conectado ao WiFi.',
+        );
         _updateTestState(
-            'pingGateway', TestStatus.error, 'Não conectado ao WiFi.');
+          'pingGateway',
+          TestStatus.error,
+          'Não conectado ao WiFi.',
+        );
       }
 
       _updateStatus("Verificando Conectividade e IP (IPv4/IPv6)...");
@@ -989,11 +1211,14 @@ class DiagnosticoService {
       if (!_currentState.isTesting) return;
 
       if (_currentState.isTesting) {
-        bool anyError = _currentState.testResultsDisplay.entries
-            .any((entry) => entry.value['status'] == TestStatus.error);
-        _updateStatus(anyError
-            ? "Diagnóstico concluído com erros."
-            : "Diagnóstico concluído.");
+        bool anyError = _currentState.testResultsDisplay.entries.any(
+          (entry) => entry.value['status'] == TestStatus.error,
+        );
+        _updateStatus(
+          anyError
+              ? "Diagnóstico concluído com erros."
+              : "Diagnóstico concluído.",
+        );
       }
     } catch (e) {
       if (_currentState.isTesting) {
@@ -1010,8 +1235,9 @@ class DiagnosticoService {
   Future<void> runSpeedTestsOnly() async {
     if (_currentState.isTesting) return;
     _currentState = DiagnosticoState.initial().copyWith(
-        isTesting: true,
-        geralStatusMessage: "Iniciando teste de velocidade...");
+      isTesting: true,
+      geralStatusMessage: "Iniciando teste de velocidade...",
+    );
     _streamController.add(_currentState);
 
     try {

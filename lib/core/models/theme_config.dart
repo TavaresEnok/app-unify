@@ -50,6 +50,10 @@ class ThemeColors {
   final Color textPrimary;
   final Color textSecondary;
   final Color textHint;
+  final Color quickActionsCardColor; // [NEW]
+  final Color quickActionsTextColor; // [NEW]
+  final Color otherCardsColor; // [NEW]
+  final Color otherCardsTextColor; // [NEW]
 
   const ThemeColors({
     required this.primary,
@@ -63,6 +67,10 @@ class ThemeColors {
     required this.textPrimary,
     required this.textSecondary,
     required this.textHint,
+    required this.quickActionsCardColor,
+    required this.quickActionsTextColor,
+    required this.otherCardsColor,
+    required this.otherCardsTextColor,
   });
 
   factory ThemeColors.fromJson(Map<String, dynamic> json) {
@@ -79,6 +87,14 @@ class ThemeColors {
       textSecondary:
           _parseColor(json['textSecondary'], const Color(0xFF94A3B8)),
       textHint: _parseColor(json['textHint'], const Color(0xFF64748B)),
+      quickActionsCardColor: _parseColor(
+          json['quickActionsCardColor'], Colors.white), // [NEW] Default White
+      quickActionsTextColor: _parseColor(json['quickActionsTextColor'],
+          const Color(0xFF333333)), // [NEW] Default Dark Grey
+      otherCardsColor: _parseColor(
+          json['otherCardsColor'], Colors.white), // [NEW] Default White
+      otherCardsTextColor: _parseColor(json['otherCardsTextColor'],
+          const Color(0xFF333333)), // [NEW] Default Dark Grey
     );
   }
 
@@ -106,6 +122,10 @@ class ThemeColors {
     textPrimary: Colors.white,
     textSecondary: Color(0xFF94A3B8),
     textHint: Color(0xFF64748B),
+    quickActionsCardColor: Colors.white,
+    quickActionsTextColor: Color(0xFF333333),
+    otherCardsColor: Colors.white,
+    otherCardsTextColor: Color(0xFF333333),
   );
 }
 

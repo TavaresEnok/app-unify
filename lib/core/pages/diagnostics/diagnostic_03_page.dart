@@ -407,7 +407,7 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                         if (_lastRealState != null) _buildDeviceDetailsCard(),
                         _buildWifiManagementCard(),
                         if (_lastRealState != null) _buildTroubleshooterCard(),
-                        const SizedBox(height: 80),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -1225,12 +1225,32 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
 
   Widget _buildWifiDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
-    final wifiR =
-        _lastRealState!.testResultsDisplay['wifiInfo']?['result'] as String?;
+    final wifiR = _lastRealState!.testResultsDisplay['wifiInfo']?['result'];
     final s = _lastRealState!.testResultsDisplay['wifiInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
     if (s == real_state.TestStatus.pending) return const SizedBox.shrink();
+
+    String bssid = '---';
+    String ip = '---';
+    String dns = '---';
+    String freq = '---';
+    String channel = '---';
+    String security = '---';
+
+    if (wifiR is Map) {
+      bssid = wifiR['bssid']?.toString() ?? '---';
+      ip = wifiR['ip']?.toString() ?? '---';
+      dns = wifiR['dns']?.toString() ?? '---';
+      freq = wifiR['frequency']?.toString() ?? '---';
+      channel = wifiR['channel']?.toString() ?? '---';
+      security = wifiR['security']?.toString() ?? '---';
+    } else if (wifiR is String) {
+      bssid = DiagnosticUtils.parseResultLine(wifiR, 'BSSID:');
+      ip = DiagnosticUtils.parseResultLine(wifiR, 'IP Dispositivo:');
+      dns = DiagnosticUtils.parseResultBlock(wifiR, 'Servidores DNS:');
+      freq = DiagnosticUtils.parseResultLine(wifiR, 'Frequência:');
+    }
 
     return _AnimatedCard(
         delay: 550,
@@ -1256,14 +1276,12 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                       GoogleFonts.orbitron(color: Colors.white, fontSize: 14)),
             ]),
             const SizedBox(height: 12),
-            _detailRow(
-                'BSSID', DiagnosticUtils.parseResultLine(wifiR, 'BSSID:')),
-            _detailRow('IP Local',
-                DiagnosticUtils.parseResultLine(wifiR, 'IP Dispositivo:')),
-            _detailRow('DNS',
-                DiagnosticUtils.parseResultLine(wifiR, 'Servidores DNS:')),
-            _detailRow('Frequência',
-                DiagnosticUtils.parseResultLine(wifiR, 'Frequência:')),
+            _detailRow('BSSID', bssid),
+            _detailRow('IP Local', ip),
+            _detailRow('DNS', dns),
+            _detailRow('Frequência', freq),
+            _detailRow('Canal', channel),
+            _detailRow('Segurança', security),
           ]),
         ));
   }
@@ -1280,12 +1298,20 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
         real_state.TestStatus.pending;
     if (s == real_state.TestStatus.pending) return const SizedBox.shrink();
 
-    String rx = '---', tx = '---', temp = '---', model = '---';
+    String rx = '---',
+        tx = '---',
+        temp = '---',
+        model = '---',
+        volts = '---',
+        bias = '---';
+
     if (onuR is Map) {
       rx = onuR['rxPower']?.toString() ?? '---';
       tx = onuR['txPower']?.toString() ?? '---';
       temp = onuR['temperature']?.toString() ?? '---';
       model = onuR['model']?.toString() ?? '---';
+      volts = onuR['voltage']?.toString() ?? '---';
+      bias = onuR['biasCurrent']?.toString() ?? '---';
     }
 
     return _AnimatedCard(
@@ -1331,6 +1357,13 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
               const SizedBox(width: 8),
               Expanded(
                   child: _onuStat('Modelo', model, const Color(0xFFB026FF))),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: _onuStat('Voltagem', '$volts V', Colors.white70)),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: _onuStat('Bias Current', '$bias mA', Colors.white70)),
             ]),
           ]),
         ));

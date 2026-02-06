@@ -103,7 +103,7 @@ class AuthRepository {
     }
   }
 
-  Future<void> saveUserLocally(Usuario usuario) async {
+  Future<void> saveUserLocally(Usuario usuario, String providerId) async {
     final prefs = await SharedPreferences.getInstance();
 
     await _secureStorage.write(key: 'userSenha', value: usuario.senha);
@@ -115,13 +115,16 @@ class AuthRepository {
     await prefs.setString('billValue', usuario.valorFatura);
     await prefs.setString('billDueDate', usuario.vencimentoFatura);
 
+    // Save providerId for persistence
+    await prefs.setString('providerId', providerId);
+
     if (usuario.contratoId != null) {
       await prefs.setInt('userContratoId', usuario.contratoId!);
     }
 
     // Biometry persistence
     await saveCredentialsForBiometry(usuario.cpfCnpj, usuario.senha);
-    await _saveDeviceToken(usuario.cpfCnpj);
+    await _saveDeviceToken(usuario.cpfCnpj, providerId);
   }
 
   Future<void> logout(Usuario? currentUser) async {
@@ -143,25 +146,32 @@ class AuthRepository {
     await _secureStorage.delete(key: 'userSenha');
   }
 
-  Future<void> _saveDeviceToken(String cpfCnpj) async {
+  Future<void> _saveDeviceToken(String cpfCnpj, String providerId) async {
     try {
       String? token = await FirebaseMessaging.instance.getToken();
-      if (token != null) {
+
+      // Load user data from storage to sync to Firestore
+      final usuario = await loadUserFromStorage();
+
+      if (token != null && usuario != null) {
+        // Sync full profile for segmented notifications
         await FirebaseFirestore.instance
             .collection('clientes')
             .doc(cpfCnpj)
             .set(
           {
             'fcmToken': token,
-            'providerId':
-                'vibe', // This might need to be dynamic? using 'vibe' as per legacy code
+            'providerId': providerId,
+            'nome': usuario.nome,
+            'plano': usuario.plano,
+            'status': usuario.status,
             'lastUpdated': FieldValue.serverTimestamp()
           },
           SetOptions(merge: true),
         );
       }
     } catch (e) {
-      debugPrint('❌ Erro ao salvar o token FCM: $e');
+      debugPrint('❌ Erro ao salvar dados do cliente no Firestore: $e');
     }
   }
 

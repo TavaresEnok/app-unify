@@ -76,7 +76,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
-    final isOnline = widget.connectionStatus.toLowerCase() == 'online';
+    final isOnline = widget.connectionStatus.toLowerCase() == 'online' ||
+        widget.connectionStatus.toLowerCase() == 'ativo';
 
     return Scaffold(
       key: _scaffoldKey,

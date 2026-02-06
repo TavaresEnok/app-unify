@@ -342,8 +342,10 @@ class _DashboardPageState extends State<DashboardPage> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: widget.connectionStatus.toLowerCase() ==
-                                      'ativo'
+                              color: (widget.connectionStatus.toLowerCase() ==
+                                          'ativo' ||
+                                      widget.connectionStatus.toLowerCase() ==
+                                          'online')
                                   ? const Color(0xFF30D158)
                                       .withValues(alpha: 0.1)
                                   : const Color(0xFFFF453A)
@@ -357,22 +359,28 @@ class _DashboardPageState extends State<DashboardPage> {
                                   height: 6,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color:
-                                        widget.connectionStatus.toLowerCase() ==
-                                                'ativo'
-                                            ? const Color(0xFF30D158)
-                                            : const Color(0xFFFF453A),
+                                    color: (widget.connectionStatus
+                                                    .toLowerCase() ==
+                                                'ativo' ||
+                                            widget.connectionStatus
+                                                    .toLowerCase() ==
+                                                'online')
+                                        ? const Color(0xFF30D158)
+                                        : const Color(0xFFFF453A),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   widget.connectionStatus,
                                   style: TextStyle(
-                                    color:
-                                        widget.connectionStatus.toLowerCase() ==
-                                                'ativo'
-                                            ? const Color(0xFF30D158)
-                                            : const Color(0xFFFF453A),
+                                    color: (widget.connectionStatus
+                                                    .toLowerCase() ==
+                                                'ativo' ||
+                                            widget.connectionStatus
+                                                    .toLowerCase() ==
+                                                'online')
+                                        ? const Color(0xFF30D158)
+                                        : const Color(0xFFFF453A),
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),

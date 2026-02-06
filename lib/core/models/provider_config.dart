@@ -29,14 +29,13 @@ class ProviderConfig {
   });
 
   factory ProviderConfig.fromJson(
-      Map<String, dynamic> json, String providerId) {
+    Map<String, dynamic> json,
+    String providerId,
+  ) {
     final legacyConfig = json['config'] as Map<String, dynamic>? ?? {};
 
     // Combina configurações da raiz com as antigas
-    final Map<String, dynamic> combinedConfig = {
-      ...legacyConfig,
-      ...json,
-    };
+    final Map<String, dynamic> combinedConfig = {...legacyConfig, ...json};
 
     // Garante que 'integrations' seja preservado e passado corretamente
     if (!combinedConfig.containsKey('integrations') ||
@@ -55,10 +54,11 @@ class ProviderConfig {
     String? finalApiUrl =
         rootApiUrl?.isNotEmpty == true ? rootApiUrl : configApiUrl;
 
-    // CORREÇÃO: Substitui IP antigo pelo novo automaticamente
-    if (finalApiUrl != null && finalApiUrl.contains('45.176.56.70')) {
-      finalApiUrl = finalApiUrl.replaceAll('45.176.56.70', '168.194.13.18');
-    }
+    // CORREÇÃO: Removido replace automático de IP.
+    // O usuário deve configurar o IP correto no Firebase.
+    // if (finalApiUrl != null && finalApiUrl.contains('45.176.56.70')) {
+    //   finalApiUrl = finalApiUrl.replaceAll('45.176.56.70', '168.194.13.18');
+    // }
 
     // IMPORTANTE: A URL da API deve ser configurada no Web Admin (Firebase)
     // Campo: apiUrl no documento do provedor
@@ -72,7 +72,7 @@ class ProviderConfig {
       effectiveApiUrl = finalApiUrl.trim();
     } else {
       // FALLBACK DE EMERGÊNCIA - Configure apiUrl no Firebase!
-      effectiveApiUrl = 'http://168.194.13.18:3000';
+      effectiveApiUrl = 'http://168.194.13.18:8034';
       // ignore: avoid_print
       print('⚠️ AVISO: apiUrl não configurada no Firebase! Usando fallback.');
     }
@@ -107,9 +107,11 @@ class ProviderConfig {
       diagnosticStyle: diagnosticStyle,
       config: ConfigSection.fromJson(combinedConfig, fallbackSgpUrl),
       features: FeaturesSection.fromJson(
-          json['features'] as Map<String, dynamic>? ?? {}),
+        json['features'] as Map<String, dynamic>? ?? {},
+      ),
       menuConfig: MenuConfig.fromJson(
-          json['menuConfig'] as Map<String, dynamic>? ?? {}),
+        json['menuConfig'] as Map<String, dynamic>? ?? {},
+      ),
       theme: json['theme'] as Map<String, dynamic>?,
     );
   }
@@ -143,6 +145,10 @@ class ConfigSection {
   final String? backgroundColor;
   final String? iconColor; // [NEW] Icon color
   final String? textSecondaryColor; // [NEW] Secondary Text Color
+  final String? quickActionsCardColor; // [NEW] Quick Actions Card Color
+  final String? quickActionsTextColor; // [NEW] Quick Actions Text Color
+  final String? otherCardsColor; // [NEW] Other Cards Color
+  final String? otherCardsTextColor; // [NEW] Other Cards Text Color
   final String logoUrl;
   final String loginQuote;
   final SgpIntegration integrations;
@@ -164,6 +170,10 @@ class ConfigSection {
     this.backgroundColor,
     this.iconColor,
     this.textSecondaryColor, // [NEW]
+    this.quickActionsCardColor, // [NEW]
+    this.quickActionsTextColor, // [NEW]
+    this.otherCardsColor, // [NEW]
+    this.otherCardsTextColor, // [NEW]
     required this.logoUrl,
     required this.loginQuote,
     required this.integrations,
@@ -175,8 +185,10 @@ class ConfigSection {
     this.strings = const {},
   });
 
-  factory ConfigSection.fromJson(Map<String, dynamic> json,
-      [String fallbackSgpUrl = '']) {
+  factory ConfigSection.fromJson(
+    Map<String, dynamic> json, [
+    String fallbackSgpUrl = '',
+  ]) {
     final faqList = json['faq'] as List<dynamic>? ?? [];
     final tipsList = (json['tips'] ?? json['dicas']) as List<dynamic>? ?? [];
     final contactsList = json['supportContacts'] as List<dynamic>? ?? [];
@@ -194,10 +206,16 @@ class ConfigSection {
       backgroundColor: json['backgroundColor'] as String?,
       iconColor: json['iconColor'] as String?, // [NEW]
       textSecondaryColor: json['textSecondaryColor'] as String?, // [NEW]
+      quickActionsCardColor: json['quickActionsCardColor'] as String?, // [NEW]
+      quickActionsTextColor: json['quickActionsTextColor'] as String?, // [NEW]
+      otherCardsColor: json['otherCardsColor'] as String?, // [NEW]
+      otherCardsTextColor: json['otherCardsTextColor'] as String?, // [NEW]
       logoUrl: json['logoUrl'] as String? ?? '',
       loginQuote: json['loginQuote'] as String? ?? 'Acesse sua conta.',
       integrations: SgpIntegration.fromJson(
-          json['integrations'] as Map<String, dynamic>? ?? {}, fallbackSgpUrl),
+        json['integrations'] as Map<String, dynamic>? ?? {},
+        fallbackSgpUrl,
+      ),
       faq: faqList
           .map((item) => FaqItem.fromJson(item as Map<String, dynamic>))
           .toList(),
@@ -205,8 +223,9 @@ class ConfigSection {
           .map((item) => TipItem.fromJson(item as Map<String, dynamic>))
           .toList(),
       supportContacts: contactsList
-          .map((item) =>
-              SupportContactItem.fromJson(item as Map<String, dynamic>))
+          .map(
+            (item) => SupportContactItem.fromJson(item as Map<String, dynamic>),
+          )
           .toList(),
       imageCarousel: carouselList,
       other: json['other'] != null
@@ -228,6 +247,10 @@ class ConfigSection {
       'backgroundColor': backgroundColor,
       'iconColor': iconColor, // [NEW]
       'textSecondaryColor': textSecondaryColor, // [NEW]
+      'quickActionsCardColor': quickActionsCardColor, // [NEW]
+      'quickActionsTextColor': quickActionsTextColor, // [NEW]
+      'otherCardsColor': otherCardsColor, // [NEW]
+      'otherCardsTextColor': otherCardsTextColor, // [NEW]
       'logoUrl': logoUrl,
       'loginQuote': loginQuote,
       'integrations': integrations.toJson(),
@@ -314,8 +337,12 @@ class MenuConfig {
     final itemsMap = json['items'] as Map<String, dynamic>? ?? {};
     return MenuConfig(
       order: List<String>.from(json['order'] as List<dynamic>? ?? []),
-      items: itemsMap.map((key, value) => MapEntry(
-          key, MenuItemDetails.fromJson(value as Map<String, dynamic>))),
+      items: itemsMap.map(
+        (key, value) => MapEntry(
+          key,
+          MenuItemDetails.fromJson(value as Map<String, dynamic>),
+        ),
+      ),
     );
   }
 
@@ -339,8 +366,10 @@ class SgpIntegration {
     required this.sgpBaseUrl,
   });
 
-  factory SgpIntegration.fromJson(Map<String, dynamic> json,
-      [String fallbackUrl = '']) {
+  factory SgpIntegration.fromJson(
+    Map<String, dynamic> json, [
+    String fallbackUrl = '',
+  ]) {
     final rawUrl = json['sgpBaseUrl'] as String?;
     final finalUrl =
         (rawUrl != null && rawUrl.isNotEmpty) ? rawUrl : fallbackUrl;
@@ -357,11 +386,7 @@ class SgpIntegration {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'apiToken': apiToken,
-      'appName': appName,
-      'sgpBaseUrl': sgpBaseUrl,
-    };
+    return {'apiToken': apiToken, 'appName': appName, 'sgpBaseUrl': sgpBaseUrl};
   }
 }
 
@@ -380,10 +405,7 @@ class FaqItem {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'question': question,
-      'answer': answer,
-    };
+    return {'question': question, 'answer': answer};
   }
 }
 
@@ -402,10 +424,7 @@ class TipItem {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'description': description,
-    };
+    return {'title': title, 'description': description};
   }
 }
 
@@ -415,8 +434,11 @@ class SupportContactItem {
   final String type;
   final String value;
 
-  const SupportContactItem(
-      {required this.name, required this.type, required this.value});
+  const SupportContactItem({
+    required this.name,
+    required this.type,
+    required this.value,
+  });
 
   factory SupportContactItem.fromJson(Map<String, dynamic> json) {
     return SupportContactItem(
@@ -427,11 +449,7 @@ class SupportContactItem {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'type': type,
-      'value': value,
-    };
+    return {'name': name, 'type': type, 'value': value};
   }
 }
 

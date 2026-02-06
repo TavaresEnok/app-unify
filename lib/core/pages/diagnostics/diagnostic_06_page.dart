@@ -187,13 +187,28 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       if (results['wifiInfo']?['status'] == real_state.TestStatus.running)
         _currentStep = DiagStep.wifi;
       if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
-        _wifi = {
-          'ssid': 'Detectado',
-          'rssi': -50,
-          'frequency': '5GHz',
-          'channel': 36,
-          'gateway': '192.168.1.1'
-        };
+        final res = results['wifiInfo']!['result'];
+        if (res is Map) {
+          _wifi = {
+            'ssid': res['ssid']?.toString() ?? 'Desconhecido',
+            'rssi': res['signalStrength']?.toString() ?? '---',
+            'frequency': res['frequency']?.toString() ?? '',
+            'gateway': res['gateway']?.toString() ?? '',
+            'channel': res['channel']?.toString() ?? '---',
+            'security': res['security']?.toString() ?? '---',
+            'bssid': res['bssid']?.toString() ?? '---',
+            'ip': res['ip']?.toString() ?? '---',
+            'dns': res['dns']?.toString() ?? '---',
+          };
+        } else {
+          _wifi = {
+            'ssid': 'Detectado',
+            'rssi': '-50',
+            'frequency': 'N/A',
+            'channel': '---',
+            'gateway': '192.168.1.1'
+          };
+        }
         _progress = 0.2;
       }
 
@@ -201,11 +216,41 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       if (results['onuInfo']?['status'] == real_state.TestStatus.running)
         _currentStep = DiagStep.fiber;
       if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
+        final res = results['onuInfo']!['result'];
+        if (res is Map) {
+          _fiber = {
+            'rxPower': res['rxPower'] ?? -19.5,
+            'txPower': res['txPower'] ?? 2.2,
+            'temperature': res['temperature'] ?? 40.0,
+            'status': res['isOnline'] == true ? 'Online' : 'Offline',
+            'signalQuality': res['signalQuality'] ?? 'N/A',
+            'model': res['model'] ?? 'Desconhecido',
+            'oltName': res['oltName'],
+            'serialNumber': res['serialNumber'],
+            'voltage': res['voltage']?.toString() ?? '---',
+            'biasCurrent': res['biasCurrent']?.toString() ?? '---',
+          };
+        } else {
+          _fiber = {
+            'rxPower': -19.5,
+            'txPower': 2.2,
+            'temperature': 40.0,
+            'status': 'Connected',
+            'voltage': '---',
+            'biasCurrent': '---',
+          };
+        }
+        _progress = 0.4;
+      } else if (results['onuInfo']?['status'] == real_state.TestStatus.error) {
+        final errorMsg =
+            results['onuInfo']?['result']?.toString() ?? 'Erro desconhecido';
         _fiber = {
-          'rxPower': -19.5,
-          'txPower': 2.2,
-          'temperature': 40.0,
-          'status': 'Connected'
+          'rxPower': 0.0,
+          'txPower': 0.0,
+          'temperature': 0.0,
+          'status': 'Erro',
+          'signalQuality': 'Falha',
+          'model': errorMsg,
         };
         _progress = 0.4;
       }
@@ -606,7 +651,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
             child: Column(
               children: [
                 // Speed Test with Gauge
@@ -623,17 +668,20 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                 if (_devices.isNotEmpty) _buildDevicesCard(),
                 if (_hops.isNotEmpty) _buildRouteCard(),
 
-                // New Features
-                if (_lastRealState != null) _buildConnectionJourneyCard(),
-                if (_lastRealState != null) _buildWifiDetailsCard(),
-                if (_lastRealState != null) _buildOnuDetailsCard(),
-                if (_lastRealState != null) _buildDeviceDetailsCard(),
-                _buildWifiManagementCard(),
-                if (_lastRealState != null) _buildTroubleshooterCard(),
+                // New Features - Only show when diagnostic is complete
+                if (_currentStep == DiagStep.done &&
+                    _lastRealState != null) ...[
+                  _buildConnectionJourneyCard(),
+                  _buildWifiDetailsCard(),
+                  _buildOnuDetailsCard(),
+                  _buildDeviceDetailsCard(),
+                  _buildWifiManagementCard(),
+                  _buildTroubleshooterCard(),
+                ],
 
                 // Restart Button
                 if (_currentStep == DiagStep.done) ...[
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   GestureDetector(
                     onTap: () => setState(() => _currentStep = DiagStep.ready),
                     child: Container(
@@ -869,9 +917,9 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
         children: [
           _buildInfoRow("Rede", _wifi!['ssid'], isBold: true),
           _buildInfoRow("Sinal", "${_wifi!['rssi']} dBm"),
-          _buildInfoRow("Frequência",
-              "${_wifi!['frequency']} • Canal ${_wifi!['channel']}"),
-          _buildInfoRow("Gateway", _wifi!['gateway']),
+          _buildInfoRow(
+              "Frequência", "${_wifi!['frequency']} • CH ${_wifi!['channel']}"),
+          _buildInfoRow("Segurança", _wifi!['security'] ?? '---'),
         ],
       ),
     );
@@ -889,7 +937,8 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
               isBold: true, valueColor: AppColors.success),
           _buildInfoRow("Potência RX", "${_fiber!['rxPower']} dBm"),
           _buildInfoRow("Potência TX", "${_fiber!['txPower']} dBm"),
-          _buildInfoRow("Temperatura", "${_fiber!['temperature']}°C"),
+          _buildInfoRow("Voltagem", "${_fiber!['voltage']} V"),
+          _buildInfoRow("Bias", "${_fiber!['biasCurrent']} mA"),
         ],
       ),
     );
@@ -1260,8 +1309,6 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
 
   Widget _buildWifiDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
-    final wifiR =
-        _lastRealState!.testResultsDisplay['wifiInfo']?['result'] as String?;
     final s = _lastRealState!.testResultsDisplay['wifiInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1271,13 +1318,12 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       title: 'Detalhes WiFi',
       color: AppColors.accent,
       content: Column(children: [
-        _detailRow('BSSID', DiagnosticUtils.parseResultLine(wifiR, 'BSSID:')),
-        _detailRow('IP Local',
-            DiagnosticUtils.parseResultLine(wifiR, 'IP Dispositivo:')),
-        _detailRow(
-            'DNS', DiagnosticUtils.parseResultLine(wifiR, 'Servidores DNS:')),
-        _detailRow('Frequência',
-            DiagnosticUtils.parseResultLine(wifiR, 'Frequência:')),
+        _detailRow('BSSID', _wifi?['bssid'] ?? '---'),
+        _detailRow('IP Local', _wifi?['ip'] ?? '---'),
+        _detailRow('DNS', _wifi?['dns']?.replaceAll('\n', ', ') ?? '---'),
+        _detailRow('Frequência', _wifi?['frequency'] ?? '---'),
+        _detailRow('Canal', _wifi?['channel'] ?? '---'),
+        _detailRow('Segurança', _wifi?['security'] ?? '---'),
       ]),
     );
   }
@@ -1316,6 +1362,16 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
         Row(children: [
           Expanded(child: _onuStat('Temp', '$temp°C', Colors.orange)),
           const SizedBox(width: 8),
+          Expanded(
+              child: _onuStat(
+                  'Voltagem', '${_fiber?['voltage']} V', Colors.blueGrey)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: _onuStat(
+                  'Bias', '${_fiber?['biasCurrent']} mA', Colors.blueGrey))
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
           Expanded(child: _onuStat('Modelo', model, AppColors.accent))
         ]),
       ]),

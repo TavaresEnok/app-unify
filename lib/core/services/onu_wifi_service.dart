@@ -24,6 +24,7 @@ class OnuData {
   final int? vlan;
   final String? cto; // CTO location
   final String? lastUpdate;
+  final double? biasCurrent;
 
   OnuData({
     this.signalRx,
@@ -43,28 +44,49 @@ class OnuData {
     this.vlan,
     this.cto,
     this.lastUpdate,
+    this.biasCurrent,
   });
 
   factory OnuData.fromJson(Map<String, dynamic> json) {
-    final status = json['connectionStatus']?.toString() ?? 'unknown';
+    // SGP field mapping based on real API response
+    // info_rx might be string "-23.188", needs parsing
+    double? parseDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
+    final rawRx = json['info_rx'] ?? json['rx_power'] ?? json['signalRx'];
+    final rawTx = json['info_tx'] ?? json['tx_power'] ?? json['signalTx'];
+    final rawTemp = json['temperature'] ?? json['temp'];
+    final rawVoltage = json['voltage'];
+
+    final status = json['connectionStatus']?.toString() ??
+        json['status_connection']?.toString() ??
+        (json['online'] == true ? 'Online' : 'Offline');
+
     return OnuData(
-      signalRx: json['signalRx']?.toDouble(),
-      signalTx: json['signalTx']?.toDouble(),
+      signalRx: parseDouble(rawRx),
+      signalTx: parseDouble(rawTx),
       connectionStatus: status,
-      isOnline: status.toLowerCase() == 'online',
-      oltId: json['oltId'] ?? 0,
-      oltName: json['oltName'],
+      isOnline:
+          status.toLowerCase().contains('online') || json['online'] == true,
+      oltId: json['olt_id'] ?? json['oltId'] ?? 0,
+      oltName: json['olt_name'] ?? json['oltName'],
       slot: json['slot'] ?? 0,
       pon: json['pon'] ?? 0,
-      onuId: json['onuId'] ?? 0,
-      temperature: json['temperature']?.toDouble(),
-      voltage: json['voltage']?.toDouble(),
-      model: json['model'] ?? 'Desconhecido',
-      serialNumber: json['serialNumber'],
+      onuId: json['onuid'] ?? json['onuId'] ?? 0,
+      temperature: parseDouble(rawTemp),
+      voltage: parseDouble(rawVoltage),
+      model: json['type'] ?? json['model'] ?? 'Desconhecido',
+      serialNumber: json['phy_addr'] ?? json['serialNumber'],
       mode: json['mode'],
       vlan: json['vlan'],
       cto: json['cto'],
-      lastUpdate: json['lastUpdate'],
+      lastUpdate: json['info_date'] ?? json['lastUpdate'],
+      biasCurrent: parseDouble(
+          json['info_bias'] ?? json['bias_current'] ?? json['bias']),
     );
   }
 
@@ -95,6 +117,8 @@ class WifiNetwork {
   final String frequency; // 2.4GHz ou 5GHz
   final bool enabled;
   final String? password;
+  final String? channel;
+  final String? security;
 
   WifiNetwork({
     required this.id,
@@ -102,6 +126,8 @@ class WifiNetwork {
     required this.frequency,
     required this.enabled,
     this.password,
+    this.channel,
+    this.security,
   });
 
   factory WifiNetwork.fromJson(Map<String, dynamic> json) {
@@ -111,6 +137,11 @@ class WifiNetwork {
       frequency: json['frequency'] ?? json['frequencia'] ?? '2.4GHz',
       enabled: json['enabled'] ?? json['ativo'] ?? true,
       password: json['password'] ?? json['senha'],
+      channel: json['channel']?.toString() ?? json['canal']?.toString(),
+      security: json['security'] ??
+          json['encryption'] ??
+          json['auth_mode'] ??
+          json['seguranca'],
     );
   }
 }
@@ -148,7 +179,11 @@ class OnuWifiService {
   /// Busca dados da ONU (sinal, temperatura, etc)
   Future<OnuData> fetchOnuSignal() async {
     final url = '$_baseUrl/diagnostic/onu-signal';
-    debugPrint('[ONU-Service] Calling: $url');
+    debugPrint('[ONU-Service] ====== FETCH ONU SIGNAL ======');
+    debugPrint('[ONU-Service] API URL Base: $_baseUrl');
+    debugPrint('[ONU-Service] Full URL: $url');
+    debugPrint('[ONU-Service] CPF/CNPJ: $cpfCnpj');
+    debugPrint('[ONU-Service] SGP Params: $sgpParams');
 
     try {
       final response = await client
@@ -175,15 +210,18 @@ class OnuWifiService {
         // Tenta parsear erro do servidor
         try {
           final error = json.decode(response.body);
-          throw Exception(error['error']?['message'] ??
-              'Erro no servidor (${response.statusCode})');
+          throw Exception(
+            error['error']?['message'] ??
+                'Erro no servidor (${response.statusCode})',
+          );
         } catch (_) {
           throw Exception('Erro no servidor (${response.statusCode})');
         }
       }
     } on http.ClientException catch (_) {
       throw Exception(
-          'Servidor indisponível.\nVerifique se o servidor local está rodando.');
+        'Servidor indisponível.\nVerifique se o servidor local está rodando.',
+      );
     } on FormatException catch (_) {
       throw Exception('Resposta inválida do servidor.');
     } catch (e) {
@@ -195,7 +233,8 @@ class OnuWifiService {
         throw Exception('Tempo limite excedido ao conectar ao servidor.');
       }
       throw Exception(
-          'Erro ao buscar sinal: ${e.toString().replaceAll("Exception:", "").trim()}');
+        'Erro ao buscar sinal: ${e.toString().replaceAll("Exception:", "").trim()}',
+      );
     }
   }
 
@@ -230,15 +269,18 @@ class OnuWifiService {
       } else {
         try {
           final error = json.decode(response.body);
-          throw Exception(error['error']?['message'] ??
-              'Erro no servidor (${response.statusCode})');
+          throw Exception(
+            error['error']?['message'] ??
+                'Erro no servidor (${response.statusCode})',
+          );
         } catch (_) {
           throw Exception('Erro no servidor (${response.statusCode})');
         }
       }
     } on http.ClientException catch (_) {
       throw Exception(
-          'Servidor indisponível.\nVerifique se o servidor local está rodando.');
+        'Servidor indisponível.\nVerifique se o servidor local está rodando.',
+      );
     } on FormatException catch (_) {
       throw Exception('Resposta inválida do servidor.');
     } catch (e) {
@@ -250,7 +292,8 @@ class OnuWifiService {
         throw Exception('Tempo limite excedido ao conectar ao servidor.');
       }
       throw Exception(
-          'Erro ao buscar WiFi: ${e.toString().replaceAll("Exception:", "").trim()}');
+        'Erro ao buscar WiFi: ${e.toString().replaceAll("Exception:", "").trim()}',
+      );
     }
   }
 
@@ -287,22 +330,26 @@ class OnuWifiService {
       } else {
         try {
           final error = json.decode(response.body);
-          throw Exception(error['error']?['message'] ??
-              'Erro no servidor (${response.statusCode})');
+          throw Exception(
+            error['error']?['message'] ??
+                'Erro no servidor (${response.statusCode})',
+          );
         } catch (_) {
           throw Exception('Erro no servidor (${response.statusCode})');
         }
       }
     } on http.ClientException catch (_) {
       throw Exception(
-          'Servidor indisponível.\nVerifique se o servidor local está rodando.');
+        'Servidor indisponível.\nVerifique se o servidor local está rodando.',
+      );
     } catch (e) {
       if (e.toString().contains('SocketException') ||
           e.toString().contains('Connection refused')) {
         throw Exception('Sem conexão com o servidor local.');
       }
       throw Exception(
-          'Erro ao atualizar WiFi: ${e.toString().replaceAll("Exception:", "").trim()}');
+        'Erro ao atualizar WiFi: ${e.toString().replaceAll("Exception:", "").trim()}',
+      );
     }
   }
 }

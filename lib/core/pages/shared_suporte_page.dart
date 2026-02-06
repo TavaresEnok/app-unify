@@ -77,7 +77,8 @@ class SuportePage extends ConsumerWidget {
       Color? themeTextGrey,
       BoxDecoration? neumorphicDecoration}) {
     final theme = Theme.of(context);
-    final isOk = status.toLowerCase() == 'ativo';
+    final statusLower = status.toLowerCase();
+    final isOk = statusLower == 'ativo' || statusLower == 'online';
 
     BoxDecoration decoration;
     if (isDarkLayout) {

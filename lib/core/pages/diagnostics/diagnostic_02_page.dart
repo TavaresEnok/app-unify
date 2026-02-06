@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart'; // Required for debugPrint
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/diagnostico_service.dart' as real_service;
 import '../../services/onu_wifi_service.dart';
@@ -102,7 +103,7 @@ class DeviceInfo {
   final bool isCharging;
   final String model, osVersion, appVersion;
   DeviceInfo({
-    this.batteryLevel = 85,
+    this.batteryLevel = -1,
     this.isCharging = false,
     this.model = 'Samsung Galaxy S23',
     this.osVersion = 'Android 14',
@@ -276,8 +277,10 @@ class DiagnosticScreen extends StatelessWidget {
             actions: [
               if (onSharePdf != null)
                 IconButton(
-                  icon: const Icon(Icons.share_rounded,
-                      color: DiagnosticTheme.cyan),
+                  icon: const Icon(
+                    Icons.share_rounded,
+                    color: DiagnosticTheme.cyan,
+                  ),
                   onPressed: onSharePdf,
                   tooltip: 'Compartilhar PDF',
                 ),
@@ -433,7 +436,7 @@ class DiagnosticScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${d.batteryLevel}%',
+                          d.batteryLevel >= 0 ? '${d.batteryLevel}%' : '--',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -745,28 +748,37 @@ class DiagnosticScreen extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.all(24),
                         child: CircularProgressIndicator(
-                            color: DiagnosticTheme.cyan),
+                          color: DiagnosticTheme.cyan,
+                        ),
                       ),
                     )
                   : wifiError != null
                       ? Center(
                           child: Column(
                             children: [
-                              Icon(Icons.error_outline,
-                                  color: DiagnosticTheme.red, size: 40),
+                              Icon(
+                                Icons.error_outline,
+                                color: DiagnosticTheme.red,
+                                size: 40,
+                              ),
                               const SizedBox(height: 8),
-                              Text(wifiError,
-                                  style: TextStyle(color: DiagnosticTheme.red),
-                                  textAlign: TextAlign.center),
+                              Text(
+                                wifiError,
+                                style: TextStyle(color: DiagnosticTheme.red),
+                                textAlign: TextAlign.center,
+                              ),
                               const SizedBox(height: 16),
                               OutlinedButton.icon(
                                 onPressed: () =>
                                     wifiController!.fetchNetworks(),
-                                icon: const Icon(Icons.refresh,
-                                    color: DiagnosticTheme.cyan),
-                                label: const Text('Tentar novamente',
-                                    style:
-                                        TextStyle(color: DiagnosticTheme.cyan)),
+                                icon: const Icon(
+                                  Icons.refresh,
+                                  color: DiagnosticTheme.cyan,
+                                ),
+                                label: const Text(
+                                  'Tentar novamente',
+                                  style: TextStyle(color: DiagnosticTheme.cyan),
+                                ),
                               ),
                             ],
                           ),
@@ -775,24 +787,31 @@ class DiagnosticScreen extends StatelessWidget {
                           ? Center(
                               child: Column(
                                 children: [
-                                  Icon(Icons.wifi_find,
-                                      color: DiagnosticTheme.textDim, size: 40),
+                                  Icon(
+                                    Icons.wifi_find,
+                                    color: DiagnosticTheme.textDim,
+                                    size: 40,
+                                  ),
                                   const SizedBox(height: 8),
                                   const Text(
-                                      'Buscar redes WiFi do roteador via TR-069',
-                                      style: TextStyle(
-                                          color: DiagnosticTheme.textDim),
-                                      textAlign: TextAlign.center),
+                                    'Buscar redes WiFi do roteador via TR-069',
+                                    style: TextStyle(
+                                        color: DiagnosticTheme.textDim),
+                                    textAlign: TextAlign.center,
+                                  ),
                                   const SizedBox(height: 16),
                                   ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
-                                        backgroundColor: DiagnosticTheme.cyan),
+                                      backgroundColor: DiagnosticTheme.cyan,
+                                    ),
                                     onPressed: () =>
                                         wifiController!.fetchNetworks(),
                                     icon: const Icon(Icons.search,
                                         color: Colors.black),
-                                    label: const Text('Buscar Redes WiFi',
-                                        style: TextStyle(color: Colors.black)),
+                                    label: const Text(
+                                      'Buscar Redes WiFi',
+                                      style: TextStyle(color: Colors.black),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -806,8 +825,8 @@ class DiagnosticScreen extends StatelessWidget {
                                     color: DiagnosticTheme.bg2,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                        color:
-                                            DiagnosticTheme.cyan.withAlpha(50)),
+                                      color: DiagnosticTheme.cyan.withAlpha(50),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -826,21 +845,28 @@ class DiagnosticScreen extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(network.ssid,
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.white)),
-                                            Text(network.frequency,
-                                                style: const TextStyle(
-                                                    color:
-                                                        DiagnosticTheme.textDim,
-                                                    fontSize: 12)),
+                                            Text(
+                                              network.ssid,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              network.frequency,
+                                              style: const TextStyle(
+                                                color: DiagnosticTheme.textDim,
+                                                fontSize: 12,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.edit,
-                                            color: DiagnosticTheme.cyan),
+                                        icon: const Icon(
+                                          Icons.edit,
+                                          color: DiagnosticTheme.cyan,
+                                        ),
                                         onPressed: () => _showEditWifiDialog(
                                             context, network),
                                         tooltip: 'Editar WiFi',
@@ -869,50 +895,66 @@ class DiagnosticScreen extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: AlertDialog(
           backgroundColor: DiagnosticTheme.bg2,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(children: [
-            Icon(Icons.edit, color: DiagnosticTheme.cyan),
-            const SizedBox(width: 10),
-            Text('Editar ${network.frequency}',
-                style: const TextStyle(color: Colors.white))
-          ]),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-              controller: ssidController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'SSID (Nome da Rede)',
-                labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
-                enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.textDim)),
-                focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.cyan)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.edit, color: DiagnosticTheme.cyan),
+              const SizedBox(width: 10),
+              Text(
+                'Editar ${network.frequency}',
+                style: const TextStyle(color: Colors.white),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              style: const TextStyle(color: Colors.white),
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Senha',
-                labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
-                enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.textDim)),
-                focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.cyan)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ssidController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'SSID (Nome da Rede)',
+                  labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.textDim),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.cyan),
+                  ),
+                ),
               ),
-            ),
-          ]),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                style: const TextStyle(color: Colors.white),
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Senha',
+                  labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.textDim),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: DiagnosticTheme.cyan),
+                  ),
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar',
-                    style: TextStyle(color: DiagnosticTheme.textDim))),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: DiagnosticTheme.textDim),
+              ),
+            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: DiagnosticTheme.cyan),
+                backgroundColor: DiagnosticTheme.cyan,
+              ),
               onPressed: () {
                 Navigator.pop(ctx);
                 wifiController!.updateWifi(
@@ -922,8 +964,10 @@ class DiagnosticScreen extends StatelessWidget {
                   passwordController.text,
                 );
               },
-              child: const Text('Salvar Alterações',
-                  style: TextStyle(color: Colors.black)),
+              child: const Text(
+                'Salvar Alterações',
+                style: TextStyle(color: Colors.black),
+              ),
             ),
           ],
         ),
@@ -1015,11 +1059,13 @@ class DiagnosticScreen extends StatelessWidget {
                   (
                     'Sinal',
                     DiagnosticUtils.parseResultLine(
-                        wifiResult, 'Força do Sinal:')
+                      wifiResult,
+                      'Força do Sinal:',
+                    ),
                   ),
                   (
                     'SSID',
-                    DiagnosticUtils.parseResultLine(wifiResult, 'SSID:')
+                    DiagnosticUtils.parseResultLine(wifiResult, 'SSID:'),
                   ),
                 ],
               ),
@@ -1032,15 +1078,17 @@ class DiagnosticScreen extends StatelessWidget {
                   (
                     'IP',
                     DiagnosticUtils.parseResultLine(
-                        wifiResult, 'Gateway (Roteador):')
+                      wifiResult,
+                      'Gateway (Roteador):',
+                    ),
                   ),
                   (
                     'Latência',
-                    DiagnosticUtils.parseResultLine(gatewayResult, 'Latência:')
+                    DiagnosticUtils.parseResultLine(gatewayResult, 'Latência:'),
                   ),
                   (
                     'Jitter',
-                    DiagnosticUtils.parseResultLine(gatewayResult, 'Jitter:')
+                    DiagnosticUtils.parseResultLine(gatewayResult, 'Jitter:'),
                   ),
                 ],
               ),
@@ -1065,11 +1113,11 @@ class DiagnosticScreen extends StatelessWidget {
                 details: [
                   (
                     'Google',
-                    '${DiagnosticUtils.parseResultLine(googleResult, 'Latência:')}'
+                    '${DiagnosticUtils.parseResultLine(googleResult, 'Latência:')}',
                   ),
                   (
                     'Cloudflare',
-                    '${DiagnosticUtils.parseResultLine(cloudflareResult, 'Latência:')}'
+                    '${DiagnosticUtils.parseResultLine(cloudflareResult, 'Latência:')}',
                   ),
                 ],
                 isLast: true,
@@ -1111,18 +1159,24 @@ class DiagnosticScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(title,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
                     const Spacer(),
                     if (status == real_state.TestStatus.running)
                       SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: color))
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: color,
+                        ),
+                      )
                     else
                       Icon(
                         status == real_state.TestStatus.success
@@ -1140,11 +1194,15 @@ class DiagnosticScreen extends StatelessWidget {
                   spacing: 16,
                   runSpacing: 4,
                   children: details
-                      .map((d) => Text(
-                            '${d.$1}: ${d.$2}',
-                            style: TextStyle(
-                                color: DiagnosticTheme.textDim, fontSize: 11),
-                          ))
+                      .map(
+                        (d) => Text(
+                          '${d.$1}: ${d.$2}',
+                          style: TextStyle(
+                            color: DiagnosticTheme.textDim,
+                            fontSize: 11,
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -1177,13 +1235,33 @@ class DiagnosticScreen extends StatelessWidget {
   Widget _buildWifiDetailsSection() {
     if (realState == null) return const SizedBox.shrink();
 
-    final wifiResult =
-        realState!.testResultsDisplay['wifiInfo']?['result'] as String?;
+    final wifiRes = realState!.testResultsDisplay['wifiInfo']?['result'];
     final status = realState!.testResultsDisplay['wifiInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
 
     if (status == real_state.TestStatus.pending) return const SizedBox.shrink();
+
+    String bssid = '---';
+    String ip = '---';
+    String dns = '---';
+    String freq = '---';
+    String channel = '---';
+    String security = '---';
+
+    if (wifiRes is Map) {
+      bssid = wifiRes['bssid']?.toString() ?? '---';
+      ip = wifiRes['ip']?.toString() ?? '---';
+      dns = wifiRes['dns']?.toString() ?? '---';
+      freq = wifiRes['frequency']?.toString() ?? '---';
+      channel = wifiRes['channel']?.toString() ?? '---';
+      security = wifiRes['security']?.toString() ?? '---';
+    } else if (wifiRes is String) {
+      bssid = DiagnosticUtils.parseResultLine(wifiRes, 'BSSID:');
+      ip = DiagnosticUtils.parseResultLine(wifiRes, 'IP Dispositivo:');
+      dns = DiagnosticUtils.parseResultLine(wifiRes, 'Servidores DNS:');
+      freq = DiagnosticUtils.parseResultLine(wifiRes, 'Frequência:');
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1192,36 +1270,61 @@ class DiagnosticScreen extends StatelessWidget {
           title: 'Detalhes WiFi',
           icon: Icons.info_outline_rounded,
           color: DiagnosticTheme.pink,
-          hasData: wifiResult != null,
+          hasData: wifiRes != null,
         ),
         HoloCard(
           isScanning: status == real_state.TestStatus.running,
           accent: DiagnosticTheme.pink,
           child: Column(
             children: [
+              Row(
+                children: [
+                  Expanded(
+                      child: DiagnosticDataRow(
+                    icon: Icons.router,
+                    label: 'BSSID',
+                    value: bssid,
+                    color: DiagnosticTheme.pink,
+                  )),
+                  Expanded(
+                      child: DiagnosticDataRow(
+                    icon: Icons.computer,
+                    label: 'IP Local',
+                    value: ip,
+                    color: DiagnosticTheme.pink,
+                  )),
+                ],
+              ),
               DiagnosticDataRow(
-                  icon: Icons.router,
-                  label: 'BSSID',
-                  value: DiagnosticUtils.parseResultLine(wifiResult, 'BSSID:'),
-                  color: DiagnosticTheme.pink),
+                icon: Icons.dns,
+                label: 'DNS',
+                value: dns,
+                color: DiagnosticTheme.pink,
+              ),
+              Row(
+                children: [
+                  Expanded(
+                      child: DiagnosticDataRow(
+                    icon: Icons.signal_wifi_4_bar,
+                    label: 'Frequência',
+                    value: freq,
+                    color: DiagnosticTheme.pink,
+                  )),
+                  Expanded(
+                      child: DiagnosticDataRow(
+                    icon: Icons.tune,
+                    label: 'Canal',
+                    value: channel,
+                    color: DiagnosticTheme.pink,
+                  )),
+                ],
+              ),
               DiagnosticDataRow(
-                  icon: Icons.computer,
-                  label: 'IP Local',
-                  value: DiagnosticUtils.parseResultLine(
-                      wifiResult, 'IP Dispositivo:'),
-                  color: DiagnosticTheme.pink),
-              DiagnosticDataRow(
-                  icon: Icons.dns,
-                  label: 'DNS',
-                  value: DiagnosticUtils.parseResultLine(
-                      wifiResult, 'Servidores DNS:'),
-                  color: DiagnosticTheme.pink),
-              DiagnosticDataRow(
-                  icon: Icons.signal_wifi_4_bar,
-                  label: 'Frequência',
-                  value: DiagnosticUtils.parseResultLine(
-                      wifiResult, 'Frequência:'),
-                  color: DiagnosticTheme.pink),
+                icon: Icons.security,
+                label: 'Segurança',
+                value: security,
+                color: DiagnosticTheme.pink,
+              ),
             ],
           ),
         ),
@@ -1245,8 +1348,10 @@ class DiagnosticScreen extends StatelessWidget {
     if (status == real_state.TestStatus.pending) return const SizedBox.shrink();
 
     // Parse device count
-    final deviceCount =
-        DiagnosticUtils.parseResultLine(lanResult, 'Dispositivos encontrados:');
+    final deviceCount = DiagnosticUtils.parseResultLine(
+      lanResult,
+      'Dispositivos encontrados:',
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1265,20 +1370,30 @@ class DiagnosticScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.devices_other,
-                      color: DiagnosticTheme.purple, size: 32),
+                  Icon(
+                    Icons.devices_other,
+                    color: DiagnosticTheme.purple,
+                    size: 32,
+                  ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(deviceCount,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold)),
-                      const Text('dispositivos encontrados',
-                          style: TextStyle(
-                              color: DiagnosticTheme.textDim, fontSize: 12)),
+                      Text(
+                        deviceCount,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        'dispositivos encontrados',
+                        style: TextStyle(
+                          color: DiagnosticTheme.textDim,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -1288,12 +1403,16 @@ class DiagnosticScreen extends StatelessWidget {
                 Text(
                   lanResult
                       .split('\n')
-                      .lastWhere((l) => l.contains('sub-rede'),
-                          orElse: () => '')
+                      .lastWhere(
+                        (l) => l.contains('sub-rede'),
+                        orElse: () => '',
+                      )
                       .replaceAll('(', '')
                       .replaceAll(')', ''),
-                  style:
-                      TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
+                  style: TextStyle(
+                    color: DiagnosticTheme.textDim,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ],
@@ -1333,29 +1452,41 @@ class DiagnosticScreen extends StatelessWidget {
           child: Column(
             children: [
               DiagnosticDataRow(
-                  icon: Icons.wifi,
-                  label: 'Conexão',
-                  value:
-                      DiagnosticUtils.parseResultLine(deviceResult, 'Conexão:'),
-                  color: DiagnosticTheme.gold),
+                icon: Icons.wifi,
+                label: 'Conexão',
+                value: DiagnosticUtils.parseResultLine(
+                  deviceResult,
+                  'Conexão:',
+                ),
+                color: DiagnosticTheme.gold,
+              ),
               DiagnosticDataRow(
-                  icon: Icons.android,
-                  label: 'Sistema',
-                  value: DiagnosticUtils.parseResultLine(
-                      deviceResult, 'Versão OS:'),
-                  color: DiagnosticTheme.gold),
+                icon: Icons.android,
+                label: 'Sistema',
+                value: DiagnosticUtils.parseResultLine(
+                  deviceResult,
+                  'Versão OS:',
+                ),
+                color: DiagnosticTheme.gold,
+              ),
               DiagnosticDataRow(
-                  icon: Icons.phone_android,
-                  label: 'Dispositivo',
-                  value: DiagnosticUtils.parseResultLine(
-                      deviceResult, 'Dispositivo:'),
-                  color: DiagnosticTheme.gold),
+                icon: Icons.phone_android,
+                label: 'Dispositivo',
+                value: DiagnosticUtils.parseResultLine(
+                  deviceResult,
+                  'Dispositivo:',
+                ),
+                color: DiagnosticTheme.gold,
+              ),
               DiagnosticDataRow(
-                  icon: Icons.info_outline,
-                  label: 'App',
-                  value: DiagnosticUtils.parseResultLine(
-                      deviceResult, 'Versão do App:'),
-                  color: DiagnosticTheme.gold),
+                icon: Icons.info_outline,
+                label: 'App',
+                value: DiagnosticUtils.parseResultLine(
+                  deviceResult,
+                  'Versão do App:',
+                ),
+                color: DiagnosticTheme.gold,
+              ),
             ],
           ),
         ),
@@ -1381,12 +1512,64 @@ class DiagnosticScreen extends StatelessWidget {
     String txPower = '---';
     String temperature = '---';
     String onuModel = '---';
+    String voltage = '---';
+    String bias = '---';
 
     if (onuResult is Map) {
       rxPower = onuResult['rxPower']?.toString() ?? '---';
       txPower = onuResult['txPower']?.toString() ?? '---';
       temperature = onuResult['temperature']?.toString() ?? '---';
       onuModel = onuResult['model']?.toString() ?? '---';
+      voltage = onuResult['voltage']?.toString() ?? '---';
+      bias = onuResult['biasCurrent']?.toString() ?? '---';
+    } else if (status == real_state.TestStatus.error || onuResult is String) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionTitle(
+            title: 'ONU / Fibra Óptica',
+            icon: Icons.router,
+            color: DiagnosticTheme.red,
+            hasData: false,
+          ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: DiagnosticTheme.red.withAlpha(20),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: DiagnosticTheme.red.withAlpha(50)),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: DiagnosticTheme.red,
+                  size: 32,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Erro na leitura da ONU",
+                  style: TextStyle(
+                    color: DiagnosticTheme.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  onuResult is String
+                      ? onuResult
+                      : "Verifique a conexão com o servidor.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DiagnosticTheme.textDim,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
     }
 
     Color rxColor = DiagnosticTheme.green;
@@ -1416,7 +1599,10 @@ class DiagnosticScreen extends StatelessWidget {
                   ),
                   Expanded(
                     child: _buildOnuStat(
-                        'Tx Power', '$txPower dBm', DiagnosticTheme.cyan),
+                      'Tx Power',
+                      '$txPower dBm',
+                      DiagnosticTheme.cyan,
+                    ),
                   ),
                 ],
               ),
@@ -1424,12 +1610,37 @@ class DiagnosticScreen extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _buildOnuStat('Temperatura', '$temperature°C',
-                        DiagnosticTheme.orange),
+                    child: _buildOnuStat(
+                      'Temperatura',
+                      '$temperature°C',
+                      DiagnosticTheme.orange,
+                    ),
                   ),
                   Expanded(
                     child: _buildOnuStat(
-                        'Modelo', onuModel, DiagnosticTheme.purple),
+                      'Modelo',
+                      onuModel,
+                      DiagnosticTheme.purple,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildOnuStat(
+                      'Voltagem',
+                      '$voltage V',
+                      DiagnosticTheme.green,
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildOnuStat(
+                      'Bias Current',
+                      '$bias mA',
+                      DiagnosticTheme.blue,
+                    ),
                   ),
                 ],
               ),
@@ -1452,12 +1663,19 @@ class DiagnosticScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: TextStyle(color: DiagnosticTheme.textDim, fontSize: 11)),
+          Text(
+            label,
+            style: TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
+          ),
           const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(
-                  color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -1556,20 +1774,42 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
         currentStep = DiagStep.device;
 
       final res = devInfo['result'];
-      if (res is Map) {
+      debugPrint('[DiagUI] DeviceInfo Result: $res'); // Debug log
+
+      if (res != null && res is Map) {
+        // Parsing seguro com logs
+        final rawLevel = res['batteryLevel'];
+        final level = int.tryParse(rawLevel?.toString() ?? '100') ?? 100;
+        final charging = res['isCharging'] == true;
+
+        debugPrint('[DiagUI] Parsed Battery: $level%, Charging: $charging');
+
         deviceData = DeviceInfo(
           model: res['model']?.toString() ?? "Desconhecido",
           osVersion: res['osVersion']?.toString() ?? "Desconhecido",
-          batteryLevel:
-              int.tryParse(res['batteryLevel']?.toString() ?? '100') ?? 100,
-          isCharging: res['isCharging'] == true,
+          batteryLevel: level,
+          isCharging: charging,
+        );
+      } else if (res is String) {
+        // Se for string, provavelmente é erro ou mensagem de status simples
+        debugPrint('[DiagUI] Bateria retornou String: $res');
+        deviceData = DeviceInfo(
+          model: "Erro ao ler bateria",
+          osVersion: "Verifique permissões",
+          batteryLevel: -1,
+          isCharging: false,
         );
       } else {
+        debugPrint(
+          '[DiagUI] DeviceInfo caiu no fallback! Res type: ${res.runtimeType}',
+        );
+        // Fallback apenas se for null ou tipo desconhecido
         deviceData = DeviceInfo(
-            model: "Android Check",
-            osVersion: "14",
-            batteryLevel: 85,
-            isCharging: false);
+          model: "Dados Indisponíveis",
+          osVersion: "-",
+          batteryLevel: -1,
+          isCharging: false,
+        );
       }
     }
 
@@ -1635,14 +1875,16 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
       if (res is List) {
         for (var item in res) {
           if (item is Map) {
-            lanDevices.add(LanDevice(
-              name: item['name']?.toString() ??
-                  item['ip']?.toString() ??
-                  'Unknown',
-              ip: item['ip']?.toString() ?? '',
-              mac: item['mac']?.toString() ?? '',
-              vendor: item['vendor']?.toString() ?? '',
-            ));
+            lanDevices.add(
+              LanDevice(
+                name: item['name']?.toString() ??
+                    item['ip']?.toString() ??
+                    'Unknown',
+                ip: item['ip']?.toString() ?? '',
+                mac: item['mac']?.toString() ?? '',
+                vendor: item['vendor']?.toString() ?? '',
+              ),
+            );
           }
         }
       }

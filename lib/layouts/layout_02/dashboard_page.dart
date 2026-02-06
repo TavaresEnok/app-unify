@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/providers.dart';
 import 'widgets/bottom_nav.dart';
 
 /// Layout 02 - NetLink Premium Dashboard
 /// Design moderno com gradientes azul/cyan, cards premium e animações fluidas
-class ProviderDashboardPage extends StatefulWidget {
+class ProviderDashboardPage extends ConsumerStatefulWidget {
   final String customerName;
   final String planName;
   final String connectionStatus;
@@ -44,36 +47,46 @@ class ProviderDashboardPage extends StatefulWidget {
   });
 
   @override
-  State<ProviderDashboardPage> createState() => _ProviderDashboardPageState();
+  ConsumerState<ProviderDashboardPage> createState() =>
+      _ProviderDashboardPageState();
 }
 
-class _ProviderDashboardPageState extends State<ProviderDashboardPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
+  final PageController _promoController =
+      PageController(viewportFraction: 0.92);
+  Timer? _promoTimer;
+  int _currentPromoPage = 0;
+  static const int _promoCount = 3; // Number of promotions
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.05),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-    _controller.forward();
+    _startPromoAutoScroll();
+  }
+
+  void _startPromoAutoScroll() {
+    _promoTimer?.cancel();
+    _promoTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (_promoController.hasClients) {
+        _currentPromoPage = (_currentPromoPage + 1) % _promoCount;
+        _promoController.animateToPage(
+          _currentPromoPage,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  void _stopPromoAutoScroll() {
+    _promoTimer?.cancel();
+    _promoTimer = null;
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _promoTimer?.cancel();
+    _promoController.dispose();
     super.dispose();
   }
 
@@ -81,42 +94,65 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
 
   @override
   Widget build(BuildContext context) {
+    // Get ThemeConfig from provider (must be first to use its colors)
+    final themeConfig = ref.watch(themeProvider).config;
+    final primary = themeConfig.colors.primary;
+    final secondary = themeConfig.colors.secondary;
+
+    final quickActionsBg = themeConfig.colors.quickActionsCardColor;
+    final otherCardsBg = themeConfig.colors.otherCardsColor;
+    final quickActionsTextColor =
+        themeConfig.colors.quickActionsTextColor; // [NEW]
+    final otherCardsTextColor = themeConfig.colors.otherCardsTextColor; // [NEW]
+
+    // Dynamic Gradients
+    final primaryGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primary, secondary],
+    );
+
+    // Calculate a darker primary for gradients
+    final hsl = HSLColor.fromColor(primary);
+    final primaryDark =
+        hsl.withLightness((hsl.lightness - 0.2).clamp(0.0, 1.0)).toColor();
+
+    final primaryDarkGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primary, primaryDark],
+    );
+
     return Scaffold(
       key: _scaffoldKey,
       drawer: _buildDrawer(),
       body: Container(
-        decoration:
-            const BoxDecoration(gradient: Layout02Theme.backgroundGradient),
+        // Dynamic background (from Scaffold)
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+        ),
         child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: RefreshIndicator(
-                onRefresh: widget.onRefresh ?? () async {},
-                color: Layout02Theme.primary,
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 12),
-                        _buildHeader(),
-                        const SizedBox(height: 24),
-                        _buildConnectionStatus(),
-                        const SizedBox(height: 24),
-                        _buildQuickStats(),
-                        const SizedBox(height: 28),
-                        _buildQuickActions(),
-                        const SizedBox(height: 28),
-                        _buildCurrentPlan(),
-                        const SizedBox(height: 30),
-                      ],
-                    ),
-                  ),
-                ),
+          child: RefreshIndicator(
+            onRefresh: widget.onRefresh ?? () async {},
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Column(
+                children: [
+                  _buildHeader(
+                      primaryGradient, primary, themeConfig.colors.textPrimary),
+                  const SizedBox(height: 24),
+                  _buildConnectionStatus(primaryDarkGradient),
+                  const SizedBox(height: 24),
+                  _buildPromotionCarousel(secondary,
+                      themeConfig.colors.textPrimary), // Ofertas Especiais
+                  const SizedBox(height: 24),
+                  _buildQuickStats(Theme.of(context), otherCardsBg,
+                      otherCardsTextColor), // Pass dynamic color
+                  const SizedBox(height: 24),
+                  _buildQuickActions(primary, secondary, quickActionsBg,
+                      quickActionsTextColor), // Pass dynamic color
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
           ),
@@ -150,7 +186,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(
+      Gradient primaryGradient, Color primary, Color textColor) {
     return Row(
       children: [
         // Menu button
@@ -163,11 +200,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              gradient: Layout02Theme.primaryGradient,
+              gradient: primaryGradient,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Layout02Theme.primary.withOpacity(0.4),
+                  color: primary.withOpacity(0.4),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -184,10 +221,10 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             children: [
               Text(
                 'Olá, ${widget.customerName.split(' ').first}! 👋',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Layout02Theme.textDark,
+                  color: textColor,
                   letterSpacing: -0.3,
                 ),
               ),
@@ -196,7 +233,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                 widget.planName,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Layout02Theme.textGrey.withOpacity(0.9),
+                  color: textColor.withOpacity(0.7),
                   letterSpacing: 0.2,
                 ),
               ),
@@ -248,11 +285,27 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     );
   }
 
-  Widget _buildConnectionStatus() {
-    final isOnline = widget.connectionStatus.toLowerCase() == 'online';
+  Widget _buildConnectionStatus(Gradient primaryDarkGradient) {
+    final isOnline = widget.connectionStatus.toLowerCase() == 'online' ||
+        widget.connectionStatus.toLowerCase() == 'ativo';
+
+    // Use dynamic gradient instead of static primaryCardDecoration
+    final decoration = BoxDecoration(
+      gradient: primaryDarkGradient,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color:
+              Colors.black.withOpacity(0.2), // Generic shadow for dynamic color
+          blurRadius: 24,
+          offset: const Offset(0, 12),
+        ),
+      ],
+    );
+
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: Layout02Theme.primaryCardDecoration,
+      decoration: decoration,
       child: Column(
         children: [
           Row(
@@ -499,7 +552,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildQuickStats(ThemeData theme, Color cardColor, Color textColor) {
     // Get color based on days until due date
     final now = DateTime.now();
     final daysUntilDue = widget.billDueDate.difference(now).inDays;
@@ -509,6 +562,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             ? Layout02Theme.orange
             : Layout02Theme.green;
 
+    // Use dynamic colors where appropriate
+    final primary = theme.primaryColor;
+
     return Row(
       children: [
         Expanded(
@@ -517,6 +573,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             '',
             Icons.receipt_long_rounded,
             daysColor,
+            cardColor: cardColor,
+            textColor: textColor,
             onTap: () => widget.onNavigate('invoices'),
           ),
         ),
@@ -526,7 +584,9 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             'Suporte',
             '',
             Icons.headset_mic_rounded,
-            Layout02Theme.purple,
+            primary, // Replaced purple with primary for branding
+            cardColor: cardColor,
+            textColor: textColor,
             onTap: () => widget.onNavigate('support'),
           ),
         ),
@@ -537,6 +597,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
             '',
             Icons.data_usage_rounded,
             Layout02Theme.cyan,
+            cardColor: cardColor,
+            textColor: textColor,
             onTap: () => widget.onNavigate('internet_usage'),
           ),
         ),
@@ -549,6 +611,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     String value,
     IconData icon,
     Color color, {
+    Color cardColor = Colors.white,
+    Color textColor = Layout02Theme.textDark,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -559,7 +623,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -570,32 +634,27 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            if (value.isNotEmpty) ...[
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                ),
               ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Layout02Theme.textDark,
-              ),
-            ),
-            const SizedBox(height: 4),
+              const SizedBox(height: 4),
+            ],
             Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: Layout02Theme.textGrey.withOpacity(0.8),
+                color: textColor.withOpacity(0.7),
               ),
             ),
           ],
@@ -604,72 +663,79 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(
+      Color primary, Color secondary, Color cardColor, Color textColor) {
     final actions = [
       {
         'icon': Icons.speed_rounded,
         'label': 'Velocidade',
-        'colors': [Layout02Theme.primary, Layout02Theme.secondary],
+        'colors': [primary, secondary], // Dynamic
         'route': 'speed_test'
       },
       {
         'icon': Icons.network_check_rounded,
         'label': 'Diagnóstico',
-        'colors': [Layout02Theme.green, Layout02Theme.cyan],
+        'colors': [Layout02Theme.green, Layout02Theme.cyan], // Dynamic
         'route': 'network_diagnostic'
       },
       {
         'icon': Icons.description_rounded,
         'label': 'Contrato',
-        'colors': [Layout02Theme.orange, const Color(0xFFFF6B35)],
+        'colors': [Layout02Theme.orange, const Color(0xFFFF6B35)], // Dynamic
         'route': 'contract'
       },
       {
         'icon': Icons.quiz_rounded,
         'label': 'FAQ',
-        'colors': [const Color(0xFFFF6B9D), Layout02Theme.purple],
+        'colors': [
+          const Color(0xFFFF6B9D),
+          primary.withOpacity(0.7)
+        ], // Dynamic
         'route': 'faq'
       },
       {
         'icon': Icons.route_rounded,
         'label': 'Tracert',
-        'colors': [Layout02Theme.purple, Layout02Theme.accent],
+        'colors': [primary, secondary], // Dynamic
         'route': 'trace_route'
       },
       {
         'icon': Icons.language_rounded,
         'label': 'Meu IP',
-        'colors': [Layout02Theme.cyan, Layout02Theme.primary],
+        'colors': [Layout02Theme.cyan, primary], // Dynamic
         'route': 'my_ip'
       },
       {
         'icon': Icons.wifi_rounded,
         'label': 'Wi-Fi',
-        'colors': [Layout02Theme.secondary, Layout02Theme.green],
+        'colors': [secondary, Layout02Theme.green], // Dynamic
         'route': 'wifi'
       },
       {
         'icon': Icons.receipt_long_rounded,
         'label': 'Faturas',
-        'colors': [Layout02Theme.orange, Layout02Theme.primary],
+        'colors': [Layout02Theme.orange, primary], // Dynamic
         'route': 'invoices'
       },
       {
         'icon': Icons.support_agent_rounded,
         'label': 'Suporte',
-        'colors': [Layout02Theme.green, Layout02Theme.cyan],
+        'colors': [Layout02Theme.green, Layout02Theme.cyan], // Dynamic
         'route': 'support'
       },
       {
         'icon': Icons.data_usage_rounded,
         'label': 'Consumo',
-        'colors': [const Color(0xFF9C27B0), Layout02Theme.purple],
+        'colors': [
+          const Color(0xFF9C27B0),
+          primary.withOpacity(0.8)
+        ], // Dynamic
         'route': 'internet_usage'
       },
       {
         'icon': Icons.notifications_rounded,
         'label': 'Alertas',
-        'colors': [const Color(0xFFEF5350), Layout02Theme.orange],
+        'colors': [const Color(0xFFEF5350), Layout02Theme.orange], // Dynamic
         'route': 'notifications'
       },
     ];
@@ -692,12 +758,13 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
               ),
             ),
             GestureDetector(
-              onTap: () => _showActionsGrid(context, actions),
+              onTap: () =>
+                  _showActionsGrid(context, actions, cardColor, textColor),
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Layout02Theme.primary.withValues(alpha: 0.1),
+                  color: primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -705,12 +772,11 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                   children: [
                     Text('Ver mais',
                         style: TextStyle(
-                            color: Layout02Theme.primary,
+                            color: primary,
                             fontSize: 12,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(width: 4),
-                    Icon(Icons.grid_view_rounded,
-                        color: Layout02Theme.primary, size: 14),
+                    Icon(Icons.grid_view_rounded, color: primary, size: 14),
                   ],
                 ),
               ),
@@ -732,6 +798,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                 action['label'] as String,
                 action['colors'] as List<Color>,
                 action['route'] as String,
+                cardColor,
+                textColor, // [NEW]
               );
             },
           ),
@@ -740,8 +808,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     );
   }
 
-  void _showActionsGrid(
-      BuildContext context, List<Map<String, dynamic>> actions) {
+  void _showActionsGrid(BuildContext context,
+      List<Map<String, dynamic>> actions, Color cardColor, Color textColor) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -753,8 +821,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)
+            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)
           ],
         ),
         child: Column(
@@ -774,7 +841,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.1),
+                        color: Colors.grey.withOpacity(0.1),
                         shape: BoxShape.circle),
                     child: const Icon(Icons.close_rounded,
                         color: Colors.grey, size: 20),
@@ -799,41 +866,58 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
                 return GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
-                    widget.onNavigate(a['route'] as String);
+                    if (a['route'] != null) {
+                      widget.onNavigate(a['route'] as String);
+                    }
                   },
                   child: Container(
-                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [
-                        colors[0].withValues(alpha: 0.15),
-                        colors[1].withValues(alpha: 0.08)
-                      ]),
-                      borderRadius: BorderRadius.circular(18),
-                      border:
-                          Border.all(color: colors[0].withValues(alpha: 0.2)),
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors[0].withOpacity(0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: colors),
-                            borderRadius: BorderRadius.circular(12),
+                            gradient: LinearGradient(
+                              colors: colors,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors[0].withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          child: Icon(a['icon'] as IconData,
-                              color: Colors.white, size: 22),
+                          child: Icon(
+                            a['icon'] as IconData,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         Text(
                           a['label'] as String,
-                          style: const TextStyle(
-                              color: Layout02Theme.textDark,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600),
                           textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
                         ),
                       ],
                     ),
@@ -852,6 +936,8 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     String label,
     List<Color> gradientColors,
     String route,
+    Color cardColor,
+    Color textColor,
   ) {
     return GestureDetector(
       onTap: () {
@@ -866,14 +952,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    gradientColors[0].withOpacity(0.15),
-                    gradientColors[1].withOpacity(0.1),
-                  ],
-                ),
+                color: cardColor,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
@@ -898,7 +977,7 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: Layout02Theme.textGrey.withOpacity(0.9),
+                color: textColor.withOpacity(0.9),
               ),
             ),
           ],
@@ -907,148 +986,68 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
     );
   }
 
-  Widget _buildCurrentPlan() {
-    return _buildPromotionCarousel();
-  }
-
-  Widget _buildPromotionCarousel() {
-    final promotions = [
-      {
-        'title': 'Combo TV + Internet',
-        'description': 'Streaming e Internet por apenas R\$199',
-        'icon': Icons.tv_rounded,
-        'colors': [const Color(0xFFE040FB), const Color(0xFF7C4DFF)],
-      },
-      {
-        'title': 'Upgrade de Velocidade',
-        'description': 'Migre para o plano Giga com desconto',
-        'icon': Icons.speed_rounded,
-        'colors': [const Color(0xFF00BCD4), const Color(0xFF2196F3)],
-      },
-      {
-        'title': 'Indique um Amigo',
-        'description': 'Ganhe 1 mês grátis por indicação',
-        'icon': Icons.people_rounded,
-        'colors': [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
-      },
+  Widget _buildPromotionCarousel(Color secondary, Color textColor) {
+    final bannerImages = [
+      'assets/banners/banner_upgrade.png',
+      'assets/banners/banner_indique.png',
+      'assets/banners/banner_combo.png',
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Ofertas Especiais',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Layout02Theme.textDark,
+            color: textColor,
           ),
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 140,
-          child: PageView.builder(
-            itemCount: promotions.length,
-            controller: PageController(viewportFraction: 0.92),
-            itemBuilder: (context, index) {
-              final promo = promotions[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: promo['colors'] as List<Color>,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (promo['colors'] as List<Color>)[0]
-                            .withOpacity(0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      // Background pattern
-                      Positioned(
-                        right: -20,
-                        bottom: -20,
-                        child: Icon(
-                          promo['icon'] as IconData,
-                          size: 120,
-                          color: Colors.white.withOpacity(0.15),
-                        ),
-                      ),
-                      // Content
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.25),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'OFERTA',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              promo['title'] as String,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              promo['description'] as String,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.85),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Arrow indicator
-                      Positioned(
-                        right: 16,
-                        bottom: 16,
-                        child: Container(
-                          width: 32,
-                          height: 32,
+        GestureDetector(
+          onPanDown: (_) => _stopPromoAutoScroll(),
+          onPanEnd: (_) => _startPromoAutoScroll(),
+          onPanCancel: () => _startPromoAutoScroll(),
+          child: SizedBox(
+            height: 140,
+            child: PageView.builder(
+              itemCount: bannerImages.length,
+              controller: _promoController,
+              onPageChanged: (index) => _currentPromoPage = index,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      bannerImages[index],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Fallback to gradient if image not found
+                        return Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [secondary, secondary.withOpacity(0.7)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            color: (promo['colors'] as List<Color>)[0],
-                            size: 18,
+                          child: const Center(
+                            child: Icon(
+                              Icons.local_offer_rounded,
+                              color: Colors.white,
+                              size: 48,
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ],
@@ -1074,15 +1073,21 @@ class _ProviderDashboardPageState extends State<ProviderDashboardPage>
   }
 
   Widget _buildDrawer() {
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
+    final hsl = HSLColor.fromColor(primary);
+    final primaryDark =
+        hsl.withLightness((hsl.lightness - 0.2).clamp(0.0, 1.0)).toColor();
+
     return Drawer(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Layout02Theme.primary,
-              Layout02Theme.primaryDark,
+              primary,
+              primaryDark,
             ],
           ),
         ),

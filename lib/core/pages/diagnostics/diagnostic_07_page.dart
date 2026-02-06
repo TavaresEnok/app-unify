@@ -231,15 +231,31 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
         _statusMessage = "Analisando espectro Wi-Fi...";
       }
       if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
-        _wifi = {
-          'ssid': 'Detectado',
-          'rssi': -45,
-          'channel': 149,
-          'quality': 98,
-          'freq': '5GHz',
-          'security': 'WPA3',
-          'gateway': '192.168.1.1'
-        };
+        final res = results['wifiInfo']!['result'];
+        if (res is Map) {
+          _wifi = {
+            'ssid': res['ssid']?.toString() ?? 'Desconhecido',
+            'rssi': res['signalStrength']?.toString() ?? '---',
+            'frequency': res['frequency']?.toString() ?? '',
+            'channel': res['channel']?.toString() ?? '---',
+            'quality': 98, // Simulated for now or derived
+            'security': res['security']?.toString() ?? '---',
+            'gateway': res['gateway']?.toString() ?? '',
+            'bssid': res['bssid']?.toString() ?? '---',
+            'ip': res['ip']?.toString() ?? '---',
+            'dns': res['dns']?.toString() ?? '---',
+          };
+        } else {
+          _wifi = {
+            'ssid': 'Detectado',
+            'rssi': '-45',
+            'channel': '149',
+            'quality': 98,
+            'frequency': '5GHz',
+            'security': 'WPA3',
+            'gateway': '192.168.1.1'
+          };
+        }
         _progress = 0.2;
       }
 
@@ -249,14 +265,27 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
         _statusMessage = "Verificando potência óptica...";
       }
       if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
-        _fiber = {
-          'rx': -18.5,
-          'tx': 2.3,
-          'temp': 41.0,
-          'volt': 3.2,
-          'bias': 12.0,
-          'status': 'Online (O5)'
-        };
+        final res = results['onuInfo']!['result'];
+        if (res is Map) {
+          _fiber = {
+            'rx': res['rxPower'] ?? -18.5,
+            'tx': res['txPower'] ?? 2.3,
+            'temp': res['temperature'] ?? 41.0,
+            'volt': res['voltage']?.toString() ?? '3.2',
+            'bias': res['biasCurrent']?.toString() ?? '12.0',
+            'status': res['isOnline'] == true ? 'Online' : 'Offline',
+            'model': res['model'] ?? '---',
+          };
+        } else {
+          _fiber = {
+            'rx': -18.5,
+            'tx': 2.3,
+            'temp': 41.0,
+            'volt': 3.2,
+            'bias': 12.0,
+            'status': 'Online'
+          };
+        }
         _progress = 0.4;
       }
 
@@ -823,9 +852,10 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
         children: [
           _row("SSID", data['ssid'], bold: true),
           Divider(color: Colors.black.withOpacity(0.05)),
+          _row("Sinal", "${data['rssi']} dBm"),
+          _row("Frequência", data['frequency']),
           _row("Canal", "${data['channel']}"),
-          _row("Frequência", data['freq']),
-          _row("Qualidade", "${data['quality']}%"),
+          _row("Segurança", data['security']),
         ],
       ),
     );
@@ -841,6 +871,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
           _row("RX Power", "${data['rx']} dBm"),
           _row("TX Power", "${data['tx']} dBm"),
           _row("Voltagem", "${data['volt']} V"),
+          _row("Bias", "${data['bias']} mA"),
         ],
       ),
     );
@@ -1157,8 +1188,6 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
 
   Widget _buildWifiDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
-    final wifiR =
-        _lastRealState!.testResultsDisplay['wifiInfo']?['result'] as String?;
     final s = _lastRealState!.testResultsDisplay['wifiInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1172,13 +1201,12 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textDark)),
           const SizedBox(height: 12),
-          _row('BSSID', DiagnosticUtils.parseResultLine(wifiR, 'BSSID:')),
-          _row('IP Local',
-              DiagnosticUtils.parseResultLine(wifiR, 'IP Dispositivo:')),
-          _row(
-              'DNS', DiagnosticUtils.parseResultLine(wifiR, 'Servidores DNS:')),
-          _row('Frequência',
-              DiagnosticUtils.parseResultLine(wifiR, 'Frequência:')),
+          _row('BSSID', _wifi?['bssid'] ?? '---'),
+          _row('IP Local', _wifi?['ip'] ?? '---'),
+          _row('DNS', _wifi?['dns']?.replaceAll('\n', ', ') ?? '---'),
+          _row('Frequência', _wifi?['frequency'] ?? '---'),
+          _row('Canal', _wifi?['channel'] ?? '---'),
+          _row('Segurança', _wifi?['security'] ?? '---'),
         ]));
   }
 
@@ -1190,11 +1218,14 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
         real_state.TestStatus.pending;
     if (s == real_state.TestStatus.pending) return const SizedBox.shrink();
     String rx = '---', tx = '---', temp = '---', model = '---';
+    String volt = '---', bias = '---';
     if (onuR is Map) {
       rx = onuR['rxPower']?.toString() ?? '---';
       tx = onuR['txPower']?.toString() ?? '---';
       temp = onuR['temperature']?.toString() ?? '---';
       model = onuR['model']?.toString() ?? '---';
+      volt = onuR['voltage']?.toString() ?? '---';
+      bias = onuR['biasCurrent']?.toString() ?? '---';
     }
     return _GlassContainer(
         padding: const EdgeInsets.all(20),
@@ -1221,6 +1252,12 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             Expanded(child: _onuStat('Temp', '$temp°C', AppTheme.warning)),
             const SizedBox(width: 8),
             Expanded(child: _onuStat('Modelo', model, AppTheme.accent))
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: _onuStat('Voltagem', '$volt V', AppTheme.textGrey)),
+            const SizedBox(width: 8),
+            Expanded(child: _onuStat('Bias', '$bias mA', AppTheme.textGrey))
           ]),
         ]));
   }

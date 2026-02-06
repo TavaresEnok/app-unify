@@ -94,7 +94,9 @@ class _AppInitializationWrapperState
     await FirebaseMessaging.instance.requestPermission();
 
     // Initialize Push Notification Service for foreground handling
-    await PushNotificationService().initialize();
+    final notificationService = ref.read(notificationProvider);
+    await PushNotificationService()
+        .initialize(notificationService: notificationService);
 
     if (mounted) {
       // Usamos read aqui pois é uma ação única na inicialização

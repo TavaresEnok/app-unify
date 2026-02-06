@@ -89,6 +89,13 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
             Map<String, dynamic>.from(effectiveThemeMap['effects']);
 
         // Overrides
+        // Primary and Secondary colors from Admin config
+        if (configColors.themeColor != null) {
+          colorsMap['primary'] = configColors.themeColor;
+        }
+        if (configColors.secondaryColor != null) {
+          colorsMap['secondary'] = configColors.secondaryColor;
+        }
         if (configColors.backgroundColor != null) {
           colorsMap['background'] = configColors.backgroundColor;
         }
@@ -104,6 +111,22 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
         if (configColors.textSecondaryColor != null) {
           colorsMap['textSecondary'] =
               configColors.textSecondaryColor; // [NEW] Secondary Text
+        }
+        if (configColors.quickActionsCardColor != null) {
+          colorsMap['quickActionsCardColor'] =
+              configColors.quickActionsCardColor; // [NEW] Quick Actions
+        }
+        if (configColors.otherCardsColor != null) {
+          colorsMap['otherCardsColor'] =
+              configColors.otherCardsColor; // [NEW] Other Cards
+        }
+        if (configColors.quickActionsTextColor != null) {
+          colorsMap['quickActionsTextColor'] =
+              configColors.quickActionsTextColor; // [NEW] Quick Actions Text
+        }
+        if (configColors.otherCardsTextColor != null) {
+          colorsMap['otherCardsTextColor'] =
+              configColors.otherCardsTextColor; // [NEW] Other Cards Text
         }
 
         effectiveThemeMap['colors'] = colorsMap;
@@ -122,6 +145,12 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
         final backgroundColor =
             configColors.backgroundColor; // Load background color
         final iconColor = configColors.iconColor; // [NEW]
+        final quickActionsCardColor =
+            configColors.quickActionsCardColor; // [NEW]
+        final quickActionsTextColor =
+            configColors.quickActionsTextColor; // [NEW]
+        final otherCardsColor = configColors.otherCardsColor; // [NEW]
+        final otherCardsTextColor = configColors.otherCardsTextColor; // [NEW]
 
         debugPrint(
             '🎨 [DEBUG] Criando tema com themeColor=$themeColor, secondaryColor=$secondaryColor');
@@ -134,6 +163,14 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
             if (textColor != null) 'textPrimary': textColor,
             if (textSecondaryColor != null)
               'textSecondary': textSecondaryColor, // [NEW]
+            if (quickActionsCardColor != null)
+              'quickActionsCardColor': quickActionsCardColor, // [NEW]
+            if (otherCardsColor != null)
+              'otherCardsColor': otherCardsColor, // [NEW]
+            if (quickActionsTextColor != null)
+              'quickActionsTextColor': quickActionsTextColor, // [NEW]
+            if (otherCardsTextColor != null)
+              'otherCardsTextColor': otherCardsTextColor, // [NEW]
             // Default mappings for other colors using primary/secondary if not specified
             'error': '#EF4444',
             'success': '#10B981',

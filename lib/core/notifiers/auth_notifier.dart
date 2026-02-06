@@ -26,7 +26,7 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
       final user = await _repository.performLoginApi(cpf, config);
 
       // 2. Save locally
-      await _repository.saveUserLocally(user);
+      await _repository.saveUserLocally(user, config.id);
 
       // 3. Update state
       state = AsyncValue.data(user);
@@ -64,7 +64,7 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
 
       // Preserve some local-only fields if any (auth tokens are handled inside repository)
 
-      await _repository.saveUserLocally(updatedUser);
+      await _repository.saveUserLocally(updatedUser, config.id);
       state = AsyncValue.data(updatedUser);
     } catch (e) {
       debugPrint('Erro ao atualizar dados do usuário em background: $e');
