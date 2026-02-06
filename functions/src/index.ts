@@ -8,11 +8,23 @@ import * as path from "path";
 import * as fs from "fs";
 import { spawn } from "child_process";
 import * as https from "https";
+import { getStorage } from "firebase-admin/storage";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 
 // Inicialização do Firebase Admin
-initializeApp();
+const projectId =
+    process.env.GCLOUD_PROJECT ||
+    process.env.GCP_PROJECT ||
+    process.env.PROJECT_ID ||
+    "";
+const storageBucket =
+    process.env.STORAGE_BUCKET ||
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    (projectId ? `${projectId}.appspot.com` : "");
+initializeApp(storageBucket ? { storageBucket } : undefined);
 const db = getFirestore();
 const auth = getAuth();
+const storage = getStorage();
 
 // --- 1. PADRÕES DE AUTORIDADE DO SISTEMA ---
 // Estes valores garantem que NUNCA falte uma cor ou configuração.
@@ -49,6 +61,78 @@ const DEFAULT_PROVIDER_CONFIG = {
 
     socialNetworks: {}
 };
+
+// --- HTTP CALLABLE: UPLOAD LOGO (Bypasses CORS) ---
+export const uploadProviderLogo = onCall({
+    region: "southamerica-east1",
+    maxInstances: 10
+}, async (request) => {
+    // 1. Auth Check
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'User must be logged in.');
+    }
+
+    const { imageBase64, providerId } = request.data;
+    if (!imageBase64 || !providerId) {
+        throw new HttpsError('invalid-argument', 'Missing imageBase64 or providerId.');
+    }
+
+    logger.info(`Upload logo request for provider: ${providerId} by user: ${request.auth.uid}`);
+
+    // 2. Permission Check
+    const user = await auth.getUser(request.auth.uid);
+    const isSuperAdmin = user.customClaims?.superAdmin === true;
+    const isOwner = user.customClaims?.providerId === providerId;
+
+    logger.info(`User permissions - superAdmin: ${isSuperAdmin}, isOwner: ${isOwner}`);
+
+    if (!isSuperAdmin && !isOwner) {
+        throw new HttpsError('permission-denied', 'Not allowed to edit this provider.');
+    }
+
+    // 3. Process Image
+    const bucket = storage.bucket();
+    logger.info(`Using storage bucket: ${bucket.name || "unknown"}`);
+    const filePath = `providers/${providerId}/logo.png`;
+    const buffer = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+
+    logger.info(`Uploading to path: ${filePath}, buffer size: ${buffer.length} bytes`);
+
+    try {
+        const file = bucket.file(filePath);
+
+        // Upload file with cache control for better performance
+        await file.save(buffer, {
+            metadata: {
+                contentType: 'image/png',
+                cacheControl: 'public, max-age=31536000, immutable', // Cache longo no navegador/CDN
+            },
+        });
+
+        logger.info(`File uploaded successfully to ${filePath}`);
+
+        // ✅ URL DIRETA PÚBLICA (funciona porque as regras permitem read: if true)
+        // Não precisa de makePublic() - isso causava erro com Uniform Bucket Level Access
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+        logger.info(`Public URL generated: ${publicUrl}`);
+
+        // Update Firestore with the logo URL
+        await db.collection('provedores').doc(providerId).set({
+            logoUrl: publicUrl,
+            details: { logoUrl: publicUrl }
+        }, { merge: true });
+
+        logger.info(`Firestore updated with logoUrl`);
+
+        return { success: true, url: publicUrl };
+
+    } catch (error: any) {
+        logger.error("Upload Failed", error);
+        throw new HttpsError('internal', `Upload failed: ${error.message}`);
+    }
+});
+
 
 // Helper para resposta padronizada
 const writeResponse = (ref: FirebaseFirestore.DocumentReference, payload: any, requesterUid?: string) => {
@@ -568,31 +652,152 @@ export const handleSendPushNotificationRequest = onDocumentCreated({
     return null;
 });
 
+// --- 7. FUNÇÃO PARA NOTIFICAÇÃO SEGMENTADA (NOVA) ---
+// Envia notificação filtrando por Status e Plano
+export const handleSendScopedNotificationSegmentedRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'SEND_SCOPED_NOTIFICATION_SEGMENTED') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const payload = requestData.payload || {};
+
+    try {
+        if (!requesterUid) throw new Error("RequesterUID é obrigatório.");
+
+        const providerId = payload.providerId;
+        const { title, body, statusFilter, planFilter } = payload;
+
+        if (!title || !body) throw new Error("Título e mensagem são obrigatórios.");
+
+        // Import messaging dynamically
+        const { getMessaging } = await import("firebase-admin/messaging");
+        const messaging = getMessaging();
+
+        // 1. Buscar todos os clientes do provedor
+        const clientsSnapshot = await db.collection('clientes')
+            .where('providerId', '==', providerId)
+            .get();
+
+        const tokens: string[] = [];
+
+        clientsSnapshot.forEach(doc => {
+            const data = doc.data();
+            const token = data.fcmToken;
+            if (!token) return;
+
+            // Filtro de Status
+            if (statusFilter && statusFilter !== 'all') {
+                const userStatus = (data.status || '').toLowerCase().trim();
+                const filterStatus = statusFilter.toLowerCase().trim();
+                // "includes" permite matches parciais (ex: "Ativo" match "Ativo V. Reduzida")
+                if (!userStatus.includes(filterStatus)) return;
+            }
+
+            // Filtro de Plano
+            if (planFilter && planFilter !== 'all') {
+                const userPlan = (data.plano || data.plan || '').toLowerCase().trim();
+                const filterPlan = planFilter.toLowerCase().trim();
+                if (!userPlan.includes(filterPlan)) return;
+            }
+
+            tokens.push(token);
+        });
+
+        let successCount = 0;
+        let failureCount = 0;
+
+        if (tokens.length > 0) {
+            // Firestore limita multicast a 500 tokens por vez
+            // Vamos fazer chunks de 500
+            const chunkSize = 500;
+            for (let i = 0; i < tokens.length; i += chunkSize) {
+                const chunk = tokens.slice(i, i + chunkSize);
+
+                const response = await messaging.sendEachForMulticast({
+                    tokens: chunk,
+                    notification: { title, body },
+                    data: { route: '/provedor/dashboard', category: 'info' }, // Default route
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            channelId: 'high_importance_channel',
+                            priority: 'high' as const,
+                        }
+                    }
+                });
+                successCount += response.successCount;
+                failureCount += response.failureCount;
+            }
+        }
+
+        // Salvar notificação no histórico
+        await db.collection('notifications').add({
+            providerId,
+            title,
+            body,
+            category: 'segmented',
+            statusFilter,
+            planFilter,
+            successCount,
+            failureCount,
+            sentBy: requesterUid,
+            createdAt: FieldValue.serverTimestamp()
+        });
+
+        logger.info(`Notificação Segmentada enviada: ${successCount} sucesso, ${failureCount} falhas.`);
+
+        await writeResponse(responseRef, {
+            result: {
+                success: true,
+                message: `Enviada para ${successCount} clientes (${failureCount} falhas).`,
+                successCount,
+                failureCount
+            }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em SEND_SCOPED_NOTIFICATION_SEGMENTED ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+
 // TEMPORARY: Fix Vibe Provider Document
 import { onRequest } from "firebase-functions/v2/https";
 
-export const fixVibeProvider = onRequest(async (req, res) => {
+export const forceUpdateApiUrl = onRequest(async (req, res) => {
     try {
-        logger.info("🔧 Fixing Vibe provider document...");
+        const providerId = req.query.id as string || 'vibe';
+        logger.info(`🔧 Forcing API URL update for ${providerId}...`);
 
-        // 1. Copy document
-        const sourceDoc = await db.collection('provedores').doc('3kdrQFcCkRga234iB1YX').get();
-        if (!sourceDoc.exists) {
-            throw new Error('Source document not found');
+        const providerRef = db.collection('provedores').doc(providerId);
+        const doc = await providerRef.get();
+
+        if (!doc.exists) {
+            throw new Error(`Provider ${providerId} not found`);
         }
 
-        const data = sourceDoc.data();
-        await db.collection('provedores').doc('vibe').set(data!);
-        logger.info("✅ Document copied to provedores/vibe");
+        const newUrl = 'http://168.194.13.18:3002';
 
-        // 2. Update user token
-        const user = await auth.getUserByEmail('vibe@gmail.com');
-        await auth.setCustomUserClaims(user.uid, { providerId: 'vibe' });
-        logger.info("✅ Token updated for vibe@gmail.com");
+        await providerRef.update({
+            apiUrl: newUrl,
+            'config.apiUrl': newUrl,
+            updatedAt: FieldValue.serverTimestamp()
+        });
+
+        logger.info(`✅ URL updated to ${newUrl}`);
 
         res.json({
             success: true,
-            message: "Provider fixed! Logout and login again."
+            message: `API URL forcefully updated to ${newUrl} for provider ${providerId}`,
+            provider: providerId,
+            newUrl: newUrl
         });
     } catch (error: any) {
         logger.error("❌ Error:", error);
@@ -716,7 +921,7 @@ export const handleSgpApiProxyRequest = onDocumentCreated({
             await writeResponse(responseRef, { status: "running", message: "Sincronizando via proxy..." }, requesterUid);
 
             const clientsRef = db.collection(`provedores/${providerId}/clientes`);
-            const PROXY_URL = 'http://168.194.13.18:3005';
+            const PROXY_URL = 'http://168.194.13.18:3002';
             const PROXY_SECRET = 'CHAVE_SECRETA_MUITO_FORTE_12345';
 
             try {
@@ -878,7 +1083,53 @@ export const handleSgpApiProxyRequest = onDocumentCreated({
     return null;
 });
 
-// --- 10. FUNÇÃO PARA LISTAR TICKETS (PROVEDOR) ---
+// --- 10. FUNÇÃO PARA LISTAR TODOS OS TICKETS (SUPER ADMIN) ---
+export const handleGetAllTicketsRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'GET_ALL_TICKETS') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+
+    try {
+        if (!requesterUid) throw new Error("RequesterUID obrigatório.");
+
+        // Check Permissions (Super Admin only)
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = user.customClaims?.superAdmin === true;
+
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada. Apenas Super Admin.");
+        }
+
+        // Fetch all tickets
+        const ticketsSnap = await db.collection('tickets')
+            .orderBy('updatedAt', 'desc')
+            .limit(100) // Limit for performance
+            .get();
+
+        const tickets = ticketsSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        await writeResponse(responseRef, {
+            result: { tickets }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em GET_ALL_TICKETS ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+
+// --- 11. FUNÇÃO PARA LISTAR TICKETS (PROVEDOR) ---
 export const handleGetProviderTicketsRequest = onDocumentCreated({
     document: "function_requests/{requestId}",
     region: "southamerica-east1"
@@ -917,7 +1168,43 @@ export const handleGetProviderTicketsRequest = onDocumentCreated({
     return null;
 });
 
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+// --- 12. FUNÇÃO PARA DELETAR TICKET (SUPER ADMIN) ---
+export const handleDeleteTicketRequest = onDocumentCreated({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    const requestId = event.params.requestId;
+    const requestData = event.data?.data();
+
+    if (!requestData || requestData.type !== 'DELETE_TICKET') { return null; }
+
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const { ticketId } = requestData.payload || {};
+
+    try {
+        if (!requesterUid || !ticketId) throw new Error("Dados incompletos.");
+
+        // Check Permissions (Super Admin only for now, or Owner)
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = user.customClaims?.superAdmin === true;
+
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada.");
+        }
+
+        await db.collection('tickets').doc(ticketId).delete();
+
+        await writeResponse(responseRef, {
+            result: { success: true, message: "Ticket apagado." }
+        }, requesterUid);
+
+    } catch (error: any) {
+        logger.error(`Erro em DELETE_TICKET ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
 
 // ===========================================
 // APK GENERATOR (SUPER ADMIN ONLY)
@@ -938,7 +1225,7 @@ export const generateApk = onCall(
             );
         }
 
-        const { providerId, appName, logoUrl } = request.data;
+        const { providerId, appName, logoUrl, format } = request.data;
         if (!providerId || !appName || !logoUrl) {
             throw new HttpsError(
                 "invalid-argument",
@@ -946,7 +1233,7 @@ export const generateApk = onCall(
             );
         }
 
-        logger.info(`Starting APK Generation for ${providerId} (${appName})...`);
+        logger.info(`Starting App Generation for ${providerId} (${appName}). Format: ${format || 'apk'}...`);
 
         // 2. Download Logo to Temp
         const tempFilePath = path.join(os.tmpdir(), `logo_${providerId}_${Date.now()}.png`);
@@ -969,18 +1256,33 @@ export const generateApk = onCall(
         const scriptPath = "/home/app/painel-provedores-projeto/admin-script/gerar_apk.py";
         const projectRoot = "/home/app/painel-provedores-projeto"; // CWD for script
 
+        // WHITE LABEL: Generate Package Name
+        // sanitized providerId: remove non-alphanumeric, lowercase
+        const safeProviderId = providerId.replace(/[^a-z0-9]/gi, '').toLowerCase();
+        const packageName = `br.com.provedores.${safeProviderId}`;
+
+        const pythonArgs = [
+            scriptPath,
+            "--id",
+            providerId,
+            "--nome",
+            appName,
+            "--logo",
+            tempFilePath,
+            "--package",
+            packageName
+        ];
+
+        // Handle Format & Security
+        if (format === 'aab') {
+            pythonArgs.push('--format', 'aab');
+            pythonArgs.push('--obfuscate'); // Security: Always obfuscate Store builds
+        }
+
         return new Promise((resolve, reject) => {
             const pythonProcess = spawn(
                 "python3",
-                [
-                    scriptPath,
-                    "--id",
-                    providerId,
-                    "--nome",
-                    appName,
-                    "--logo",
-                    tempFilePath,
-                ],
+                pythonArgs,
                 { cwd: projectRoot }
             );
 
@@ -1101,6 +1403,4 @@ export const handleDeleteAdminUserRequest = onDocumentCreated({
     }
     return null;
 });
-
-
 

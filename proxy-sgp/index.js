@@ -85,6 +85,10 @@ function setInCache(key, data) {
 // ----------------------------------------
 
 // --- CONFIGURAÇÃO ---
+app.use((req, res, next) => {
+    console.log(`[DEBUG] Incoming Request: ${req.method} ${req.url} from ${req.ip}`);
+    next();
+});
 app.use(cors());
 app.use(bodyParser.json());
 app.use(rateLimiter); // Aplica rate limiting a todas as rotas
@@ -447,13 +451,13 @@ app.post('/check-cpf', async (req, res) => {
 
     if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos." } });
 
-    // CACHE CHECK
-    const cacheKey = `check_cpf_${cpfCnpjUnformatted}`;
-    const cachedData = getFromCache(cacheKey);
-    if (cachedData) {
-        console.log(`[Check-CPF] Hit Cache para ${cpfCnpjUnformatted}`);
-        return res.status(200).json(cachedData);
-    }
+    // CACHE DISABLED to always fetch fresh connection status (verificaacesso)
+    // const cacheKey = `check_cpf_${cpfCnpjUnformatted}`;
+    // const cachedData = getFromCache(cacheKey);
+    // if (cachedData) {
+    //     console.log(`[Check-CPF] Hit Cache para ${cpfCnpjUnformatted}`);
+    //     return res.status(200).json(cachedData);
+    // }
 
     // Log para debug
     console.log(`[Check-CPF] Iniciando check para ${cpfCnpjUnformatted}`);
@@ -545,7 +549,7 @@ app.post('/check-cpf', async (req, res) => {
             cpfCnpj: contrato.cpfCnpj,
             senha: contrato.contratoCentralSenha,
             plano: contrato.servico_plano,
-            status: contrato.contratoStatusDisplay || "Ativo",
+            status: contrato.contratoStatusDisplay || "Ativo", // Será substituído abaixo se verificaAcesso funcionar
             valorFatura: valorAberto.toFixed(2).replace('.', ','),
             vencimentoFatura: vencimento
                 ? (vencimento.toString().includes('-')
@@ -555,11 +559,64 @@ app.post('/check-cpf', async (req, res) => {
             contratoId: contrato.contratoId,
             email: "cliente@email.com"
         };
+
+        // ========================================================================
+        // CONSULTA DE STATUS DE CONEXÃO REAL (verificaacesso)
+        // ========================================================================
+        try {
+            const contratoId = contrato.contratoId;
+            const senhaCentral = contrato.contratoCentralSenha || '';
+
+            if (contratoId && senhaCentral) {
+                console.log(`[Check-CPF] Consultando verificaacesso para contrato ${contratoId}...`);
+
+                const verificaParams = {
+                    cpfcnpj: cpfCnpjUnformatted,
+                    senha: senhaCentral,
+                    contrato: contratoId.toString(),
+                    url: formatSgpUrl(sgpBaseUrl, '/api/central/verificaacesso/')
+                };
+
+                const verificaResponse = await executePhp(verificaParams);
+                console.log('[Check-CPF] verificaacesso Resposta:', JSON.stringify(verificaResponse).substring(0, 500));
+
+                // A API retorna o status de disponibilidade da conexão
+                if (verificaResponse) {
+                    // SGP retorna: {"msg":"Serviço Online","status":1} para online
+                    // Verifica diferentes formatos de resposta do SGP
+                    if (verificaResponse.status === 1 || verificaResponse.status === '1') {
+                        responseData.status = 'Online';
+                    } else if (verificaResponse.msg?.toLowerCase().includes('online')) {
+                        responseData.status = 'Online';
+                    } else if (verificaResponse.online === true || verificaResponse.online === 1 || verificaResponse.online === '1') {
+                        responseData.status = 'Online';
+                    } else if (typeof verificaResponse.status === 'string' && (verificaResponse.status.toLowerCase() === 'online' || verificaResponse.status.toLowerCase() === 'ativo')) {
+                        responseData.status = 'Online';
+                    } else if (verificaResponse.disponivel === true || verificaResponse.disponivel === 1) {
+                        responseData.status = 'Online';
+                    } else if (verificaResponse.ativo === true || verificaResponse.ativo === 1) {
+                        responseData.status = 'Online';
+                    } else if (verificaResponse.acesso === true || verificaResponse.acesso === 1 || verificaResponse.acesso === 'liberado') {
+                        responseData.status = 'Online';
+                    } else {
+                        responseData.status = 'Offline';
+                    }
+                    console.log(`[Check-CPF] Status de conexão final: ${responseData.status}`);
+                }
+            } else {
+                console.log('[Check-CPF] Dados insuficientes para verificaacesso:', { contratoId, senhaCentral: senhaCentral ? '***' : 'null' });
+            }
+        } catch (verificaError) {
+            console.error('[Check-CPF] Erro ao consultar verificaacesso:', verificaError.message);
+            // Em caso de erro, mantém o status do contrato como fallback
+        }
+        // ========================================================================
+
         console.log('[Check-CPF] Resposta Enviada:', JSON.stringify(responseData));
         console.log('[Check-CPF] Resposta Enviada:', JSON.stringify(responseData));
 
-        // SAVE TO CACHE
-        setInCache(cacheKey, responseData);
+        // CACHE DISABLED - also disable save
+        // setInCache(cacheKey, responseData);
 
         res.status(200).json(responseData);
     } catch (error) { res.status(500).json({ error: { message: error.message } }); }
@@ -941,5 +998,5 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 3005;
-app.listen(PORT, '0.0.0.0', () => { console.log(`✅ Proxy SGP PROD rodando na porta ${PORT}`); });
+const PORT = process.env.PORT || 3002;
+app.listen(PORT, () => { console.log(`✅ Proxy SGP PROD rodando na porta ${PORT}`); });

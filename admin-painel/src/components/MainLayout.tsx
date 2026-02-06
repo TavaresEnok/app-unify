@@ -91,46 +91,63 @@ export default function MainLayout() {
   );
 
   return (
-    <div className="flex h-screen bg-muted/10">
-      {/* Sidebar Desktop */}
-      <aside className="hidden w-72 flex-col border-r bg-background sm:flex p-4">
+    <div className="flex h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-background to-background">
+      {/* Sidebar Desktop - Floating & Glass */}
+      <aside className="hidden w-72 flex-col ml-4 my-4 rounded-2xl glass-panel shadow-2xl sm:flex p-4 fade-in z-20">
         <NavContent />
       </aside>
 
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-20 items-center justify-between gap-6 border-b bg-background px-4 sm:px-8">
+      <div className="flex flex-1 flex-col overflow-hidden relative">
+        {/* Header - Floating & Glass */}
+        <header className="flex h-20 items-center justify-between gap-6 mx-4 mt-4 rounded-2xl glass-panel px-6 sm:px-8 z-10">
           {/* Botão Menu Mobile */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild className="sm:hidden">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="hover:bg-white/10">
                 <Menu className="h-6 w-6" />
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-4">
+            <SheetContent side="left" className="w-72 p-4 glass-panel border-r-0 text-foreground">
               <NavContent onNavigate={() => setMobileMenuOpen(false)} />
             </SheetContent>
           </Sheet>
 
           {/* Placeholder para manter alinhamento no desktop */}
-          <div className="hidden sm:block" />
+          <div className="hidden sm:block">
+            {/* Search Bar Placeholder (Future) */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Activity className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <input
+                type="text"
+                className="block w-full p-2 pl-10 text-sm bg-black/20 border border-white/10 rounded-lg focus:ring-primary focus:border-primary placeholder-muted-foreground/50 text-white"
+                placeholder="Pesquisar..."
+              />
+            </div>
+          </div>
 
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="rounded-full">
-                  <Avatar className="h-9 w-9"><AvatarFallback>{getInitials(user?.email)}</AvatarFallback></Avatar>
+                <Button variant="ghost" size="icon" className="rounded-full ring-2 ring-white/10 hover:ring-primary/50 transition-all">
+                  <Avatar className="h-9 w-9 border-2 border-white/10"><AvatarFallback className="bg-primary/20 text-primary">{getInitials(user?.email)}</AvatarFallback></Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleLogout}>Sair</DropdownMenuItem>
+              <DropdownMenuContent align="end" className="glass-panel border-white/10 text-foreground">
+                <DropdownMenuItem onClick={handleLogout} className="focus:bg-primary/20">Sair</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 bg-muted/40">
-          <Outlet />
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
+          <div className="mx-auto max-w-7xl animate-in slide-in-from-bottom-5 duration-700 fade-in">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

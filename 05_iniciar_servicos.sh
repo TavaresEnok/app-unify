@@ -16,17 +16,17 @@ pm2 delete all 2>/dev/null || true
 
 echo "🚀 Iniciando Proxy SGP..."
 cd proxy-sgp
-pm2 start index.js --name "proxy-sgp" --watch
+PORT=3002 pm2 start index.js --name "proxy-sgp" --watch
 
 echo ""
 echo "🚀 Iniciando Admin Painel (Dev Server)..."
 cd ../admin-painel
-pm2 start "npm run dev" --name "admin-painel"
+pm2 start "npm run preview -- --port 5173 --host" --name "admin-painel"
 
 echo ""
 echo "🚀 Iniciando API Service..."
 cd ../api-service
-pm2 start "npm run dev" --name "api-service"
+pm2 start "npm run start" --name "api-service"
 
 echo ""
 echo "💾 Salvando configuração do PM2..."

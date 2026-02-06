@@ -19,17 +19,21 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copiar arquivos buildados
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/dist_final /usr/share/nginx/html
 
 # Configuração Nginx para SPA (Single Page Application)
 RUN echo 'server { \
     listen 80; \
+    gzip on; \
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript; \
+    gzip_min_length 1000; \
     location / { \
-        root /usr/share/nginx/html; \
-        index index.html; \
-        try_files $uri $uri/ /index.html; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    try_files $uri $uri/ /index.html; \
+    add_header Cache-Control "no-store, no-cache, must-revalidate"; \
     } \
-}' > /etc/nginx/conf.d/default.conf
+    }' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

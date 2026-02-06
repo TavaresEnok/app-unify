@@ -48,9 +48,9 @@ if grep -q "/check-cpf" "$PROXY_DIR/index.js"; then
     fi
 fi
 # Encontra a linha antes de "const PORT" para inserir a rota
-LINE_NUMBER=$(grep -n "const PORT = 3000;" "$PROXY_DIR/index.js" | cut -d: -f1)
+LINE_NUMBER=$(grep -n "const PORT = 3002;" "$PROXY_DIR/index.js" | cut -d: -f1)
 if [ -z "$LINE_NUMBER" ]; then
-    log_error "Não foi possível encontrar 'const PORT = 3000;' no arquivo"
+    log_error "Não foi possível encontrar 'const PORT = 3002;' no arquivo"
     exit 1
 fi
 # Cria arquivo temporário com a rota de login

@@ -1,104 +1,85 @@
 version: '3.8'
 
 services:
-  # =======================================
-  # Proxy SGP - API Principal (porta 3000)
-  # =======================================
-  proxy-sgp:
-    build:
-      context: ./proxy-sgp
-      dockerfile: Dockerfile
-    container_name: proxy-sgp
-    restart: always
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-    networks:
-      - app-network
-
-  # =======================================
-  # API Service - BFF Admin (porta 9136)
-  # =======================================
-  api-service:
-    build:
-      context: ./api-service
-      dockerfile: Dockerfile
-    container_name: api-service
-    restart: always
-    ports:
-      - "9136:9136"
-    environment:
-      - NODE_ENV=production
-    networks:
-      - app-network
-
-  # =======================================
-  # Speed Test Server (porta 3001)
-  # =======================================
-  speed-test:
-    build:
-      context: ./speed_test_server
-      dockerfile: Dockerfile
-    container_name: speed-test
-    restart: always
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=production
-    networks:
-      - app-network
-
-  # =======================================
-  # Admin Panel - Web (porta 5173)
-  # =======================================
-  admin-painel:
+  # 🟡 Frontend (Admin Panel)
+  frontend:
     build:
       context: ./admin-painel
       dockerfile: Dockerfile
-    container_name: admin-painel
+    container_name: painel_frontend
     restart: always
     ports:
-      - "5173:80"
-    networks:
-      - app-network
-    depends_on:
-      - proxy-sgp
-      - api-service
+      - "8031:80" # Frontend Padronizado (Era 5174)
+    environment:
+      - VITE_API_URL=http://168.194.13.18:8030 # Aponta para o Backend Padronizado
 
-  # =======================================
-  # Portainer - Gestão Visual Docker
-  # =======================================
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: portainer
+  # 🟡 Backend (SGP Proxy)
+  backend-proxy:
+    build:
+      context: ./proxy-sgp
+      dockerfile: Dockerfile
+    container_name: painel_proxy_sgp
     restart: always
     ports:
-      - "9000:9000"
-      - "9443:9443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    networks:
-      - app-network
+      - "8030:3002" # Backend Padronizado (Era 3002)
+    environment:
+      - PORT=3002
+      # Adicione outras variaveis do SGP aqui se necessario
 
-  # =======================================
-  # Landing Page - Site de Vendas (porta 80)
-  # =======================================
+      # 🟡 Landing Page (Adicionado Slot 2)
   landing-page:
     build:
       context: ./landing-page
       dockerfile: Dockerfile
-    container_name: landing-page
+    container_name: painel_landing
     restart: always
     ports:
-      - "80:80"
-    networks:
-      - app-network
+      - "8032:80" # Padronizado Slot 2 (Era 80)
+    volumes:
+      - ./public_apks:/usr/share/nginx/html/public_apks:ro
+
+  # 🟡 Speed Test (Adicionado Slot 2)
+  speed-test:
+    build:
+      context: ./speed_test_server
+      dockerfile: Dockerfile
+    container_name: painel_speedtest
+    restart: always
+    ports:
+      - "8033:3001" # Padronizado Slot 2 (Era 3001)
+
+  # 🟡 API Service (Adicionado Slot 2)
+  api-service:
+    build:
+      context: ./api-service
+      dockerfile: Dockerfile
+    container_name: painel_api
+    restart: always
+    ports:
+      - "8034:9136" # Padronizado Slot 2 (Interna é 9136 fixo no código)
+    environment:
+      - SGP_TOKEN=4b6aae35-219a-4580-8c5c-dfb4efdbfae3
+      - SGP_APP_NAME=APP-PROVEDOR
+
+  # 🟡 APK Builder Service (Adicionado)
+  apk-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.apkbuilder
+    container_name: painel_apk_builder
+    restart: always
+    ports:
+      - "8035:8035"
+    volumes:
+      - .:/home/app/projects/painel_provedores
+      - /home/app/Android/Sdk:/home/app/Android/Sdk # Opcional: montar SDK do host se existir e quiser economizar download
+    working_dir: /home/app/projects/painel_provedores
+    environment:
+      - APK_BUILDER_PORT=8035
+      - PYTHON_BIN=python3
+      # Firebase Admin creds file path (relative to working_dir)
+      - GOOGLE_APPLICATION_CREDENTIALS=admin-script/serviceAccountKey.json
 
 networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  portainer_data:
+  default:
+    name: painel_net

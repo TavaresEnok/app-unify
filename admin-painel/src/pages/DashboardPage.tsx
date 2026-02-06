@@ -136,8 +136,8 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="flex flex-col gap-6 fade-in">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-8 fade-in p-2">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <StatsCard
                     title="Total de Provedores"
                     value={stats.providerCount}

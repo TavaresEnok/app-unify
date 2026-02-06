@@ -23,6 +23,10 @@ const UI_DEFAULTS: any = {
   cardTextColor: '#333333',
   logoUrl: '',
   layoutType: 'layout_06',
+  quickActionsCardColor: '#FFFFFF', // [NEW] Default value
+  quickActionsTextColor: '#333333', // [NEW] Default value
+  otherCardsColor: '#FFFFFF', // [NEW] Default value
+  otherCardsTextColor: '#333333', // [NEW] Default value
 
   // --- NOVOS DEFAULTS DE TEXTO ---
   strings: {

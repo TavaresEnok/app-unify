@@ -265,14 +265,63 @@ app.post('/getClientData', async (req, res) => {
     const mesAtual = hoje.getMonth() + 1;
     const anoAtual = hoje.getFullYear();
 
+    // ========================================================================
+    // CONSULTA DE STATUS DE CONEXÃO REAL (verificaacesso)
+    // ========================================================================
+    let connectionStatus = 'Offline'; // Default
+    try {
+      const contratoId = contrato.contratoId || contrato.contrato_id || contrato.id;
+      const cpfLimpo = cpfCnpj.replace(/\D/g, '');
+      const senhaCentral = contrato.contratoCentralSenha || contrato.central_senha || '';
+
+      if (contratoId && senhaCentral) {
+        console.log(`[verificaacesso] Consultando status para contrato ${contratoId}`);
+
+        const verificaResponse = await session.post(`${baseUrl}/api/central/verificaacesso/`, {
+          cpfcnpj: cpfLimpo,
+          senha: senhaCentral,
+          contrato: contratoId,
+        });
+
+        console.log('[verificaacesso] Resposta:', JSON.stringify(verificaResponse.data).substring(0, 500));
+
+        // A API retorna o status de disponibilidade da conexão
+        // Campos possíveis: online, status, disponivel, ativo
+        const data = verificaResponse.data;
+        if (data) {
+          if (data.online === true || data.online === 1 || data.online === '1') {
+            connectionStatus = 'Online';
+          } else if (data.status?.toLowerCase() === 'online' || data.status?.toLowerCase() === 'ativo') {
+            connectionStatus = 'Online';
+          } else if (data.disponivel === true || data.disponivel === 1) {
+            connectionStatus = 'Online';
+          } else if (data.ativo === true || data.ativo === 1) {
+            connectionStatus = 'Online';
+          } else if (typeof data === 'object' && Object.keys(data).length > 0 && !data.error) {
+            // Se retornou dados sem erro, provavelmente está online
+            // Alguns SGPs retornam apenas os dados de uso quando está online
+            connectionStatus = 'Online';
+          }
+        }
+      } else {
+        console.log('[verificaacesso] Dados insuficientes para consulta:', { contratoId, senhaCentral: senhaCentral ? '***' : 'null' });
+      }
+    } catch (verificaError: any) {
+      console.error('[verificaacesso] Erro ao consultar status:', verificaError?.response?.data || verificaError.message);
+      // Em caso de erro, mantém Offline como fallback seguro
+    }
+    console.log(`[verificaacesso] Status final: ${connectionStatus}`);
+    // ========================================================================
+
     const clientData = {
       cpfCnpj: contrato.cpfCnpj,
       senha: contrato.contratoCentralSenha,
       userName: contrato.razaoSocial,
       userPlan: contrato.servico_plano,
-      userStatus: contrato.contratoStatusDisplay,
+      userStatus: connectionStatus, // Agora usa o status real de conexão!
       billValue: `R$ ${parseFloat(contrato.contratoValorAberto || 0).toFixed(2).replace('.', ',')}`,
       billDueDate: `Vence em ${contrato.cobVencimento}/${mesAtual}/${anoAtual}`,
+      contratoId: contrato.contratoId || contrato.contrato_id || contrato.id,
     };
 
     res.json({ data: clientData });
@@ -477,6 +526,349 @@ app.post('/makePaymentPromise', async (req, res) => {
   }
 });
 
+// =========================================================================
+// GERAÇÃO DE APK - ENDPOINT LOCAL
+// =========================================================================
+import { spawn } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+
+// Middleware para verificar superAdmin
+const verifySuperAdmin = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const token = req.headers.authorization?.split('Bearer ')[1];
+  if (!token) return res.status(401).json({ error: { message: "Token não fornecido" } });
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    if (decoded.superAdmin !== true) {
+      return res.status(403).json({ error: { message: "Apenas Super Admin pode gerar APKs" } });
+    }
+    (req as any).user = decoded;
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: { message: "Token inválido" } });
+  }
+};
+
+app.post('/admin/generate-apk', verifySuperAdmin, async (req, res) => {
+  try {
+    const { providerId, appName, logoUrl, format = 'apk' } = req.body;
+
+    if (!providerId || !appName || !logoUrl) {
+      return res.status(400).json({
+        success: false,
+        error: "providerId, appName e logoUrl são obrigatórios."
+      });
+    }
+
+    console.log(`[APK Gen] Starting for ${providerId} (${appName}). Format: ${format}`);
+
+    // 1. Download logo to temp file
+    const tempLogoPath = path.join(os.tmpdir(), `logo_${providerId}_${Date.now()}.png`);
+
+    try {
+      const https = await import('https');
+      const logoFile = fs.createWriteStream(tempLogoPath);
+
+      await new Promise<void>((resolve, reject) => {
+        https.get(logoUrl, (response) => {
+          response.pipe(logoFile);
+          logoFile.on('finish', () => {
+            logoFile.close();
+            resolve();
+          });
+        }).on('error', (err) => {
+          fs.unlink(tempLogoPath, () => { });
+          reject(err);
+        });
+      });
+    } catch (downloadErr: any) {
+      return res.status(400).json({
+        success: false,
+        error: `Falha ao baixar logo: ${downloadErr.message}`
+      });
+    }
+
+    // 2. Build Python command
+    const scriptPath = '/home/app/projects/painel_provedores/admin-script/gerar_apk.py';
+    const projectRoot = '/home/app/projects/painel_provedores';
+
+    // Generate package name
+    const safeProviderId = providerId.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const packageName = `br.com.provedores.${safeProviderId}`;
+
+    const pythonArgs = [
+      scriptPath,
+      '--id', providerId,
+      '--nome', appName,
+      '--logo', tempLogoPath,
+      '--output', '/home/app/projects/painel_provedores/public_apks',
+      '--package', packageName
+    ];
+
+    if (format === 'aab') {
+      pythonArgs.push('--format', 'aab');
+      pythonArgs.push('--obfuscate');
+    }
+
+    // 3. Execute Python script
+    const pythonProcess = spawn('python3', pythonArgs, { cwd: projectRoot });
+
+    let stdout = '';
+    let stderr = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      const str = data.toString();
+      stdout += str;
+      console.log(`[APK Gen]: ${str}`);
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      const str = data.toString();
+      stderr += str;
+      console.error(`[APK Gen Error]: ${str}`);
+    });
+
+    pythonProcess.on('close', (code) => {
+      // Cleanup temp logo
+      fs.unlink(tempLogoPath, () => { });
+
+      if (code === 0) {
+        // Extract APK path from output
+        const safeAppName = appName.replace(/[^a-zA-Z0-9]/g, '_');
+        const extension = format === 'aab' ? 'aab' : 'apk';
+        const apkPath = `/public_apks/app_${safeAppName}.${extension}`;
+
+        res.json({
+          success: true,
+          message: `${format.toUpperCase()} gerado com sucesso!`,
+          downloadUrl: apkPath,
+          logs: stdout
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: `Falha no script (Exit ${code})`,
+          logs: stdout,
+          errorLogs: stderr
+        });
+      }
+    });
+
+    pythonProcess.on('error', (err) => {
+      fs.unlink(tempLogoPath, () => { });
+      res.status(500).json({
+        success: false,
+        error: `Erro ao executar script: ${err.message}`
+      });
+    });
+
+  } catch (error: any) {
+    console.error('[APK Gen] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// =========================================================================
+// ENDPOINTS DE DIAGNÓSTICO - ONU Signal e Traceroute
+// =========================================================================
+
+// Endpoint para buscar sinal da ONU via SGP
+app.post('/diagnostic/onu-signal', async (req, res) => {
+  try {
+    const { cpfCnpj, senha, contrato, sgpParams } = req.body;
+
+    console.log('[ONU-Signal] Recebido:', { cpfCnpj, contrato, sgpParams });
+
+    if (!cpfCnpj) {
+      return res.status(400).json({ error: { message: "CPF/CNPJ é obrigatório." } });
+    }
+
+    const sgpBaseUrl = sgpParams?.sgpBaseUrl || "https://vibetelecom.sgp.net.br";
+    // PRIORIDADE: SGP_TOKEN (Env) > sgpParams (App)
+    // Isso garante que nossas correções no backend funcionem mesmo que o app envie lixo
+    const token = SGP_TOKEN || sgpParams?.apiToken || sgpParams?.token;
+    const appName = SGP_APP_NAME || sgpParams?.appName;
+
+    console.log('[ONU-Signal] Usando:', { sgpBaseUrl, token: token?.substring(0, 10) + '...', appName });
+
+    const session = axios.create({
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+
+    // Buscar ONU do cliente via API SGP
+    // Buscar ONU do cliente via API SGP
+    // REVERT: Voltar para GET, pois POST retornou 405 Method Not Allowed.
+    // O endpoint /api/fttx/onu/list/ parece exigir GET.
+    const onuResponse = await session.get(`${sgpBaseUrl}/api/fttx/onu/list/`, {
+      params: {
+        token,
+        app: appName,
+        cpfcnpj: cpfCnpj,
+        signal: 1,
+        connection: 1,
+        address: 1
+      }
+    });
+
+    console.log('[ONU-Signal] Resposta SGP status:', onuResponse.status);
+    // Log truncado se for muito grande
+    const logData = JSON.stringify(onuResponse.data);
+    console.log('[ONU-Signal] Resposta SGP data (trunc):', logData.substring(0, 500));
+
+    console.log('[ONU-Signal] Resposta SGP status:', onuResponse.status);
+    // Log truncado se for muito grande, mas suficiente para ver a estrutura
+    console.log('[ONU-Signal] Resposta SGP data:', JSON.stringify(onuResponse.data, null, 2));
+
+    // -------------------------------------------------------------------------
+    // Tratamento de resposta flexível (Array ou Objeto Único)
+    let onus: any[] = [];
+    if (Array.isArray(onuResponse.data)) {
+      onus = onuResponse.data;
+    } else if (onuResponse.data && typeof onuResponse.data === 'object') {
+      // SGP as vezes retorna o objeto direto se for busca por ID ou um único resultado
+      onus = [onuResponse.data];
+    }
+
+    console.error('[ONU-Signal] ONUs encontradas:', onus.length);
+
+    if (onus.length === 0) {
+      return res.status(404).json({
+        error: { message: "Nenhuma ONU encontrada para este cliente." }
+      });
+    }
+
+    const onu = onus[0];
+
+    // Determinar status de conexão
+    // SGP field: 'online' (boolean) or 'connection' (string)
+    const rawConnection = onu.connection?.toString()?.toLowerCase() || '';
+    const isOnline = onu.online === true ||
+      rawConnection === 'online' ||
+      rawConnection === '1' ||
+      rawConnection === 'true';
+
+    // Status para exibição
+    const connectionStatus = isOnline ? 'Online' : (onu.status_display || onu.connection || 'Offline');
+
+    // Formatar resposta para o app Flutter (campos devem corresponder ao OnuData.fromJson)
+    const onuData = {
+      // Campos obrigatórios do OnuData
+      connectionStatus: connectionStatus,
+      isOnline: isOnline,
+      oltId: onu.olt_id || onu.olt || 0,
+      oltName: onu.olt_name || onu.olt_display || null,
+      slot: onu.slot || 0,
+      pon: onu.pon || 0,
+      onuId: onu.onuid || onu.onuidreal || 0,
+      model: onu.model || onu.onutype_display || 'Desconhecido',
+
+      // Campos opcionais de sinal
+      signalRx: onu.signal?.rx_power ?? onu.rx_power ?? onu.info_rx ?? null,
+      signalTx: onu.signal?.tx_power ?? onu.tx_power ?? onu.info_tx ?? null,
+      temperature: onu.signal?.temperature ?? onu.temperature ?? null,
+      voltage: onu.signal?.voltage ?? onu.voltage ?? null,
+
+      // Campos adicionais
+      serialNumber: onu.phy_addr || onu.serial || null,
+      mode: onu.mode_display || onu.mode || null,
+      vlan: onu.vlan || null,
+      cto: onu.splitter_name || onu.cto_name || null,
+      lastUpdate: onu.signal?.updated_at || onu.updated_at || onu.info_date || null,
+    };
+
+    console.log('[ONU-Signal] Dados retornados:', onuData);
+    res.json({ data: onuData });
+
+  } catch (error: any) {
+    console.error("[ONU-Signal] Erro:", error.response?.data || error.message);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    res.status(500).json({
+      error: { message: `Erro ao buscar sinal da ONU: ${errorMessage}` }
+    });
+  }
+});
+
+// Endpoint para Traceroute real
+app.post('/diagnostic/traceroute', async (req, res) => {
+  try {
+    const { target = '8.8.8.8', maxHops = 15 } = req.body;
+
+    console.log(`[Traceroute] Iniciando para ${target} com max ${maxHops} hops`);
+
+    // Executa traceroute no servidor
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    // Tenta traceroute (Linux) ou tracert (Windows) 
+    let command = `traceroute -n -m ${maxHops} -w 2 ${target}`;
+
+    try {
+      const { stdout, stderr } = await execAsync(command, { timeout: 30000 });
+
+      // Parse output do traceroute
+      const lines = stdout.split('\n').filter(line => line.trim());
+      const hops: { hop: number; ip: string; time: string }[] = [];
+
+      for (const line of lines) {
+        // Skip header line
+        if (line.includes('traceroute to')) continue;
+
+        // Parse formato: " 1  192.168.1.1  1.234 ms  1.456 ms  1.789 ms"
+        const match = line.match(/^\s*(\d+)\s+(\S+)\s+(.+)/);
+        if (match) {
+          const hopNum = parseInt(match[1]);
+          const ip = match[2];
+          const times = match[3];
+
+          // Extrai primeiro tempo válido
+          const timeMatch = times.match(/(\d+\.?\d*)\s*ms/);
+          const time = timeMatch ? `${timeMatch[1]} ms` : '*';
+
+          hops.push({ hop: hopNum, ip, time });
+        }
+      }
+
+      console.log(`[Traceroute] Concluído com ${hops.length} hops`);
+      res.json({
+        data: {
+          target,
+          hops,
+          raw: stdout
+        }
+      });
+
+    } catch (execError: any) {
+      // Traceroute pode não estar instalado
+      console.error('[Traceroute] Erro na execução:', execError.message);
+      res.status(500).json({
+        error: { message: "Traceroute não disponível no servidor." }
+      });
+    }
+
+  } catch (error: any) {
+    console.error("[Traceroute] Erro:", error.message);
+    res.status(500).json({
+      error: { message: `Erro no traceroute: ${error.message}` }
+    });
+  }
+});
+
+// Endpoint para WiFi via TR069/CPE (se disponível)
+app.post('/cpe/wifi/list', async (req, res) => {
+  // Este endpoint depende de integração TR069 que pode não estar disponível
+  // Por ora retorna mensagem informativa
+  res.status(501).json({
+    error: {
+      message: "Gerenciamento de WiFi via TR069 não configurado para este provedor."
+    }
+  });
+});
 
 app.listen(port, () => {
   console.log(`✅ API Service a rodar na porta ${port}`);

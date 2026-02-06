@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleDeleteAdminUserRequest = exports.handleListAdminUsersRequest = exports.generateApk = exports.handleGetProviderTicketsRequest = exports.handleSgpApiProxyRequest = exports.handleGetProviderDashboardDataRequest = exports.fixVibeProvider = exports.handleSendPushNotificationRequest = exports.handleDeleteProviderRequest = exports.handleGetDashboardDataRequest = exports.handleUpdateProviderDetailsRequest = exports.handleUpdateProviderConfigRequest = void 0;
+exports.handleDeleteAdminUserRequest = exports.handleListAdminUsersRequest = exports.generateApk = exports.handleDeleteTicketRequest = exports.handleGetProviderTicketsRequest = exports.handleGetAllTicketsRequest = exports.handleSgpApiProxyRequest = exports.handleGetProviderDashboardDataRequest = exports.forceUpdateApiUrl = exports.handleSendScopedNotificationSegmentedRequest = exports.handleSendPushNotificationRequest = exports.handleDeleteProviderRequest = exports.handleGetDashboardDataRequest = exports.handleUpdateProviderDetailsRequest = exports.handleUpdateProviderConfigRequest = exports.uploadProviderLogo = void 0;
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
 const firestore_2 = require("firebase-functions/v2/firestore");
@@ -44,10 +44,20 @@ const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const child_process_1 = require("child_process");
 const https = __importStar(require("https"));
+const storage_1 = require("firebase-admin/storage");
+const https_1 = require("firebase-functions/v2/https");
 // Inicialização do Firebase Admin
-(0, app_1.initializeApp)();
+const projectId = process.env.GCLOUD_PROJECT ||
+    process.env.GCP_PROJECT ||
+    process.env.PROJECT_ID ||
+    "";
+const storageBucket = process.env.STORAGE_BUCKET ||
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    (projectId ? `${projectId}.appspot.com` : "");
+(0, app_1.initializeApp)(storageBucket ? { storageBucket } : undefined);
 const db = (0, firestore_1.getFirestore)();
 const auth = (0, auth_1.getAuth)();
+const storage = (0, storage_1.getStorage)();
 // --- 1. PADRÕES DE AUTORIDADE DO SISTEMA ---
 // Estes valores garantem que NUNCA falte uma cor ou configuração.
 const DEFAULT_PROVIDER_CONFIG = {
@@ -78,6 +88,62 @@ const DEFAULT_PROVIDER_CONFIG = {
     },
     socialNetworks: {}
 };
+// --- HTTP CALLABLE: UPLOAD LOGO (Bypasses CORS) ---
+exports.uploadProviderLogo = (0, https_1.onCall)({
+    region: "southamerica-east1",
+    maxInstances: 10
+}, async (request) => {
+    var _a, _b;
+    // 1. Auth Check
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'User must be logged in.');
+    }
+    const { imageBase64, providerId } = request.data;
+    if (!imageBase64 || !providerId) {
+        throw new https_1.HttpsError('invalid-argument', 'Missing imageBase64 or providerId.');
+    }
+    logger.info(`Upload logo request for provider: ${providerId} by user: ${request.auth.uid}`);
+    // 2. Permission Check
+    const user = await auth.getUser(request.auth.uid);
+    const isSuperAdmin = ((_a = user.customClaims) === null || _a === void 0 ? void 0 : _a.superAdmin) === true;
+    const isOwner = ((_b = user.customClaims) === null || _b === void 0 ? void 0 : _b.providerId) === providerId;
+    logger.info(`User permissions - superAdmin: ${isSuperAdmin}, isOwner: ${isOwner}`);
+    if (!isSuperAdmin && !isOwner) {
+        throw new https_1.HttpsError('permission-denied', 'Not allowed to edit this provider.');
+    }
+    // 3. Process Image
+    const bucket = storage.bucket();
+    logger.info(`Using storage bucket: ${bucket.name || "unknown"}`);
+    const filePath = `providers/${providerId}/logo.png`;
+    const buffer = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+    logger.info(`Uploading to path: ${filePath}, buffer size: ${buffer.length} bytes`);
+    try {
+        const file = bucket.file(filePath);
+        // Upload file with cache control for better performance
+        await file.save(buffer, {
+            metadata: {
+                contentType: 'image/png',
+                cacheControl: 'public, max-age=31536000, immutable', // Cache longo no navegador/CDN
+            },
+        });
+        logger.info(`File uploaded successfully to ${filePath}`);
+        // ✅ URL DIRETA PÚBLICA (funciona porque as regras permitem read: if true)
+        // Não precisa de makePublic() - isso causava erro com Uniform Bucket Level Access
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+        logger.info(`Public URL generated: ${publicUrl}`);
+        // Update Firestore with the logo URL
+        await db.collection('provedores').doc(providerId).set({
+            logoUrl: publicUrl,
+            details: { logoUrl: publicUrl }
+        }, { merge: true });
+        logger.info(`Firestore updated with logoUrl`);
+        return { success: true, url: publicUrl };
+    }
+    catch (error) {
+        logger.error("Upload Failed", error);
+        throw new https_1.HttpsError('internal', `Upload failed: ${error.message}`);
+    }
+});
 // Helper para resposta padronizada
 const writeResponse = (ref, payload, requesterUid) => {
     const responseData = Object.assign(Object.assign({}, payload), { requesterUid: requesterUid || null, completedAt: firestore_1.FieldValue.serverTimestamp() });
@@ -175,7 +241,7 @@ exports.handleUpdateProviderDetailsRequest = (0, firestore_2.onDocumentCreated)(
         if (!isSuperAdmin && !isOwner) {
             throw new Error("Permissão negada.");
         }
-        const providerRef = db.collection("providers").doc(providerId);
+        const providerRef = db.collection("provedores").doc(providerId);
         // Prepara dados para atualização
         const updateData = {
             updatedAt: firestore_1.FieldValue.serverTimestamp()
@@ -525,26 +591,134 @@ exports.handleSendPushNotificationRequest = (0, firestore_2.onDocumentCreated)({
     }
     return null;
 });
-// TEMPORARY: Fix Vibe Provider Document
-const https_1 = require("firebase-functions/v2/https");
-exports.fixVibeProvider = (0, https_1.onRequest)(async (req, res) => {
+// --- 7. FUNÇÃO PARA NOTIFICAÇÃO SEGMENTADA (NOVA) ---
+// Envia notificação filtrando por Status e Plano
+exports.handleSendScopedNotificationSegmentedRequest = (0, firestore_2.onDocumentCreated)({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    var _a;
+    const requestId = event.params.requestId;
+    const requestData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    if (!requestData || requestData.type !== 'SEND_SCOPED_NOTIFICATION_SEGMENTED') {
+        return null;
+    }
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const payload = requestData.payload || {};
     try {
-        logger.info("🔧 Fixing Vibe provider document...");
-        // 1. Copy document
-        const sourceDoc = await db.collection('provedores').doc('3kdrQFcCkRga234iB1YX').get();
-        if (!sourceDoc.exists) {
-            throw new Error('Source document not found');
+        if (!requesterUid)
+            throw new Error("RequesterUID é obrigatório.");
+        const providerId = payload.providerId;
+        const { title, body, statusFilter, planFilter } = payload;
+        if (!title || !body)
+            throw new Error("Título e mensagem são obrigatórios.");
+        // Import messaging dynamically
+        const { getMessaging } = await import("firebase-admin/messaging");
+        const messaging = getMessaging();
+        // 1. Buscar todos os clientes do provedor
+        const clientsSnapshot = await db.collection('clientes')
+            .where('providerId', '==', providerId)
+            .get();
+        const tokens = [];
+        clientsSnapshot.forEach(doc => {
+            const data = doc.data();
+            const token = data.fcmToken;
+            if (!token)
+                return;
+            // Filtro de Status
+            if (statusFilter && statusFilter !== 'all') {
+                const userStatus = (data.status || '').toLowerCase().trim();
+                const filterStatus = statusFilter.toLowerCase().trim();
+                // "includes" permite matches parciais (ex: "Ativo" match "Ativo V. Reduzida")
+                if (!userStatus.includes(filterStatus))
+                    return;
+            }
+            // Filtro de Plano
+            if (planFilter && planFilter !== 'all') {
+                const userPlan = (data.plano || data.plan || '').toLowerCase().trim();
+                const filterPlan = planFilter.toLowerCase().trim();
+                if (!userPlan.includes(filterPlan))
+                    return;
+            }
+            tokens.push(token);
+        });
+        let successCount = 0;
+        let failureCount = 0;
+        if (tokens.length > 0) {
+            // Firestore limita multicast a 500 tokens por vez
+            // Vamos fazer chunks de 500
+            const chunkSize = 500;
+            for (let i = 0; i < tokens.length; i += chunkSize) {
+                const chunk = tokens.slice(i, i + chunkSize);
+                const response = await messaging.sendEachForMulticast({
+                    tokens: chunk,
+                    notification: { title, body },
+                    data: { route: '/provedor/dashboard', category: 'info' }, // Default route
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            channelId: 'high_importance_channel',
+                            priority: 'high',
+                        }
+                    }
+                });
+                successCount += response.successCount;
+                failureCount += response.failureCount;
+            }
         }
-        const data = sourceDoc.data();
-        await db.collection('provedores').doc('vibe').set(data);
-        logger.info("✅ Document copied to provedores/vibe");
-        // 2. Update user token
-        const user = await auth.getUserByEmail('vibe@gmail.com');
-        await auth.setCustomUserClaims(user.uid, { providerId: 'vibe' });
-        logger.info("✅ Token updated for vibe@gmail.com");
+        // Salvar notificação no histórico
+        await db.collection('notifications').add({
+            providerId,
+            title,
+            body,
+            category: 'segmented',
+            statusFilter,
+            planFilter,
+            successCount,
+            failureCount,
+            sentBy: requesterUid,
+            createdAt: firestore_1.FieldValue.serverTimestamp()
+        });
+        logger.info(`Notificação Segmentada enviada: ${successCount} sucesso, ${failureCount} falhas.`);
+        await writeResponse(responseRef, {
+            result: {
+                success: true,
+                message: `Enviada para ${successCount} clientes (${failureCount} falhas).`,
+                successCount,
+                failureCount
+            }
+        }, requesterUid);
+    }
+    catch (error) {
+        logger.error(`Erro em SEND_SCOPED_NOTIFICATION_SEGMENTED ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+// TEMPORARY: Fix Vibe Provider Document
+const https_2 = require("firebase-functions/v2/https");
+exports.forceUpdateApiUrl = (0, https_2.onRequest)(async (req, res) => {
+    try {
+        const providerId = req.query.id || 'vibe';
+        logger.info(`🔧 Forcing API URL update for ${providerId}...`);
+        const providerRef = db.collection('provedores').doc(providerId);
+        const doc = await providerRef.get();
+        if (!doc.exists) {
+            throw new Error(`Provider ${providerId} not found`);
+        }
+        const newUrl = 'http://168.194.13.18:3002';
+        await providerRef.update({
+            apiUrl: newUrl,
+            'config.apiUrl': newUrl,
+            updatedAt: firestore_1.FieldValue.serverTimestamp()
+        });
+        logger.info(`✅ URL updated to ${newUrl}`);
         res.json({
             success: true,
-            message: "Provider fixed! Logout and login again."
+            message: `API URL forcefully updated to ${newUrl} for provider ${providerId}`,
+            provider: providerId,
+            newUrl: newUrl
         });
     }
     catch (error) {
@@ -658,7 +832,7 @@ exports.handleSgpApiProxyRequest = (0, firestore_2.onDocumentCreated)({
             logger.info(`[SYNC] Iniciando sincronização VIA PROXY para ${providerId}...`);
             await writeResponse(responseRef, { status: "running", message: "Sincronizando via proxy..." }, requesterUid);
             const clientsRef = db.collection(`provedores/${providerId}/clientes`);
-            const PROXY_URL = 'http://168.194.13.18:3005';
+            const PROXY_URL = 'http://168.194.13.18:3002';
             const PROXY_SECRET = 'CHAVE_SECRETA_MUITO_FORTE_12345';
             try {
                 // 1. Chamar o proxy para sincronizar com SGP (proxy tem acesso liberado)
@@ -790,7 +964,45 @@ exports.handleSgpApiProxyRequest = (0, firestore_2.onDocumentCreated)({
     }
     return null;
 });
-// --- 10. FUNÇÃO PARA LISTAR TICKETS (PROVEDOR) ---
+// --- 10. FUNÇÃO PARA LISTAR TODOS OS TICKETS (SUPER ADMIN) ---
+exports.handleGetAllTicketsRequest = (0, firestore_2.onDocumentCreated)({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    var _a, _b;
+    const requestId = event.params.requestId;
+    const requestData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    if (!requestData || requestData.type !== 'GET_ALL_TICKETS') {
+        return null;
+    }
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    try {
+        if (!requesterUid)
+            throw new Error("RequesterUID obrigatório.");
+        // Check Permissions (Super Admin only)
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = ((_b = user.customClaims) === null || _b === void 0 ? void 0 : _b.superAdmin) === true;
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada. Apenas Super Admin.");
+        }
+        // Fetch all tickets
+        const ticketsSnap = await db.collection('tickets')
+            .orderBy('updatedAt', 'desc')
+            .limit(100) // Limit for performance
+            .get();
+        const tickets = ticketsSnap.docs.map(doc => (Object.assign({ id: doc.id }, doc.data())));
+        await writeResponse(responseRef, {
+            result: { tickets }
+        }, requesterUid);
+    }
+    catch (error) {
+        logger.error(`Erro em GET_ALL_TICKETS ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
+// --- 11. FUNÇÃO PARA LISTAR TICKETS (PROVEDOR) ---
 exports.handleGetProviderTicketsRequest = (0, firestore_2.onDocumentCreated)({
     document: "function_requests/{requestId}",
     region: "southamerica-east1"
@@ -823,24 +1035,57 @@ exports.handleGetProviderTicketsRequest = (0, firestore_2.onDocumentCreated)({
     }
     return null;
 });
-const https_2 = require("firebase-functions/v2/https");
+// --- 12. FUNÇÃO PARA DELETAR TICKET (SUPER ADMIN) ---
+exports.handleDeleteTicketRequest = (0, firestore_2.onDocumentCreated)({
+    document: "function_requests/{requestId}",
+    region: "southamerica-east1"
+}, async (event) => {
+    var _a, _b;
+    const requestId = event.params.requestId;
+    const requestData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    if (!requestData || requestData.type !== 'DELETE_TICKET') {
+        return null;
+    }
+    const responseRef = db.collection('function_responses').doc(requestId);
+    const requesterUid = requestData.requesterUid;
+    const { ticketId } = requestData.payload || {};
+    try {
+        if (!requesterUid || !ticketId)
+            throw new Error("Dados incompletos.");
+        // Check Permissions (Super Admin only for now, or Owner)
+        const user = await auth.getUser(requesterUid);
+        const isSuperAdmin = ((_b = user.customClaims) === null || _b === void 0 ? void 0 : _b.superAdmin) === true;
+        if (!isSuperAdmin) {
+            throw new Error("Permissão negada.");
+        }
+        await db.collection('tickets').doc(ticketId).delete();
+        await writeResponse(responseRef, {
+            result: { success: true, message: "Ticket apagado." }
+        }, requesterUid);
+    }
+    catch (error) {
+        logger.error(`Erro em DELETE_TICKET ${requestId}:`, error);
+        await writeResponse(responseRef, { error: error.message }, requesterUid);
+    }
+    return null;
+});
 // ===========================================
 // APK GENERATOR (SUPER ADMIN ONLY)
 // ===========================================
-exports.generateApk = (0, https_2.onCall)({
+exports.generateApk = (0, https_1.onCall)({
     timeoutSeconds: 540, // 9 minutes (Build takes time)
     memory: "256MiB", // Standard memory for spawning process
     region: "southamerica-east1",
 }, async (request) => {
     // 1. Auth Check
     if (!request.auth || !request.auth.token.superAdmin) {
-        throw new https_2.HttpsError("permission-denied", "Apenas Super Admin pode gerar APKs.");
+        throw new https_1.HttpsError("permission-denied", "Apenas Super Admin pode gerar APKs.");
     }
-    const { providerId, appName, logoUrl } = request.data;
+    const { providerId, appName, logoUrl, format } = request.data;
     if (!providerId || !appName || !logoUrl) {
-        throw new https_2.HttpsError("invalid-argument", "providerId, appName e logoUrl são obrigatórios.");
+        throw new https_1.HttpsError("invalid-argument", "providerId, appName e logoUrl são obrigatórios.");
     }
-    logger.info(`Starting APK Generation for ${providerId} (${appName})...`);
+    logger.info(`Starting App Generation for ${providerId} (${appName}). Format: ${format || 'apk'}...`);
     // 2. Download Logo to Temp
     const tempFilePath = path.join(os.tmpdir(), `logo_${providerId}_${Date.now()}.png`);
     await new Promise((resolve, reject) => {
@@ -859,16 +1104,28 @@ exports.generateApk = (0, https_2.onCall)({
     // 3. Run Python Script
     const scriptPath = "/home/app/painel-provedores-projeto/admin-script/gerar_apk.py";
     const projectRoot = "/home/app/painel-provedores-projeto"; // CWD for script
+    // WHITE LABEL: Generate Package Name
+    // sanitized providerId: remove non-alphanumeric, lowercase
+    const safeProviderId = providerId.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const packageName = `br.com.provedores.${safeProviderId}`;
+    const pythonArgs = [
+        scriptPath,
+        "--id",
+        providerId,
+        "--nome",
+        appName,
+        "--logo",
+        tempFilePath,
+        "--package",
+        packageName
+    ];
+    // Handle Format & Security
+    if (format === 'aab') {
+        pythonArgs.push('--format', 'aab');
+        pythonArgs.push('--obfuscate'); // Security: Always obfuscate Store builds
+    }
     return new Promise((resolve, reject) => {
-        const pythonProcess = (0, child_process_1.spawn)("python3", [
-            scriptPath,
-            "--id",
-            providerId,
-            "--nome",
-            appName,
-            "--logo",
-            tempFilePath,
-        ], { cwd: projectRoot });
+        const pythonProcess = (0, child_process_1.spawn)("python3", pythonArgs, { cwd: projectRoot });
         let output = "";
         let errorOutput = "";
         pythonProcess.stdout.on("data", (data) => {
@@ -894,7 +1151,7 @@ exports.generateApk = (0, https_2.onCall)({
                 });
             }
             else {
-                reject(new https_2.HttpsError("internal", `Falha no script (Exit ${code})`, { logs: output, error: errorOutput }));
+                reject(new https_1.HttpsError("internal", `Falha no script (Exit ${code})`, { logs: output, error: errorOutput }));
             }
         });
     });

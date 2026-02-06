@@ -51,7 +51,6 @@ export default function AppearanceSettings() {
 
     const { config, setConfig, saveConfig, isSaving } = context;
 
-    // Persist colors per layout using config.strings.layoutThemes
     const updateLayoutThemes = useCallback((newConfig: any, layoutToUpdate: string, values: any) => {
         const currentStrings = newConfig.strings || {};
         const layoutThemes = currentStrings.layoutThemes ? JSON.parse(typeof currentStrings.layoutThemes === 'string' ? currentStrings.layoutThemes : JSON.stringify(currentStrings.layoutThemes)) : {};
@@ -64,7 +63,11 @@ export default function AppearanceSettings() {
             cardColor: values.cardColor,
             textColor: values.textColor,
             backgroundColor: values.backgroundColor,
-            iconColor: values.iconColor, // [NEW] Icon Color
+            iconColor: values.iconColor,
+            quickActionsCardColor: values.quickActionsCardColor, // [NEW] Quick Actions Card Color
+            quickActionsTextColor: values.quickActionsTextColor, // [NEW] Quick Actions Text Color
+            otherCardsColor: values.otherCardsColor, // [NEW] Other Cards Color
+            otherCardsTextColor: values.otherCardsTextColor, // [NEW] Other Cards Text Color
         };
 
         return {
@@ -87,12 +90,16 @@ export default function AppearanceSettings() {
     // Default color presets per layout
     const layoutDefaults: Record<string, Record<string, string>> = {
         layout_02: {
-            themeColor: '#3182CE',
-            secondaryColor: '#63B3ED',
-            backgroundColor: '#F7FAFC',
-            cardColor: '#FFFFFF',
-            textColor: '#1A202C',
-            iconColor: '#3182CE',
+            themeColor: '#E91E63', // Vibe Magenta/Hot Pink
+            secondaryColor: '#6A1B9A', // Vibe Deep Purple
+            backgroundColor: '#1A0533', // Dark Purple Background
+            cardColor: '#2D0A4E', // Dark Purple Cards
+            textColor: '#FFFFFF', // White Text
+            iconColor: '#FFD600', // Electric Yellow Icons (CTA color)
+            quickActionsCardColor: '#2D0A4E',
+            quickActionsTextColor: '#FFFFFF',
+            otherCardsColor: '#2D0A4E',
+            otherCardsTextColor: '#FFFFFF',
         },
         layout_03: {
             themeColor: '#00D4FF',
@@ -101,6 +108,10 @@ export default function AppearanceSettings() {
             cardColor: '#1A1A2E',
             textColor: '#FFFFFF',
             iconColor: '#00D4FF',
+            quickActionsCardColor: '#1A1A2E',
+            quickActionsTextColor: '#FFFFFF',
+            otherCardsColor: '#1A1A2E',
+            otherCardsTextColor: '#FFFFFF',
         },
         layout_04: {
             themeColor: '#0891B2',
@@ -109,6 +120,10 @@ export default function AppearanceSettings() {
             cardColor: '#FFFFFF',
             textColor: '#1F2937',
             iconColor: '#0891B2',
+            quickActionsCardColor: '#FFFFFF',
+            quickActionsTextColor: '#1F2937',
+            otherCardsColor: '#FFFFFF',
+            otherCardsTextColor: '#1F2937',
         },
         layout_05: {
             themeColor: '#00E5FF',
@@ -117,6 +132,10 @@ export default function AppearanceSettings() {
             cardColor: '#161B22',
             textColor: '#FFFFFF',
             iconColor: '#00E5FF',
+            quickActionsCardColor: '#161B22',
+            quickActionsTextColor: '#FFFFFF',
+            otherCardsColor: '#161B22',
+            otherCardsTextColor: '#FFFFFF',
         },
         layout_06: {
             themeColor: '#00BCD4',
@@ -125,6 +144,10 @@ export default function AppearanceSettings() {
             cardColor: '#0F1225',
             textColor: '#FFFFFF',
             iconColor: '#00BCD4',
+            quickActionsCardColor: '#0F1225',
+            quickActionsTextColor: '#FFFFFF',
+            otherCardsColor: '#0F1225',
+            otherCardsTextColor: '#FFFFFF',
         },
     };
 
@@ -139,9 +162,11 @@ export default function AppearanceSettings() {
             const savedTheme = layoutThemes[newLayout];
 
             if (savedTheme) {
-                // Restore saved colors
+                // Restore saved colors, merging with defaults to ensure new fields (like new card colors) are populated
+                const defaults = layoutDefaults[newLayout] || layoutDefaults['layout_01'];
                 nextConfig = {
                     ...nextConfig,
+                    ...defaults,
                     ...savedTheme,
                     layoutType: newLayout
                 };
@@ -178,14 +203,27 @@ export default function AppearanceSettings() {
                                     <SelectValue placeholder="Escolha o layout" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="layout_02">Layout 02 - Minimalista Light</SelectItem>
-                                    <SelectItem value="layout_03">Layout 03 - Neumorphic Light</SelectItem>
-                                    <SelectItem value="layout_04">Layout 04 - Obsidian Dark</SelectItem>
-                                    <SelectItem value="layout_05">Layout 05 - Cyber Neon Dark</SelectItem>
                                     <SelectItem value="layout_06">Layout 06 - Clean Dark</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
+                            <div className="flex justify-between items-center mt-2">
+                                <p className="text-xs text-muted-foreground">Define a aparência visual do aplicativo do cliente</p>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        if (confirm('Deseja restaurar as cores padrão deste layout? Isso substituirá suas configurações atuais.')) {
+                                            const currentLayout = config.layoutType || 'layout_01';
+                                            const defaults = layoutDefaults[currentLayout] || layoutDefaults['layout_01'];
+                                            setConfig((prev: any) => updateLayoutThemes({ ...prev, ...defaults }, currentLayout, defaults));
+                                            toast.success('Cores padrão restauradas!');
+                                        }
+                                    }}
+                                    className="h-6 text-xs text-blue-500 hover:text-blue-700"
+                                >
+                                    Restaurar Cores Padrão
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Seletor de Estilo de Diagnóstico */}
@@ -277,6 +315,41 @@ export default function AppearanceSettings() {
                                     id="iconColor"
                                     value={config.iconColor}
                                     icon={Zap}
+                                    onChange={handleColorChange}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Cores Específicas de Cards */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-semibold">Cores Avançadas de Cards</h3>
+                            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                <ColorRow
+                                    label="Fundo Ações Rápidas"
+                                    id="quickActionsCardColor"
+                                    value={config.quickActionsCardColor}
+                                    icon={CreditCard}
+                                    onChange={handleColorChange}
+                                />
+                                <ColorRow
+                                    label="Texto Ações Rápidas"
+                                    id="quickActionsTextColor"
+                                    value={config.quickActionsTextColor}
+                                    icon={Type}
+                                    onChange={handleColorChange}
+                                />
+                                <ColorRow
+                                    label="Fundo Outros Cards"
+                                    id="otherCardsColor"
+                                    value={config.otherCardsColor}
+                                    icon={CreditCard}
+                                    onChange={handleColorChange}
+                                />
+                                <ColorRow
+                                    label="Texto Outros Cards"
+                                    id="otherCardsTextColor"
+                                    value={config.otherCardsTextColor}
+                                    icon={Type}
                                     onChange={handleColorChange}
                                 />
                             </div>

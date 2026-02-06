@@ -68,10 +68,10 @@ echo ""
 echo "📝 Adicionando rotas de diagnóstico..."
 
 # Encontra a linha antes de "const PORT"
-LINE_NUMBER=$(grep -n "const PORT = 3000;" "$PROXY_DIR/index.js" | cut -d: -f1)
+LINE_NUMBER=$(grep -n "const PORT = 3002;" "$PROXY_DIR/index.js" | cut -d: -f1)
 
 if [ -z "$LINE_NUMBER" ]; then
-    log_error "Não foi possível encontrar 'const PORT = 3000;' no arquivo"
+    log_error "Não foi possível encontrar 'const PORT = 3002;' no arquivo"
     exit 1
 fi
 

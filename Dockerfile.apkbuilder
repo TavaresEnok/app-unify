@@ -1,0 +1,28 @@
+FROM ghcr.io/cirruslabs/flutter:stable
+
+USER root
+
+# Install dependencies (Node.js, Python 3, curl)
+RUN apt-get update && apt-get install -y \
+    nodejs \
+    npm \
+    python3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configurar diretório de trabalho igual ao do host para manter compatibilidade com scripts
+WORKDIR /home/app/projects/painel_provedores
+
+# Copiar apenas arquivos de dependência primeiro
+COPY package.json package-lock.json ./
+
+# Instalar dependências do Node (no container)
+# Nota: Como montaremos o volume, o node_modules do host será usado se compatível,
+# mas rodamos npm install para garantir.
+RUN npm install --production
+
+# Expor porta do serviço
+EXPOSE 8035
+
+# Comando de entrada
+CMD ["node", "apk-builder-service.js"]

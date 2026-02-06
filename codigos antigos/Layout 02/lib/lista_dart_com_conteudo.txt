@@ -1,0 +1,2849 @@
+=== configuration_provider.dart ===
+// ARQUIVO: lib/configuration_provider.dart
+
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class ConfigurationProvider with ChangeNotifier {
+  Map<String, dynamic>? _providerConfig;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  Map<String, dynamic>? get providerConfig => _providerConfig;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  Future<void> loadConfig(String providerId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('provedores')
+          .doc(providerId)
+          .get();
+
+      if (doc.exists) {
+        _providerConfig = doc.data();
+        print("✅ Configuração carregada e disponível globalmente via Provider.");
+      } else {
+        _errorMessage = "Provedor com ID '$providerId' não encontrado.";
+        print("❌ ERRO FATAL: $_errorMessage");
+      }
+    } catch (e) {
+      _errorMessage = "Erro de conexão ao buscar configuração: $e";
+      print("❌ ERRO FATAL: $_errorMessage");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+}
+=== consumo.dart ===
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+
+// Função auxiliar para converter a cor que vem do Firebase
+Color _hexToColor(String hexString) {
+  final buffer = StringBuffer();
+  if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
+  buffer.write(hexString.replaceAll('#', ''));
+  return Color(int.parse(buffer.toString(), radix: 16));
+}
+
+class ConsumoPage extends StatefulWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const ConsumoPage({super.key, required this.providerConfig});
+
+  @override
+  State<ConsumoPage> createState() => _ConsumoPageState();
+}
+
+class _ConsumoPageState extends State<ConsumoPage> {
+  InAppWebViewController? _webViewController;
+  bool _isCustomUiLoaded = false;
+
+  // Variáveis para as cores dinâmicas
+  late final Color primaryColor;
+  late final String primaryColorHex;
+
+  @override
+  void initState() {
+    super.initState();
+    // Extrai os dados de configuração uma vez no initState
+    final tema = widget.providerConfig['tema'] as Map<String, dynamic>;
+    primaryColor = _hexToColor(tema['cor_primaria']);
+    primaryColorHex = tema['cor_primaria'] as String;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F7),
+      appBar: AppBar(
+        title: const Text("Extrato de Consumo"),
+        backgroundColor: primaryColor, // <-- COR DINÂMICA
+        foregroundColor: Colors.white,
+        elevation: 1,
+      ),
+      body: Stack(
+        children: [
+          Opacity(
+            opacity: _isCustomUiLoaded ? 1.0 : 0.0,
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(
+                url: WebUri("https://vibetelecom.sgp.net.br/central/extratotrafego/"),
+              ),
+              onWebViewCreated: (controller) {
+                _webViewController = controller;
+              },
+              onLoadStop: (controller, url) async {
+                await _injectModernCss(controller);
+                if (mounted) {
+                  setState(() {
+                    _isCustomUiLoaded = true;
+                  });
+                }
+              },
+            ),
+          ),
+          if (!_isCustomUiLoaded)
+            Center(
+              child: CircularProgressIndicator(
+                color: primaryColor, // <-- COR DINÂMICA
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _injectModernCss(InAppWebViewController controller) async {
+    // O CSS agora usa a cor primária dinâmica
+    final customCSS = '''
+      :root {
+        --cor-primaria: $primaryColorHex;
+        --cor-fundo-app: #F5F5F7;
+        --cor-fundo-card: #fff;
+        --cor-texto: #333;
+        --cor-borda-input: #e0e0e0;
+        --cor-fundo-input: #f8f9fa;
+        --sombra-card: 0 4px 20px rgba(0,0,0,.08);
+      }
+
+      body {
+        background: var(--cor-fundo-app) !important;
+        font-family: Roboto, sans-serif;
+      }
+
+      /* Esconde tudo que não queremos */
+      .main-header, .sidebar, .breadcrumb, .main-body > h5, .main-body > p {
+        display: none !important;
+      }
+
+      /* Centraliza e estiliza o card principal */
+      .main-body {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 16px !important;
+      }
+      .card.card-style-1 {
+        width: 100%;
+        max-width: 500px;
+        background: var(--cor-fundo-card);
+        border: none;
+        border-radius: 18px;
+        box-shadow: var(--sombra-card);
+        padding: 16px;
+      }
+
+      /* Estiliza as abas 'Internet' e 'Telefonia' */
+      .nav-tabs {
+        border: none;
+        background-color: #efedf0;
+        border-radius: 12px;
+        padding: 4px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        margin-bottom: 24px;
+      }
+      .nav-tabs .nav-link {
+        border: none !important;
+        border-radius: 10px;
+        color: #777;
+        font-weight: 500;
+        text-align: center;
+        transition: all 0.3s ease;
+      }
+      .nav-tabs .nav-link.active {
+        background-color: var(--cor-primaria);
+        color: white;
+        box-shadow: 0 2px 8px rgba(142, 68, 173, 0.4);
+      }
+      .nav-tabs .nav-link:not(.active):hover {
+        background-color: #e4e0e6;
+      }
+
+      /* Estiliza os campos de formulário (labels e selects) */
+      .form-group label {
+        font-weight: 500;
+        color: #555;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+      
+      .bootstrap-select .dropdown-toggle {
+        background: var(--cor-fundo-input) !important;
+        border: 1px solid var(--cor-borda-input) !important;
+        border-radius: 12px !important;
+        color: var(--cor-texto) !important;
+        padding: 12px !important;
+        height: auto !important;
+        box-shadow: none !important;
+      }
+      .bootstrap-select .dropdown-toggle:focus {
+        border-color: var(--cor-primaria) !important;
+      }
+
+      /* Estiliza o botão de consulta */
+      form .btn-primary {
+        background-color: var(--cor-primaria) !important;
+        border-color: var(--cor-primaria) !important;
+        border-radius: 12px;
+        padding: 14px;
+        font-size: 16px;
+        font-weight: 500;
+        width: 100%;
+        margin-top: 16px;
+        transition: all 0.2s ease;
+      }
+      form .btn-primary:hover {
+        filter: brightness(1.1);
+        box-shadow: 0 4px 12px rgba(142, 68, 173, 0.3);
+      }
+    ''';
+
+    await controller.injectCSSCode(source: customCSS);
+  }
+}
+=== consumo_page.dart ===
+// ARQUIVO: lib/consumo_page.dart (VERSÃO COM TRATAMENTO DE ERRO)
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shimmer/shimmer.dart';
+import 'utils.dart';
+import 'widgets/skeleton_container.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+class ConsumoPage extends StatefulWidget {
+  final String cpfCnpj;
+  final String senha;
+  final Map<String, dynamic> providerConfig;
+
+  const ConsumoPage({
+    Key? key,
+    required this.cpfCnpj,
+    required this.senha,
+    required this.providerConfig,
+  }) : super(key: key);
+
+  @override
+  State<ConsumoPage> createState() => _ConsumoPageState();
+}
+
+class _ConsumoPageState extends State<ConsumoPage> {
+  bool _isLoading = true;
+  String _errorMessage = '';
+  double _usedGb = 0;
+  String _planName = '';
+  String _period = '';
+
+  late final Color primaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+
+    _fetchConsumptionData();
+  }
+
+  Future<void> _fetchConsumptionData() async {
+    const apiUrl = 'http://45.176.56.70:3000/get-consumption-data';
+
+    try {
+      final details = widget.providerConfig['details'] as Map<String, dynamic>? ?? {};
+      final sgpParams = {
+        "token": details['apiToken'] as String? ?? '',
+        "app": details['appName'] as String? ?? ''
+      };
+      if ((sgpParams['token'] ?? '').isEmpty || (sgpParams['app'] ?? '').isEmpty) {
+        throw Exception("Token ou App Name não configurados no painel.");
+      }
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'cpfCnpj': widget.cpfCnpj,
+          'senha': widget.senha,
+          'sgpParams': sgpParams,
+        }),
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final responseData = json.decode(response.body)['data'];
+          setState(() {
+            // ===== CORREÇÃO APLICADA AQUI PARA EVITAR ERRO DE NULO =====
+            _usedGb = (responseData['usedGb'] as num? ?? 0).toDouble();
+            _planName = responseData['planName'] as String? ?? 'Plano não informado';
+            _period = responseData['period'] as String? ?? 'N/A';
+            _isLoading = false;
+            // ==========================================================
+          });
+        } else {
+          final errorBody = json.decode(response.body)['error'];
+          setState(() {
+            _errorMessage = errorBody['message'] ?? 'Não foi possível carregar os dados.';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erro de conexão: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F8),
+      appBar: AppBar(
+        title: Text('Meu Consumo', style: TextStyle(color: _isLoading ? Colors.grey.shade800 : primaryColor, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: _isLoading ? Colors.grey.shade800 : primaryColor),
+      ),
+      body: _isLoading
+          ? _buildShimmerLoading()
+          : _errorMessage.isNotEmpty
+          ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(_errorMessage, style: const TextStyle(fontSize: 16, color: Colors.red), textAlign: TextAlign.center),
+        ),
+      )
+          : _buildPageContent(),
+    );
+  }
+
+  Widget _buildPageContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          Text("Consumo de Internet do Mês", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+          const SizedBox(height: 8),
+          Text("Período: $_period", style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          const SizedBox(height: 40),
+
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 24.0),
+              child: Column(
+                children: [
+                  Text("Total Consumido", style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
+                  const SizedBox(height: 8),
+                  Text('${_usedGb.toStringAsFixed(2)} GB', style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: primaryColor)),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 40),
+
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _infoRow(FontAwesomeIcons.fileContract, "Plano Contratado", _planName),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String title, String value) {
+    return Row(
+      children: [
+        FaIcon(icon, color: primaryColor, size: 20),
+        const SizedBox(width: 16),
+        Text(title, style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+        const Spacer(),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            const SkeletonContainer(width: 220, height: 24),
+            const SizedBox(height: 8),
+            const SkeletonContainer(width: 280, height: 16),
+            const SizedBox(height: 40),
+            const SkeletonContainer(width: 200, height: 200, borderRadius: BorderRadius.all(Radius.circular(100))),
+            const SizedBox(height: 40),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Column(
+                children: [
+                  Row(children: [SizedBox(width: 10, height: 10), SizedBox(width: 12), SkeletonContainer(width: 100, height: 16), Spacer(), SkeletonContainer(width: 50, height: 16)]),
+                  Divider(height: 24),
+                  Row(children: [SizedBox(width: 10, height: 10), SizedBox(width: 12), SkeletonContainer(width: 120, height: 16), Spacer(), SkeletonContainer(width: 60, height: 16)]),
+                  Divider(height: 24),
+                  Row(children: [SizedBox(width: 10, height: 10), SizedBox(width: 12), SkeletonContainer(width: 150, height: 16), Spacer(), SkeletonContainer(width: 70, height: 16)]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+=== dicasuteis.dart ===
+// ARQUIVO: lib/dicasuteis.dart (VERSÃO COMPLETA E CORRIGIDA)
+
+import 'package:flutter/material.dart';
+import 'utils.dart';
+
+class DicasUteisPage extends StatelessWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const DicasUteisPage({super.key, required this.providerConfig});
+
+  @override
+  Widget build(BuildContext context) {
+    final configMap = providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    // ===== CORREÇÃO APLICADA AQUI =====
+    final primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    final List<dynamic> dicasList = configMap['tips'] as List<dynamic>? ?? [];
+    // ===================================
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Dicas Úteis"),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body: dicasList.isEmpty
+          ? const Center(
+        child: Text("Nenhuma dica útil cadastrada.", style: TextStyle(fontSize: 16, color: Colors.grey)),
+      )
+          : ListView.builder(
+        padding: const EdgeInsets.all(12.0),
+        itemCount: dicasList.length,
+        itemBuilder: (context, index) {
+          final dicaItem = dicasList[index] as Map<String, dynamic>? ?? {};
+          final title = dicaItem['title'] as String? ?? 'Dica indisponível';
+          final description = dicaItem['description'] as String? ?? 'Descrição indisponível.';
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
+                  const SizedBox(height: 8),
+                  Text(description, style: TextStyle(color: Colors.grey.shade700, height: 1.5, fontSize: 15)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+=== dicas_uteis_card.dart ===
+// ARQUIVO: lib/dicas_uteis_card.dart (VERSÃO COMPLETA E CORRIGIDA)
+
+import 'package:flutter/material.dart';
+import 'dicasuteis.dart';
+import 'utils.dart';
+
+class DicasUteisCard extends StatelessWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const DicasUteisCard({super.key, required this.providerConfig});
+
+  @override
+  Widget build(BuildContext context) {
+    final configMap = providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    // ===== CORREÇÃO APLICADA AQUI =====
+    final primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    // ===================================
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => DicasUteisPage(providerConfig: providerConfig)),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: primaryColor, size: 28),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Dicas Úteis",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Confira nossas dicas para melhorar sua conexão.",
+                      style: TextStyle(
+                        color: primaryColor.withOpacity(0.8),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, color: primaryColor, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+=== DownDetectorPage.dart ===
+// ARQUIVO: lib/DownDetectorPage.dart (VERSÃO COMPLETA E ATUALIZADA)
+
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'utils.dart';
+
+class DownDetectorPage extends StatefulWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const DownDetectorPage({super.key, required this.providerConfig});
+
+  @override
+  State<DownDetectorPage> createState() => _DownDetectorPageState();
+}
+
+class _DownDetectorPageState extends State<DownDetectorPage> {
+  bool _isLoading = true;
+  late final Color primaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+    primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Status dos Serviços"),
+        backgroundColor: primaryColor, // <-- COR DINÂMICA
+        foregroundColor: Colors.white,
+      ),
+      body: Stack(
+        children: [
+          InAppWebView(
+            initialUrlRequest: URLRequest(
+              url: WebUri("https://downdetector.com.br/"),
+            ),
+            onLoadStop: (controller, url) {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            },
+          ),
+          if (_isLoading)
+            Center(
+              child: CircularProgressIndicator(
+                color: primaryColor, // <-- COR DINÂMICA
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+=== faq_page.dart ===
+// ARQUIVO: lib/faq_page.dart (VERSÃO COMPLETA E CORRIGIDA)
+
+import 'package:flutter/material.dart';
+import 'utils.dart';
+
+class FaqPage extends StatelessWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const FaqPage({super.key, required this.providerConfig});
+
+  @override
+  Widget build(BuildContext context) {
+    final configMap = providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    // ===== CORREÇÃO APLICADA AQUI =====
+    final primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    // ===================================
+
+    final faqList = configMap['faq'] as List<dynamic>? ?? [];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Perguntas Frequentes"),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body: faqList.isEmpty
+          ? const Center(
+        child: Text("Nenhuma pergunta frequente cadastrada.", style: TextStyle(fontSize: 16, color: Colors.grey)),
+      )
+          : ListView.builder(
+        padding: const EdgeInsets.all(8.0),
+        itemCount: faqList.length,
+        itemBuilder: (context, index) {
+          final faqItem = faqList[index] as Map<String, dynamic>? ?? {};
+          final question = faqItem['question'] as String? ?? 'Pergunta indisponível';
+          final answer = faqItem['answer'] as String? ?? 'Resposta indisponível.';
+
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 2,
+            child: ExpansionTile(
+              title: Text(question, style: const TextStyle(fontWeight: FontWeight.w600)),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Text(answer, style: TextStyle(color: Colors.grey.shade700, height: 1.5)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+=== financeiro.dart ===
+// ARQUIVO: lib/financeiro.dart (VERSÃO DE DIAGNÓSTICO FINAL)
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'utils.dart';
+
+class FinanceiroPage extends StatefulWidget {
+  final Map<String, dynamic> providerConfig;
+  final String cpfCnpj;
+  final String? senha;
+
+  const FinanceiroPage({
+    Key? key,
+    required this.providerConfig,
+    required this.cpfCnpj,
+    this.senha,
+  }) : super(key: key);
+
+  @override
+  State<FinanceiroPage> createState() => _FinanceiroPageState();
+}
+
+class _FinanceiroPageState extends State<FinanceiroPage> {
+  Future<List<dynamic>>? _invoicesFuture;
+  late final Color primaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+    primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    _invoicesFuture = _fetchInvoices();
+  }
+
+  Future<List<dynamic>> _fetchInvoices() async {
+    // ===== INÍCIO DA DEPURAÇÃO =====
+    print("--- DEBUG FATURAS ---");
+    const apiUrl = 'http://45.176.56.70:3000/get-invoices';
+
+    try {
+      final details = widget.providerConfig['details'] as Map<String, dynamic>? ?? {};
+      final sgpParams = {
+        "token": details['apiToken'] as String? ?? '',
+        "app": details['appName'] as String? ?? ''
+      };
+
+      print("1. CPF/CNPJ recebido pela página: '${widget.cpfCnpj}'");
+      print("2. Parâmetros SGP montados: ${json.encode(sgpParams)}");
+
+      if (widget.cpfCnpj.isEmpty) {
+        throw Exception("O CPF/CNPJ chegou VAZIO para a página de Faturas.");
+      }
+      if ((sgpParams['token'] ?? '').isEmpty || (sgpParams['app'] ?? '').isEmpty) {
+        throw Exception("Token ou App Name não configurados no painel.");
+      }
+
+      final requestBody = {
+        'cpfCnpj': widget.cpfCnpj,
+        'sgpParams': sgpParams,
+      };
+
+      print("3. Enviando requisição para $apiUrl com o corpo: ${json.encode(requestBody)}");
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 20));
+
+      print("4. Resposta recebida do servidor com status: ${response.statusCode}");
+      print("5. Corpo da resposta: ${response.body}");
+      // ===== FIM DA DEPURAÇÃO =====
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body)['data'];
+        return responseData is List ? responseData : [];
+      } else {
+        final errorBody = json.decode(response.body)['error'];
+        throw Exception(errorBody['message'] ?? 'Falha ao carregar faturas');
+      }
+    } catch (e) {
+      print("‼️ ERRO NO BLOCO CATCH (FATURAS): ${e.toString()}");
+      throw Exception('Erro de conexão: ${e.toString()}');
+    } finally {
+      print("--- FIM DEBUG FATURAS ---");
+    }
+  }
+
+  void _openUrl(String? url) async {
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link indisponível.')));
+      return;
+    }
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível abrir o link: $url')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F7),
+      appBar: AppBar(
+        title: const Text('Faturas'),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 1,
+      ),
+      body: FutureBuilder<List<dynamic>>(
+        future: _invoicesFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator(color: primaryColor));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Text('Erro: ${snapshot.error}', textAlign: TextAlign.center)));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('Nenhuma fatura encontrada.'));
+          }
+          final invoices = snapshot.data!;
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: invoices.length,
+            itemBuilder: (context, index) => _buildInvoiceCard(invoices[index]),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInvoiceCard(Map<String, dynamic> invoice) {
+    final bool isPaid = invoice['pago'] as bool? ?? false;
+    final statusText = isPaid ? "PAGO" : "EM ABERTO";
+    final statusColor = isPaid ? Colors.green.shade600 : Colors.orange.shade800;
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Vencimento: ${invoice['vencimento'] ?? 'N/A'}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('R\$ ${invoice['valor'] ?? '0,00'}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: primaryColor)),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _actionButton(icon: FontAwesomeIcons.barcode, label: 'Copiar Código', onTap: isPaid ? null : () { Clipboard.setData(ClipboardData(text: invoice['linha_digitavel'] ?? '')); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Código de barras copiado!'))); }),
+                _actionButton(icon: FontAwesomeIcons.qrcode, label: 'Copiar PIX', onTap: isPaid ? null : () { Clipboard.setData(ClipboardData(text: invoice['linha_digitavel_pix'] ?? '')); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Código PIX copiado!'))); }),
+                _actionButton(icon: FontAwesomeIcons.download, label: 'Baixar PDF', onTap: () => _openUrl(invoice['link'] as String?)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionButton({required IconData icon, required String label, required VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FaIcon(icon, color: onTap != null ? primaryColor : Colors.grey, size: 20),
+            const SizedBox(height: 6),
+            Text(label, style: TextStyle(color: onTap != null ? primaryColor : Colors.grey, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+=== firebase_options.dart ===
+// File generated by FlutterFire CLI.
+// ignore_for_file: type=lint
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+/// Default [FirebaseOptions] for use with your Firebase apps.
+///
+/// Example:
+/// ```dart
+/// import 'firebase_options.dart';
+/// // ...
+/// await Firebase.initializeApp(
+///   options: DefaultFirebaseOptions.currentPlatform,
+/// );
+/// ```
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for web - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+        return ios;
+      case TargetPlatform.macOS:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.windows:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.linux:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for linux - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      default:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not supported for this platform.',
+        );
+    }
+  }
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyBcLSCsZsTSd4fcBQubZ8E4_JHOxuIs6is',
+    appId: '1:2735150999:android:f173118efa2923100a56d2',
+    messagingSenderId: '2735150999',
+    projectId: 'app-ajust-provedor',
+    storageBucket: 'app-ajust-provedor.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCMU1hEhtvjS354Kir3HagygF-Xc8JgBeg',
+    appId: '1:2735150999:ios:3aaa47397d6fa0030a56d2',
+    messagingSenderId: '2735150999',
+    projectId: 'app-ajust-provedor',
+    storageBucket: 'app-ajust-provedor.firebasestorage.app',
+    iosBundleId: 'br.com.ajust.appProvedor',
+  );
+}
+
+=== image_slider.dart ===
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+
+class ImageSlider extends StatefulWidget {
+  final List<String> imageUrls;
+
+  const ImageSlider({Key? key, required this.imageUrls}) : super(key: key);
+
+  @override
+  _ImageSliderState createState() => _ImageSliderState();
+}
+
+class _ImageSliderState extends State<ImageSlider> with SingleTickerProviderStateMixin {
+  late final PageController _pageController;
+  late final AnimationController _shimmerController;
+  Timer? _autoScrollTimer;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentPage, viewportFraction: 1.0);
+    _shimmerController = AnimationController.unbounded(vsync: this)
+      ..repeat(min: -0.5, max: 1.5, period: const Duration(milliseconds: 1200));
+
+    if (widget.imageUrls.length > 1) {
+      _startAutoScroll();
+    }
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    _pageController.dispose();
+    _autoScrollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (widget.imageUrls.isEmpty || !mounted || !_pageController.hasClients) return;
+      int nextPage = _pageController.page!.round() + 1;
+      if (nextPage >= widget.imageUrls.length) {
+        nextPage = 0;
+      }
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  Widget _buildShimmerPlaceholder() {
+    return AnimatedBuilder(
+      animation: _shimmerController,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.1)],
+                stops: [_shimmerController.value - 0.3, _shimmerController.value, _shimmerController.value + 0.3]
+            ).createShader(bounds);
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              color: Colors.black.withOpacity(0.1),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.imageUrls.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AspectRatio(
+          aspectRatio: 2.2,
+          child: Listener(
+            onPointerDown: (_) => _autoScrollTimer?.cancel(),
+            onPointerUp: (_) {
+              if (widget.imageUrls.length > 1) _startAutoScroll();
+            },
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: widget.imageUrls.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, child) {
+                    double value = 1.0;
+                    double rotation = 0.0;
+                    if (_pageController.position.haveDimensions) {
+                      double page = _pageController.page!;
+                      value = (1 - ((page - index).abs() * 0.4)).clamp(0.0, 1.0);
+                      rotation = page - index;
+                    }
+
+                    return Center(
+                      child: Transform.scale(
+                        scale: value,
+                        child: Transform(
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.001)
+                            ..rotateY(rotation * -math.pi / 8),
+                          alignment: FractionalOffset.center,
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: SizedBox.expand(
+                      child: Image.network(
+                        widget.imageUrls[index],
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return _buildShimmerPlaceholder();
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15),
+                                color: Colors.black.withOpacity(0.1),
+                              ),
+                              child: Center(child: Icon(Icons.error_outline, color: Colors.white.withOpacity(0.2)))
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (widget.imageUrls.length > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.imageUrls.length, (index) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: _currentPage == index ? 20 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _currentPage == index ? Colors.white : Colors.white.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
+          ),
+      ],
+    );
+  }
+}
+=== login_page.dart ===
+// ARQUIVO: lib/login_page.dart (VERSÃO COMPLETA DE DEPURAÇÃO)
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'utils.dart';
+
+class LoginPage extends StatefulWidget {
+  final Function(String, String, String, String, String, String, String) onLoginSuccess;
+  final Map<String, dynamic> providerConfig;
+
+  const LoginPage({ super.key, required this.onLoginSuccess, required this.providerConfig });
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+  final _cpfController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeIn);
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _cpfController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    // ===== INÍCIO DA DEPURAÇÃO =====
+    print("--- DEBUG LOGIN ---");
+    print("1. Iniciando _handleLogin...");
+    const apiUrl = 'http://45.176.56.70:3000/get-client-data-for-login';
+
+    try {
+      final details = widget.providerConfig['details'] as Map<String, dynamic>? ?? {};
+      final sgpParams = {
+        "token": details['apiToken'] as String? ?? '',
+        "app": details['appName'] as String? ?? ''
+      };
+
+      print("2. Parâmetros SGP montados: ${json.encode(sgpParams)}");
+
+      if ((sgpParams['token'] ?? '').isEmpty || (sgpParams['app'] ?? '').isEmpty) {
+        throw Exception("Token ou App Name não configurados no painel.");
+      }
+
+      final requestBody = {
+        "cpfCnpj": _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+        "sgpParams": sgpParams,
+      };
+
+      print("3. Enviando requisição para $apiUrl com o corpo: ${json.encode(requestBody)}");
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 20)); // Adiciona um timeout de 20 segundos
+
+      print("4. Resposta recebida do servidor com status: ${response.statusCode}");
+      print("5. Corpo da resposta: ${response.body}");
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          print("6. Decodificando JSON da resposta...");
+          final d = json.decode(response.body)['data'];
+          print("7. JSON decodificado com sucesso. Chamando onLoginSuccess...");
+          widget.onLoginSuccess(d['cpfCnpj'], d['senha'], d['userName'], d['userPlan'], d['userStatus'], d['billValue'], d['billDueDate']);
+          print("8. onLoginSuccess executado.");
+        } else {
+          final e = json.decode(response.body)['error'];
+          _showErrorDialog(e['message'] ?? 'Não foi possível fazer o login.');
+        }
+      }
+    } catch (e) {
+      print("‼️ ERRO NO BLOCO CATCH: ${e.toString()}");
+      _showErrorDialog('Erro de conexão: ${e.toString()}');
+    } finally {
+      print("9. Bloco FINALLY executado. _isLoading será definido como false.");
+      if(mounted) setState(() => _isLoading = false);
+      print("--- FIM DEBUG ---");
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Erro no Login'),
+      content: Text(message),
+      actions: <Widget>[TextButton(child: const Text('Ok'), onPressed: () => Navigator.of(ctx).pop())],
+    ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    final primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    final secondaryColor = hexToColor(configMap['secondaryColor'] as String? ?? '#9575CD');
+
+    final logoUrl = configMap['logoUrl'] as String? ?? '';
+
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(gradient: LinearGradient(colors: [primaryColor, secondaryColor.withOpacity(0.8)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (logoUrl.isNotEmpty) Image.network(logoUrl, height: 80, fit: BoxFit.contain, errorBuilder: (c, e, s) => const SizedBox.shrink()),
+                    const SizedBox(height: 24),
+                    const Text('Bem-vindo(a)', textAlign: TextAlign.center, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(blurRadius: 10, color: Colors.black26)])),
+                    const SizedBox(height: 8),
+                    Text('Acesse com seu CPF ou CNPJ', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9))),
+                    const SizedBox(height: 48),
+                    Form(
+                      key: _formKey,
+                      child: TextFormField(
+                        controller: _cpfController,
+                        style: const TextStyle(color: Colors.white, fontSize: 18),
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'CPF / CNPJ',
+                          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.1),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          prefixIcon: Icon(Icons.person_outline, color: Colors.white.withOpacity(0.7)),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Por favor, insira seu CPF ou CNPJ.' : null,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                        : ElevatedButton(
+                      onPressed: _handleLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 5,
+                      ),
+                      child: const Text('ENTRAR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+=== main.dart ===
+// ARQUIVO: lib/main.dart (VERSÃO ROBUSTA E FINAL)
+
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
+import 'login_page.dart';
+import 'painel.dart';
+
+const String providerId = 'vibe';
+
+class AppConfigService {
+  static final AppConfigService _instance = AppConfigService._internal();
+  factory AppConfigService() => _instance;
+  AppConfigService._internal();
+  Map<String, dynamic>? providerConfig;
+
+  Future<void> initialize() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('provedores')
+          .doc(providerId)
+          .get(const GetOptions(source: Source.server));
+
+      if (doc.exists) {
+        providerConfig = doc.data();
+        print("✅ Configuração do provedor '$providerId' carregada diretamente do SERVIDOR.");
+      } else {
+        throw Exception("Provedor '$providerId' não encontrado.");
+      }
+    } catch (e) {
+      print("❌ ERRO FATAL ao carregar configuração: $e");
+      rethrow;
+    }
+  }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final Future<void> _initialization;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialization = _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await FirebaseMessaging.instance.requestPermission();
+    await AppConfigService().initialize();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'App Provedor',
+      home: FutureBuilder(
+        future: _initialization,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) return FatalErrorScreen(error: snapshot.error.toString());
+          if (snapshot.connectionState == ConnectionState.done) return const AuthGate();
+          return const SplashScreen();
+        },
+      ),
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  String? _userCpfCnpj, _userSenha, _userName, _userPlan, _userStatus, _billValue, _billDueDate;
+
+  void _handleLoginSuccess(String cpf, String s, String name, String plan, String status, String bill, String due) {
+    setState(() {
+      _userCpfCnpj = cpf; _userSenha = s; _userName = name.split(' ').first;
+      _userPlan = plan; _userStatus = status; _billValue = bill; _billDueDate = due;
+    });
+    _saveDeviceToken(cpf);
+  }
+
+  Future<void> _saveDeviceToken(String cpfCnpj) async {
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance.collection('clientes').doc(cpfCnpj).set(
+          {'fcmToken': token, 'providerId': providerId, 'lastUpdated': FieldValue.serverTimestamp()},
+          SetOptions(merge: true),
+        );
+      }
+    } catch (e) {
+      print('❌ Erro ao salvar o token FCM: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final config = AppConfigService().providerConfig!;
+    if (_userName == null) {
+      return LoginPage(onLoginSuccess: _handleLoginSuccess, providerConfig: config);
+    } else {
+      return PainelPage(
+        cpfCnpj: _userCpfCnpj!, senha: _userSenha!, content: _userName!,
+        plano: _userPlan!, status: _userStatus!, valorFatura: _billValue!,
+        vencimentoFatura: _billDueDate!, providerConfig: config,
+      );
+    }
+  }
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+class FatalErrorScreen extends StatelessWidget {
+  final String error;
+  const FatalErrorScreen({super.key, required this.error});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.red[900],
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 80),
+              const SizedBox(height: 20),
+              Text('Erro Crítico', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text('Não foi possível iniciar o aplicativo.\n\nDetalhe: $error', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+=== meu_ip_page.dart ===
+// ARQUIVO: lib/meu_ip_page.dart (VERSÃO COMPLETA E CORRIGIDA)
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shimmer/shimmer.dart';
+import 'utils.dart';
+import 'widgets/skeleton_container.dart';
+
+class MeuIpPage extends StatefulWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const MeuIpPage({Key? key, required this.providerConfig}) : super(key: key);
+
+  @override
+  State<MeuIpPage> createState() => _MeuIpPageState();
+}
+
+class _MeuIpPageState extends State<MeuIpPage> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, dynamic>? _ipData;
+  late final Color primaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    // ===== CORREÇÃO APLICADA AQUI =====
+    primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    // ===================================
+
+    _fetchIpInfo();
+  }
+
+  Future<void> _fetchIpInfo() async {
+    try {
+      final response = await http.get(Uri.parse('https://ipinfo.io/json'));
+      if (mounted) {
+        if (response.statusCode == 200) {
+          setState(() { _ipData = json.decode(response.body); _isLoading = false; });
+        } else {
+          setState(() { _errorMessage = 'Não foi possível obter os dados de IP.'; _isLoading = false; });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() { _errorMessage = 'Erro de conexão. Verifique a sua internet.'; _isLoading = false; });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F8),
+      appBar: AppBar(
+        title: Text('Meu Endereço IP', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: primaryColor),
+      ),
+      body: Center(child: Padding(padding: const EdgeInsets.all(20.0), child: _buildContent())),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) return _buildShimmerLoading();
+    if (_errorMessage != null) return Text(_errorMessage!, style: const TextStyle(fontSize: 16, color: Colors.red));
+    if (_ipData != null) return _buildIpInfoCard();
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildIpInfoCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const FaIcon(FontAwesomeIcons.networkWired, size: 40, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text("Seu IP Público é:", style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            Text(_ipData!['ip'] ?? 'Não encontrado', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryColor)),
+            const Divider(height: 40),
+            _buildInfoRow(icon: Icons.location_city, title: "Localização", value: "${_ipData!['city'] ?? ''}, ${_ipData!['region'] ?? ''}"),
+            const SizedBox(height: 12),
+            _buildInfoRow(icon: Icons.router, title: "Provedor", value: _ipData!['org'] ?? 'Não encontrado'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({required IconData icon, required String title, required String value}) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.grey.shade500, size: 20),
+        const SizedBox(width: 16),
+        Text("$title:", style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(width: 8),
+        Expanded(child: Text(value, textAlign: TextAlign.end, style: TextStyle(color: Colors.grey.shade700))),
+      ],
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SkeletonContainer(width: 40, height: 40, borderRadius: BorderRadius.all(Radius.circular(20))),
+              SizedBox(height: 16),
+              SkeletonContainer(width: 120, height: 16),
+              SizedBox(height: 8),
+              SkeletonContainer(width: 200, height: 28),
+              Divider(height: 40),
+              SkeletonContainer(height: 20),
+              SizedBox(height: 12),
+              SkeletonContainer(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+=== notificacoes.dart ===
+// ARQUIVO: lib/notificacoes.dart (VERSÃO COMPLETA E ATUALIZADA)
+
+import 'package:flutter/material.dart';
+import 'utils.dart';
+
+class NotificacoesPage extends StatelessWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const NotificacoesPage({super.key, required this.providerConfig});
+
+  @override
+  Widget build(BuildContext context) {
+    final configMap = providerConfig['config'] as Map<String, dynamic>? ?? {};
+    final primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Notificações"),
+        backgroundColor: primaryColor, // <-- COR DINÂMICA
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.notifications_off_outlined,
+              size: 80,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "Nenhuma notificação no momento.",
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+=== page_mapper.dart ===
+// ARQUIVO: lib/page_mapper.dart (VERSÃO FINAL E CORRETA)
+
+import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'consumo_page.dart';
+import 'financeiro.dart';
+import 'meu_ip_page.dart';
+import 'notificacoes.dart';
+import 'promessa_pagamento.dart';
+import 'speed_test_page.dart';
+import 'suporte.dart';
+import 'dicasuteis.dart';
+import 'faq_page.dart';
+import 'DownDetectorPage.dart';
+
+void navigateToPageById({
+  required BuildContext context,
+  required String pageId,
+  required Map<String, dynamic> providerConfig,
+  required String cpfCnpj,
+  required String senha,
+  required String status,
+}) {
+  final configMap = providerConfig['config'] as Map<String, dynamic>? ?? {};
+  final suporteMap = configMap['support'] as Map<String, dynamic>? ?? {};
+  final whatsappNumber = suporteMap['whatsapp'] as String? ?? '';
+
+  void _push(Widget page) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => page));
+  }
+
+  void _launch(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível abrir o link: $url')));
+    }
+  }
+
+  switch (pageId) {
+    case 'internet_usage':
+      _push(ConsumoPage(providerConfig: providerConfig, cpfCnpj: cpfCnpj, senha: senha));
+      break;
+
+  // ===== CORREÇÃO APLICADA AQUI =====
+    case 'support':
+      _push(SuportePage(
+        providerConfig: providerConfig,
+        cpfCnpj: cpfCnpj,
+        senha: senha,
+        status: status,
+      ));
+      break;
+  // ===================================
+
+    case 'invoices':
+      _push(FinanceiroPage(providerConfig: providerConfig, cpfCnpj: cpfCnpj, senha: senha));
+      break;
+    case 'speed_test':
+      _push(SpeedTestPage(providerConfig: providerConfig));
+      break;
+    case 'my_ip':
+      _push(MeuIpPage(providerConfig: providerConfig));
+      break;
+    case 'useful_tips':
+      _push(DicasUteisPage(providerConfig: providerConfig));
+      break;
+    case 'faq':
+      _push(FaqPage(providerConfig: providerConfig));
+      break;
+    case 'notifications':
+      _push(NotificacoesPage(providerConfig: providerConfig));
+      break;
+    case 'payment_promise':
+      _push(PromessaPage(status: status, cpfCnpj: cpfCnpj, providerConfig: providerConfig));
+      break;
+    case 'whatsapp':
+      _launch('https://wa.me/$whatsappNumber');
+      break;
+    case 'down_detector':
+      _push(DownDetectorPage(providerConfig: providerConfig));
+      break;
+    default:
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Funcionalidade "$pageId" não implementada.')));
+  }
+}
+
+const Map<String, IconData> pageIcons = {
+  'home': Icons.home_outlined,
+  'internet_usage': Icons.data_usage_outlined,
+  'support': Icons.support_agent_outlined,
+  'invoices': FontAwesomeIcons.fileInvoiceDollar,
+  'payment_promise': FontAwesomeIcons.lockOpen,
+  'notifications': FontAwesomeIcons.solidBell,
+  'whatsapp': FontAwesomeIcons.whatsapp,
+  'down_detector': FontAwesomeIcons.triangleExclamation,
+  'speed_test': FontAwesomeIcons.tachometerAlt,
+  'my_ip': FontAwesomeIcons.networkWired,
+  'useful_tips': FontAwesomeIcons.lightbulb,
+  'faq': FontAwesomeIcons.questionCircle,
+  'external_link': FontAwesomeIcons.link,
+  'default': Icons.grid_view_outlined,
+};
+const Map<String, String> pageNames = {
+  'home': 'Início',
+  'internet_usage': 'Consumo',
+  'support': 'Suporte',
+  'invoices': 'Faturas',
+  'payment_promise': 'Promessa de Pagamento',
+  'notifications': 'Notificações',
+  'whatsapp': 'WhatsApp',
+  'down_detector': 'Verificar Conexão',
+  'speed_test': 'Teste de Velocidade',
+  'my_ip': 'Meu IP',
+  'useful_tips': 'Dicas Úteis',
+  'faq': 'Perguntas Frequentes',
+  'external_link': 'Link Externo',
+  'default': 'Menu',
+};
+=== painel.dart ===
+// ARQUIVO: lib/painel.dart (VERSÃO FINAL E CORRETA)
+
+import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'utils.dart';
+import 'image_slider.dart';
+import 'dicas_uteis_card.dart';
+import 'page_mapper.dart';
+import 'consumo_page.dart';
+import 'suporte.dart';
+import 'main.dart';
+
+class MenuItem {
+  final String id;
+  final String name;
+  final IconData icon;
+  final String type;
+  final String? url;
+
+  MenuItem({
+    required this.id,
+    required this.name,
+    required this.icon,
+    required this.type,
+    this.url,
+  });
+}
+
+class PainelPage extends StatefulWidget {
+  final String cpfCnpj, senha, content, plano, status, valorFatura, vencimentoFatura;
+  final Map<String, dynamic> providerConfig;
+
+  const PainelPage({
+    Key? key,
+    required this.cpfCnpj, required this.senha, required this.content, required this.plano,
+    required this.status, required this.valorFatura, required this.vencimentoFatura,
+    required this.providerConfig,
+  }) : super(key: key);
+
+  @override
+  _PainelPageState createState() => _PainelPageState();
+}
+
+class _PainelPageState extends State<PainelPage> {
+  int _selectedIndex = 0;
+  List<Widget> _pages = [];
+  List<MenuItem> _menuItems = [];
+
+  late Color primaryColor;
+  late Color secondaryColor;
+  late String logoUrl;
+  late Map<String, dynamic> funcionalidades;
+
+  @override
+  void initState() {
+    super.initState();
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    secondaryColor = hexToColor(configMap['secondaryColor'] as String? ?? '#9575CD');
+
+    logoUrl = configMap['logoUrl'] as String? ?? '';
+    funcionalidades = configMap['features'] as Map<String, dynamic>? ?? {};
+
+    _menuItems = _loadMenuConfig();
+    _pages = _buildPages();
+  }
+
+  List<MenuItem> _parseMenuData(Map<String, dynamic> menuData) {
+    final order = menuData['order'] as List<dynamic>? ?? [];
+    final items = menuData['items'] as Map<String, dynamic>? ?? {};
+    final List<MenuItem> enabledItems = [];
+    for (var id in order) {
+      final itemData = items[id.toString()] as Map<String, dynamic>?;
+      if (itemData != null && (itemData['enabled'] as bool? ?? false)) {
+        final type = itemData['type'] as String? ?? 'internal';
+
+        enabledItems.add(MenuItem(
+          id: id.toString(),
+          name: itemData['name'] as String? ?? pageNames[id.toString()] ?? 'Menu',
+          type: type,
+          url: itemData['url'] as String?,
+          icon: pageIcons[type == 'external_link' ? 'external_link' : id.toString()] ?? pageIcons['default']!,
+        ));
+      }
+    }
+    return enabledItems;
+  }
+
+  List<MenuItem> _loadMenuConfig() {
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>?;
+    final menuConfig = configMap?['menuConfig'] as Map<String, dynamic>?;
+
+    if (menuConfig != null) {
+      return _parseMenuData(menuConfig);
+    }
+    final rootMenuConfig = widget.providerConfig['menuConfig'] as Map<String, dynamic>?;
+    if (rootMenuConfig != null) {
+      return _parseMenuData(rootMenuConfig);
+    }
+    return [];
+  }
+
+  List<Widget> _buildPages() {
+    final List<Widget> pageList = [];
+    pageList.add(InicioTab(
+      cpfCnpj: widget.cpfCnpj, senha: widget.senha, content: widget.content,
+      plano: widget.plano, status: widget.status, valorFatura: widget.valorFatura,
+      vencimentoFatura: widget.vencimentoFatura, menuItems: _menuItems,
+      providerConfig: widget.providerConfig,
+    ));
+    if (funcionalidades['consumption'] as bool? ?? true) {
+      pageList.add(ConsumoPage(cpfCnpj: widget.cpfCnpj, senha: widget.senha, providerConfig: widget.providerConfig));
+    }
+    if (funcionalidades['support'] as bool? ?? true) {
+      pageList.add(SuportePage(
+        providerConfig: widget.providerConfig,
+        cpfCnpj: widget.cpfCnpj,
+        senha: widget.senha,
+        status: widget.status,
+      ));
+    }
+    return pageList;
+  }
+
+  void _onItemTapped(int index) {
+    setState(() { _selectedIndex = index; });
+  }
+
+  void _handleMenuNavigation(MenuItem item) async {
+    Navigator.pop(context);
+    if (item.type == 'external_link' && item.url != null) {
+      final uri = Uri.parse(item.url!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível abrir o link: ${item.url}')));
+      }
+    } else {
+      navigateToPageById(
+        context: context,
+        pageId: item.id,
+        cpfCnpj: widget.cpfCnpj,
+        senha: widget.senha,
+        status: widget.status,
+        providerConfig: widget.providerConfig,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final navItems = _buildBottomNavItems(funcionalidades);
+    return Scaffold(
+      extendBody: true,
+      backgroundColor: const Color(0xFFF8F7FF),
+      drawer: _buildDrawer(funcionalidades, primaryColor, secondaryColor, logoUrl, _menuItems),
+      bottomNavigationBar: navItems.isNotEmpty
+          ? CustomBottomNavigationBar(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
+        primaryColor: primaryColor,
+        items: navItems,
+      )
+          : null,
+      body: _pages.length > _selectedIndex ? _pages[_selectedIndex] : const Center(child: Text("Módulo indisponível")),
+    );
+  }
+
+  List<BottomNavigationBarItem> _buildBottomNavItems(Map<String, dynamic> funcs) {
+    List<BottomNavigationBarItem> items = [];
+    items.add(const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'INÍCIO'));
+    if (funcs['consumption'] as bool? ?? true) {
+      items.add(const BottomNavigationBarItem(icon: Icon(Icons.data_usage_outlined), activeIcon: Icon(Icons.data_usage), label: 'CONSUMO'));
+    }
+    if (funcs['support'] as bool? ?? true) {
+      items.add(const BottomNavigationBarItem(icon: Icon(Icons.support_agent_outlined), activeIcon: Icon(Icons.support_agent), label: 'SUPORTE'));
+    }
+    return items;
+  }
+
+  Drawer _buildDrawer(Map<String, dynamic> funcs, Color pColor, Color sColor, String lUrl, List<MenuItem> mItems) {
+    int consumoIndex = (funcs['consumption'] as bool? ?? true) ? 1 : -1;
+    int suporteIndex = (funcs['support'] as bool? ?? true) ? (consumoIndex != -1 ? 2 : 1) : -1;
+
+    return Drawer(
+      child: Container(
+        color: Colors.white,
+        child: Column(
+          children: [
+            DrawerHeader(
+              margin: EdgeInsets.zero,
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+              decoration: BoxDecoration(gradient: LinearGradient(colors: [pColor, sColor], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (lUrl.isNotEmpty) Image.network(lUrl, height: 30, errorBuilder: (c, e, s) => const SizedBox.shrink()),
+                    const SizedBox(height: 12),
+                    Text('Olá, ${widget.content.toUpperCase()}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('Plano: ${widget.plano}', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13)),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _buildDrawerItem(icon: Icons.home_outlined, label: 'Início', onTap: () { _onItemTapped(0); Navigator.pop(context); }, primaryColor: pColor),
+                  if (consumoIndex != -1) _buildDrawerItem(icon: Icons.data_usage_outlined, label: 'Consumo', onTap: () { _onItemTapped(consumoIndex); Navigator.pop(context); }, primaryColor: pColor),
+                  if (suporteIndex != -1) _buildDrawerItem(icon: Icons.support_agent_outlined, label: 'Suporte', onTap: () { _onItemTapped(suporteIndex); Navigator.pop(context); }, primaryColor: pColor),
+                  const Divider(height: 1, color: Color(0xFFE0E0E0), indent: 20, endIndent: 20),
+                  if (mItems.isEmpty) const ListTile(title: Text("Nenhum item de menu configurado.", style: TextStyle(color: Colors.grey)))
+                  else ...mItems.map((item) => _buildDrawerItem(icon: item.icon, label: item.name, onTap: () => _handleMenuNavigation(item), primaryColor: pColor)).toList(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({required IconData icon, required String label, required VoidCallback onTap, required Color primaryColor}) {
+    return ListTile(
+      leading: Icon(icon, color: primaryColor),
+      title: Text(label, style: const TextStyle(color: Color(0xFF333333), fontWeight: FontWeight.w500, fontSize: 15)),
+      onTap: onTap,
+      hoverColor: primaryColor.withOpacity(0.1),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+    );
+  }
+}
+
+class InicioTab extends StatelessWidget {
+  final String cpfCnpj, senha, content, plano, status, valorFatura, vencimentoFatura;
+  final List<MenuItem> menuItems;
+  final Map<String, dynamic> providerConfig;
+
+  const InicioTab({
+    Key? key,
+    required this.cpfCnpj, required this.senha, required this.content, required this.plano,
+    required this.status, required this.valorFatura, required this.vencimentoFatura,
+    required this.menuItems, required this.providerConfig
+  }) : super(key: key);
+
+  void _handleGridNavigation(BuildContext context, MenuItem item) async {
+    if (item.type == 'external_link' && item.url != null) {
+      final uri = Uri.parse(item.url!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível abrir o link: ${item.url}')));
+      }
+    } else {
+      navigateToPageById(
+        context: context,
+        pageId: item.id,
+        cpfCnpj: cpfCnpj,
+        senha: senha,
+        status: status,
+        providerConfig: providerConfig,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final configMap = providerConfig['config'] as Map<String, dynamic>? ?? {};
+    final funcionalidades = configMap['features'] as Map<String, dynamic>? ?? {};
+    final primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    final secondaryColor = hexToColor(configMap['secondaryColor'] as String? ?? '#9575CD');
+    final carouselImages = (configMap['carousel'] as List<dynamic>? ?? []).map((item) => (item as Map)['url'].toString()).toList();
+
+    return Stack(
+      children: [
+        _buildHeader(context, primaryColor, secondaryColor),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 160.0, 16.0, 0),
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              _buildStatusCard(context, primaryColor),
+              const SizedBox(height: 16),
+              if (funcionalidades['imageCarousel'] as bool? ?? false)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: ImageSlider(imageUrls: carouselImages),
+                ),
+              if (funcionalidades['invoices'] as bool? ?? false)
+                _buildInvoiceSection(context, primaryColor, secondaryColor),
+              const SizedBox(height: 16),
+              _buildServiceGrid(context, primaryColor),
+              const SizedBox(height: 16),
+              if ((configMap['tips'] as List<dynamic>? ?? []).isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: DicasUteisCard(providerConfig: providerConfig),
+                ),
+              if (funcionalidades['unlock'] as bool? ?? false)
+                _buildDesbloqueioButton(context),
+              const SizedBox(height: 120),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildServiceGrid(BuildContext context, Color primaryColor) {
+    // ===== CORREÇÃO APLICADA AQUI =====
+    // O filtro agora remove da grade apenas os itens que já estão em destaque na barra inferior.
+    final gridItems = menuItems.where((item) =>
+    item.id != 'home' &&
+        item.id != 'internet_usage' && // Corresponde à aba 'CONSUMO'
+        item.id != 'support'          // Corresponde à aba 'SUPORTE'
+    ).toList();
+    // ===================================
+
+    if (gridItems.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24.0), child: Text("Nenhuma ferramenta rápida configurada.", style: TextStyle(color: Colors.grey))));
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.0),
+      itemCount: gridItems.length,
+      itemBuilder: (context, index) {
+        final service = gridItems[index];
+        return _buildServiceItem(label: service.name, icon: service.icon, iconColor: primaryColor, onTap: () => _handleGridNavigation(context, service));
+      },
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, Color primaryColor, Color secondaryColor) {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(gradient: LinearGradient(colors: [primaryColor, secondaryColor], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
+              Align(alignment: Alignment.topLeft, child: IconButton(icon: const Icon(Icons.menu, color: Colors.white, size: 28), onPressed: () => Scaffold.of(context).openDrawer())),
+              const SizedBox(height: 16),
+              Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(left: 12.0), child: Text('Olá, $content', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusCard(BuildContext context, Color primaryColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 5))]),
+      child: IntrinsicHeight(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Row(children: [
+              Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: primaryColor.withOpacity(0.15), shape: BoxShape.circle), child: Icon(Icons.check, color: primaryColor, size: 20)),
+              const SizedBox(width: 12),
+              const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Tudo certo', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1F2937))), Text('com seu(s) plano(s)!', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)))])
+            ]),
+            const VerticalDivider(color: Color(0xFFE5E7EB), thickness: 1),
+            Row(children: [const Icon(Icons.description_outlined, color: Colors.grey, size: 24), const SizedBox(width: 8), Text('Selecionar\ncontrato', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade700, height: 1.2))])
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvoiceSection(BuildContext context, Color primaryColor, Color secondaryColor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () => _handleGridNavigation(context, MenuItem(id: 'invoices', name: '', icon: Icons.pages, type: 'internal')),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              height: 124,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 15)]),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Última fatura', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w500)), Text(vencimentoFatura, style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))]),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(valorFatura, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))), Text('Ver faturas', style: TextStyle(fontWeight: FontWeight.w600, color: primaryColor))])
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            children: [
+              _buildActionButton(context, label: 'Pagar fatura', icon: Icons.credit_card, color: primaryColor, onTap: () => _handleGridNavigation(context, MenuItem(id: 'invoices', name: '', icon: Icons.pages, type: 'internal'))),
+              const SizedBox(height: 12),
+              _buildActionButton(context, label: 'Prometer\npagamento', icon: FontAwesomeIcons.lockOpen, color: secondaryColor, onTap: () => _handleGridNavigation(context, MenuItem(id: 'payment_promise', name: '', icon: Icons.pages, type: 'internal')))
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context, {required String label, required IconData icon, required Color color, required VoidCallback onTap}) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(12), child: SizedBox(height: 56, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: Colors.white, size: 24), const SizedBox(width: 8), Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, height: 1.2), textAlign: TextAlign.center)]))),
+    );
+  }
+
+  Widget _buildDesbloqueioButton(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF4F4F5),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => _handleGridNavigation(context, MenuItem(id: 'payment_promise', name: '', icon: Icons.pages, type: 'internal')),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [const Icon(FontAwesomeIcons.unlock, color: Colors.grey, size: 22), const SizedBox(width: 12), Text('Desbloqueio de Confiança', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600, fontSize: 16))]
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceItem({required String label, required IconData icon, required Color iconColor, required VoidCallback onTap}) {
+    return Material(
+      color: const Color(0xFFF4F4F5),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(12), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: iconColor, size: 32), const SizedBox(height: 8), Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF374151), fontWeight: FontWeight.w500, fontSize: 13, height: 1.2))])),
+    );
+  }
+}
+
+class CustomBottomNavigationBar extends StatelessWidget {
+  final int selectedIndex;
+  final Function(int) onItemTapped;
+  final Color primaryColor;
+  final List<BottomNavigationBarItem> items;
+
+  const CustomBottomNavigationBar({
+    Key? key,
+    required this.selectedIndex,
+    required this.onItemTapped,
+    required this.primaryColor,
+    required this.items,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12.0), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 5))]),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12.0),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: primaryColor,
+          unselectedItemColor: Colors.grey[500],
+          items: items,
+          currentIndex: selectedIndex,
+          onTap: onItemTapped,
+        ),
+      ),
+    );
+  }
+}
+=== promessa_pagamento.dart ===
+// ARQUIVO: lib/promessa_pagamento.dart (VERSÃO COMPLETA E CORRIGIDA)
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'utils.dart';
+
+enum PromiseState {
+  eligible,
+  notEligible,
+  loading,
+  success,
+  error,
+}
+
+class PromessaPage extends StatefulWidget {
+  final String status;
+  final String cpfCnpj;
+  final Map<String, dynamic> providerConfig; // Parâmetro necessário
+
+  const PromessaPage({
+    super.key,
+    required this.status,
+    required this.cpfCnpj,
+    required this.providerConfig, // Parâmetro necessário
+  });
+
+  @override
+  State<PromessaPage> createState() => _PromessaPageState();
+}
+
+class _PromessaPageState extends State<PromessaPage> {
+  PromiseState _currentState = PromiseState.eligible;
+  String _message = '';
+  late final Color primaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+    primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+
+    final bool isEligible = widget.status == 'Suspenso' || widget.status == 'Ativo V. Reduzida';
+    if (!isEligible) {
+      _currentState = PromiseState.notEligible;
+      _message = "Esta opção está disponível apenas para contratos suspensos ou com velocidade reduzida.";
+    }
+  }
+
+  Future<void> _makePromise() async {
+    setState(() {
+      _currentState = PromiseState.loading;
+    });
+
+    const apiUrl = 'http://45.176.56.70:3000/make-payment-promise';
+
+    try {
+      final details = widget.providerConfig['details'] as Map<String, dynamic>? ?? {};
+      final sgpParams = {
+        "token": details['apiToken'] as String? ?? '',
+        "app": details['appName'] as String? ?? ''
+      };
+
+      if ((sgpParams['token'] ?? '').isEmpty || (sgpParams['app'] ?? '').isEmpty) {
+        throw Exception("Token ou App Name não configurados no painel.");
+      }
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'cpfCnpj': widget.cpfCnpj,
+          'sgpParams': sgpParams,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        setState(() {
+          _currentState = PromiseState.success;
+          _message = responseData['message'] ?? 'Promessa realizada com sucesso!';
+        });
+      } else {
+        final errorBody = json.decode(response.body)['error'];
+        setState(() {
+          _currentState = PromiseState.error;
+          _message = errorBody['message'] ?? 'Ocorreu um erro desconhecido.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _currentState = PromiseState.error;
+        _message = 'Erro de conexão: ${e.toString()}';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Promessa de Pagamento"),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Center(
+          child: _buildContent(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    switch (_currentState) {
+      case PromiseState.loading:
+        return CircularProgressIndicator(color: primaryColor);
+      case PromiseState.success:
+        return _buildStatusCard(
+          icon: Icons.check_circle_outline,
+          color: Colors.green.shade700,
+          title: "Sucesso!",
+          message: _message,
+        );
+      case PromiseState.error:
+      case PromiseState.notEligible:
+        return _buildStatusCard(
+          icon: Icons.error_outline,
+          color: Colors.red.shade700,
+          title: "Atenção!",
+          message: _message,
+        );
+      case PromiseState.eligible:
+        return _buildPromiseUI();
+    }
+  }
+
+  Widget _buildPromiseUI() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FaIcon(FontAwesomeIcons.handshake, size: 80, color: primaryColor),
+        const SizedBox(height: 24),
+        const Text(
+          "Desbloqueio por Confiança",
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "Ao confirmar, sua conexão será reestabelecida temporariamente por um período de 48 horas para que você possa regularizar sua situação.",
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade700, height: 1.5),
+        ),
+        const SizedBox(height: 32),
+        ElevatedButton.icon(
+          onPressed: _makePromise,
+          icon: const Icon(Icons.lock_open, color: Colors.white),
+          label: const Text("Confirmar Promessa", style: TextStyle(color: Colors.white, fontSize: 16)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusCard({required IconData icon, required Color color, required String title, required String message}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 60, color: color),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade800, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+=== skeleton_container.dart ===
+// ARQUIVO: lib/widgets/skeleton_container.dart
+
+import 'package:flutter/material.dart';
+
+class SkeletonContainer extends StatelessWidget {
+  final double? width;
+  final double? height;
+  final BorderRadius borderRadius;
+
+  const SkeletonContainer({
+    Key? key,
+    this.width,
+    this.height,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: borderRadius,
+      ),
+    );
+  }
+}
+=== speed_test_page.dart ===
+// ARQUIVO: lib/speed_test_page.dart (VERSÃO COMPLETA E CORRIGIDA)
+
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'utils.dart';
+
+class SpeedTestPage extends StatefulWidget {
+  final Map<String, dynamic> providerConfig;
+
+  const SpeedTestPage({Key? key, required this.providerConfig}) : super(key: key);
+
+  @override
+  State<SpeedTestPage> createState() => _SpeedTestPageState();
+}
+
+class _SpeedTestPageState extends State<SpeedTestPage> {
+  bool _isLoading = true;
+  late final Color primaryColor;
+
+  @override
+  void initState() {
+    super.initState();
+    final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+
+    // ===== CORREÇÃO APLICADA AQUI =====
+    primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#673AB7');
+    // ===================================
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Teste de Velocidade"),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body: Stack(
+        children: [
+          InAppWebView(
+            initialUrlRequest: URLRequest(url: WebUri("https://www.speedtest.net/pt")),
+            onLoadStop: (controller, url) {
+              if (mounted) setState(() => _isLoading = false);
+            },
+          ),
+          if (_isLoading) Center(child: CircularProgressIndicator(color: primaryColor)),
+        ],
+      ),
+    );
+  }
+}
+=== suporte.dart ===
+// ARQUIVO: lib/suporte.dart (VERSÃO FINAL COM GRADE CORRIGIDA)
+
+import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'utils.dart';
+import 'widgets/skeleton_container.dart';
+import 'page_mapper.dart';
+import 'painel.dart'; // Importa a classe MenuItem correta
+
+class SuportePage extends StatefulWidget {
+  final Map<String, dynamic> providerConfig;
+  final String cpfCnpj;
+  final String senha;
+  final String status;
+
+  const SuportePage({
+    Key? key,
+    required this.providerConfig,
+    required this.cpfCnpj,
+    required this.senha,
+    required this.status,
+  }) : super(key: key);
+
+  @override
+  State<SuportePage> createState() => _SuportePageState();
+}
+
+class _SuportePageState extends State<SuportePage> {
+  bool _isLoading = true;
+  late Color primaryColor, backgroundColor, gradientEndColor, textColor;
+  late String whatsAppNumber, officeHours, address;
+  List<MenuItem> _menuItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  List<MenuItem> _parseMenuData(Map<String, dynamic> menuData) {
+    final order = menuData['order'] as List<dynamic>? ?? [];
+    final items = menuData['items'] as Map<String, dynamic>? ?? {};
+    final List<MenuItem> enabledItems = [];
+    for (var id in order) {
+      final itemData = items[id.toString()] as Map<String, dynamic>?;
+      if (itemData != null && (itemData['enabled'] as bool? ?? false)) {
+        final type = itemData['type'] as String? ?? 'internal';
+
+        enabledItems.add(MenuItem(
+          id: id.toString(),
+          name: itemData['name'] as String? ?? pageNames[id.toString()] ?? 'Menu',
+          type: type,
+          url: itemData['url'] as String?,
+          icon: pageIcons[type == 'external_link' ? 'external_link' : id.toString()] ?? pageIcons['default']!,
+        ));
+      }
+    }
+    return enabledItems;
+  }
+
+  Future<void> _loadData() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (mounted) {
+      final configMap = widget.providerConfig['config'] as Map<String, dynamic>? ?? {};
+      final suporteMap = configMap['support'] as Map<String, dynamic>? ?? {};
+
+      primaryColor = hexToColor(configMap['themeColor'] as String? ?? '#7B4B94');
+      backgroundColor = const Color(0xFFF8F7FF);
+      gradientEndColor = primaryColor.withOpacity(0.1);
+      textColor = const Color(0xFF2C2C2C);
+      whatsAppNumber = suporteMap['whatsapp'] as String? ?? '';
+      officeHours = suporteMap['horario_atendimento'] as String? ?? 'Não informado';
+      address = suporteMap['endereco'] as String? ?? 'Não informado';
+
+      final menuConfig = configMap['menuConfig'] as Map<String, dynamic>?;
+      if (menuConfig != null) {
+        _menuItems = _parseMenuData(menuConfig);
+      } else {
+        final rootMenuConfig = widget.providerConfig['menuConfig'] as Map<String, dynamic>?;
+        if (rootMenuConfig != null) {
+          _menuItems = _parseMenuData(rootMenuConfig);
+        }
+      }
+
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _handleToolNavigation(MenuItem item) async {
+    if (item.type == 'external_link' && item.url != null) {
+      final uri = Uri.parse(item.url!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível abrir o link: ${item.url}')));
+      }
+    } else {
+      navigateToPageById(
+        context: context,
+        pageId: item.id,
+        providerConfig: widget.providerConfig,
+        cpfCnpj: widget.cpfCnpj,
+        senha: widget.senha,
+        status: widget.status,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text("Suporte", style: TextStyle(color: _isLoading ? Colors.grey.shade800 : primaryColor, fontWeight: FontWeight.bold, fontSize: 20)),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: _isLoading ? Colors.grey.shade800 : primaryColor),
+      ),
+      body:
+      _isLoading
+          ? _buildShimmerLoading()
+          : _buildPageContent(),
+    );
+  }
+
+  Widget _buildPageContent() {
+    // ===== CORREÇÃO APLICADA AQUI =====
+    // O filtro incorreto foi removido. Agora mostra todos os itens do menu,
+    // exceto um botão para a própria página de suporte, para evitar redundância.
+    final toolItems = _menuItems.where((item) => item.id != 'support').toList();
+    // ===================================
+
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [backgroundColor, gradientEndColor], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 16),
+              _buildCombinedInfoCard(),
+              const SizedBox(height: 24),
+              Text('Ferramentas e Ajuda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+              const SizedBox(height: 16),
+              if (toolItems.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32.0),
+                  child: Center(child: Text("Nenhuma ferramenta configurada.", style: TextStyle(color: Colors.grey.shade600))),
+                )
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3, mainAxisSpacing: 12.0, crossAxisSpacing: 12.0, childAspectRatio: 1.05),
+                  itemCount: toolItems.length,
+                  itemBuilder: (context, index) {
+                    final tool = toolItems[index];
+                    return _buildSupportOption(
+                      icon: tool.icon,
+                      label: tool.name,
+                      onTap: () => _handleToolNavigation(tool),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCombinedInfoCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.0),
+        boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.1), spreadRadius: 2, blurRadius: 10, offset: const Offset(0, 5))],
+      ),
+      child: Column(children: [
+        _buildInfoRow(icon: FontAwesomeIcons.solidClock, title: 'Horário de atendimento', details: officeHours),
+
+        const Divider(height: 24, thickness: 0.5, color: Colors.black12),
+        _buildInfoRow(icon: FontAwesomeIcons.mapMarkerAlt, title: 'Nosso endereço', details: address),
+      ]),
+    );
+  }
+
+  Widget _buildInfoRow({required IconData icon, required String title, required String details}) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      FaIcon(icon, color: primaryColor, size: 18),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 15)),
+          const SizedBox(height: 4),
+          Text(details, style: TextStyle(color: Colors.black54, height: 1.4, fontSize: 13)),
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _buildSupportOption({required IconData icon, required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16.0), boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.08), spreadRadius: 1, blurRadius: 8, offset: const Offset(0, 4))]),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          FaIcon(icon, color: primaryColor, size: 28),
+          const SizedBox(height: 10),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20.0, 100, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16.0)),
+              child: const Column(children: [
+                Row(children: [SizedBox(width: 20), Expanded(child: SkeletonContainer(height: 14)), SizedBox(width: 80)]),
+                SizedBox(height: 8),
+                SkeletonContainer(height: 30),
+                Divider(height: 24),
+                Row(children: [SizedBox(width: 20), Expanded(child: SkeletonContainer(height: 14)), SizedBox(width: 80)]),
+                SizedBox(height: 8),
+                SkeletonContainer(height: 30),
+              ]),
+            ),
+            const SizedBox(height: 24),
+            const SkeletonContainer(width: 200, height: 20),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3, mainAxisSpacing: 12.0, crossAxisSpacing: 12.0, childAspectRatio: 1.05),
+              itemCount: 6,
+              itemBuilder: (context, index) => const SkeletonContainer(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+=== utils.dart ===
+// ARQUIVO: lib/utils.dart
+
+import 'package:flutter/material.dart';
+
+Color hexToColor(String hexString) {
+  try {
+    final buffer = StringBuffer();
+    if (hexString.length >= 6) buffer.write('ff');
+
+    // MUDANÇA AQUI: Adicionado .trim() para remover espaços
+    buffer.write(hexString.trim().replaceAll('#', ''));
+
+    return Color(int.parse(buffer.toString(), radix: 16));
+  } catch (e) {
+    // Retorna uma cor padrão em caso de erro de formatação
+    print('Erro ao converter hex para cor: $e, String: "$hexString"');
+    return const Color(0xFF673AB7);
+  }
+}

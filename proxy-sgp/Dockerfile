@@ -2,25 +2,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copiar package files
 COPY package*.json ./
+RUN npm install --only=production
 
-# Instalar dependências
-RUN npm ci --only=production
+COPY . .
 
-# Copiar código fonte
-COPY index.js ./
-COPY *.php ./
+EXPOSE 3002
 
-# Criar diretório para o banco SQLite
-RUN mkdir -p /data
-
-# Expor porta
-EXPOSE 3001
-
-# Variáveis de ambiente
-ENV NODE_ENV=production
-ENV PORT=3001
-
-# Comando de inicialização
 CMD ["node", "index.js"]

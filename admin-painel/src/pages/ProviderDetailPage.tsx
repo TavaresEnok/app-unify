@@ -9,6 +9,7 @@ import { SettingsContext, ProviderData, ProviderConfigLegacy as ProviderConfig }
 import { useAuth } from '@/contexts/AuthContext';
 import Breadcrumbs from '@/components/Breadcrumbs';
 
+// CACHE BUST 2026-01-29 - Force Refresh
 export default function ProviderDetailPage() {
     const { providerId: providerIdFromParams } = useParams<{ providerId: string }>();
     const { user, userRole, providerId: providerIdFromAuth } = useAuth();
@@ -51,6 +52,7 @@ export default function ProviderDetailPage() {
                 setProvider(data);
 
                 const mergedConfig = {
+                    apiUrl: data.apiUrl,
                     themeColor: data.themeColor,
                     secondaryColor: data.secondaryColor,
                     logoUrl: data.logoUrl,
