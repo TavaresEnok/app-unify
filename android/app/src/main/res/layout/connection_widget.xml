@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_background"
+    android:gravity="center">
+
+    <!-- Logo/Icon -->
+    <ImageView
+        android:id="@+id/widget_icon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="App Icon" />
+
+    <!-- Status da Conexão -->
+    <TextView
+        android:id="@+id/widget_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Conexão Ativa"
+        android:textColor="#4CAF50"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <!-- Velocidade -->
+    <TextView
+        android:id="@+id/widget_speed"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="100 Mbps"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- Última atualização -->
+    <TextView
+        android:id="@+id/widget_updated"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Atualizado: --"
+        android:textColor="#AAAAAA"
+        android:textSize="10sp" />
+
+</LinearLayout>
