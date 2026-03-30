@@ -203,6 +203,11 @@ export default function AppearanceSettings() {
                                     <SelectValue placeholder="Escolha o layout" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="layout_01">Layout 01 - Padrão Original</SelectItem>
+                                    <SelectItem value="layout_02">Layout 02 - NetLink Premium</SelectItem>
+                                    <SelectItem value="layout_03">Layout 03 - Vibe Modern</SelectItem>
+                                    <SelectItem value="layout_04">Layout 04 - Clean Light</SelectItem>
+                                    <SelectItem value="layout_05">Layout 05 - Cyber Neon</SelectItem>
                                     <SelectItem value="layout_06">Layout 06 - Clean Dark</SelectItem>
                                 </SelectContent>
                             </Select>

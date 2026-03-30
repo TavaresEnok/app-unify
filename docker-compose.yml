@@ -67,6 +67,8 @@ services:
       context: .
       dockerfile: Dockerfile.apkbuilder
     container_name: painel_apk_builder
+    mem_limit: 4g
+    mem_reservation: 1g
     restart: always
     ports:
       - "8035:8035"

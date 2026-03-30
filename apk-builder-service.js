@@ -134,9 +134,21 @@ app.post('/generate-apk', verifySuperAdmin, async (req, res) => {
         '--package', packageName
     ];
 
+    // Generate Version Code based on Unix Timestamp (Seconds)
+    // Fits in Java Integer (Max 2,147,483,647). Current timestamp is ~1,770,000,000. Good until 2038.
+    const versionCode = Math.floor(Date.now() / 1000).toString();
+
+    pythonArgs.push('--version-code', versionCode);
+    pythonArgs.push('--version-name', `1.0.${versionCode}`);
+
     if (format === 'aab') {
         pythonArgs.push('--format', 'aab');
         pythonArgs.push('--obfuscate');
+        // AABs are automatically optimized by Google Play, but we can enforce optimization to be safe
+        pythonArgs.push('--arm64');
+    } else {
+        // For APKs, user specifically asked for "recent processors" optimization to reduce size
+        pythonArgs.push('--arm64');
     }
 
     // 3. Execute Python script with Flutter in PATH
@@ -150,7 +162,11 @@ app.post('/generate-apk', verifySuperAdmin, async (req, res) => {
         ...process.env,
         PATH: `/home/app/flutter/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
         ANDROID_HOME: process.env.ANDROID_HOME || androidSdkPath,
-        ANDROID_SDK_ROOT: process.env.ANDROID_SDK_ROOT || androidSdkPath
+        ANDROID_SDK_ROOT: process.env.ANDROID_SDK_ROOT || androidSdkPath,
+        // Force Pub Cache to user directory to allow patching
+        PUB_CACHE: '/home/app/.pub-cache',
+        // Container limit increased to 4GB. Using 3GB for Gradle.
+        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:+HeapDumpOnOutOfMemoryError"'
     };
 
     const pythonCmd = fs.existsSync(PYTHON_BIN) ? PYTHON_BIN : 'python3';
@@ -187,8 +203,10 @@ app.post('/generate-apk', verifySuperAdmin, async (req, res) => {
 
             res.json({
                 success: true,
-                message: `${format.toUpperCase()} gerado com sucesso!`,
+                message: `${format.toUpperCase()} gerado com sucesso! Versão: 1.0.${versionCode}`,
                 downloadUrl: apkPath,
+                versionCode: versionCode,
+                versionName: `1.0.${versionCode}`,
                 logs: stdout,
                 logFile
             });

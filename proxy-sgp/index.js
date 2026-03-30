@@ -449,6 +449,9 @@ app.post('/check-cpf', async (req, res) => {
     const cpfCnpjUnformatted = cpf ? cpf.replace(/[^0-9]/g, '') : '';
     const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
 
+    console.log(`\n[Check-CPF] Recebido POST para CPF: ${cpf}`);
+    console.log(`[Check-CPF] Body Completo: ${JSON.stringify(req.body)}`);
+
     if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos." } });
 
     // CACHE DISABLED to always fetch fresh connection status (verificaacesso)

@@ -685,20 +685,22 @@ app.post('/diagnostic/onu-signal', async (req, res) => {
         });
         // Buscar ONU do cliente via API SGP
         // Buscar ONU do cliente via API SGP
-        // FIX: Usar POST com x-www-form-urlencoded (igual ao proxy PHP antigo)
-        const params = new URLSearchParams();
-        params.append('token', token);
-        params.append('app', appName);
-        params.append('cpfcnpj', cpfCnpj);
-        params.append('signal', '1');
-        params.append('connection', '1');
-        params.append('address', '1');
-        console.log('[ONU-Signal] Enviando POST para SGP:', `${sgpBaseUrl}/api/fttx/onu/list/`);
-        const onuResponse = await session.post(`${sgpBaseUrl}/api/fttx/onu/list/`, params.toString(), {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+        // REVERT: Voltar para GET, pois POST retornou 405 Method Not Allowed.
+        // O endpoint /api/fttx/onu/list/ parece exigir GET.
+        const onuResponse = await session.get(`${sgpBaseUrl}/api/fttx/onu/list/`, {
+            params: {
+                token,
+                app: appName,
+                cpfcnpj: cpfCnpj,
+                signal: 1,
+                connection: 1,
+                address: 1
             }
         });
+        console.log('[ONU-Signal] Resposta SGP status:', onuResponse.status);
+        // Log truncado se for muito grande
+        const logData = JSON.stringify(onuResponse.data);
+        console.log('[ONU-Signal] Resposta SGP data (trunc):', logData.substring(0, 500));
         console.log('[ONU-Signal] Resposta SGP status:', onuResponse.status);
         // Log truncado se for muito grande, mas suficiente para ver a estrutura
         console.log('[ONU-Signal] Resposta SGP data:', JSON.stringify(onuResponse.data, null, 2));

@@ -7,11 +7,16 @@ import tempfile
 import sys
 from pathlib import Path
 
-def run_command(command, cwd):
+def run_command(command, cwd, env=None):
     """Run a shell command and print output."""
     print(f"Executing: {command} in {cwd}")
     try:
-        subprocess.check_call(command, shell=True, cwd=cwd)
+        # If env is provided, merge it with os.environ, otherwise use os.environ
+        cmd_env = os.environ.copy()
+        if env:
+            cmd_env.update(env)
+            
+        subprocess.check_call(command, shell=True, cwd=cwd, env=cmd_env)
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {e}")
         sys.exit(1)
@@ -25,6 +30,9 @@ def main():
     parser.add_argument('--format', default='apk', choices=['apk', 'aab'], help='Formato de saída: apk ou aab')
     parser.add_argument('--obfuscate', action='store_true', help='Ativar ofuscação de código (Blindagem)')
     parser.add_argument('--package', help='Nome do pacote personalizado (ex: com.vibe.app)')
+    parser.add_argument('--arm64', action='store_true', help='Otimizar para processadores recentes (ARM64 apenas)')
+    parser.add_argument('--version-code', help='Código da versão (Build Number)')
+    parser.add_argument('--version-name', help='Nome da versão (ex: 1.0.0)')
     
     args = parser.parse_args()
     
@@ -75,10 +83,6 @@ def main():
             with open(manifest_path, 'r') as f:
                 manifest_content = f.read()
             
-            # It's better to let gradle handle the package, but some older setups rely on manifest package attribute.
-            # However, in modern flutter, the namespace in gradle handles this.
-            # We will update MainActivity path references though.
-
             # 3. Refactor Directory Structure (Kotlin/Java)
             old_package_path = os.path.join(build_dir, 'android', 'app', 'src', 'main', 'kotlin', 'com', 'example', 'unified')
             new_package_path_list = args.package.split('.')
@@ -151,26 +155,61 @@ def main():
         # 3.5. Ensure Dependencies & Patch Namespace (AGP 8+ Fix)
         # =========================================================
         print("📥 Fetching dependencies...")
+        # We assume apk-builder-service sets PUB_CACHE to a writable location (e.g. /home/app/.pub-cache)
         run_command('flutter pub get', build_dir)
 
         print("🔧 Patching flutter_internet_speed_test namespace...")
         try:
-            # Locate pub cache (usually in /root/.pub-cache in Docker)
-            pub_cache = os.environ.get('PUB_CACHE', '/root/.pub-cache')
-            # glob for any version of the package in hosted/pub.dev or similar
-            # Search recursively in .pub-cache/hosted
-            found_gradles = list(Path(pub_cache).rglob('flutter_internet_speed_test*/android/build.gradle'))
+            # Determine potential pub cache search paths
+            search_paths = []
+            
+            # Priority: Environment variable (set by service to /home/app/.pub-cache)
+            env_pub_cache = os.environ.get('PUB_CACHE')
+            if env_pub_cache:
+                search_paths.append(Path(env_pub_cache))
+            
+            # Common defaults
+            search_paths.append(Path.home() / '.pub-cache')
+            # Fallback (read-only likely, but good to check)
+            search_paths.append(Path('/root/.pub-cache'))
+            
+            # Deduplicate paths
+            unique_paths = list(set(search_paths))
+            
+            print(f"   Debugging: Searching for plugins in: {[str(p) for p in unique_paths]}")
+
+            found_gradles = []
+            for cache_root in unique_paths:
+                # Expand user explicitly just in case
+                if str(cache_root).startswith('~'):
+                    cache_root = Path(os.path.expanduser(str(cache_root)))
+                    
+                if cache_root.exists():
+                    # Search for the specific package
+                    print(f"   Scanning {cache_root}...")
+                    found = list(cache_root.rglob('flutter_internet_speed_test*/android/build.gradle'))
+                    found_gradles.extend(found)
             
             if found_gradles:
-                # Patch all found instances to be safe
+                # Deduplicate found files
+                found_gradles = list(set(found_gradles))
+                
                 for gradle_file in found_gradles:
                     print(f"   Found: {gradle_file}")
                     with open(gradle_file, 'r') as f:
                         g_content = f.read()
                     
                     if 'namespace' not in g_content:
-                        if 'android {' in g_content:
-                            g_content = g_content.replace('android {', 'android {\n    namespace "com.example.flutter_internet_speed_test"')
+                        # Use regex to find android block with flexible spacing
+                        if re.search(r'android\s*{', g_content):
+                            # Replace 'android {' with 'android { namespace ...'
+                            # We use sub to handle variable whitespace
+                            g_content = re.sub(
+                                r'android\s*{',
+                                'android {\n    namespace "com.example.flutter_internet_speed_test"',
+                                g_content,
+                                count=1
+                            )
                             with open(gradle_file, 'w') as f:
                                 f.write(g_content)
                             print(f"   ✅ Applied namespace patch to {gradle_file}")
@@ -179,17 +218,24 @@ def main():
                     else:
                         print(f"   ℹ️ Namespace already present in {gradle_file}")
             else:
-                print("   ⚠️ flutter_internet_speed_test build.gradle not found in cache. Skipping patch.")
+                print("   ⚠️ flutter_internet_speed_test build.gradle not found in any cache location. Skipping patch.")
         except Exception as e:
              print(f"   ❌ Error patching build.gradle: {e}")
 
         print("🔧 Patching flutter_internet_speed_test AndroidManifest.xml...")
         try:
-            pub_cache = os.environ.get('PUB_CACHE', '/root/.pub-cache')
-            # Locate AndroidManifest files for the same plugin
-            found_manifests = list(Path(pub_cache).rglob('flutter_internet_speed_test*/android/src/main/AndroidManifest.xml'))
-            
+            # Re-use the same search paths logic
+            found_manifests = []
+            for cache_root in unique_paths:
+                if str(cache_root).startswith('~'):
+                    cache_root = Path(os.path.expanduser(str(cache_root)))
+                    
+                if cache_root.exists():
+                     found = list(cache_root.rglob('flutter_internet_speed_test*/android/src/main/AndroidManifest.xml'))
+                     found_manifests.extend(found)
+
             if found_manifests:
+                found_manifests = list(set(found_manifests))
                 for manifest_file in found_manifests:
                     print(f"   Found: {manifest_file}")
                     with open(manifest_file, 'r') as f:
@@ -284,11 +330,84 @@ flutter_launcher_icons:
             print(f"   ⚠️ Warning: Splash generation failed: {e}")
 
         # 5. Build
-        print(f"Starting {args.format.upper()} Build (Obfuscated: {args.obfuscate})...")
+        print(f"Starting {args.format.upper()} Build (Obfuscated: {args.obfuscate}, ARM64 Only: {args.arm64})...")
         print(f"Package: {args.package or 'DEFAULT'}")
         
+        # Explicitly update local.properties to force version code
+        if args.version_code or args.version_name:
+            local_props_path = os.path.join(build_dir, 'android', 'local.properties')
+            print(f"🔧 Forcing version info in {local_props_path}")
+            
+            # Read existing content if any
+            props_content = ""
+            if os.path.exists(local_props_path):
+                with open(local_props_path, 'r') as f:
+                    props_content = f.read()
+            
+            # Remove existing version keys to avoid duplicates
+            props_lines = [line for line in props_content.splitlines() 
+                           if not line.startswith('flutter.versionCode') 
+                           and not line.startswith('flutter.versionName')]
+            
+            # Append new version info
+            if args.version_code:
+                props_lines.append(f"flutter.versionCode={args.version_code}")
+                print(f"   -> flutter.versionCode={args.version_code}")
+            
+            if args.version_name:
+                props_lines.append(f"flutter.versionName={args.version_name}")
+                print(f"   -> flutter.versionName={args.version_name}")
+                
+            with open(local_props_path, 'w') as f:
+                f.write('\n'.join(props_lines) + '\n')
+            
+            # PATCH PUBSPEC.YAML (The strict Flutter way)
+            if args.version_code:
+                pubspec_path = os.path.join(build_dir, 'pubspec.yaml')
+                print(f"📄 Patching pubspec.yaml version...")
+                with open(pubspec_path, 'r') as f:
+                    pubspec_content = f.read()
+                
+                # Replace version: X.Y.Z+N with version: {version_name}+{version_code}
+                # Default to 1.0.0 if version_name not provided
+                v_name = args.version_name if args.version_name else "1.0.0"
+                v_code = args.version_code
+                
+                new_version_line = f"version: {v_name}+{v_code}"
+                
+                # Regex to find version: ...
+                if re.search(r'^version:.*', pubspec_content, re.MULTILINE):
+                    pubspec_content = re.sub(
+                        r'^version:.*',
+                        new_version_line,
+                        pubspec_content,
+                        flags=re.MULTILINE
+                    )
+                    print(f"   ✅ pubspec.yaml updated to: {new_version_line}")
+                else:
+                    print("   ⚠️ Cold not find 'version:' key in pubspec.yaml")
+                
+                with open(pubspec_path, 'w') as f:
+                    f.write(pubspec_content)
+
+        print("🧹 Cleaning Flutter project to remove cached artifacts...")
+        run_command('flutter clean', build_dir)
+        print("📥 Fetching dependencies (again after clean)...")
+        run_command('flutter pub get', build_dir)
+
         build_cmd = f"flutter build {('appbundle' if args.format == 'aab' else 'apk')} --release"
         
+        # Inject Versioning
+        if args.version_code:
+            build_cmd += f" --build-number={args.version_code}"
+        if args.version_name:
+            build_cmd += f" --build-name={args.version_name}"
+        
+        # Optimization: ARM64-v8a Only
+        if args.arm64:
+             build_cmd += " --target-platform android-arm64"
+             print("🚀 Optimization Enabled: Building for ARM64 only (Small size)")
+
         # Security: Obfuscation
         if args.obfuscate:
             # Create symbols directory
@@ -296,7 +415,12 @@ flutter_launcher_icons:
             os.makedirs(symbols_dir, exist_ok=True)
             build_cmd += f" --obfuscate --split-debug-info={symbols_dir}"
         
-        run_command(build_cmd, build_dir)
+        # Container limit increased to 4GB. Using 3GB for Gradle.
+        build_env = {
+            'GRADLE_OPTS': '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m"'
+        }
+        
+        run_command(build_cmd, build_dir, env=build_env)
         
         # 6. Move Output
         if args.format == 'aab':
