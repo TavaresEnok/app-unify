@@ -20,7 +20,8 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
   }
 
   Future<void> login(String cpf, ProviderConfig config) async {
-    state = const AsyncValue.loading();
+    // DO NOT set state = const AsyncValue.loading() here!
+    // It causes AuthGate to unmount the LoginPage, destroying local state and hiding errors.
     try {
       // 1. Authenticate with API
       final user = await _repository.performLoginApi(cpf, config);

@@ -77,8 +77,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
       if (next is AsyncError) {
         setState(() {
           _isLoading = false;
-          _errorMessage =
-              'CPF/CNPJ não encontrado. Verifique e tente novamente.';
+          // Extract the actual error message thrown by the Repository
+          _errorMessage = next.error.toString().replaceAll('Exception: ', '');
         });
       } else if (next is AsyncData && next.value != null) {
         setState(() {
