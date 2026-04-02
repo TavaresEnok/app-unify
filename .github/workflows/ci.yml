@@ -1,0 +1,139 @@
+name: CI — Build & Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # 1. Build do Painel Admin (React + Vite)
+  # ─────────────────────────────────────────────────────────
+  admin-panel-build:
+    name: Admin Panel — Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: admin-painel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: admin-painel/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env for build validation
+        run: |
+          cat > .env << 'EOF'
+          VITE_FIREBASE_API_KEY=ci-placeholder
+          VITE_FIREBASE_AUTH_DOMAIN=ci-placeholder.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID=ci-placeholder
+          VITE_FIREBASE_STORAGE_BUCKET=ci-placeholder.appspot.com
+          VITE_FIREBASE_MESSAGING_SENDER_ID=000000000000
+          VITE_FIREBASE_APP_ID=1:000000000000:web:ci-placeholder
+          VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+          EOF
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  # ─────────────────────────────────────────────────────────
+  # 2. Build das Cloud Functions
+  # ─────────────────────────────────────────────────────────
+  functions-build:
+    name: Cloud Functions — Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: functions
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests (Jest)
+        run: npm test
+
+      - name: Build (TypeScript → JS)
+        run: npm run build
+
+  # ─────────────────────────────────────────────────────────
+  # 3. Build do api-service
+  # ─────────────────────────────────────────────────────────
+  api-service-build:
+    name: API Service — Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: api-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: api-service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (TypeScript → JS)
+        run: npm run build
+
+  # ─────────────────────────────────────────────────────────
+  # 4. Verificação de Segredos Expostos
+  # ─────────────────────────────────────────────────────────
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for exposed service account keys
+        run: |
+          if find . -name "serviceAccountKey.json" -not -path "*/node_modules/*" | grep -q .; then
+            echo "❌ ERRO: serviceAccountKey.json encontrado no repositório! Remova imediatamente."
+            exit 1
+          fi
+          echo "✅ Nenhuma service account key encontrada."
+
+      - name: Check for hardcoded secrets patterns
+        run: |
+          FOUND=0
+          # Procura padrões de private_key do Google
+          if git grep -rn '"private_key"' -- '*.json' ':!node_modules' ':!*.lock' 2>/dev/null | grep -v '\.example' | grep -q .; then
+            echo "❌ ERRO: Possível private_key encontrada em arquivo JSON"
+            git grep -rn '"private_key"' -- '*.json' ':!node_modules'
+            FOUND=1
+          fi
+          if [ $FOUND -eq 1 ]; then exit 1; fi
+          echo "✅ Nenhum segredo óbvio detectado."

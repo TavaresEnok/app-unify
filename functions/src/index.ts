@@ -10,6 +10,12 @@ import { spawn } from "child_process";
 import * as https from "https";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret, defineString } from "firebase-functions/params";
+
+const proxyUrlSecret = defineSecret("PROXY_URL");
+const proxySecretParam = defineSecret("PROXY_SECRET");
+const apkScriptPath = defineString("APK_SCRIPT_PATH", { default: "" });
+const apkProjectRoot = defineString("APK_PROJECT_ROOT", { default: "" });
 
 // Inicialização do Firebase Admin
 const projectId =
@@ -455,36 +461,47 @@ export const handleDeleteProviderRequest = onDocumentCreated({
 
         const providerName = providerDoc.data()?.name || providerId;
 
-        // 1. Deletar usuários associados (opcional - mas importante para limpeza)
-        const usersSnapshot = await db.collection("users")
-            .where("providerId", "==", providerId)
-            .get();
+        const deleteCollection = async (query: FirebaseFirestore.Query) => {
+            let totalDeleted = 0;
+            let snapshot = await query.limit(400).get();
+            while (!snapshot.empty) {
+                const b = db.batch();
+                snapshot.docs.forEach((doc) => b.delete(doc.ref));
+                await b.commit();
+                totalDeleted += snapshot.size;
+                if (snapshot.size < 400) break;
+                snapshot = await query.limit(400).get();
+            }
+            return totalDeleted;
+        };
 
-        const batch = db.batch();
-        usersSnapshot.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
+        for (const sub of ["clientes", "backups", "diagnostic_results"]) {
+            const n = await deleteCollection(db.collection(`provedores/${providerId}/${sub}`));
+            logger.info(`Subcoleção '${sub}' de '${providerId}': ${n} docs removidos.`);
+        }
 
-        // 2. Deletar tickets associados
+        const usersDeleted = await deleteCollection(
+            db.collection("users").where("providerId", "==", providerId)
+        );
+
         const ticketsSnapshot = await db.collection("tickets")
             .where("providerId", "==", providerId)
             .get();
 
-        ticketsSnapshot.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
+        const ticketBatch = db.batch();
+        ticketsSnapshot.docs.forEach((doc) => ticketBatch.delete(doc.ref));
+        await ticketBatch.commit();
 
-        // 3. Deletar o provedor
-        batch.delete(providerRef);
+        await providerRef.delete();
 
-        await batch.commit();
-
-        logger.info(`Provedor '${providerName}' (${providerId}) deletado. Removidos ${usersSnapshot.size} usuários e ${ticketsSnapshot.size} tickets.`);
+        logger.info(
+            `Provedor '${providerName}' (${providerId}) deletado. Removidos ${usersDeleted} usuários e ${ticketsSnapshot.size} tickets.`
+        );
 
         await writeResponse(responseRef, {
             result: {
                 success: true,
-                message: `Provedor '${providerName}' apagado com sucesso! (${usersSnapshot.size} usuários e ${ticketsSnapshot.size} tickets removidos)`,
+                message: `Provedor '${providerName}' apagado com sucesso! (${usersDeleted} usuários e ${ticketsSnapshot.size} tickets removidos)`,
                 providerId
             }
         }, requesterUid);
@@ -768,42 +785,6 @@ export const handleSendScopedNotificationSegmentedRequest = onDocumentCreated({
     return null;
 });
 
-// TEMPORARY: Fix Vibe Provider Document
-import { onRequest } from "firebase-functions/v2/https";
-
-export const forceUpdateApiUrl = onRequest(async (req, res) => {
-    try {
-        const providerId = req.query.id as string || 'vibe';
-        logger.info(`🔧 Forcing API URL update for ${providerId}...`);
-
-        const providerRef = db.collection('provedores').doc(providerId);
-        const doc = await providerRef.get();
-
-        if (!doc.exists) {
-            throw new Error(`Provider ${providerId} not found`);
-        }
-
-        const newUrl = 'http://168.194.13.18:3002';
-
-        await providerRef.update({
-            apiUrl: newUrl,
-            'config.apiUrl': newUrl,
-            updatedAt: FieldValue.serverTimestamp()
-        });
-
-        logger.info(`✅ URL updated to ${newUrl}`);
-
-        res.json({
-            success: true,
-            message: `API URL forcefully updated to ${newUrl} for provider ${providerId}`,
-            provider: providerId,
-            newUrl: newUrl
-        });
-    } catch (error: any) {
-        logger.error("❌ Error:", error);
-        res.status(500).json({ error: error.message });
-    }
-});
 
 // --- 8. FUNÇÃO PARA DASHBOARD DO PROVEDOR (ESPECÍFICO) ---
 export const handleGetProviderDashboardDataRequest = onDocumentCreated({
@@ -882,8 +863,9 @@ export const handleGetProviderDashboardDataRequest = onDocumentCreated({
 export const handleSgpApiProxyRequest = onDocumentCreated({
     document: "function_requests/{requestId}",
     region: "southamerica-east1",
-    timeoutSeconds: 300, // Aumentado para suportar sincronização demorada
-    memory: "512MiB"
+    timeoutSeconds: 300,
+    memory: "512MiB",
+    secrets: [proxyUrlSecret, proxySecretParam]
 }, async (event) => {
     const requestId = event.params.requestId;
     const requestData = event.data?.data();
@@ -913,16 +895,17 @@ export const handleSgpApiProxyRequest = onDocumentCreated({
             throw new Error("Configurações do SGP (URL/Token) incompletas no cadastro do provedor.");
         }
 
-        // callSgp removido - agora usamos o proxy local
+        const PROXY_URL = proxyUrlSecret.value();
+        const PROXY_SECRET = proxySecretParam.value();
+        if (!PROXY_URL || !PROXY_SECRET) {
+            throw new Error("Configuração do proxy (PROXY_URL/PROXY_SECRET) ausente. Configure via Firebase Secrets.");
+        }
 
         if (action === 'sync') {
-            // Lógica de Sincronização VIA PROXY LOCAL (para bypass de IP)
             logger.info(`[SYNC] Iniciando sincronização VIA PROXY para ${providerId}...`);
             await writeResponse(responseRef, { status: "running", message: "Sincronizando via proxy..." }, requesterUid);
 
             const clientsRef = db.collection(`provedores/${providerId}/clientes`);
-            const PROXY_URL = 'http://168.194.13.18:3002';
-            const PROXY_SECRET = 'CHAVE_SECRETA_MUITO_FORTE_12345';
 
             try {
                 // 1. Chamar o proxy para sincronizar com SGP (proxy tem acesso liberado)
@@ -1252,9 +1235,14 @@ export const generateApk = onCall(
             });
         });
 
-        // 3. Run Python Script
-        const scriptPath = "/home/app/painel-provedores-projeto/admin-script/gerar_apk.py";
-        const projectRoot = "/home/app/painel-provedores-projeto"; // CWD for script
+        const scriptPath = apkScriptPath.value();
+        const projectRoot = apkProjectRoot.value();
+        if (!scriptPath || !projectRoot) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Geração de APK não configurada neste ambiente. Defina APK_SCRIPT_PATH e APK_PROJECT_ROOT."
+            );
+        }
 
         // WHITE LABEL: Generate Package Name
         // sanitized providerId: remove non-alphanumeric, lowercase

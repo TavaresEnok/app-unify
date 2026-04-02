@@ -115,3 +115,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+codigos antigos/
+
+# Artefatos Android grandes (não versionar — usar public_apks no servidor ou CI)
+*.apk
+*.aab
