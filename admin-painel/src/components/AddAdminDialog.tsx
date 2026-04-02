@@ -9,6 +9,7 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { db } from "@/firebase/config";
 import { collection, onSnapshot, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
+import { validatePassword, PASSWORD_STRENGTH_COLORS, PASSWORD_STRENGTH_LABELS } from "@/lib/passwordPolicy";
 
 interface Provider { id: string; name: string; }
 
@@ -35,6 +36,11 @@ export default function AddAdminDialog({ onUpdate }: { onUpdate: () => void }) {
     const handleSave = async () => {
         if (!email || !password || !role) { toast.error("Email, senha e permissão são obrigatórios."); return; }
         if (role === 'providerAdmin' && !providerId) { toast.error("Para um Admin de Provedor, é necessário selecionar o provedor."); return; }
+        const pwValidation = validatePassword(password);
+        if (!pwValidation.valid) {
+            toast.error(`Senha inválida: ${pwValidation.errors.join(', ')}`);
+            return;
+        }
         if (!user) { toast.error("Utilizador principal não autenticado."); return; }
 
         setIsSaving(true);
@@ -79,7 +85,19 @@ export default function AddAdminDialog({ onUpdate }: { onUpdate: () => void }) {
                 <DialogHeader><DialogTitle>Adicionar Novo Utilizador</DialogTitle></DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                    <div className="space-y-2"><Label htmlFor="password">Senha</Label><Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+                    <div className="space-y-2">
+                        <Label htmlFor="password">Senha</Label>
+                        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                        {password.length > 0 && (() => {
+                            const v = validatePassword(password);
+                            return (
+                                <p className={`text-xs ${PASSWORD_STRENGTH_COLORS[v.strength]}`}>
+                                    Força: {PASSWORD_STRENGTH_LABELS[v.strength]}
+                                    {v.errors.length > 0 && ` — ${v.errors.join(', ')}`}
+                                </p>
+                            );
+                        })()}
+                    </div>
                     <div className="space-y-2"><Label>Permissão</Label>
                         <Select onValueChange={setRole} value={role}>
                             <SelectTrigger><SelectValue placeholder="Selecione a permissão" /></SelectTrigger>

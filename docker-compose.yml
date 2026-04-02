@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # 🟡 Frontend (Admin Panel)
   frontend:
     build:
       context: ./admin-painel
@@ -9,11 +6,10 @@ services:
     container_name: painel_frontend
     restart: always
     ports:
-      - "8031:80" # Frontend Padronizado (Era 5174)
+      - "8031:80"
     environment:
-      - VITE_API_URL=http://168.194.13.18:8030 # Aponta para o Backend Padronizado
+      - VITE_API_URL=http://168.194.13.18:8030
 
-  # 🟡 Backend (SGP Proxy)
   backend-proxy:
     build:
       context: ./proxy-sgp
@@ -21,12 +17,10 @@ services:
     container_name: painel_proxy_sgp
     restart: always
     ports:
-      - "8030:3002" # Backend Padronizado (Era 3002)
-    environment:
-      - PORT=3002
-      # Adicione outras variaveis do SGP aqui se necessario
+      - "8030:3002"
+    env_file:
+      - ./proxy-sgp/.env
 
-      # 🟡 Landing Page (Adicionado Slot 2)
   landing-page:
     build:
       context: ./landing-page
@@ -34,11 +28,10 @@ services:
     container_name: painel_landing
     restart: always
     ports:
-      - "8032:80" # Padronizado Slot 2 (Era 80)
+      - "8032:80"
     volumes:
       - ./public_apks:/usr/share/nginx/html/public_apks:ro
 
-  # 🟡 Speed Test (Adicionado Slot 2)
   speed-test:
     build:
       context: ./speed_test_server
@@ -46,9 +39,8 @@ services:
     container_name: painel_speedtest
     restart: always
     ports:
-      - "8033:3001" # Padronizado Slot 2 (Era 3001)
+      - "8033:3001"
 
-  # 🟡 API Service (Adicionado Slot 2)
   api-service:
     build:
       context: ./api-service
@@ -56,12 +48,13 @@ services:
     container_name: painel_api
     restart: always
     ports:
-      - "8034:9136" # Padronizado Slot 2 (Interna é 9136 fixo no código)
-    environment:
-      - SGP_TOKEN=4b6aae35-219a-4580-8c5c-dfb4efdbfae3
-      - SGP_APP_NAME=APP-PROVEDOR
+      - "8034:9136"
+    env_file:
+      - ./api-service/.env
+    volumes:
+      # Service account montada de fora do repositório (não é commitada)
+      - /home/app/.secrets/painel_provedores:/run/secrets:ro
 
-  # 🟡 APK Builder Service (Adicionado)
   apk-builder:
     build:
       context: .
@@ -74,13 +67,13 @@ services:
       - "8035:8035"
     volumes:
       - .:/home/app/projects/painel_provedores
-      - /home/app/Android/Sdk:/home/app/Android/Sdk # Opcional: montar SDK do host se existir e quiser economizar download
+      - /home/app/Android/Sdk:/home/app/Android/Sdk
     working_dir: /home/app/projects/painel_provedores
+    env_file:
+      - ./api-service/.env
     environment:
       - APK_BUILDER_PORT=8035
       - PYTHON_BIN=python3
-      # Firebase Admin creds file path (relative to working_dir)
-      - GOOGLE_APPLICATION_CREDENTIALS=admin-script/serviceAccountKey.json
 
 networks:
   default:
