@@ -20,6 +20,7 @@ const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
 const APK_SCRIPT_PATH = process.env.APK_SCRIPT_PATH || '/home/app/projects/painel_provedores/admin-script/gerar_apk.py';
 const APK_PROJECT_ROOT = process.env.APK_PROJECT_ROOT || '/home/app/projects/painel_provedores';
 const APK_OUTPUT_DIR = process.env.APK_OUTPUT_DIR || '/home/app/projects/painel_provedores/public_apks';
+const APK_FLUTTER_PROJECT = process.env.APK_FLUTTER_PROJECT || '/home/app/projects/painel_provedores/app-flutter/unified';
 
 if (!SGP_TOKEN || !SGP_APP_NAME) {
   console.warn('[WARN] SGP_TOKEN ou SGP_APP_NAME não definidos. Endpoints SGP falharão.');
@@ -664,6 +665,7 @@ app.post('/admin/generate-apk', apkLimiter, verifySuperAdmin, async (req, res) =
       '--nome', appName,
       '--logo', tempLogoPath,
       '--output', APK_OUTPUT_DIR,
+      '--flutter-project', APK_FLUTTER_PROJECT,
       '--package', packageName,
     ];
     if (format === 'aab') {

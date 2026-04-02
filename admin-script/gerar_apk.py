@@ -22,22 +22,36 @@ def run_command(command, cwd, env=None):
         sys.exit(1)
 
 def main():
+    # Resolve defaults via environment variables so the script works on any server
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    _repo_root = os.path.dirname(_script_dir)
+    _default_output = os.environ.get(
+        'APK_OUTPUT_DIR',
+        os.path.join(_repo_root, 'public_apks')
+    )
+    _default_project_root = os.environ.get(
+        'APK_FLUTTER_PROJECT',
+        os.path.join(_repo_root, 'app-flutter', 'unified')
+    )
+
     parser = argparse.ArgumentParser(description='Gerador de APK White Label')
     parser.add_argument('--id', required=True, help='ID do provedor (Firebase)')
     parser.add_argument('--nome', required=True, help='Nome do App')
     parser.add_argument('--logo', required=True, help='Caminho para o arquivo de logo')
-    parser.add_argument('--output', default='/home/app/projects/painel_provedores/public_apks', help='Diretório de saída')
+    parser.add_argument('--output', default=_default_output, help='Diretório de saída')
+    parser.add_argument('--flutter-project', default=_default_project_root,
+                        help='Caminho para o projeto Flutter base (env: APK_FLUTTER_PROJECT)')
     parser.add_argument('--format', default='apk', choices=['apk', 'aab'], help='Formato de saída: apk ou aab')
     parser.add_argument('--obfuscate', action='store_true', help='Ativar ofuscação de código (Blindagem)')
     parser.add_argument('--package', help='Nome do pacote personalizado (ex: com.vibe.app)')
     parser.add_argument('--arm64', action='store_true', help='Otimizar para processadores recentes (ARM64 apenas)')
     parser.add_argument('--version-code', help='Código da versão (Build Number)')
     parser.add_argument('--version-name', help='Nome da versão (ex: 1.0.0)')
-    
+
     args = parser.parse_args()
-    
+
     # Paths
-    base_project_dir = '/home/app/projects/painel_provedores/app-flutter/unified'
+    base_project_dir = args.flutter_project
 
     logo_path = Path(args.logo)
     
