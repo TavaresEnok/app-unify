@@ -55,37 +55,6 @@ class AppTheme {
 
 enum DiagStep { ready, wifi, fiber, tracert, devices, speed, done }
 
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
-  runApp(const ZenithApp());
-}
-
-class ZenithApp extends StatelessWidget {
-  const ZenithApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Zenith Pro',
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: AppTheme.bgLight,
-        useMaterial3: true,
-        primaryColor: AppTheme.primary,
-        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
-      ),
-      home: const Diagnostic07Page(),
-    );
-  }
-}
-
 class Diagnostic07Page extends ConsumerStatefulWidget {
   const Diagnostic07Page({super.key});
 

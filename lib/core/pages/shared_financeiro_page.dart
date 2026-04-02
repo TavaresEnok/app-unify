@@ -554,7 +554,7 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     );
   }
 
-  void _executeTrustUnlock(
+  Future<void> _executeTrustUnlock(
       BuildContext context, Fatura fatura, WidgetRef ref) async {
     final config = ref.read(configurationProvider);
     final authState = ref.read(authNotifierProvider);

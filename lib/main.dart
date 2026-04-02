@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // For PlatformDispatcher
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
@@ -28,10 +29,29 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
+Future<void> _ensureFirebaseSession() async {
+  if (FirebaseAuth.instance.currentUser != null) {
+    return;
+  }
+
+  try {
+    await FirebaseAuth.instance.signInAnonymously();
+    debugPrint('🔐 Firebase Auth anônimo inicializado com sucesso.');
+  } catch (error, stack) {
+    FirebaseCrashlytics.instance.recordError(
+      error,
+      stack,
+      reason: 'anonymous_firebase_auth_bootstrap_failed',
+    );
+    debugPrint('⚠️ Falha ao iniciar sessão anônima no Firebase: $error');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await _ensureFirebaseSession();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Crashlytics Setup (Immortal Mode)
@@ -185,7 +205,11 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       // Mostrar prompt de avaliação após login (com delay)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) RatingPromptDialog.showIfNeeded(context);
+          final currentContext = navigatorKey.currentContext;
+          if (mounted && currentContext != null) {
+            // ignore: use_build_context_synchronously
+            RatingPromptDialog.showIfNeeded(currentContext);
+          }
         });
       });
       return const PainelPage();

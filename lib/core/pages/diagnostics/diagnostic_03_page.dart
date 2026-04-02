@@ -28,27 +28,7 @@ import '../../services/achievement_service.dart';
 import '../../services/test_history_service.dart';
 import '../../utils/diagnostic_utils.dart';
 
-// void main() {
-//   runApp(const DiagnosticApp());
-// }
-
-class DiagnosticApp extends StatelessWidget {
-  const DiagnosticApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Network Diagnostic Pro',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF000000),
-        primaryColor: const Color(0xFF00F5FF),
-        textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
-      ),
-      home: const Diagnostic03Page(),
-    );
-  }
-}
+// main() e DiagnosticApp removidos — usar Diagnostic03Page diretamente no LayoutSelector.
 
 // ═══════════════════════════════════════════════════════════════
 // ENUMS & MODELS

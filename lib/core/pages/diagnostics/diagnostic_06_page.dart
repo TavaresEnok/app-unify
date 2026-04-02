@@ -44,32 +44,7 @@ class AppColors {
 
 enum DiagStep { ready, wifi, fiber, devices, speed, route, done }
 
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
-  runApp(const DiagnosticApp());
-}
-
-class DiagnosticApp extends StatelessWidget {
-  const DiagnosticApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: AppColors.bg,
-      ),
-      home: const Diagnostic06Page(),
-    );
-  }
-}
+// main() e DiagnosticApp removidos — usar Diagnostic06Page diretamente no LayoutSelector.
 
 class Diagnostic06Page extends ConsumerStatefulWidget {
   const Diagnostic06Page({super.key});

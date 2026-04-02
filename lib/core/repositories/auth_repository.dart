@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../models/usuario.dart';
@@ -15,6 +16,14 @@ class AuthRepository {
   // Keys
   static const _bioCpfKey = 'bio_cpf';
   static const _bioPassKey = 'bio_pass';
+
+  Future<void> _ensureFirebaseSession() async {
+    if (FirebaseAuth.instance.currentUser != null) {
+      return;
+    }
+
+    await FirebaseAuth.instance.signInAnonymously();
+  }
 
   Future<Usuario?> loadUserFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
@@ -130,6 +139,7 @@ class AuthRepository {
   Future<void> logout(Usuario? currentUser) async {
     try {
       if (currentUser != null) {
+        await _ensureFirebaseSession();
         await FirebaseFirestore.instance
             .collection('clientes')
             .doc(currentUser.cpfCnpj)
@@ -148,6 +158,7 @@ class AuthRepository {
 
   Future<void> _saveDeviceToken(String cpfCnpj, String providerId) async {
     try {
+      await _ensureFirebaseSession();
       String? token = await FirebaseMessaging.instance.getToken();
 
       // Load user data from storage to sync to Firestore

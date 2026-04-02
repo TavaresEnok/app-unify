@@ -25,10 +25,16 @@ class SuporteService {
     required String userEmail,
   }) async {
     String? imageUrl;
-    String? requesterUid = FirebaseAuth.instance.currentUser?.uid;
+    final auth = FirebaseAuth.instance;
+    String? requesterUid = auth.currentUser?.uid;
 
     if (requesterUid == null) {
-      throw Exception('Falha na autenticação. Usuário não logado.');
+      final credential = await auth.signInAnonymously();
+      requesterUid = credential.user?.uid;
+    }
+
+    if (requesterUid == null) {
+      throw Exception('Falha na autenticação Firebase. Usuário não logado.');
     }
 
     if (imageFile != null) {

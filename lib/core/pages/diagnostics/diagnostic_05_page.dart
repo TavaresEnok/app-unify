@@ -62,8 +62,9 @@ class AppColors {
 
 enum DiagStep { ready, wifi, fiber, devices, speed, route, done }
 
-class DiagnosticApp extends StatelessWidget {
-  const DiagnosticApp({super.key});
+// DiagnosticApp removido — usar Diagnostic05Page diretamente no LayoutSelector.
+class _DiagnosticApp extends StatelessWidget {
+  const _DiagnosticApp();
 
   @override
   Widget build(BuildContext context) {
