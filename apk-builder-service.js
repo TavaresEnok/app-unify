@@ -7,12 +7,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Firebase Admin for token verification
+// Firebase Admin for token verification — usa Application Default Credentials (ADC)
 const admin = require('firebase-admin');
-const serviceAccount = require('./admin-script/serviceAccountKey.json');
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
+admin.initializeApp();
 
 const app = express();
 const PORT = Number(process.env.APK_BUILDER_PORT || process.env.PORT || 8035); // Dedicated port for APK builder
@@ -118,9 +115,14 @@ app.post('/generate-apk', verifySuperAdmin, async (req, res) => {
         });
     }
 
-    // 2. Build Python command
-    const scriptPath = '/home/app/projects/painel_provedores/admin-script/gerar_apk.py';
-    const projectRoot = '/home/app/projects/painel_provedores';
+    // 2. Build Python command — lê paths do ambiente, sem hardcoded
+    const scriptPath = process.env.APK_SCRIPT_PATH
+        || path.join(__dirname, 'admin-script', 'gerar_apk.py');
+    const projectRoot = process.env.APK_PROJECT_ROOT || __dirname;
+    const outputDir = process.env.APK_OUTPUT_DIR
+        || path.join(__dirname, 'public_apks');
+    const flutterProject = process.env.APK_FLUTTER_PROJECT
+        || path.join(__dirname, 'app-flutter', 'unified');
 
     // Generate package name
     const packageName = `br.com.provedores.${safeProviderId}`;
@@ -130,7 +132,8 @@ app.post('/generate-apk', verifySuperAdmin, async (req, res) => {
         '--id', providerId,
         '--nome', appName,
         '--logo', tempLogoPath,
-        '--output', '/home/app/projects/painel_provedores/public_apks',
+        '--output', outputDir,
+        '--flutter-project', flutterProject,
         '--package', packageName
     ];
 

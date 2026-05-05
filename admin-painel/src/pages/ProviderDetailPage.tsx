@@ -25,30 +25,18 @@ export default function ProviderDetailPage() {
     const hasLoadedInitialConfig = useRef(false);
 
     useEffect(() => {
-        // DEBUG: Log provider ID resolution
-        console.log('🔍 [ProviderDetailPage] Resolving provider ID:', {
-            providerIdFromParams,
-            providerIdFromAuth,
-            userRole,
-            resolvedProviderId: providerId
-        });
-
         if (!providerId) {
             toast.error("ID do provedor não identificado.");
-            console.error('❌ [ProviderDetailPage] No providerId available');
             setLoading(false);
             return;
         }
 
         hasLoadedInitialConfig.current = false;
 
-        console.log('📡 [ProviderDetailPage] Fetching document from: provedores/', providerId);
         const docRef = doc(db, "provedores", providerId);
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
-            console.log('📄 [ProviderDetailPage] Document exists:', docSnap.exists());
             if (docSnap.exists()) {
                 const data = docSnap.data() as ProviderData;
-                console.log('✅ [ProviderDetailPage] Provider data loaded:', data.name);
                 setProvider(data);
 
                 const mergedConfig = {
@@ -70,13 +58,11 @@ export default function ProviderDetailPage() {
                     hasLoadedInitialConfig.current = true;
                 }
             } else {
-                console.error('❌ [ProviderDetailPage] Document NOT found for providerId:', providerId);
                 toast.error("Provedor não encontrado.");
                 if (userRole === 'superAdmin') navigate('/provedores');
             }
             setLoading(false);
         }, (error) => {
-            console.error('❌ [ProviderDetailPage] Firestore error:', error);
             toast.error(`Erro ao buscar provedor: ${error.message}`);
             setLoading(false);
         });
@@ -88,28 +74,47 @@ export default function ProviderDetailPage() {
         setIsSaving(true);
         const toastId = toast.loading("Salvando configurações...");
 
-        // --- CORREÇÃO DO ERRO FIREBASE ---
-        // Remove qualquer campo 'undefined' do objeto config antes de enviar.
-        // O Firebase não aceita 'undefined'. O JSON stringify/parse é um truque rápido para limpar isso.
         const cleanConfig = JSON.parse(JSON.stringify(config));
-        // ----------------------------------
 
         const requestId = doc(collection(db, 'function_requests')).id;
         const responseDocRef = doc(db, 'function_responses', requestId);
 
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                unsubscribe();
-                const response = docSnap.data();
-                if (response.result) {
-                    toast.success("Configurações salvas com sucesso!", { id: toastId });
-                } else {
-                    console.error("Erro do Backend:", response.error);
-                    toast.error(`Erro ao salvar. Verifique o console.`, { id: toastId });
+        let unsubscribe: (() => void) | null = null;
+
+        const cleanup = (timeoutId: ReturnType<typeof setTimeout>) => {
+            clearTimeout(timeoutId);
+            if (unsubscribe) unsubscribe();
+        };
+
+        // Timeout de segurança: se a Cloud Function não responder em 35s, desbloqueia o botão
+        const timeoutId = setTimeout(() => {
+            if (unsubscribe) unsubscribe();
+            toast.error('Tempo esgotado: o servidor não respondeu. Tente novamente.', { id: toastId });
+            setIsSaving(false);
+        }, 35000);
+
+        unsubscribe = onSnapshot(
+            responseDocRef,
+            (docSnap) => {
+                if (docSnap.exists()) {
+                    cleanup(timeoutId);
+                    const response = docSnap.data();
+                    if (response.result) {
+                        toast.success("Configurações salvas com sucesso!", { id: toastId });
+                    } else {
+                        console.error("Erro do Backend:", response.error);
+                        toast.error(`Erro ao salvar: ${response.error || 'Erro desconhecido'}`, { id: toastId });
+                    }
+                    setIsSaving(false);
                 }
+            },
+            (error) => {
+                cleanup(timeoutId);
+                console.error('[handleSave] Erro no listener function_responses:', error);
+                toast.error(`Erro ao salvar: ${error.message}`, { id: toastId });
                 setIsSaving(false);
             }
-        });
+        );
 
         try {
             await setDoc(doc(db, 'function_requests', requestId), {
@@ -118,14 +123,14 @@ export default function ProviderDetailPage() {
                 createdAt: serverTimestamp(),
                 payload: {
                     providerId,
-                    config: cleanConfig, // Envia a versão limpa
+                    config: cleanConfig,
                     requesterUid: user.uid
                 }
             });
         } catch (error: any) {
-            toast.error(`Erro ao solicitar a gravação: ${error.message}`);
+            cleanup(timeoutId);
+            toast.error(`Erro ao solicitar a gravação: ${error.message}`, { id: toastId });
             setIsSaving(false);
-            unsubscribe();
         }
     }, [providerId, user, config]);
 

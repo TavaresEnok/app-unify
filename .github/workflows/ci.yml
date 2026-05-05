@@ -137,3 +137,123 @@ jobs:
           fi
           if [ $FOUND -eq 1 ]; then exit 1; fi
           echo "✅ Nenhum segredo óbvio detectado."
+
+  # ─────────────────────────────────────────────────────────
+  # 5. Guard rails de segurança de API
+  # ─────────────────────────────────────────────────────────
+  api-security-guard:
+    name: API Security Guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for password fields in JSON responses
+        run: |
+          set -euo pipefail
+          FILES=(
+            "proxy-sgp/index.js"
+            "api-service/src/index.ts"
+            "functions/src/index.ts"
+          )
+
+          FOUND=0
+          for file in "${FILES[@]}"; do
+            if [ -f "$file" ]; then
+              if perl -0777 -ne 'if(/res\.(?:status\([^\)]*\)\s*\.)?json\s*\(\s*\{[\s\S]{0,1200}?\bsenha\s*:/m){exit 1}' "$file"; then
+                :
+              else
+                echo "❌ ERRO: Campo \"senha\" encontrado em resposta JSON em $file"
+                FOUND=1
+              fi
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            exit 1
+          fi
+          echo "✅ Nenhum campo \"senha\" encontrado em respostas JSON analisadas."
+
+      - name: Check for request body logging
+        run: |
+          set -euo pipefail
+          if grep -RInE 'console\.(log|error|warn)\([^\n]*req\.body' \
+            proxy-sgp api-service functions \
+            --exclude-dir=node_modules --exclude='*.d.ts' >/tmp/req_body_logs.txt; then
+            echo "❌ ERRO: Encontrado log direto de req.body em backend."
+            cat /tmp/req_body_logs.txt
+            exit 1
+          fi
+          echo "✅ Nenhum log direto de req.body encontrado."
+
+      - name: Check /check-cpf response contract (no password field)
+        run: |
+          set -euo pipefail
+          if perl -0777 -ne 'if(/app\.post\(\x27\/check-cpf\x27[\s\S]*?res\.status\(200\)\.json\(responseData\);/){ my $route=$&; if($route =~ /const\s+responseData\s*=\s*\{([\s\S]*?)\n\s*\};/){ my $obj=$1; if($obj =~ /\bsenha\s*:/m){ exit 1 } else { exit 0 } } else { exit 2 } } else { exit 2 }' proxy-sgp/index.js; then
+            echo "✅ Contrato /check-cpf sem campo senha na resposta principal."
+          else
+            code=$?
+            if [ "$code" -eq 2 ]; then
+              echo "❌ ERRO: Bloco da rota /check-cpf não encontrado para validação."
+            else
+              echo "❌ ERRO: Campo senha detectado no contrato de resposta de /check-cpf."
+            fi
+            exit 1
+          fi
+
+      - name: Check admin login safe error contract
+        run: |
+          set -euo pipefail
+          if grep -Fq "const errorMessage = isCredentialError" api-service/src/index.ts \
+            && grep -Fq "'Credenciais inválidas.'" api-service/src/index.ts \
+            && grep -Fq "'Falha na autenticação.'" api-service/src/index.ts \
+            && grep -Fq "res.status(401).json({ error: { message: errorMessage } });" api-service/src/index.ts; then
+            echo "✅ Contrato de erro do login admin está padronizado e seguro."
+          else
+            echo "❌ ERRO: Contrato de erro do login admin fora do padrão seguro esperado."
+            exit 1
+          fi
+
+      - name: Check standardized error contract (401/403/500)
+        run: |
+          set -euo pipefail
+          FILES=(
+            "api-service/src/index.ts"
+            "proxy-sgp/index.js"
+          )
+
+          for file in "${FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              continue
+            fi
+            if ! perl -0777 -ne 'my $bad=0; while(/res\.status\((401|403|500)\)\.json\(([\s\S]*?)\);/g){ my $status=$1; my $payload=$2; if($payload !~ /error\s*:\s*\{\s*message\s*:/s){ print "BAD status $status in $ARGV\n"; $bad=1; } } exit($bad?1:0);' "$file"; then
+              echo "❌ ERRO: Encontradas respostas 401/403/500 fora do contrato de erro padronizado em $file"
+              exit 1
+            fi
+          done
+
+          echo "✅ Contrato padronizado de erro (401/403/500) validado."
+
+      - name: Check critical route smoke coverage (login/invoices/tickets)
+        run: |
+          set -euo pipefail
+          CHECKS=(
+            "api-service/src/index.ts::app.post('/admin/auth/login'"
+            "api-service/src/index.ts::app.post('/getInvoices'"
+            "api-service/src/index.ts::app.get('/admin/tickets'"
+            "api-service/src/index.ts::app.get('/admin/tickets/:ticketId/messages'"
+            "api-service/src/index.ts::app.post('/admin/tickets/:ticketId/messages'"
+            "proxy-sgp/index.js::app.post('/check-cpf'"
+            "proxy-sgp/index.js::app.post('/get-invoices'"
+          )
+
+          for check in "${CHECKS[@]}"; do
+            file="${check%%::*}"
+            pattern="${check##*::}"
+            if ! grep -Fq "$pattern" "$file"; then
+              echo "❌ ERRO: Rota crítica não encontrada: $pattern em $file"
+              exit 1
+            fi
+          done
+
+          echo "✅ Smoke de rotas críticas (login/faturas/tickets) validado."

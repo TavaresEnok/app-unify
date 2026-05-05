@@ -93,8 +93,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(rateLimiter); // Aplica rate limiting a todas as rotas
 
-const PROXY_SECRET_KEY = "CHAVE_SECRETA_MUITO_FORTE_12345";
-const DEV_CPF = "10626994403"; // CPF para Mock/Testes
+const PROXY_SECRET_KEY = process.env.PROXY_SECRET || process.env.PROXY_SECRET_KEY || '';
+if (!PROXY_SECRET_KEY) {
+    console.warn('[WARN] PROXY_SECRET não definido: rotas administrativas (/sync-clients, /build-apk, etc.) retornarão 503.');
+}
+// Mock de login só se explicitamente habilitado (nunca em produção sem intenção)
+const ENABLE_DEV_MOCK = process.env.ENABLE_DEV_CPF_MOCK === 'true';
+const DEV_CPF = ENABLE_DEV_MOCK ? (process.env.DEV_MOCK_CPF || '').replace(/\D/g, '') : '';
 // --------------------
 const DB_FILE_PATH = './cache.db';
 const db = new sqlite3.Database(DB_FILE_PATH, (err) => {
@@ -111,7 +116,7 @@ async function callSgpApi(params) {
     }
 
     console.log(`[SGP-API] Chamando: ${url}`);
-    console.log(`[SGP-API] Params:`, rest);
+    secureLog(`[SGP-API] Params:`, rest);
 
     // Endpoints que exigem JSON (apenas liberacaopromessa precisa JSON)
     const jsonEndpoints = ['/api/ura/liberacaopromessa/'];
@@ -157,8 +162,8 @@ async function callSgpApi(params) {
     } catch (error) {
         console.error(`[SGP-API] Erro ao chamar ${url}:`, error.message);
         if (error.response) {
-            console.error(`[SGP-API] Response data:`, error.response.data);
-            throw new Error(`SGP retornou erro: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+            secureLog(`[SGP-API] Response data:`, error.response.data);
+            throw new Error(`SGP retornou erro HTTP ${error.response.status}`);
         }
         throw new Error(`Erro de conexão com SGP: ${error.message}`);
     }
@@ -181,39 +186,138 @@ function parseSignalValue(value) {
     return isNaN(num) ? null : num;
 }
 
-// --- HELPER: Credential Injection (Safeguard) ---
-// Garante que Token e App existam, usando padrão se necessário.
-function ensureSgpCredentials(body) {
-    const sgpParams = body.sgpParams || {};
-    const sgpBaseUrl = body.sgpBaseUrl || "https://vibetelecom.sgp.net.br";
+const SENSITIVE_KEY_PATTERNS = ['senha', 'password', 'token', 'authorization', 'cpf', 'cnpj', 'apiToken', 'codigoPix', 'linha_digitavel'];
 
-    // Credenciais Padrão (Definitivas para este servidor)
-    if (!sgpParams.token) sgpParams.token = "4b6aae35-219a-4580-8c5c-dfb4efdbfae3";
-    if (!sgpParams.app) sgpParams.app = "APP-PROVEDOR";
+function isSensitiveKey(key = '') {
+    const normalized = String(key).toLowerCase();
+    return SENSITIVE_KEY_PATTERNS.some((pattern) => normalized.includes(pattern.toLowerCase()));
+}
+
+function maskString(value) {
+    if (typeof value !== 'string') return value;
+    if (value.length <= 4) return '***';
+    return `${value.slice(0, 2)}***${value.slice(-2)}`;
+}
+
+function maskCpfCnpj(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return 'N/A';
+    if (digits.length <= 4) return '***';
+    return `${digits.slice(0, 2)}***${digits.slice(-2)}`;
+}
+
+function sanitizeForLog(value, currentKey = '') {
+    if (value === null || value === undefined) return value;
+    if (Array.isArray(value)) return value.map((item) => sanitizeForLog(item, currentKey));
+
+    if (typeof value === 'object') {
+        const sanitized = {};
+        for (const [key, val] of Object.entries(value)) {
+            sanitized[key] = sanitizeForLog(val, key);
+        }
+        return sanitized;
+    }
+
+    if (isSensitiveKey(currentKey)) {
+        if (typeof value === 'string') return maskString(value);
+        if (typeof value === 'number') return -1;
+        return '***';
+    }
+
+    return value;
+}
+
+function secureLog(prefix, payload) {
+    if (payload === undefined) {
+        console.log(prefix);
+        return;
+    }
+    console.log(prefix, sanitizeForLog(payload));
+}
+
+// --- HELPER: credenciais SGP (NUNCA hardcodar tokens no repositório) ---
+function ensureSgpCredentials(body) {
+    const sgpParams = { ...(body.sgpParams || {}) };
+    const sgpBaseUrl = (body.sgpBaseUrl || process.env.SGP_BASE_URL || 'https://vibetelecom.sgp.net.br').trim().replace(/\/$/, '');
+
+    if (!sgpParams.token && process.env.SGP_TOKEN) sgpParams.token = process.env.SGP_TOKEN;
+    if (!sgpParams.app && process.env.SGP_APP_NAME) sgpParams.app = process.env.SGP_APP_NAME;
 
     return { sgpParams, sgpBaseUrl };
 }
 
+function requireSgpClientCredentials(sgpParams, res) {
+    if (!sgpParams?.token || !sgpParams?.app) {
+        res.status(503).json({
+            error: { message: 'Integração SGP incompleta: envie sgpParams no app ou defina SGP_TOKEN e SGP_APP_NAME no servidor.' },
+        });
+        return false;
+    }
+    return true;
+}
+
+function assertProxySecret(secret, res) {
+    if (!PROXY_SECRET_KEY) {
+        res.status(503).json({ error: { message: 'Servidor não configurado (defina PROXY_SECRET).' } });
+        return false;
+    }
+    if (secret !== PROXY_SECRET_KEY) {
+        res.status(403).json({ error: { message: 'Acesso não autorizado.' } });
+        return false;
+    }
+    return true;
+}
+
+async function resolveClientContractCredentials({ cpfCnpjUnformatted, sgpParams, sgpBaseUrl, contratoPreferido }) {
+    const consultaParams = {
+        ...sgpParams,
+        cpfcnpj: cpfCnpjUnformatted,
+        url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/')
+    };
+
+    const consultaResponse = await executePhp(consultaParams);
+    if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) {
+        throw new Error('Nenhum contrato encontrado.');
+    }
+
+    let contratoSelecionado = consultaResponse.contratos[0];
+    if (contratoPreferido) {
+        const found = consultaResponse.contratos.find((c) => String(c?.contratoId) === String(contratoPreferido));
+        if (found) contratoSelecionado = found;
+    }
+
+    return {
+        contratoId: contratoSelecionado?.contratoId ? String(contratoSelecionado.contratoId) : null,
+        senhaCentral: contratoSelecionado?.contratoCentralSenha || '',
+        contrato: contratoSelecionado,
+    };
+}
+
 // 1. Rota de Consumo
 app.post('/get-consumption-data', async (req, res) => {
-    const { cpfCnpj, senha, mes, ano } = req.body;
+    const { cpfCnpj, senha: senhaInput, mes, ano } = req.body;
     const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
 
-    if (!cpfCnpj || !senha) return res.status(400).json({ error: { message: "Dados incompletos (CPF/Senha)." } });
+    if (!cpfCnpj) return res.status(400).json({ error: { message: "Dados incompletos (CPF)." } });
 
     try {
-        const consultaParams = {
-            ...sgpParams,
-            cpfcnpj: cpfCnpj,
-            url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/')
-        };
-        const consultaResponse = await executePhp(consultaParams);
+        const cpfCnpjUnformatted = cpfCnpj.replace(/[^0-9]/g, '');
+        const { contratoId, senhaCentral } = await resolveClientContractCredentials({
+            cpfCnpjUnformatted,
+            sgpParams,
+            sgpBaseUrl,
+        });
 
-        if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) {
-            return res.status(404).json({ error: { message: "Nenhum contrato encontrado." } });
+        if (!contratoId) {
+            return res.status(404).json({ error: { message: 'Nenhum contrato encontrado.' } });
         }
 
-        const contratoId = consultaResponse.contratos[0].contratoId;
+        const senha = senhaInput || senhaCentral;
+        if (!senha) {
+            return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para extrato de consumo.' } });
+        }
+
         const hoje = new Date();
         // Use provided month/year or default to current
         // Note: JS getMonth() is 0-indexed (0=Jan), SGP expects 1-12
@@ -224,9 +328,9 @@ app.post('/get-consumption-data', async (req, res) => {
 
         const extratoParams = {
             ...sgpParams,
-            cpfcnpj: cpfCnpj,
+            cpfcnpj: cpfCnpjUnformatted,
             senha: senha,
-            contrato: contratoId.toString(),
+            contrato: contratoId,
             mes: targetMonth,
             ano: targetYear,
             url: formatSgpUrl(sgpBaseUrl, '/api/central/extratouso/')
@@ -302,7 +406,7 @@ const activeSyncs = new Set();
 
 app.post('/sync-clients', async (req, res) => {
     const { secret, params, providerId, sgpBaseUrl } = req.body;
-    if (secret !== PROXY_SECRET_KEY) return res.status(403).json({ error: "Acesso não autorizado." });
+    if (!assertProxySecret(secret, res)) return;
 
     // Evitar concorrência para o mesmo provedor
     if (activeSyncs.has(providerId)) {
@@ -395,14 +499,14 @@ app.post('/sync-clients', async (req, res) => {
         activeSyncs.delete(providerId);
         console.error(`[SYNC] Erro fatal: ${error.message}`);
         // Se ainda não respondeu (erro na pg 1), responde agora
-        if (!res.headersSent) res.status(500).json({ error: error.message });
+        if (!res.headersSent) res.status(500).json({ error: { message: error.message } });
     }
 });
 app.post('/get-cached-clients', (req, res) => {
     const { secret, providerId } = req.body;
     const { limit = 25, offset = 0, searchTerm = '' } = req.body.params || {};
 
-    if (secret !== PROXY_SECRET_KEY) return res.status(403).json({ error: "Acesso não autorizado." });
+    if (!assertProxySecret(secret, res)) return;
 
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
     console.log(`[CACHE] Buscando clientes para ${providerId}: limit=${limit}, offset=${offset}, search="${searchTerm}"`);
@@ -415,7 +519,7 @@ app.post('/get-cached-clients', (req, res) => {
                 return res.status(200).json({ clientes: [], paginacao: { total: 0, limit, offset } });
             }
             console.error(`[CACHE] Erro Count: ${err.message}`);
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: { message: err.message } });
         }
 
         const total = row ? row.total : 0;
@@ -424,7 +528,7 @@ app.post('/get-cached-clients', (req, res) => {
         db.all(`SELECT * FROM ${tableName} WHERE nome LIKE ? OR cpfcnpj LIKE ? LIMIT ? OFFSET ?`, [searchQuery, searchQuery, limit, offset], (err, rows) => {
             if (err) {
                 console.error(`[CACHE] Erro Select: ${err.message}`);
-                return res.status(500).json({ error: err.message });
+                return res.status(500).json({ error: { message: err.message } });
             }
             const clients = rows.map(r => ({ ...r, contratos: JSON.parse(r.contratos || '[]') }));
             console.log(`[CACHE] Retornando ${clients.length} clientes.`);
@@ -434,10 +538,10 @@ app.post('/get-cached-clients', (req, res) => {
 });
 app.post('/get-single-client', (req, res) => {
     const { secret, providerId, params } = req.body;
-    if (secret !== PROXY_SECRET_KEY) return res.status(403).json({ error: "Acesso não autorizado." });
+    if (!assertProxySecret(secret, res)) return;
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
     db.get(`SELECT * FROM ${tableName} WHERE id = ?`, [params?.clientId], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) return res.status(500).json({ error: { message: err.message } });
         if (!row) return res.status(404).json({ error: "Cliente não encontrado." });
         row.contratos = JSON.parse(row.contratos || '[]');
         res.status(200).json(row);
@@ -448,9 +552,9 @@ app.post('/check-cpf', async (req, res) => {
     const { cpf } = req.body;
     const cpfCnpjUnformatted = cpf ? cpf.replace(/[^0-9]/g, '') : '';
     const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
 
-    console.log(`\n[Check-CPF] Recebido POST para CPF: ${cpf}`);
-    console.log(`[Check-CPF] Body Completo: ${JSON.stringify(req.body)}`);
+    console.log(`\n[Check-CPF] Recebido POST para CPF: ${maskCpfCnpj(cpfCnpjUnformatted || cpf)}`);
 
     if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos." } });
 
@@ -463,15 +567,14 @@ app.post('/check-cpf', async (req, res) => {
     // }
 
     // Log para debug
-    console.log(`[Check-CPF] Iniciando check para ${cpfCnpjUnformatted}`);
-    console.log(`[Check-CPF] Params usados: Token=${sgpParams.token?.substring(0, 5)}..., App=${sgpParams.app}, URL=${sgpBaseUrl}`);
-    // MOCK LOGIN
-    if (cpfCnpjUnformatted === DEV_CPF) {
-        console.log(`[MOCK] Login Check-CPF para DEV: ${DEV_CPF}`);
+    console.log(`[Check-CPF] Iniciando check para ${maskCpfCnpj(cpfCnpjUnformatted)}`);
+    console.log(`[Check-CPF] Params usados: App=${sgpParams.app}, URL=${sgpBaseUrl}`);
+    // MOCK LOGIN (somente com ENABLE_DEV_CPF_MOCK=true + DEV_MOCK_CPF)
+    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
+        console.log(`[MOCK] Login Check-CPF para DEV: ${maskCpfCnpj(DEV_CPF)}`);
         return res.status(200).json({
             nome: "Desenvolvedor Teste Mock",
             cpfCnpj: DEV_CPF,
-            senha: "123",
             plano: "Fibra 500MB Mock",
             status: "Ativo",
             valorFatura: "99,90",
@@ -488,12 +591,10 @@ app.post('/check-cpf', async (req, res) => {
         };
         const clientResponse = await executePhp(clientParams);
 
-        // DEBUG EXTREMO: Gravar em arquivo para escapar do PM2 logs truncation
-        try {
-            require('fs').appendFileSync('debug_login.log', `[${new Date().toISOString()}] RAW RESPONSE: ${JSON.stringify(clientResponse)}\n`);
-        } catch (e) { console.error('Erro ao gravar debug log', e); }
-
-        console.log('[Check-CPF] Raw SGP Response:', JSON.stringify(clientResponse));
+        secureLog('[Check-CPF] Consulta cliente (sanitizado):', {
+            contratosEncontrados: clientResponse?.contratos?.length || 0,
+            primeiroContratoId: clientResponse?.contratos?.[0]?.contratoId || null,
+        });
 
         if (!clientResponse?.contratos?.length) return res.status(404).json({ error: { message: "Cliente não encontrado." } });
 
@@ -543,14 +644,13 @@ app.post('/check-cpf', async (req, res) => {
                     console.log(`[Check-CPF] Novo valor calculado (Inteligente): ${valorAberto}, Vencimento: ${vencimento}`);
                 }
             } catch (e) {
-                console.error('[Check-CPF] Erro ao buscar títulos para saldo:', e);
+                console.error('[Check-CPF] Erro ao buscar títulos para saldo:', e?.message || 'erro desconhecido');
             }
         }
 
         const responseData = {
             nome: contrato.razaoSocial,
             cpfCnpj: contrato.cpfCnpj,
-            senha: contrato.contratoCentralSenha,
             plano: contrato.servico_plano,
             status: contrato.contratoStatusDisplay || "Ativo", // Será substituído abaixo se verificaAcesso funcionar
             valorFatura: valorAberto.toFixed(2).replace('.', ','),
@@ -581,7 +681,7 @@ app.post('/check-cpf', async (req, res) => {
                 };
 
                 const verificaResponse = await executePhp(verificaParams);
-                console.log('[Check-CPF] verificaacesso Resposta:', JSON.stringify(verificaResponse).substring(0, 500));
+                secureLog('[Check-CPF] verificaacesso Resposta (sanitizada):', verificaResponse);
 
                 // A API retorna o status de disponibilidade da conexão
                 if (verificaResponse) {
@@ -615,8 +715,7 @@ app.post('/check-cpf', async (req, res) => {
         }
         // ========================================================================
 
-        console.log('[Check-CPF] Resposta Enviada:', JSON.stringify(responseData));
-        console.log('[Check-CPF] Resposta Enviada:', JSON.stringify(responseData));
+        secureLog('[Check-CPF] Resposta enviada (sanitizada):', responseData);
 
         // CACHE DISABLED - also disable save
         // setInCache(cacheKey, responseData);
@@ -628,10 +727,10 @@ app.post('/get-client-data-for-login', async (req, res) => {
     // Mesma lógica do check-cpf mas com faturas
     const { cpfCnpj, sgpParams, sgpBaseUrl } = req.body;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
-    if (cpfCnpjUnformatted === DEV_CPF) {
+    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
         return res.status(200).json({
             data: {
-                cpfCnpj: DEV_CPF, senha: "123", userName: "Dev Teste", userPlan: "Fibra Mock",
+                cpfCnpj: DEV_CPF, userName: "Dev Teste", userPlan: "Fibra Mock",
                 userStatus: "Ativo", billValue: "R$ 99,90", billDueDate: "Vence em 10/12"
             }
         });
@@ -644,9 +743,9 @@ app.post('/get-client-data-for-login', async (req, res) => {
 app.post('/diagnostic/onu-signal', async (req, res) => { handleOnuRequest(req, res, true); });
 app.post('/diagnostic/onu-signal-base', async (req, res) => { handleOnuRequest(req, res, false); });
 async function handleOnuRequest(req, res, useFilters) {
-    const { cpfCnpj, senha, contrato, sgpParams, sgpBaseUrl } = req.body;
+    const { cpfCnpj, senha: senhaInput, contrato, sgpParams, sgpBaseUrl } = req.body;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
-    if (cpfCnpjUnformatted === DEV_CPF) {
+    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
         return res.status(200).json({
             data: {
                 signalRx: -19.5, signalTx: 2.5, connectionStatus: 'Online',
@@ -659,15 +758,33 @@ async function handleOnuRequest(req, res, useFilters) {
     }
     if (!cpfCnpjUnformatted || !sgpParams || !sgpBaseUrl) return res.status(400).json({ error: { message: "Dados incompletos." } });
     try {
+        let senha = senhaInput;
+        let contratoResolvido = contrato;
+
+        if (!senha || !contratoResolvido) {
+            const resolved = await resolveClientContractCredentials({
+                cpfCnpjUnformatted,
+                sgpParams,
+                sgpBaseUrl,
+                contratoPreferido: contrato,
+            });
+            senha = senha || resolved.senhaCentral;
+            contratoResolvido = contratoResolvido || resolved.contratoId;
+        }
+
+        if (!senha) {
+            return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para diagnóstico ONU.' } });
+        }
+
         const onuParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, url: formatSgpUrl(sgpBaseUrl, '/api/fttx/onu/list/') };
         if (useFilters) { onuParams.signal = '1'; onuParams.connection = '1'; }
-        if (contrato) onuParams.contrato = contrato.toString();
+        if (contratoResolvido) onuParams.contrato = contratoResolvido.toString();
         const onuResponse = await executePhp(onuParams);
         if (!onuResponse || !Array.isArray(onuResponse) || onuResponse.length === 0) return res.status(404).json({ error: { message: "Nenhuma ONU encontrada." } });
         const onu = onuResponse[0];
 
         // DEBUG: Log raw ONU response to see field names
-        console.log('[ONU DEBUG] Raw response:', JSON.stringify(onu, null, 2));
+        secureLog('[ONU DEBUG] Raw response (sanitizada):', onu);
 
         const formattedData = {
             // Signal: SGP returns info_rx/info_tx as "N/A" or "-23.5 dBm"
@@ -712,53 +829,85 @@ app.post('/diagnostic/analyze', async (req, res) => {
         }
     };
     // Developer Backdoor
-    if (cpfCnpj && cpfCnpj.replace(/[^0-9]/g, '') === DEV_CPF) {
+    if (DEV_CPF && cpfCnpj && cpfCnpj.replace(/[^0-9]/g, '') === DEV_CPF) {
         return res.status(200).json(mockAnalysis);
     }
     res.status(200).json(mockAnalysis);
 });
 // 5. Rotas CPE Manager (Wi-Fi)
 app.post('/cpe/wifi/list', async (req, res) => {
-    const { cpfCnpj, senha, contrato } = req.body;
+    const { cpfCnpj, senha: senhaInput, contrato } = req.body;
     const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
-    // DEBUG: Verificando o que está chegando
-    console.log(`[WIFI-LIST] Buscando para Contrato: ${contrato}`);
-    if (!contrato) {
-        console.error("[WIFI-LIST] Erro: Dados incompletos", req.body);
-        return res.status(400).json({ error: { message: "Dados incompletos" } });
+    let contratoId = contrato;
+    let senha = senhaInput;
+
+    if (!cpfCnpjUnformatted) {
+        return res.status(400).json({ error: { message: 'Dados incompletos (CPF).' } });
     }
+
     try {
-        const fullUrl = formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/list/`);
+        if (!senha || !contratoId) {
+            const resolved = await resolveClientContractCredentials({
+                cpfCnpjUnformatted,
+                sgpParams,
+                sgpBaseUrl,
+                contratoPreferido: contrato,
+            });
+            contratoId = contratoId || resolved.contratoId;
+            senha = senha || resolved.senhaCentral;
+        }
+
+        if (!contratoId || !senha) {
+            return res.status(503).json({ error: { message: 'Credenciais do contrato indisponíveis para listar Wi-Fi.' } });
+        }
+
+        const fullUrl = formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contratoId}/wifi/list/`);
         console.log(`[WIFI-LIST] URL SGP: ${fullUrl}`);
         const wifiParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, url: fullUrl };
         const response = await executePhp(wifiParams);
         // Check if response contains PHP errors or execution errors
         if (response && (response.message || response.error)) {
-            console.log(`[WIFI-LIST] Resposta SGP (Possível Erro):`, JSON.stringify(response));
+            secureLog(`[WIFI-LIST] Resposta SGP (Possível Erro):`, response);
         } else {
             console.log(`[WIFI-LIST] Sucesso. Itens encontrados:`, Array.isArray(response) ? response.length : 'Obj');
         }
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         console.error(`[WIFI-LIST] CRITICAL ERROR:`, error.message);
-        console.error(error);
         res.status(500).json({ error: { message: error.message } });
     }
 });
 app.post('/cpe/wifi/update', async (req, res) => {
-    const { cpfCnpj, senha, contrato, wifiId, ssid, password } = req.body;
+    const { cpfCnpj, senha: senhaInput, contrato, wifiId, ssid, password } = req.body;
     const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     console.log(`[WIFI-UPDATE] Tentando atualizar WiFi ID: ${wifiId} do Contrato: ${contrato}`);
     if (!contrato || !wifiId || !ssid || !password) return res.status(400).json({ error: { message: "Dados incompletos" } });
     try {
+        let senha = senhaInput;
+        if (!senha) {
+            const resolved = await resolveClientContractCredentials({
+                cpfCnpjUnformatted,
+                sgpParams,
+                sgpBaseUrl,
+                contratoPreferido: contrato,
+            });
+            senha = resolved.senhaCentral;
+        }
+
+        if (!senha) {
+            return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para atualizar Wi-Fi.' } });
+        }
+
         const updateParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, wifi_id: wifiId, ssid, password, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/update/`) };
         const response = await executePhp(updateParams);
-        console.log(`[WIFI-UPDATE] Resposta SGP:`, response);
+        secureLog(`[WIFI-UPDATE] Resposta SGP:`, response);
         res.status(200).json({ success: true, data: response });
     } catch (error) {
-        console.error(`[WIFI-UPDATE] ERROR:`, error);
+        console.error(`[WIFI-UPDATE] ERROR:`, error.message);
         res.status(500).json({ error: { message: error.message } });
     }
 });
@@ -767,6 +916,7 @@ app.post('/cpe/wifi/update', async (req, res) => {
 app.post('/get-invoices', async (req, res) => {
     const { cpfCnpj } = req.body;
     const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
 
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
 
@@ -774,14 +924,14 @@ app.post('/get-invoices', async (req, res) => {
     const cacheKey = `invoices_${cpfCnpjUnformatted}`;
     const cachedData = getFromCache(cacheKey);
     if (cachedData) {
-        console.log(`[Faturas] Hit Cache para ${cpfCnpjUnformatted}`);
+        console.log(`[Faturas] Hit Cache para ${maskCpfCnpj(cpfCnpjUnformatted)}`);
         return res.status(200).json(cachedData);
     }
 
     if (!cpfCnpjUnformatted) {
         return res.status(400).json({ error: { message: "cpfCnpj obrigatório." } });
     }
-    console.log(`[Faturas] Buscando faturas para: ${cpfCnpjUnformatted} no SGP: ${sgpBaseUrl}`);
+    console.log(`[Faturas] Buscando faturas para: ${maskCpfCnpj(cpfCnpjUnformatted)} no SGP: ${sgpBaseUrl}`);
 
     try {
         const url = formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/');
@@ -798,7 +948,7 @@ app.post('/get-invoices', async (req, res) => {
 
         // DEBUG: Log raw response to find PIX field name
         if (responseAbertos?.titulos && responseAbertos.titulos.length > 0) {
-            console.log(`[Faturas DEBUG] Primeiro título aberto (raw):`, JSON.stringify(responseAbertos.titulos[0], null, 2));
+            secureLog(`[Faturas DEBUG] Primeiro título aberto (sanitizado):`, responseAbertos.titulos[0]);
         }
 
         let formattedInvoices = [];
@@ -853,7 +1003,7 @@ app.post('/unlock-trust', async (req, res) => {
     if (!cpfCnpjUnformatted || !sgpParams || !sgpBaseUrl) {
         return res.status(400).json({ error: { message: "cpfCnpj, sgpParams e sgpBaseUrl são obrigatórios." } });
     }
-    console.log(`[Unlock] Solicitando desbloqueio para: ${cpfCnpjUnformatted}`);
+    console.log(`[Unlock] Solicitando desbloqueio para: ${maskCpfCnpj(cpfCnpjUnformatted)}`);
 
     try {
         // 1. Busca contrato do cliente
@@ -885,10 +1035,7 @@ app.post('/unlock-trust', async (req, res) => {
 app.post('/build-apk', async (req, res) => {
     const { secret, architecture = 'arm64-v8a', providerId = 'default' } = req.body;
 
-    // Validação de segurança
-    if (secret !== PROXY_SECRET_KEY) {
-        return res.status(403).json({ error: "Acesso não autorizado." });
-    }
+    if (!assertProxySecret(secret, res)) return;
 
     console.log(`[Build-APK] Iniciando build para ${architecture}...`);
 
@@ -986,7 +1133,7 @@ app.post('/build-apk', async (req, res) => {
         });
 
     } catch (error) {
-        console.error(`[Build-APK] Erro crítico não tratado:`, error);
+        console.error(`[Build-APK] Erro crítico não tratado:`, error?.message || 'erro desconhecido');
         res.status(500).json({
             error: {
                 message: `Erro inesperado: ${error.message}`,

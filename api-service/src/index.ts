@@ -72,7 +72,43 @@ const apkLimiter = rateLimit({
   message: { error: { message: 'Limite de geração de APK atingido. Tente novamente em 1 hora.' } },
 });
 
+// Traceroute: operação pesada e sensível — limite próprio (app do assinante, sem JWT)
+const tracerouteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { message: 'Limite de diagnóstico de rota atingido. Tente novamente em 1 hora.' } },
+});
+
 app.use(globalLimiter);
+
+function isPrivateIpv4(octets: number[]): boolean {
+  const [a, b] = octets;
+  if (a === 10) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a >= 224) return true;
+  return false;
+}
+
+/** Evita injeção de comando e traceroute para redes internas (args passados sem shell). */
+function isValidTracerouteTarget(target: string): boolean {
+  if (!target || target.length > 253) return false;
+  if (/[^a-zA-Z0-9.-]/.test(target) || target.startsWith('-')) return false;
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const m = target.match(ipv4);
+  if (m) {
+    const octets = [1, 2, 3, 4].map(i => parseInt(m[i], 10));
+    if (octets.some(n => n > 255)) return false;
+    if (isPrivateIpv4(octets)) return false;
+    return true;
+  }
+  if (!/[a-zA-Z]/.test(target)) return false;
+  return true;
+}
 
 // =========================================================================
 // MIDDLEWARES DE AUTENTICAÇÃO
@@ -124,8 +160,23 @@ app.post('/admin/auth/login', loginLimiter, async (req, res) => {
 
     res.json({ token: idToken, user: { uid: localId, email: userEmail } });
   } catch (error: any) {
-    console.error('Erro no login admin:', error.response?.data || error.message);
-    const errorMessage = error.response?.data?.error?.message || 'Falha na autenticação.';
+    const providerCode = error?.response?.data?.error?.message;
+    const isCredentialError = typeof providerCode === 'string' && [
+      'INVALID_LOGIN_CREDENTIALS',
+      'INVALID_PASSWORD',
+      'EMAIL_NOT_FOUND',
+      'INVALID_EMAIL',
+    ].includes(providerCode);
+
+    console.error('Erro no login admin:', {
+      status: error?.response?.status,
+      code: providerCode || error?.code || 'UNKNOWN',
+    });
+
+    const errorMessage = isCredentialError
+      ? 'Credenciais inválidas.'
+      : 'Falha na autenticação.';
+
     res.status(401).json({ error: { message: errorMessage } });
   }
 });
@@ -136,6 +187,28 @@ app.post('/admin/auth/login', loginLimiter, async (req, res) => {
 
 app.get('/admin/providers', verifyToken, async (req, res) => {
   try {
+    const user = (req as express.Request & { user?: { superAdmin?: boolean; providerId?: string } }).user;
+    const isSuper = user?.superAdmin === true;
+    const claimPid = typeof user?.providerId === 'string' ? user.providerId : undefined;
+
+    if (!isSuper) {
+      if (!claimPid) {
+        return res.status(403).json({ error: { message: 'Sem permissão para listar provedores.' } });
+      }
+      const doc = await admin.firestore().collection('provedores').doc(claimPid).get();
+      if (!doc.exists) {
+        return res.json({ data: [] });
+      }
+      const data = doc.data() as Record<string, unknown>;
+      if (data.createdAt && typeof (data.createdAt as { toDate?: () => Date }).toDate === 'function') {
+        data.createdAt = (data.createdAt as { toDate: () => Date }).toDate().toISOString();
+      }
+      if (data.updatedAt && typeof (data.updatedAt as { toDate?: () => Date }).toDate === 'function') {
+        data.updatedAt = (data.updatedAt as { toDate: () => Date }).toDate().toISOString();
+      }
+      return res.json({ data: [{ id: doc.id, ...data }] });
+    }
+
     const snapshot = await admin.firestore().collection('provedores').get();
     const providers = snapshot.docs.map(doc => {
       const data = doc.data();
@@ -303,6 +376,24 @@ function createSgpSession() {
   });
 }
 
+async function resolveContractCredentials(session: ReturnType<typeof createSgpSession>, baseUrl: string, cpfCnpj: string) {
+  const consultaResponse = await session.post(`${baseUrl}/ws/ura/consultacliente/`, {
+    token: SGP_TOKEN,
+    app: SGP_APP_NAME,
+    cpfcnpj: cpfCnpj,
+  });
+
+  if (!consultaResponse.data || !Array.isArray(consultaResponse.data.contratos) || consultaResponse.data.contratos.length === 0) {
+    throw new Error('Nenhum contrato encontrado para este cliente.');
+  }
+
+  const contrato = consultaResponse.data.contratos[0];
+  const contratoId = contrato.contratoId || contrato.contrato_id || contrato.id;
+  const senhaCentral = contrato.contratoCentralSenha || contrato.central_senha || '';
+
+  return { contrato, contratoId, senhaCentral };
+}
+
 app.post('/getClientData', sgpLimiter, async (req, res) => {
   if (!requireSgpCredentials(res)) return;
   try {
@@ -314,26 +405,14 @@ app.post('/getClientData', sgpLimiter, async (req, res) => {
     const baseUrl = 'https://vibetelecom.sgp.net.br';
     const session = createSgpSession();
 
-    const consultaResponse = await session.post(`${baseUrl}/ws/ura/consultacliente/`, {
-      token: SGP_TOKEN,
-      app: SGP_APP_NAME,
-      cpfcnpj: cpfCnpj,
-    });
-
-    if (!consultaResponse.data || !Array.isArray(consultaResponse.data.contratos) || consultaResponse.data.contratos.length === 0) {
-      throw new Error('Nenhum contrato encontrado para este cliente.');
-    }
-
-    const contrato = consultaResponse.data.contratos[0];
+    const { contrato, contratoId, senhaCentral } = await resolveContractCredentials(session, baseUrl, cpfCnpj);
     const hoje = new Date();
     const mesAtual = hoje.getMonth() + 1;
     const anoAtual = hoje.getFullYear();
 
     let connectionStatus = 'Offline';
     try {
-      const contratoId = contrato.contratoId || contrato.contrato_id || contrato.id;
       const cpfLimpo = cpfCnpj.replace(/\D/g, '');
-      const senhaCentral = contrato.contratoCentralSenha || contrato.central_senha || '';
 
       if (contratoId && senhaCentral) {
         const verificaResponse = await session.post(`${baseUrl}/api/central/verificaacesso/`, {
@@ -357,23 +436,22 @@ app.post('/getClientData', sgpLimiter, async (req, res) => {
         }
       }
     } catch (verificaError: any) {
-      console.error('[verificaacesso] Erro ao consultar status:', verificaError?.response?.data || verificaError.message);
+      console.error('[verificaacesso] Erro ao consultar status:', verificaError?.message || 'erro desconhecido');
     }
 
     res.json({
       data: {
         cpfCnpj: contrato.cpfCnpj,
-        senha: contrato.contratoCentralSenha,
         userName: contrato.razaoSocial,
         userPlan: contrato.servico_plano,
         userStatus: connectionStatus,
         billValue: `R$ ${parseFloat(contrato.contratoValorAberto || 0).toFixed(2).replace('.', ',')}`,
         billDueDate: `Vence em ${contrato.cobVencimento}/${mesAtual}/${anoAtual}`,
-        contratoId: contrato.contratoId || contrato.contrato_id || contrato.id,
+        contratoId,
       },
     });
   } catch (error: any) {
-    console.error('Erro detalhado na getClientData:', error.response?.data || error.message);
+    console.error('Erro na getClientData:', error?.message || 'erro desconhecido');
     const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
     res.status(500).json({ error: { message: `Erro ao buscar dados do cliente: ${errorMessage}` } });
   }
@@ -382,25 +460,19 @@ app.post('/getClientData', sgpLimiter, async (req, res) => {
 app.post('/getConsumptionData', sgpLimiter, async (req, res) => {
   if (!requireSgpCredentials(res)) return;
   try {
-    const { cpfCnpj, senha } = req.body;
-    if (!cpfCnpj || !senha) {
-      return res.status(400).json({ error: { message: 'CPF/CNPJ e Senha da Central são obrigatórios.' } });
+    const { cpfCnpj, senha: senhaInput } = req.body;
+    if (!cpfCnpj) {
+      return res.status(400).json({ error: { message: 'CPF/CNPJ é obrigatório.' } });
     }
 
     const baseUrl = 'https://vibetelecom.sgp.net.br';
     const session = createSgpSession();
+    const { contratoId, senhaCentral } = await resolveContractCredentials(session, baseUrl, cpfCnpj);
+    const senha = senhaInput || senhaCentral;
 
-    const consultaResponse = await session.post(`${baseUrl}/ws/ura/consultacliente/`, {
-      token: SGP_TOKEN,
-      app: SGP_APP_NAME,
-      cpfcnpj: cpfCnpj,
-    });
-
-    if (!consultaResponse.data || !Array.isArray(consultaResponse.data.contratos) || consultaResponse.data.contratos.length === 0) {
-      throw new Error('Nenhum contrato encontrado para este cliente.');
+    if (!senha) {
+      return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para consulta de consumo.' } });
     }
-
-    const contratoId = consultaResponse.data.contratos[0].contratoId;
     const hoje = new Date();
     const mes = hoje.getMonth() + 1;
     const ano = hoje.getFullYear();
@@ -430,7 +502,7 @@ app.post('/getConsumptionData', sgpLimiter, async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Erro detalhado na getConsumptionData:', error.response?.data || error.message);
+    console.error('Erro na getConsumptionData:', error?.message || 'erro desconhecido');
     const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
     res.status(500).json({ error: { message: `Erro ao buscar dados de consumo: ${errorMessage}` } });
   }
@@ -592,33 +664,55 @@ app.post('/diagnostic/onu-signal', sgpLimiter, async (req, res) => {
   }
 });
 
-app.post('/diagnostic/traceroute', async (req, res) => {
+app.post('/diagnostic/traceroute', tracerouteLimiter, async (req, res) => {
   try {
-    const { target = '8.8.8.8', maxHops = 15 } = req.body;
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
+    const rawTarget = typeof req.body?.target === 'string' ? req.body.target.trim() : '8.8.8.8';
+    let maxHops = Number(req.body?.maxHops) || 15;
+    if (!Number.isFinite(maxHops) || maxHops < 1) maxHops = 15;
+    if (maxHops > 30) maxHops = 30;
 
-    try {
-      const { stdout } = await execAsync(`traceroute -n -m ${maxHops} -w 2 ${target}`, { timeout: 30000 });
-      const lines = stdout.split('\n').filter(line => line.trim());
-      const hops: { hop: number; ip: string; time: string }[] = [];
-
-      for (const line of lines) {
-        if (line.includes('traceroute to')) continue;
-        const match = line.match(/^\s*(\d+)\s+(\S+)\s+(.+)/);
-        if (match) {
-          const timeMatch = match[3].match(/(\d+\.?\d*)\s*ms/);
-          hops.push({ hop: parseInt(match[1]), ip: match[2], time: timeMatch ? `${timeMatch[1]} ms` : '*' });
-        }
-      }
-
-      res.json({ data: { target, hops, raw: stdout } });
-    } catch {
-      res.status(500).json({ error: { message: 'Traceroute não disponível no servidor.' } });
+    if (!isValidTracerouteTarget(rawTarget)) {
+      return res.status(400).json({ error: { message: 'Destino de traceroute inválido ou não permitido.' } });
     }
+
+    const { spawn } = await import('child_process');
+    const stdout = await new Promise<string>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      const child = spawn('traceroute', ['-n', '-m', String(maxHops), '-w', '2', rawTarget], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const t = setTimeout(() => {
+        child.kill('SIGKILL');
+        reject(new Error('timeout'));
+      }, 30000);
+      child.stdout.on('data', (c: Buffer) => chunks.push(c));
+      child.stderr.on('data', () => {});
+      child.on('error', err => {
+        clearTimeout(t);
+        reject(err);
+      });
+      child.on('close', () => {
+        clearTimeout(t);
+        resolve(Buffer.concat(chunks).toString('utf8'));
+      });
+    });
+
+    const lines = stdout.split('\n').filter(line => line.trim());
+    const hops: { hop: number; ip: string; time: string }[] = [];
+
+    for (const line of lines) {
+      if (line.includes('traceroute to')) continue;
+      const match = line.match(/^\s*(\d+)\s+(\S+)\s+(.+)/);
+      if (match) {
+        const timeMatch = match[3].match(/(\d+\.?\d*)\s*ms/);
+        hops.push({ hop: parseInt(match[1], 10), ip: match[2], time: timeMatch ? `${timeMatch[1]} ms` : '*' });
+      }
+    }
+
+    res.json({ data: { target: rawTarget, hops, raw: stdout } });
   } catch (error: any) {
-    res.status(500).json({ error: { message: `Erro no traceroute: ${error.message}` } });
+    console.error('[traceroute]', error?.message || error);
+    res.status(500).json({ error: { message: 'Traceroute não disponível no servidor.' } });
   }
 });
 
@@ -686,18 +780,75 @@ app.post('/admin/generate-apk', apkLimiter, verifySuperAdmin, async (req, res) =
         const extension = format === 'aab' ? 'aab' : 'apk';
         res.json({ success: true, message: `${format.toUpperCase()} gerado!`, downloadUrl: `/public_apks/app_${safeAppName}.${extension}`, logs: stdout });
       } else {
-        res.status(500).json({ success: false, error: `Falha no script (Exit ${code})`, logs: stdout, errorLogs: stderr });
+        res.status(500).json({
+          success: false,
+          error: { message: `Falha no script (Exit ${code})` },
+          logs: stdout,
+          errorLogs: stderr,
+        });
       }
     });
 
     pythonProcess.on('error', err => {
       fs.unlink(tempLogoPath, () => {});
-      res.status(500).json({ success: false, error: `Erro ao executar script: ${err.message}` });
+      res.status(500).json({
+        success: false,
+        error: { message: `Erro ao executar script: ${err.message}` },
+      });
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({
+      success: false,
+      error: { message: error?.message || 'Erro interno ao gerar APK.' },
+    });
   }
 });
+
+// =========================================================================
+// PROXY → proxy-sgp (endpoints do app Flutter do assinante)
+// O app usa um único apiUrl que aponta para este serviço (porta 8034).
+// Endpoints exclusivos do proxy-sgp são encaminhados internamente via rede Docker.
+// =========================================================================
+
+const PROXY_SGP_URL = process.env.PROXY_SGP_INTERNAL_URL || 'http://backend-proxy:3002';
+
+async function proxyToSgp(
+  path: string,
+  req: express.Request,
+  res: express.Response,
+): Promise<void> {
+  try {
+    const response = await axios.post(
+      `${PROXY_SGP_URL}${path}`,
+      req.body,
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000,
+        httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      },
+    );
+    res.status(response.status).json(response.data);
+  } catch (error: any) {
+    const status = error.response?.status || 500;
+    const data = error.response?.data || { error: { message: error.message } };
+    res.status(status).json(data);
+  }
+}
+
+// Login do assinante — valida CPF/CNPJ no SGP
+app.post('/check-cpf', sgpLimiter, (req, res) => proxyToSgp('/check-cpf', req, res));
+
+// Dados financeiros (faturas)
+app.post('/get-invoices', sgpLimiter, (req, res) => proxyToSgp('/get-invoices', req, res));
+
+// Dados de consumo de internet
+app.post('/get-consumption-data', sgpLimiter, (req, res) => proxyToSgp('/get-consumption-data', req, res));
+
+// Desbloqueio de confiança (trust unlock)
+app.post('/unlock-trust', sgpLimiter, (req, res) => proxyToSgp('/unlock-trust', req, res));
+
+// WiFi/CPE (configuração do roteador do assinante)
+app.post('/cpe/wifi/update', sgpLimiter, (req, res) => proxyToSgp('/cpe/wifi/update', req, res));
 
 // =========================================================================
 // HEALTH CHECK

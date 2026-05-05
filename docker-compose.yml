@@ -8,7 +8,8 @@ services:
     ports:
       - "8031:80"
     environment:
-      - VITE_API_URL=http://168.194.13.18:8030
+      # URL pública da API usada no build do Vite (defina no .env da máquina host, ex.: VITE_API_URL=https://api.seudominio.com)
+      - VITE_API_URL=${VITE_API_URL:-http://127.0.0.1:8034}
 
   backend-proxy:
     build:
@@ -68,6 +69,7 @@ services:
     volumes:
       - .:/home/app/projects/painel_provedores
       - /home/app/Android/Sdk:/home/app/Android/Sdk
+      - /home/app/.secrets/painel_provedores/service-account.json:/home/app/.secrets/painel_provedores/service-account.json:ro
     working_dir: /home/app/projects/painel_provedores
     env_file:
       - ./api-service/.env

@@ -27,7 +27,8 @@ service cloud.firestore {
     }
 
     function isOwnFunctionResponse() {
-      return signedIn() && resource.data.requesterUid == request.auth.uid;
+      // resource == null quando o documento ainda não existe (listener criado antes da Function responder)
+      return signedIn() && (resource == null || resource.data.requesterUid == request.auth.uid);
     }
 
     function canReadTicket(providerId, createdByUid) {

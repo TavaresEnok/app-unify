@@ -68,6 +68,37 @@ const DEFAULT_PROVIDER_CONFIG = {
     socialNetworks: {}
 };
 
+const SENSITIVE_CONTRACT_KEYS = new Set([
+    "contratocentralsenha",
+    "senha",
+    "password",
+    "token",
+    "apitoken",
+    "authorization",
+    "secret",
+]);
+
+function sanitizeContractData(contracts: any): any[] {
+    if (!Array.isArray(contracts)) {
+        return [];
+    }
+
+    return contracts.map((contract) => {
+        if (!contract || typeof contract !== "object") {
+            return contract;
+        }
+
+        const sanitized: Record<string, any> = {};
+        for (const [key, value] of Object.entries(contract)) {
+            if (SENSITIVE_CONTRACT_KEYS.has(key.toLowerCase())) {
+                continue;
+            }
+            sanitized[key] = value;
+        }
+        return sanitized;
+    });
+}
+
 // --- HTTP CALLABLE: UPLOAD LOGO (Bypasses CORS) ---
 export const uploadProviderLogo = onCall({
     region: "southamerica-east1",
@@ -974,13 +1005,14 @@ export const handleSgpApiProxyRequest = onDocumentCreated({
                         const docId = client.cpfcnpj ? client.cpfcnpj.replace(/[^0-9]/g, '') : null;
                         if (!docId) continue;
 
+                        const sanitizedContracts = sanitizeContractData(client.contratos || []);
                         const clientDocRef = clientsRef.doc(docId);
                         currentBatch.set(clientDocRef, {
                             ...client,
                             id: client.id,
                             nome: client.nome,
                             cpfcnpj: client.cpfcnpj,
-                            contratos: client.contratos || [],
+                            contratos: sanitizedContracts,
                             updatedAt: FieldValue.serverTimestamp(),
                             providerId: providerId
                         }, { merge: true });
@@ -1040,7 +1072,13 @@ export const handleSgpApiProxyRequest = onDocumentCreated({
             const countSnap = await countQuery.count().get();
             const total = countSnap.data().count;
 
-            const clientes = snapshot.docs.map(doc => doc.data());
+            const clientes = snapshot.docs.map((doc) => {
+                const data = doc.data();
+                return {
+                    ...data,
+                    contratos: sanitizeContractData(data.contratos || [])
+                };
+            });
 
             // Fallback se Firestore vazio: Tenta buscar 1 página do SGP em tempo real (opcional)
             // Se o usuário nunca clicou em sync, vai estar vazio.
