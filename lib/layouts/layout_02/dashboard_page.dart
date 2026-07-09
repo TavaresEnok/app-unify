@@ -204,7 +204,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: primary.withOpacity(0.4),
+                  color: primary.withValues(alpha: 0.4),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -233,7 +233,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 widget.planName,
                 style: TextStyle(
                   fontSize: 13,
-                  color: textColor.withOpacity(0.7),
+                  color: textColor.withValues(alpha: 0.7),
                   letterSpacing: 0.2,
                 ),
               ),
@@ -253,7 +253,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -296,7 +296,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
       boxShadow: [
         BoxShadow(
           color:
-              Colors.black.withOpacity(0.2), // Generic shadow for dynamic color
+              Colors.black.withValues(alpha: 0.2), // Generic shadow for dynamic color
           blurRadius: 24,
           offset: const Offset(0, 12),
         ),
@@ -315,7 +315,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Stack(
@@ -333,7 +333,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                             color: (isOnline
                                     ? Layout02Theme.green
                                     : Layout02Theme.red)
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                             blurRadius: 12,
                           ),
                         ],
@@ -348,7 +348,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                           color: (isOnline
                                   ? Layout02Theme.green
                                   : Layout02Theme.red)
-                              .withOpacity(0.3),
+                              .withValues(alpha: 0.3),
                           width: 2,
                         ),
                       ),
@@ -382,13 +382,13 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                             color: (isOnline
                                     ? Layout02Theme.green
                                     : Layout02Theme.red)
-                                .withOpacity(0.2),
+                                .withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: (isOnline
                                       ? Layout02Theme.green
                                       : Layout02Theme.red)
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                             ),
                           ),
                           child: Text(
@@ -409,7 +409,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                       'Fibra Óptica • ${widget.planName}',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -424,15 +424,15 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.15),
-                  Colors.white.withOpacity(0.08),
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.08),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(18),
               border:
-                  Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                  Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
             ),
             child: Row(
               children: [
@@ -452,9 +452,9 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.white.withOpacity(0.0),
-                        Colors.white.withOpacity(0.3),
-                        Colors.white.withOpacity(0.0),
+                        Colors.white.withValues(alpha: 0.0),
+                        Colors.white.withValues(alpha: 0.3),
+                        Colors.white.withValues(alpha: 0.0),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -477,9 +477,9 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.white.withOpacity(0.0),
-                        Colors.white.withOpacity(0.3),
-                        Colors.white.withOpacity(0.0),
+                        Colors.white.withValues(alpha: 0.0),
+                        Colors.white.withValues(alpha: 0.3),
+                        Colors.white.withValues(alpha: 0.0),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -537,7 +537,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -546,7 +546,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.6)),
+          style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.6)),
         ),
       ],
     );
@@ -627,7 +627,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -654,7 +654,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: textColor.withOpacity(0.7),
+                color: textColor.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -689,7 +689,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
         'label': 'FAQ',
         'colors': [
           const Color(0xFFFF6B9D),
-          primary.withOpacity(0.7)
+          primary.withValues(alpha: 0.7)
         ], // Dynamic
         'route': 'faq'
       },
@@ -728,7 +728,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
         'label': 'Consumo',
         'colors': [
           const Color(0xFF9C27B0),
-          primary.withOpacity(0.8)
+          primary.withValues(alpha: 0.8)
         ], // Dynamic
         'route': 'internet_usage'
       },
@@ -764,7 +764,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: primary.withOpacity(0.1),
+                  color: primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -821,7 +821,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)
+            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)
           ],
         ),
         child: Column(
@@ -841,7 +841,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         shape: BoxShape.circle),
                     child: const Icon(Icons.close_rounded,
                         color: Colors.grey, size: 20),
@@ -876,7 +876,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: colors[0].withOpacity(0.08),
+                          color: colors[0].withValues(alpha: 0.08),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -897,7 +897,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: colors[0].withOpacity(0.3),
+                                color: colors[0].withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -956,7 +956,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: gradientColors[0].withOpacity(0.15),
+                    color: gradientColors[0].withValues(alpha: 0.15),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -977,7 +977,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: textColor.withOpacity(0.9),
+                color: textColor.withValues(alpha: 0.9),
               ),
             ),
           ],
@@ -1030,7 +1030,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [secondary, secondary.withOpacity(0.7)],
+                              colors: [secondary, secondary.withValues(alpha: 0.7)],
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -1103,10 +1103,10 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                            color: Colors.white.withOpacity(0.2), width: 2),
+                            color: Colors.white.withValues(alpha: 0.2), width: 2),
                       ),
                       child: const Icon(Icons.person_rounded,
                           color: Colors.white, size: 40),
@@ -1125,7 +1125,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                     Text(
                       widget.planName,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
                       ),
                     ),
@@ -1185,7 +1185,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 child: Text(
                   '© 2024 - Versão 1.0',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 12,
                   ),
                 ),

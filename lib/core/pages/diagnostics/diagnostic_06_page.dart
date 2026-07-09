@@ -17,14 +17,6 @@ import '../../utils/pdf_generator_service.dart';
 import '../../controllers/wifi_management_controller.dart';
 
 // UX Enhancements - Sprint 1-3
-import '../../models/test_mode.dart';
-import '../../models/network_health_score.dart';
-import '../../widgets/health_score_widget.dart';
-import '../../widgets/test_mode_selector.dart';
-import '../../widgets/comparison_widget.dart';
-import '../../services/diagnostic_integration_helper.dart';
-import '../../services/achievement_service.dart';
-import '../../services/test_history_service.dart';
 import '../../utils/diagnostic_utils.dart';
 
 class AppColors {
@@ -55,6 +47,14 @@ class Diagnostic06Page extends ConsumerStatefulWidget {
 
 class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
     with TickerProviderStateMixin {
+
+  static String? _safeResultString(dynamic result) {
+    if (result == null) return null;
+    if (result is String) return result;
+    if (result is Map) return result['display'] as String? ?? result.toString();
+    return result.toString();
+  }
+
   DiagStep _currentStep = DiagStep.ready;
   bool _isRunning = false;
   double _liveSpeed = 0;
@@ -79,7 +79,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
   OnuWifiService? _onuWifiService;
 
   // WiFi Management TR-069
-  late WifiManagementController _wifiController;
+  WifiManagementController _wifiController = WifiManagementController(null);
 
   @override
   void initState() {
@@ -126,12 +126,18 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
           context: context,
           onuService: onuService,
         );
-        _realSub = _realService!.stateStream.listen(_handleRealServiceState);
+        _realSub = _realService!.stateStream.listen(
+          _handleRealServiceState,
+          onError: (e, st) =>
+              debugPrint('[Diagnostic06] Erro no stream: $e\n$st'),
+          cancelOnError: false,
+        );
       }
     }
   }
 
   void _handleRealServiceState(real_state.DiagnosticoState realState) {
+    try {
     setState(() {
       _isRunning = realState.isTesting;
 
@@ -159,8 +165,9 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       final results = realState.testResultsDisplay;
 
       // WiFi
-      if (results['wifiInfo']?['status'] == real_state.TestStatus.running)
+      if (results['wifiInfo']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.wifi;
+      }
       if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
         final res = results['wifiInfo']!['result'];
         if (res is Map) {
@@ -188,8 +195,9 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       }
 
       // Fiber (ONU)
-      if (results['onuInfo']?['status'] == real_state.TestStatus.running)
+      if (results['onuInfo']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.fiber;
+      }
       if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
         final res = results['onuInfo']!['result'];
         if (res is Map) {
@@ -231,8 +239,9 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       }
 
       // Devices
-      if (results['lanScan']?['status'] == real_state.TestStatus.running)
+      if (results['lanScan']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.devices;
+      }
       if (results['lanScan']?['status'] == real_state.TestStatus.success) {
         if (_devices.isEmpty) {
           _devices = [
@@ -253,11 +262,12 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
       }
 
       // Traceroute
-      if (results['traceroute']?['status'] == real_state.TestStatus.running)
+      if (results['traceroute']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.route;
+      }
       if (results['traceroute']?['status'] == real_state.TestStatus.success) {
         _hops = [];
-        final resultStr = results['traceroute']!['result'] as String? ?? "";
+        final resultStr = _safeResultString(results['traceroute']!['result']) ?? "";
         final lines = resultStr.split('\n');
         for (var line in lines) {
           if (line.contains(':')) {
@@ -280,6 +290,9 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
 
       _lastRealState = realState;
     });
+    } catch (e, st) {
+      debugPrint('[Diagnostic06] Erro no handler de estado: $e\n$st');
+    }
   }
 
   @override
@@ -350,9 +363,9 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                           shape: BoxShape.circle,
                           gradient: SweepGradient(
                             colors: [
-                              AppColors.accent.withOpacity(0.3),
-                              AppColors.accentLight.withOpacity(0.1),
-                              AppColors.accent.withOpacity(0.3),
+                              AppColors.accent.withValues(alpha: 0.3),
+                              AppColors.accentLight.withValues(alpha: 0.1),
+                              AppColors.accent.withValues(alpha: 0.3),
                             ],
                           ),
                         ),
@@ -367,7 +380,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                         color: Colors.white,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accent.withOpacity(0.2),
+                            color: AppColors.accent.withValues(alpha: 0.2),
                             blurRadius: 40,
                             spreadRadius: 5,
                           ),
@@ -380,14 +393,14 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                       height: 70,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [AppColors.accent, AppColors.accentLight],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accent.withOpacity(0.4),
+                            color: AppColors.accent.withValues(alpha: 0.4),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -441,10 +454,10 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.check_rounded,
+                child: const Icon(Icons.check_rounded,
                     color: AppColors.success, size: 14),
               ),
               const SizedBox(width: 10),
@@ -471,13 +484,13 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                 gradient: LinearGradient(
                   colors: [
                     AppColors.primary,
-                    AppColors.primary.withOpacity(0.85)
+                    AppColors.primary.withValues(alpha: 0.85)
                   ],
                 ),
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.35),
+                    color: AppColors.primary.withValues(alpha: 0.35),
                     blurRadius: 24,
                     offset: const Offset(0, 10),
                   ),
@@ -489,7 +502,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.play_arrow_rounded,
@@ -544,10 +557,10 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.1),
+                            color: AppColors.accent.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.settings_rounded,
+                          child: const Icon(Icons.settings_rounded,
                               color: AppColors.accent, size: 20),
                         ),
                       ),
@@ -559,18 +572,18 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            AppColors.success.withOpacity(0.15),
-                            AppColors.success.withOpacity(0.05)
+                            AppColors.success.withValues(alpha: 0.15),
+                            AppColors.success.withValues(alpha: 0.05)
                           ],
                         ),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                            color: AppColors.success.withOpacity(0.3)),
+                            color: AppColors.success.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle_rounded,
+                          const Icon(Icons.check_circle_rounded,
                               color: AppColors.success, size: 16),
                           const SizedBox(width: 6),
                           Text("Concluído",
@@ -586,7 +599,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                       padding: const EdgeInsets.only(left: 8),
                       child: IconButton(
                         onPressed: _sharePdf,
-                        icon: Icon(Icons.share, color: AppColors.primary),
+                        icon: const Icon(Icons.share, color: AppColors.primary),
                         tooltip: 'Compartilhar PDF',
                       ),
                     ),
@@ -638,19 +651,37 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                 if (_speed != null) _buildModernResults(),
 
                 // Timeline Items with full data
-                if (_wifi != null) _buildWifiCard(),
-                if (_fiber != null) _buildFiberCard(),
-                if (_devices.isNotEmpty) _buildDevicesCard(),
-                if (_hops.isNotEmpty) _buildRouteCard(),
+                if (_wifi != null) ...[
+                  const SizedBox(height: 20),
+                  _buildWifiCard(),
+                ],
+                if (_fiber != null) ...[
+                  const SizedBox(height: 20),
+                  _buildFiberCard(),
+                ],
+                if (_devices.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  _buildDevicesCard(),
+                ],
+                if (_hops.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  _buildRouteCard(),
+                ],
 
                 // New Features - Only show when diagnostic is complete
                 if (_currentStep == DiagStep.done &&
                     _lastRealState != null) ...[
+                  const SizedBox(height: 20),
                   _buildConnectionJourneyCard(),
+                  const SizedBox(height: 20),
                   _buildWifiDetailsCard(),
+                  const SizedBox(height: 20),
                   _buildOnuDetailsCard(),
+                  const SizedBox(height: 20),
                   _buildDeviceDetailsCard(),
+                  const SizedBox(height: 20),
                   _buildWifiManagementCard(),
+                  const SizedBox(height: 20),
                   _buildTroubleshooterCard(),
                 ],
 
@@ -668,7 +699,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                         border: Border.all(color: AppColors.border, width: 1.5),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
+                            color: Colors.black.withValues(alpha: 0.03),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -677,7 +708,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.refresh_rounded,
+                          const Icon(Icons.refresh_rounded,
                               color: AppColors.primary, size: 20),
                           const SizedBox(width: 10),
                           Text(
@@ -713,7 +744,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             blurRadius: 40,
             offset: const Offset(0, 15),
           ),
@@ -739,7 +770,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 5),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
@@ -828,19 +859,19 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.08),
+              color: color.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 6),
             ),
           ],
-          border: Border.all(color: color.withOpacity(0.1)),
+          border: Border.all(color: color.withValues(alpha: 0.1)),
         ),
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 20),
@@ -969,7 +1000,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.success.withOpacity(0.4),
+                        color: AppColors.success.withValues(alpha: 0.4),
                         blurRadius: 4,
                         spreadRadius: 1,
                       ),
@@ -1005,7 +1036,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                 Container(
                   width: 24,
                   height: 24,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.bg,
                     shape: BoxShape.circle,
                   ),
@@ -1027,7 +1058,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: latencyColor.withOpacity(0.1),
+                    color: latencyColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text("${latency}ms",
@@ -1065,10 +1096,10 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
+                  colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.05)],
                 ),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.2)),
+                border: Border.all(color: color.withValues(alpha: 0.2)),
               ),
               child: Icon(icon, color: color, size: 20),
             ),
@@ -1081,7 +1112,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [color.withOpacity(0.3), AppColors.border],
+                    colors: [color.withValues(alpha: 0.3), AppColors.border],
                   ),
                 ),
               ),
@@ -1098,12 +1129,12 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
               ],
-              border: Border.all(color: AppColors.border.withOpacity(0.5)),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1211,16 +1242,16 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
     final r = _lastRealState!.testResultsDisplay;
     final wifiS = r['wifiInfo']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final wifiR = r['wifiInfo']?['result'] as String?;
+    final wifiR = _safeResultString(r['wifiInfo']?['result']);
     final gwS = r['pingGateway']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final gwR = r['pingGateway']?['result'] as String?;
+    final gwR = _safeResultString(r['pingGateway']?['result']);
     final ipS = r['publicIp']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final ipR = r['publicIp']?['result'] as String?;
+    final ipR = _safeResultString(r['publicIp']?['result']);
     final gS = r['pingGoogle']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final gR = r['pingGoogle']?['result'] as String?;
+    final gR = _safeResultString(r['pingGoogle']?['result']);
 
     return _buildTimelineCard(
       icon: Icons.route_rounded,
@@ -1251,8 +1282,8 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
             height: 28,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: c.withOpacity(0.15),
-                border: Border.all(color: c.withOpacity(0.4))),
+                color: c.withValues(alpha: 0.15),
+                border: Border.all(color: c.withValues(alpha: 0.4))),
             child: Icon(icon, color: c, size: 14)),
         const SizedBox(width: 10),
         Expanded(
@@ -1262,7 +1293,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
               style:
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           Text(detail,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 10))
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10))
         ])),
         Icon(
             s == real_state.TestStatus.success
@@ -1278,7 +1309,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
             margin: const EdgeInsets.only(left: 13),
             width: 2,
             height: 16,
-            color: c.withOpacity(0.2)),
+            color: c.withValues(alpha: 0.2)),
     ]);
   }
 
@@ -1357,12 +1388,12 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
     return Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: c.withOpacity(0.1),
+            color: c.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: c.withOpacity(0.3))),
+            border: Border.all(color: c.withValues(alpha: 0.3))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
           Text(value,
               style: TextStyle(
                   color: c, fontSize: 12, fontWeight: FontWeight.bold))
@@ -1372,7 +1403,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
   Widget _buildDeviceDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
     final devR =
-        _lastRealState!.testResultsDisplay['deviceInfo']?['result'] as String?;
+        _safeResultString(_lastRealState!.testResultsDisplay['deviceInfo']?['result']);
     final s = _lastRealState!.testResultsDisplay['deviceInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1400,7 +1431,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
         child:
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(label,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           Text(value, style: const TextStyle(fontSize: 11))
         ]));
   }
@@ -1440,7 +1471,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
+                                  color: AppColors.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(10)),
                               child: Row(children: [
                                 Icon(
@@ -1460,7 +1491,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
                                           style: const TextStyle(
                                               fontWeight: FontWeight.bold)),
                                       Text(n.frequency,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                               color: AppColors.textSecondary,
                                               fontSize: 10))
                                     ])),
@@ -1486,7 +1517,7 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
             border: Border.all(color: AppColors.border),
             color: Colors.white,
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)
+              BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)
             ]),
         child: TroubleshooterCard(
             state: _lastRealState!, onRetry: _startDiagnostic));
@@ -1506,62 +1537,54 @@ class _GaugePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2 - 10;
-    const strokeWidth = 12.0;
-    const startAngle = 135 * math.pi / 180;
-    const sweepAngle = 270 * math.pi / 180;
+    try {
+      final center = Offset(size.width / 2, size.height / 2);
+      final radius = math.min(size.width, size.height) / 2 - 10;
+      const strokeWidth = 12.0;
+      const startAngle = 135 * math.pi / 180;
+      const sweepAngle = 270 * math.pi / 180;
 
-    // Track
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false,
-      Paint()
-        ..color = const Color(0xFFE4E4E7)
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        Paint()
+          ..color = const Color(0xFFE4E4E7)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round,
+      );
+
+      final fillPaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round,
-    );
+        ..strokeCap = StrokeCap.round
+        ..shader = SweepGradient(
+          colors: [color.withValues(alpha: 0.5), color],
+          startAngle: startAngle,
+          endAngle: startAngle + sweepAngle,
+        ).createShader(Rect.fromCircle(center: center, radius: radius));
 
-    // Fill with gradient
-    final fillPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..shader = SweepGradient(
-        colors: [color.withOpacity(0.5), color],
-        startAngle: startAngle,
-        endAngle: startAngle + sweepAngle,
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle * fill,
-      false,
-      fillPaint,
-    );
-
-    // Glow tip
-    if (fill > 0.05) {
-      final endAngle = startAngle + sweepAngle * fill;
-      final tipX = center.dx + radius * math.cos(endAngle);
-      final tipY = center.dy + radius * math.sin(endAngle);
-
-      canvas.drawCircle(
-        Offset(tipX, tipY),
-        10,
-        Paint()
-          ..color = color.withOpacity(0.4)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle * fill,
+        false,
+        fillPaint,
       );
-      canvas.drawCircle(
-        Offset(tipX, tipY),
-        5,
-        Paint()..color = Colors.white,
-      );
+
+      if (fill > 0.05) {
+        final endAngle = startAngle + sweepAngle * fill;
+        final tipX = center.dx + radius * math.cos(endAngle);
+        final tipY = center.dy + radius * math.sin(endAngle);
+        canvas.drawCircle(
+            Offset(tipX, tipY), 10, Paint()..color = color.withValues(alpha: 0.4));
+        canvas.drawCircle(
+            Offset(tipX, tipY), 5, Paint()..color = Colors.white);
+      }
+    } catch (_) {
+      // Falha silenciosa no painter
     }
   }
 

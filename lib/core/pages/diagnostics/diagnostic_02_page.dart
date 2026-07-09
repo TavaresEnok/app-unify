@@ -4,10 +4,8 @@
 
 import 'dart:async';
 
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart'; // Required for debugPrint
+// Required for debugPrint
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/diagnostico_service.dart' as real_service;
 import '../../services/onu_wifi_service.dart';
@@ -32,15 +30,8 @@ import '../../models/diagnostic_enums.dart';
 // UX Enhancements - Sprint 1-3
 import '../../models/test_mode.dart';
 import '../../models/network_health_score.dart';
-import '../../models/achievement.dart';
-import '../../widgets/health_score_widget.dart';
-import '../../widgets/test_mode_selector.dart';
-import '../../widgets/comparison_widget.dart';
 import '../../services/diagnostic_integration_helper.dart';
 import '../../services/achievement_service.dart';
-import '../../services/test_history_service.dart';
-import '../../pages/test_history_page.dart';
-import '../../pages/achievements_page.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MODELS
@@ -229,6 +220,18 @@ class DiagnosticScreen extends StatelessWidget {
 
   // Troubleshooter
   final real_state.DiagnosticoState? realState;
+
+  static String? _safeResultString(dynamic result) {
+    if (result == null) return null;
+    if (result is String) return result;
+    if (result is Map) {
+      return result['display'] as String? ??
+          result['displayText'] as String? ??
+          result['stateStr'] as String? ??
+          result.toString();
+    }
+    return result.toString();
+  }
 
   const DiagnosticScreen({
     super.key,
@@ -756,7 +759,7 @@ class DiagnosticScreen extends StatelessWidget {
                       ? Center(
                           child: Column(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.error_outline,
                                 color: DiagnosticTheme.red,
                                 size: 40,
@@ -764,7 +767,7 @@ class DiagnosticScreen extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 wifiError,
-                                style: TextStyle(color: DiagnosticTheme.red),
+                                style: const TextStyle(color: DiagnosticTheme.red),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 16),
@@ -787,7 +790,7 @@ class DiagnosticScreen extends StatelessWidget {
                           ? Center(
                               child: Column(
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.wifi_find,
                                     color: DiagnosticTheme.textDim,
                                     size: 40,
@@ -891,16 +894,14 @@ class DiagnosticScreen extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (ctx) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: AlertDialog(
+      builder: (ctx) => AlertDialog(
           backgroundColor: DiagnosticTheme.bg2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           title: Row(
             children: [
-              Icon(Icons.edit, color: DiagnosticTheme.cyan),
+              const Icon(Icons.edit, color: DiagnosticTheme.cyan),
               const SizedBox(width: 10),
               Text(
                 'Editar ${network.frequency}',
@@ -914,10 +915,10 @@ class DiagnosticScreen extends StatelessWidget {
               TextField(
                 controller: ssidController,
                 style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'SSID (Nome da Rede)',
-                  labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
-                  enabledBorder: const UnderlineInputBorder(
+                  labelStyle: TextStyle(color: DiagnosticTheme.textDim),
+                  enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: DiagnosticTheme.textDim),
                   ),
                   focusedBorder: UnderlineInputBorder(
@@ -930,10 +931,10 @@ class DiagnosticScreen extends StatelessWidget {
                 controller: passwordController,
                 style: const TextStyle(color: Colors.white),
                 obscureText: true,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Senha',
-                  labelStyle: const TextStyle(color: DiagnosticTheme.textDim),
-                  enabledBorder: const UnderlineInputBorder(
+                  labelStyle: TextStyle(color: DiagnosticTheme.textDim),
+                  enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: DiagnosticTheme.textDim),
                   ),
                   focusedBorder: UnderlineInputBorder(
@@ -971,7 +972,6 @@ class DiagnosticScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -1019,22 +1019,24 @@ class DiagnosticScreen extends StatelessWidget {
     final wifiStatus =
         results['wifiInfo']?['status'] as real_state.TestStatus? ??
             real_state.TestStatus.pending;
-    final wifiResult = results['wifiInfo']?['result'] as String?;
+    final wifiResult = _safeResultString(results['wifiInfo']?['result']);
     final gatewayStatus =
         results['pingGateway']?['status'] as real_state.TestStatus? ??
             real_state.TestStatus.pending;
-    final gatewayResult = results['pingGateway']?['result'] as String?;
+    final gatewayResult =
+        _safeResultString(results['pingGateway']?['result']);
     final ipStatus = results['publicIp']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final ipResult = results['publicIp']?['result'] as String?;
+    final ipResult = _safeResultString(results['publicIp']?['result']);
     final googleStatus =
         results['pingGoogle']?['status'] as real_state.TestStatus? ??
             real_state.TestStatus.pending;
-    final googleResult = results['pingGoogle']?['result'] as String?;
+    final googleResult = _safeResultString(results['pingGoogle']?['result']);
     final cloudflareStatus =
         results['pingCloudflare']?['status'] as real_state.TestStatus? ??
             real_state.TestStatus.pending;
-    final cloudflareResult = results['pingCloudflare']?['result'] as String?;
+    final cloudflareResult =
+        _safeResultString(results['pingCloudflare']?['result']);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1113,11 +1115,11 @@ class DiagnosticScreen extends StatelessWidget {
                 details: [
                   (
                     'Google',
-                    '${DiagnosticUtils.parseResultLine(googleResult, 'Latência:')}',
+                    (DiagnosticUtils.parseResultLine(googleResult, 'Latência:')),
                   ),
                   (
                     'Cloudflare',
-                    '${DiagnosticUtils.parseResultLine(cloudflareResult, 'Latência:')}',
+                    (DiagnosticUtils.parseResultLine(cloudflareResult, 'Latência:')),
                   ),
                 ],
                 isLast: true,
@@ -1197,7 +1199,7 @@ class DiagnosticScreen extends StatelessWidget {
                       .map(
                         (d) => Text(
                           '${d.$1}: ${d.$2}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: DiagnosticTheme.textDim,
                             fontSize: 11,
                           ),
@@ -1340,7 +1342,7 @@ class DiagnosticScreen extends StatelessWidget {
     if (realState == null) return const SizedBox.shrink();
 
     final lanResult =
-        realState!.testResultsDisplay['lanScan']?['result'] as String?;
+        _safeResultString(realState!.testResultsDisplay['lanScan']?['result']);
     final status = realState!.testResultsDisplay['lanScan']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1370,7 +1372,7 @@ class DiagnosticScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.devices_other,
                     color: DiagnosticTheme.purple,
                     size: 32,
@@ -1409,7 +1411,7 @@ class DiagnosticScreen extends StatelessWidget {
                       )
                       .replaceAll('(', '')
                       .replaceAll(')', ''),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: DiagnosticTheme.textDim,
                     fontSize: 11,
                   ),
@@ -1430,7 +1432,7 @@ class DiagnosticScreen extends StatelessWidget {
     if (realState == null) return const SizedBox.shrink();
 
     final deviceResult =
-        realState!.testResultsDisplay['deviceInfo']?['result'] as String?;
+        _safeResultString(realState!.testResultsDisplay['deviceInfo']?['result']);
     final status = realState!.testResultsDisplay['deviceInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1526,7 +1528,7 @@ class DiagnosticScreen extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionTitle(
+          const SectionTitle(
             title: 'ONU / Fibra Óptica',
             icon: Icons.router,
             color: DiagnosticTheme.red,
@@ -1542,13 +1544,13 @@ class DiagnosticScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.warning_amber_rounded,
                   color: DiagnosticTheme.red,
                   size: 32,
                 ),
                 const SizedBox(height: 8),
-                Text(
+                const Text(
                   "Erro na leitura da ONU",
                   style: TextStyle(
                     color: DiagnosticTheme.red,
@@ -1560,7 +1562,7 @@ class DiagnosticScreen extends StatelessWidget {
                       ? onuResult
                       : "Verifique a conexão com o servidor.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: DiagnosticTheme.textDim,
                     fontSize: 12,
                   ),
@@ -1574,9 +1576,9 @@ class DiagnosticScreen extends StatelessWidget {
 
     Color rxColor = DiagnosticTheme.green;
     final rxValue = double.tryParse(rxPower) ?? 0;
-    if (rxValue < -25)
+    if (rxValue < -25) {
       rxColor = DiagnosticTheme.red;
-    else if (rxValue < -20) rxColor = DiagnosticTheme.orange;
+    } else if (rxValue < -20) rxColor = DiagnosticTheme.orange;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1665,7 +1667,7 @@ class DiagnosticScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
+            style: const TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1693,6 +1695,19 @@ class DiagnosticPage extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
+
+  static String? _safeResultString(dynamic result) {
+    if (result == null) return null;
+    if (result is String) return result;
+    if (result is Map) {
+      return result['display'] as String? ??
+          result['displayText'] as String? ??
+          result['stateStr'] as String? ??
+          result.toString();
+    }
+    return result.toString();
+  }
+
   DiagState _s = DiagState();
   bool _started = false;
   real_service.DiagnosticoService? _realService;
@@ -1704,10 +1719,10 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
   WifiManagementController? _wifiController;
 
   // UX Enhancements State
-  TestMode _selectedTestMode = TestMode.complete;
+  final TestMode _selectedTestMode = TestMode.complete;
   final _integrationHelper = DiagnosticIntegrationHelper();
   final _achievementService = AchievementService();
-  bool _testSavedToHistory = false;
+  final bool _testSavedToHistory = false;
   NetworkHealthScore? _healthScore;
   Map<String, dynamic>? _comparison;
 
@@ -1768,10 +1783,12 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     final devInfo = results['deviceInfo'];
     DeviceInfo? deviceData;
     if (devInfo != null && devInfo['status'] != real_state.TestStatus.pending) {
-      if (devInfo['status'] == real_state.TestStatus.success)
+      if (devInfo['status'] == real_state.TestStatus.success) {
         completedSteps.add(DiagStep.device);
-      if (devInfo['status'] == real_state.TestStatus.running)
+      }
+      if (devInfo['status'] == real_state.TestStatus.running) {
         currentStep = DiagStep.device;
+      }
 
       final res = devInfo['result'];
       debugPrint('[DiagUI] DeviceInfo Result: $res'); // Debug log
@@ -1822,8 +1839,9 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
               completedSteps.contains(DiagStep.device))) {
         currentStep = DiagStep.wifi;
       }
-      if (wifiRes['status'] == real_state.TestStatus.success)
+      if (wifiRes['status'] == real_state.TestStatus.success) {
         completedSteps.add(DiagStep.wifi);
+      }
 
       final res = wifiRes['result'];
       if (res is Map) {
@@ -1845,10 +1863,12 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     final onuRes = results['onuInfo'];
     OnuData? onuData;
     if (onuRes != null && onuRes['status'] != real_state.TestStatus.pending) {
-      if (onuRes['status'] == real_state.TestStatus.running)
+      if (onuRes['status'] == real_state.TestStatus.running) {
         currentStep = DiagStep.onu;
-      if (onuRes['status'] == real_state.TestStatus.success)
+      }
+      if (onuRes['status'] == real_state.TestStatus.success) {
         completedSteps.add(DiagStep.onu);
+      }
 
       final res = onuRes['result'];
       if (res is Map) {
@@ -1866,10 +1886,12 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     final lanRes = results['lanScan'];
     List<LanDevice> lanDevices = [];
     if (lanRes != null && lanRes['status'] != real_state.TestStatus.pending) {
-      if (lanRes['status'] == real_state.TestStatus.running)
+      if (lanRes['status'] == real_state.TestStatus.running) {
         currentStep = DiagStep.lan;
-      if (lanRes['status'] == real_state.TestStatus.success)
+      }
+      if (lanRes['status'] == real_state.TestStatus.success) {
         completedSteps.add(DiagStep.lan);
+      }
 
       final res = lanRes['result'];
       if (res is List) {
@@ -1893,10 +1915,12 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     // 5. Connectivity (Ping/IP)
     final pingRes = results['pingGoogle'];
     void dealConnData(real_state.TestStatus status) {
-      if (status == real_state.TestStatus.running)
+      if (status == real_state.TestStatus.running) {
         currentStep = DiagStep.connectivity;
-      if (status == real_state.TestStatus.success)
+      }
+      if (status == real_state.TestStatus.success) {
         completedSteps.add(DiagStep.connectivity);
+      }
     }
 
     ConnectivityData? connData;
@@ -1925,12 +1949,14 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
     List<TracertHop> tracertHops = [];
     if (traceRes != null &&
         traceRes['status'] != real_state.TestStatus.pending) {
-      if (traceRes['status'] == real_state.TestStatus.running)
+      if (traceRes['status'] == real_state.TestStatus.running) {
         currentStep = DiagStep.tracert;
-      if (traceRes['status'] == real_state.TestStatus.success)
+      }
+      if (traceRes['status'] == real_state.TestStatus.success) {
         completedSteps.add(DiagStep.tracert);
+      }
 
-      final resultStr = traceRes['result'] as String? ?? "";
+      final resultStr = _safeResultString(traceRes['result']) ?? "";
       final lines = resultStr.split('\n');
       for (var line in lines) {
         if (line.contains(':')) {
@@ -1956,8 +1982,9 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
         (fastRes != null &&
             fastRes['status'] != real_state.TestStatus.pending)) {
       currentStep = DiagStep.speed;
-      if (speedRes?['status'] == real_state.TestStatus.success)
+      if (speedRes?['status'] == real_state.TestStatus.success) {
         completedSteps.add(DiagStep.speed);
+      }
     }
 
     // Parse Speed History

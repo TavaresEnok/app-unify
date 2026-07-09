@@ -86,16 +86,16 @@ class Layout05Theme {
   // Decorations
   static BoxDecoration glassDecoration({double opacity = 0.08}) =>
       BoxDecoration(
-        color: Colors.white.withOpacity(opacity),
+        color: Colors.white.withValues(alpha: opacity),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       );
 
   static BoxDecoration cardDecoration({Color? borderColor}) => BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: borderColor ?? Colors.white.withOpacity(0.05),
+          color: borderColor ?? Colors.white.withValues(alpha: 0.05),
         ),
       );
 
@@ -105,19 +105,19 @@ class Layout05Theme {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            primary.withOpacity(0.15),
-            primaryDark.withOpacity(0.05),
+            primary.withValues(alpha: 0.15),
+            primaryDark.withValues(alpha: 0.05),
           ],
         ),
         border: Border.all(
-          color: primary.withOpacity(0.2 + pulseValue * 0.1),
+          color: primary.withValues(alpha: 0.2 + pulseValue * 0.1),
         ),
       );
 
   // Shadows
   static List<BoxShadow> neonShadow(Color color, {double blur = 15}) => [
         BoxShadow(
-          color: color.withOpacity(0.4),
+          color: color.withValues(alpha: 0.4),
           blurRadius: blur,
           spreadRadius: 1,
         ),
@@ -125,7 +125,7 @@ class Layout05Theme {
 
   static List<BoxShadow> glowShadow(Color color) => [
         BoxShadow(
-          color: color.withOpacity(0.5),
+          color: color.withValues(alpha: 0.5),
           blurRadius: 20,
         ),
       ];

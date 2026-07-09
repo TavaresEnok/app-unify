@@ -90,10 +90,8 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
 
         // Overrides
         // Primary and Secondary colors from Admin config
-        if (configColors.themeColor != null) {
-          colorsMap['primary'] = configColors.themeColor;
-        }
-        if (configColors.secondaryColor != null) {
+        colorsMap['primary'] = configColors.themeColor;
+              if (configColors.secondaryColor != null) {
           colorsMap['secondary'] = configColors.secondaryColor;
         }
         if (configColors.backgroundColor != null) {

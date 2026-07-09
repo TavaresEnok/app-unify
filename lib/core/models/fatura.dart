@@ -65,10 +65,11 @@ class Fatura {
       status: json['status'] != null
           ? json['status'].toString()
           : ((json['pago'] as bool? ?? false) ? 'pago' : 'pendente'),
-      urlBoleto: json['link'] as String?,
+      urlBoleto: (json['url_boleto'] ?? json['link']) as String?,
       linhaDigitavel: json['linha_digitavel'] as String?,
       pixCopiaECola: json['pix_copia_cola'] as String?,
-      dataPagamento: parseDate(json['dataPagamento']),
+      dataPagamento:
+          parseDate(json['data_pagamento'] as String? ?? json['dataPagamento'] as String?),
     );
   }
 

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -130,9 +129,18 @@ class DiagnosticoService {
       _currentState.testResultsDisplay,
     );
     newResults[key] = {...?newResults[key], 'status': status, 'result': result};
-    if (key == 'wifiInfo' && status == TestStatus.success && result is String) {
-      final gatewayIp = _parseResultLine(result, "Gateway (Roteador):");
-      if (gatewayIp != "---") {
+    if (key == 'wifiInfo' && status == TestStatus.success) {
+      String? gatewayIp;
+      if (result is String) {
+        // Legacy: resultado como string formatada
+        gatewayIp = _parseResultLine(result, "Gateway (Roteador):");
+        if (gatewayIp == "---") gatewayIp = null;
+      } else if (result is Map) {
+        // Resultado como Map (formato atual)
+        final gw = result['gateway'] as String?;
+        if (gw != null && gw.isNotEmpty && gw != 'N/A') gatewayIp = gw;
+      }
+      if (gatewayIp != null) {
         newResults[key]?['gatewayIp'] = gatewayIp;
       }
     }
@@ -567,7 +575,7 @@ class DiagnosticoService {
       "Iniciando Rastreamento de Rota (Tracert)...",
     );
 
-    final target = '8.8.8.8';
+    const target = '8.8.8.8';
 
     try {
       // Usa o servidor para executar traceroute real

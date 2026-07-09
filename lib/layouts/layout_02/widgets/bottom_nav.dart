@@ -26,7 +26,7 @@ class Layout02BottomNav extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 30,
             offset: const Offset(0, -10),
           ),
@@ -74,8 +74,8 @@ class Layout02BottomNav extends StatelessWidget {
           gradient: isSelected
               ? LinearGradient(
                   colors: [
-                    primary.withOpacity(0.12),
-                    secondary.withOpacity(0.06)
+                    primary.withValues(alpha: 0.12),
+                    secondary.withValues(alpha: 0.06)
                   ],
                 )
               : null,

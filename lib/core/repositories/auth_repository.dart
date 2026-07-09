@@ -152,8 +152,20 @@ class AuthRepository {
     }
 
     final prefs = await SharedPreferences.getInstance();
+    // Preserva flags que não são da sessão do usuário
+    final onboardingDone = prefs.getBool('onboarding_completed');
+    final themeChoice = prefs.getString('theme_preference');
     await prefs.clear();
+    if (onboardingDone != null) {
+      await prefs.setBool('onboarding_completed', onboardingDone);
+    }
+    if (themeChoice != null) {
+      await prefs.setString('theme_preference', themeChoice);
+    }
+
+    // Limpa credenciais do secure storage (senha + biometria)
     await _secureStorage.delete(key: 'userSenha');
+    await clearBiometryCredentials();
   }
 
   Future<void> _saveDeviceToken(String cpfCnpj, String providerId) async {

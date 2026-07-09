@@ -94,14 +94,14 @@ class Layout06Theme {
         color: cardBg,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(
-          color: borderColor ?? Colors.white.withOpacity(0.06),
+          color: borderColor ?? Colors.white.withValues(alpha: 0.06),
         ),
       );
 
   static BoxDecoration glassBtnDecoration() => BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
+        color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       );
 
   static BoxDecoration connectionCardDecoration(
@@ -110,13 +110,13 @@ class Layout06Theme {
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            (isConnected ? primary : error).withOpacity(0.12),
-            (isConnected ? primary : error).withOpacity(0.04),
+            (isConnected ? primary : error).withValues(alpha: 0.12),
+            (isConnected ? primary : error).withValues(alpha: 0.04),
           ],
         ),
         border: Border.all(
           color: (isConnected ? primary : error)
-              .withOpacity(0.15 + pulseValue * 0.1),
+              .withValues(alpha: 0.15 + pulseValue * 0.1),
         ),
       );
 
@@ -127,10 +127,10 @@ class Layout06Theme {
           end: Alignment.bottomRight,
           colors: [surface, cardBg],
         ),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
-            color: primary.withOpacity(0.08),
+            color: primary.withValues(alpha: 0.08),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -140,7 +140,7 @@ class Layout06Theme {
   // Shadows
   static List<BoxShadow> primaryShadow({double blur = 12}) => [
         BoxShadow(
-          color: primary.withOpacity(0.3),
+          color: primary.withValues(alpha: 0.3),
           blurRadius: blur,
           offset: const Offset(0, 4),
         ),
@@ -148,7 +148,7 @@ class Layout06Theme {
 
   static List<BoxShadow> glowShadow(Color color, {double blur = 15}) => [
         BoxShadow(
-          color: color.withOpacity(0.4),
+          color: color.withValues(alpha: 0.4),
           blurRadius: blur,
         ),
       ];

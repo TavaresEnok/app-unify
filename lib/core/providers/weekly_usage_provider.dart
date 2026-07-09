@@ -4,36 +4,53 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/consumo_service.dart';
 import 'providers.dart';
 
-/// Estado do consumo semanal
+/// Estado do consumo mensal
 class WeeklyUsageState {
-  final List<double> usageData; // 7 dias de consumo em GB
+  final List<double> usageData; // Consumo por dia em GB (dados reais do mês)
+  final List<String> dayLabels; // Rótulos de dia para o gráfico
   final bool isLoading;
   final String? error;
   final DateTime lastUpdated;
+  final int month;
+  final int year;
 
   const WeeklyUsageState({
-    this.usageData = const [0, 0, 0, 0, 0, 0, 0],
+    this.usageData = const [],
+    this.dayLabels = const [],
     this.isLoading = false,
     this.error,
     DateTime? lastUpdated,
-  }) : lastUpdated = lastUpdated ?? const _DefaultDateTime();
+    int? month,
+    int? year,
+  })  : lastUpdated = lastUpdated ?? const _DefaultDateTime(),
+        month = month ?? 0,
+        year = year ?? 0;
 
-  double get totalWeeklyUsage =>
+  double get totalMonthlyUsage =>
       usageData.fold(0.0, (sum, value) => sum + value);
+
+  // Mantido por compatibilidade com código existente
+  double get totalWeeklyUsage => totalMonthlyUsage;
 
   double get todayUsage => usageData.isNotEmpty ? usageData.last : 0;
 
   WeeklyUsageState copyWith({
     List<double>? usageData,
+    List<String>? dayLabels,
     bool? isLoading,
     String? error,
     DateTime? lastUpdated,
+    int? month,
+    int? year,
   }) {
     return WeeklyUsageState(
       usageData: usageData ?? this.usageData,
+      dayLabels: dayLabels ?? this.dayLabels,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       lastUpdated: lastUpdated ?? this.lastUpdated,
+      month: month ?? this.month,
+      year: year ?? this.year,
     );
   }
 }
@@ -46,17 +63,16 @@ class _DefaultDateTime implements DateTime {
   dynamic noSuchMethod(Invocation invocation) => DateTime(2000);
 }
 
-/// Provider para consumo semanal com cache
+/// Provider para consumo mensal com cache
 class WeeklyUsageNotifier extends StateNotifier<WeeklyUsageState> {
   final ConsumoService? _service;
-  static const String _cacheKey = 'weekly_usage_cache';
+  static const String _cacheKey = 'monthly_usage_cache';
   static const Duration _cacheValidity = Duration(hours: 1);
 
-  WeeklyUsageNotifier(this._service) : super(WeeklyUsageState()) {
+  WeeklyUsageNotifier(this._service) : super(const WeeklyUsageState()) {
     _loadFromCache();
   }
 
-  /// Carrega dados do cache
   Future<void> _loadFromCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -65,61 +81,74 @@ class WeeklyUsageNotifier extends StateNotifier<WeeklyUsageState> {
       if (cached != null) {
         final data = json.decode(cached) as Map<String, dynamic>;
         final cachedTime = DateTime.parse(data['timestamp'] as String);
-        final usageData =
-            (data['usage'] as List).map((e) => (e as num).toDouble()).toList();
 
-        // Usa cache se ainda for válido
         if (DateTime.now().difference(cachedTime) < _cacheValidity) {
+          final usageData = (data['usage'] as List)
+              .map((e) => (e as num).toDouble())
+              .toList();
+          final dayLabels =
+              (data['labels'] as List?)?.map((e) => e.toString()).toList() ??
+                  [];
           state = WeeklyUsageState(
             usageData: usageData,
+            dayLabels: dayLabels,
             lastUpdated: cachedTime,
+            month: data['month'] as int? ?? DateTime.now().month,
+            year: data['year'] as int? ?? DateTime.now().year,
           );
           return;
         }
       }
-    } catch (e) {
-      // Cache inválido, continua para buscar novos dados
-    }
+    } catch (_) {}
 
-    // Busca dados novos
     await refresh();
   }
 
-  /// Salva dados no cache
-  Future<void> _saveToCache(List<double> usage) async {
+  Future<void> _saveToCache(
+      List<double> usage, List<String> labels, int month, int year) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final data = {
         'timestamp': DateTime.now().toIso8601String(),
         'usage': usage,
+        'labels': labels,
+        'month': month,
+        'year': year,
       };
       await prefs.setString(_cacheKey, json.encode(data));
-    } catch (e) {
-      // Falha silenciosa no cache
-    }
+    } catch (_) {}
   }
 
-  /// Atualiza os dados do servidor
   Future<void> refresh() async {
+    final now = DateTime.now();
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      List<double> weeklyData;
+      List<double> dailyData;
+      List<String> dayLabels;
 
       if (_service != null) {
-        // Busca dados mensais e deriva consumo semanal
-        final monthlyData = await _service.fetchConsumptionData();
-        weeklyData = _deriveWeeklyUsage(monthlyData);
+        final monthlyData = await _service.fetchConsumptionData(
+          month: now.month,
+          year: now.year,
+        );
+        final result = _mapMonthlyData(monthlyData, now.month, now.year);
+        dailyData = result.$1;
+        dayLabels = result.$2;
       } else {
-        // Dados simulados baseados no plano do usuário
-        weeklyData = _generateRealisticUsage();
+        final result = _generateRealisticMonthly(now.month, now.year);
+        dailyData = result.$1;
+        dayLabels = result.$2;
       }
 
-      await _saveToCache(weeklyData);
+      await _saveToCache(dailyData, dayLabels, now.month, now.year);
 
       state = WeeklyUsageState(
-        usageData: weeklyData,
-        lastUpdated: DateTime.now(),
+        usageData: dailyData,
+        dayLabels: dayLabels,
+        lastUpdated: now,
+        month: now.month,
+        year: now.year,
       );
     } catch (e) {
       state = state.copyWith(
@@ -129,61 +158,81 @@ class WeeklyUsageNotifier extends StateNotifier<WeeklyUsageState> {
     }
   }
 
-  /// Deriva consumo semanal a partir dos dados mensais
-  List<double> _deriveWeeklyUsage(Map<String, dynamic> monthlyData) {
-    // Extrai total mensal se disponível
-    final totalMonthly = (monthlyData['totalGb'] as num?)?.toDouble() ??
-        (monthlyData['used'] as num?)?.toDouble() ??
-        500.0;
+  /// Converte dados mensais da API em listas de uso e rótulos para o gráfico
+  (List<double>, List<String>) _mapMonthlyData(
+      Map<String, dynamic> monthlyData, int month, int year) {
+    final details =
+        (monthlyData['details'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
 
-    // Calcula média diária e distribui com variação realística
-    final dailyAverage = totalMonthly / 30;
+    if (details == null || details.isEmpty) {
+      // Fallback: usa o total mensal distribuído igualmente
+      final totalGb = (monthlyData['usedGb'] as num?)?.toDouble() ?? 0.0;
+      final today = DateTime.now().day;
+      final dailyAvg = today > 0 ? totalGb / today : 0.0;
+      final data = List<double>.generate(today, (_) => dailyAvg);
+      final labels = List<String>.generate(today, (i) => (i + 1).toString());
+      return (data, labels);
+    }
 
-    // Gera 7 dias com variação de ±30%
-    final now = DateTime.now();
-    return List.generate(7, (i) {
-      // Mais consumo em fins de semana
-      final dayOfWeek = (now.weekday - 6 + i) % 7;
-      double multiplier = 1.0;
-      if (dayOfWeek == 5 || dayOfWeek == 6) {
-        multiplier = 1.3; // 30% mais no weekend
+    // Usa os dados reais por dia (pode ter lacunas - dias sem sessões)
+    details.sort((a, b) => (a['day'] as int).compareTo(b['day'] as int));
+
+    final data = details.map((e) => (e['gb'] as num).toDouble()).toList();
+    final labels = details.map((e) => (e['day'] as int).toString()).toList();
+
+    // Exibe apenas até 15 pontos para não poluir o gráfico mini do dashboard
+    if (data.length > 15) {
+      final step = (data.length / 15).ceil();
+      final sampledData = <double>[];
+      final sampledLabels = <String>[];
+      for (int i = 0; i < data.length; i += step) {
+        sampledData.add(data[i]);
+        sampledLabels.add(labels[i]);
       }
+      return (sampledData, sampledLabels);
+    }
 
-      // Adiciona variação aleatória
-      final variation = 0.7 + (i * 0.1); // Crescente durante a semana
-      return (dailyAverage * multiplier * variation).clamp(1.0, 1000.0);
-    });
+    return (data, labels);
   }
 
-  /// Gera consumo realístico simulado
-  List<double> _generateRealisticUsage() {
-    final now = DateTime.now();
-    final baseUsage = 15.0; // 15 GB/dia base
+  /// Gera consumo mensal realístico para modo sem serviço
+  (List<double>, List<String>) _generateRealisticMonthly(int month, int year) {
+    final today = DateTime.now().day;
+    final data = <double>[];
+    final labels = <String>[];
 
-    return List.generate(7, (i) {
-      final dayOfWeek = (now.weekday - 6 + i) % 7;
-      double multiplier = 1.0;
+    for (int day = 1; day <= today; day++) {
+      final date = DateTime(year, month, day);
+      final isWeekend =
+          date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+      final base = isWeekend ? 18.0 : 13.0;
+      final variation = 0.7 + (day % 5) * 0.12;
+      data.add(base * variation);
+      labels.add(day.toString());
+    }
 
-      // Mais consumo em fins de semana
-      if (dayOfWeek == 5 || dayOfWeek == 6) {
-        multiplier = 1.4;
+    // Exibe apenas até 15 pontos
+    if (data.length > 15) {
+      final step = (data.length / 15).ceil();
+      final sampledData = <double>[];
+      final sampledLabels = <String>[];
+      for (int i = 0; i < data.length; i += step) {
+        sampledData.add(data[i]);
+        sampledLabels.add(labels[i]);
       }
+      return (sampledData, sampledLabels);
+    }
 
-      // Variação diária
-      final dayVariation = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.0][i];
-
-      return baseUsage * multiplier * dayVariation;
-    });
+    return (data, labels);
   }
 
-  /// Limpa o cache
   Future<void> clearCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_cacheKey);
   }
 }
 
-/// Provider global de consumo semanal
+/// Provider global de consumo mensal
 final weeklyUsageProvider =
     StateNotifierProvider<WeeklyUsageNotifier, WeeklyUsageState>((ref) {
   final providerConfig = ref.watch(configurationProvider).providerConfig;
@@ -194,7 +243,6 @@ final weeklyUsageProvider =
     return WeeklyUsageNotifier(null);
   }
 
-  // Use apiUrl from Firebase config (no more hardcoded IP!)
   final baseApiUrl = providerConfig.apiUrl;
 
   final service = ConsumoService(

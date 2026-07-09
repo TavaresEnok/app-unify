@@ -22,9 +22,9 @@ class ComparisonWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,7 +33,7 @@ class ComparisonWidget extends StatelessWidget {
             children: [
               Icon(
                 Icons.compare_arrows,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -52,7 +52,7 @@ class ComparisonWidget extends StatelessWidget {
             previous.formattedDate,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 14),
@@ -105,14 +105,14 @@ class ComparisonWidget extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(icon, color: Colors.white.withOpacity(0.7), size: 18),
+        Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 18),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
         ),

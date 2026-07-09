@@ -63,11 +63,11 @@ class Layout02Theme {
   static BoxDecoration get cardDecoration => BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: cardShadow,
             blurRadius: 16,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       );
@@ -77,7 +77,7 @@ class Layout02Theme {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: primary.withOpacity(0.4),
+            color: primary.withValues(alpha: 0.4),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -85,9 +85,9 @@ class Layout02Theme {
       );
 
   static BoxDecoration get glassCardDecoration => BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       );
 
   // ==================== TEXT STYLES ====================
@@ -140,7 +140,7 @@ class Layout02Theme {
         useMaterial3: true,
         primaryColor: primary,
         scaffoldBackgroundColor: scaffoldBackground,
-        colorScheme: ColorScheme.light(
+        colorScheme: const ColorScheme.light(
           primary: primary,
           secondary: secondary,
           surface: background,

@@ -82,7 +82,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         });
         // Navigate to Dashboard (PainelPage is wrapper)
         // Ensure we replace the route so user can't go back to login
-        Navigator.of(context).pushReplacementNamed('/painel');
+        // AuthGate rebuilds automatically on login success
       }
     });
 

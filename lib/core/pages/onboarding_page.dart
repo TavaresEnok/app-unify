@@ -26,26 +26,26 @@ class _OnboardingPageState extends State<OnboardingPage>
       title: 'Teste sua Velocidade',
       description:
           'Descubra a real velocidade da sua internet com nosso teste profissional.',
-      color: Color(0xFF6366F1),
+      color: const Color(0xFF6366F1),
     ),
     OnboardingItem(
       icon: Icons.receipt_long_rounded,
       title: 'Faturas Simplificadas',
       description:
           'Visualize, copie o código PIX ou boleto com apenas um toque.',
-      color: Color(0xFF10B981),
+      color: const Color(0xFF10B981),
     ),
     OnboardingItem(
       icon: Icons.support_agent_rounded,
       title: 'Suporte Rápido',
       description: 'Abra chamados e receba atendimento diretamente pelo app.',
-      color: Color(0xFFF59E0B),
+      color: const Color(0xFFF59E0B),
     ),
     OnboardingItem(
       icon: Icons.notifications_active_rounded,
       title: 'Fique Informado',
       description: 'Receba alertas sobre faturas, manutenções e promoções.',
-      color: Color(0xFFEF4444),
+      color: const Color(0xFFEF4444),
     ),
   ];
 
@@ -99,7 +99,7 @@ class _OnboardingPageState extends State<OnboardingPage>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              _items[_currentPage].color.withOpacity(0.1),
+              _items[_currentPage].color.withValues(alpha: 0.1),
               Colors.white,
             ],
           ),
@@ -208,7 +208,7 @@ class _OnboardingPageState extends State<OnboardingPage>
             width: 160,
             height: 160,
             decoration: BoxDecoration(
-              color: item.color.withOpacity(0.15),
+              color: item.color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(

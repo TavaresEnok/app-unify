@@ -1,5 +1,6 @@
 /// Widgets de Acessibilidade
 /// Componentes com suporte a screen readers e acessibilidade
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

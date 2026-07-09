@@ -66,12 +66,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFFFD700).withOpacity(0.2),
-            const Color(0xFFFFA500).withOpacity(0.1),
+            const Color(0xFFFFD700).withValues(alpha: 0.2),
+            const Color(0xFFFFA500).withValues(alpha: 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -81,7 +81,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFD700).withOpacity(0.2),
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -121,7 +121,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
             child: LinearProgressIndicator(
               value: progress / 100,
               minHeight: 8,
-              backgroundColor: Colors.white.withOpacity(0.1),
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
               valueColor: const AlwaysStoppedAnimation(Color(0xFFFFD700)),
             ),
           ),
@@ -130,7 +130,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
             '$progress% Completo',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -157,13 +157,13 @@ class _AchievementsPageState extends State<AchievementsPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isUnlocked
-            ? achievement.color.withOpacity(0.1)
-            : Colors.white.withOpacity(0.05),
+            ? achievement.color.withValues(alpha: 0.1)
+            : Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isUnlocked
-              ? achievement.color.withOpacity(0.3)
-              : Colors.white.withOpacity(0.1),
+              ? achievement.color.withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.1),
           width: isUnlocked ? 2 : 1,
         ),
       ),
@@ -174,8 +174,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
             height: 56,
             decoration: BoxDecoration(
               color: isUnlocked
-                  ? achievement.color.withOpacity(0.2)
-                  : Colors.white.withOpacity(0.05),
+                  ? achievement.color.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -219,7 +219,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                         _formatDate(achievement.unlockedAt!),
                         style: TextStyle(
                           fontSize: 11,
-                          color: achievement.color.withOpacity(0.8),
+                          color: achievement.color.withValues(alpha: 0.8),
                         ),
                       ),
                     ],

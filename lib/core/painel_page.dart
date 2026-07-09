@@ -124,7 +124,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_02';
     // Layouts with custom bottom navigation - Layout 02, 05, 06 handle their own in dashboard_page
     // Layout 05 now has its own _buildBottomNav inside dashboard_page.dart
-    final hasBottomNav =
+    const hasBottomNav =
         false; // Nenhum layout usa mais o NeumorphicBottomNav externo
 
     if (authState.isLoading) {
@@ -991,6 +991,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
 
   DateTime _parseBillDate(String value) {
     try {
+      // Formato dd/MM/yyyy
       final parts = value.split('/');
       if (parts.length == 3) {
         return DateTime(
@@ -999,8 +1000,25 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           int.parse(parts[0]),
         );
       }
+      // Formato "Dia X" — ex: "Dia 10"
+      if (value.toLowerCase().startsWith('dia ')) {
+        final day = int.tryParse(value.split(' ').last);
+        if (day != null) {
+          final now = DateTime.now();
+          // Se o dia já passou este mês, usa o próximo mês
+          final thisMonth = DateTime(now.year, now.month, day);
+          return thisMonth.isBefore(now)
+              ? DateTime(now.year, now.month + 1, day)
+              : thisMonth;
+        }
+      }
+      // Formato yyyy-MM-dd
+      if (value.contains('-')) {
+        return DateTime.parse(value);
+      }
     } catch (_) {}
-    return DateTime.now();
+    // Retorna 30 dias no futuro como default razoável (não hoje)
+    return DateTime.now().add(const Duration(days: 30));
   }
 
   /// Extracts speed (Mbps) from plan name, e.g. "500 Mega" -> 500.0

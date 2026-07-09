@@ -367,7 +367,7 @@ class _DashboardPageState extends State<DashboardPage> {
               decoration: BoxDecoration(
                 color: active
                     ? Layout03Theme.primary
-                    : Layout03Theme.neuShadowDark.withOpacity(0.5),
+                    : Layout03Theme.neuShadowDark.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(4),
               ),
             );
@@ -400,7 +400,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
@@ -423,7 +423,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   'Por apenas + R\$ 30/mês',
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.85), fontSize: 12),
+                      color: Colors.white.withValues(alpha: 0.85), fontSize: 12),
                 ),
               ],
             ),
@@ -433,9 +433,9 @@ class _DashboardPageState extends State<DashboardPage> {
             height: 55,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               border:
-                  Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                  Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
             ),
             child: const Icon(Icons.rocket_launch_rounded,
                 size: 26, color: Colors.white),
@@ -468,7 +468,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
@@ -491,7 +491,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   'Equipe sempre disponível',
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.85), fontSize: 12),
+                      color: Colors.white.withValues(alpha: 0.85), fontSize: 12),
                 ),
               ],
             ),
@@ -501,9 +501,9 @@ class _DashboardPageState extends State<DashboardPage> {
             height: 55,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               border:
-                  Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                  Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
             ),
             child: const Icon(Icons.headset_mic_rounded,
                 size: 26, color: Colors.white),
@@ -697,7 +697,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -750,7 +750,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
+                      color: statusColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -795,7 +795,7 @@ class _DashboardPageState extends State<DashboardPage> {
         color: Layout03Theme.neuBase,
         boxShadow: [
           BoxShadow(
-            color: Layout03Theme.neuShadowDark.withOpacity(0.2),
+            color: Layout03Theme.neuShadowDark.withValues(alpha: 0.2),
             offset: const Offset(0, -6),
             blurRadius: 16,
           ),

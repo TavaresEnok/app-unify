@@ -1,5 +1,6 @@
 /// Serviço de Cache Inteligente
 /// Cache com TTL (Time To Live) e suporte offline
+library;
 
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -75,13 +75,13 @@ class Layout03Theme {
   }) {
     return [
       BoxShadow(
-        color: neuShadowDark.withOpacity(0.5),
+        color: neuShadowDark.withValues(alpha: 0.5),
         offset: Offset(distance, distance),
         blurRadius: blur,
         spreadRadius: -spread,
       ),
       BoxShadow(
-        color: neuShadowLight.withOpacity(0.7),
+        color: neuShadowLight.withValues(alpha: 0.7),
         offset: Offset(-distance, -distance),
         blurRadius: blur,
         spreadRadius: -spread,
@@ -95,7 +95,7 @@ class Layout03Theme {
   static List<BoxShadow> neuFlat({double distance = 4, double blur = 8}) {
     return [
       BoxShadow(
-        color: neuShadowDark.withOpacity(0.6),
+        color: neuShadowDark.withValues(alpha: 0.6),
         offset: Offset(distance, distance),
         blurRadius: blur,
       ),
@@ -113,13 +113,13 @@ class Layout03Theme {
   static List<BoxShadow> neuPressed({double distance = 3, double blur = 6}) {
     return [
       BoxShadow(
-        color: neuShadowDark.withOpacity(0.4),
+        color: neuShadowDark.withValues(alpha: 0.4),
         offset: Offset(distance, distance),
         blurRadius: blur,
         spreadRadius: -2,
       ),
       BoxShadow(
-        color: neuShadowLight.withOpacity(0.6),
+        color: neuShadowLight.withValues(alpha: 0.6),
         offset: Offset(-distance, -distance),
         blurRadius: blur,
         spreadRadius: -2,

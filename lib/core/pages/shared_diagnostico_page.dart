@@ -21,7 +21,22 @@ class DiagnosticoPage extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
-  late final DiagnosticoService _service;
+
+  /// Extrai com segurança um String do campo 'result' de um teste.
+  /// wifiInfo e batteryInfo salvam Maps; este helper evita type cast exceptions.
+  static String? _safeResultString(dynamic result) {
+    if (result == null) return null;
+    if (result is String) return result;
+    if (result is Map) {
+      return result['display'] as String? ??
+          result['displayText'] as String? ??
+          result['stateStr'] as String? ??
+          result.toString();
+    }
+    return result.toString();
+  }
+
+  DiagnosticoService? _service;
   OnuWifiService? _onuWifiService;
   bool _serviceInitialized = false;
 
@@ -40,7 +55,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     super.didChangeDependencies();
     if (!_serviceInitialized) {
       final configProvider = ref.read(configurationProvider);
-      final providerConfig = configProvider.providerConfig!;
+      final providerConfig = configProvider.providerConfig;
+      if (providerConfig == null) return; // config ainda carregando
       final authState = ref.read(authNotifierProvider);
       final usuario = authState.value;
 
@@ -67,17 +83,23 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
   @override
   void dispose() {
-    _service.dispose();
+    _service?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_serviceInitialized || _service == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final textTheme = Theme.of(context).textTheme;
     final primaryColor = Theme.of(context).primaryColor;
 
     return StreamBuilder<DiagnosticoState>(
-      stream: _service.stateStream,
+      stream: _service!.stateStream,
       initialData: DiagnosticoState.initial(),
       builder: (context, snapshot) {
         final state = snapshot.data!;
@@ -158,10 +180,10 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                       themeTextColor: themeTextColor,
                       themeTextGrey: themeTextGrey,
                       themePrimary: themePrimary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildOnuSignalCard(context,
                       isLayout05: isLayout05, isDarkLayout: isDarkLayout),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildSpeedTestCard(context, state, isLayout05,
                       isDarkLayout: isDarkLayout,
                       themeTextColor: themeTextColor,
@@ -169,26 +191,26 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                       themePrimary: themePrimary,
                       themeSurface: themeSurface,
                       neumorphicDecoration: neumorphicDecoration),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildWifiManagementCard(context,
                       isLayout05: isLayout05, isDarkLayout: isDarkLayout),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildWifiDetailsCard(context, state, isLayout05,
                       isDarkLayout: isDarkLayout),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildLanScanCard(context, state, isLayout05,
                       isDarkLayout: isDarkLayout),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildDeviceInfoCard(context, state, isLayout05,
                       isDarkLayout: isDarkLayout),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildBatteryInfoCard(context, state, isLayout05,
                       isDarkLayout: isDarkLayout),
                   const SizedBox(height: 24),
                   TroubleshooterCard(
                     state: state,
                     onRetry: () {
-                      if (!state.isTesting) _service.runAllTests();
+                      if (!state.isTesting) _service!.runAllTests();
                     },
                     isDarkLayout: isDarkLayout,
                   ),
@@ -206,9 +228,9 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                     : "Iniciar Diagnóstico",
                 onPressed: () {
                   if (state.isTesting) {
-                    _service.stopAllTests();
+                    _service!.stopAllTests();
                   } else {
-                    _service.runAllTests();
+                    _service!.runAllTests();
                     _fetchOnuSignal();
                     _fetchWifiNetworks();
                   }
@@ -276,26 +298,27 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         state.testResultsDisplay['wifiInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
     final wifiResult =
-        state.testResultsDisplay['wifiInfo']?['result'] as String?;
+        _safeResultString(state.testResultsDisplay['wifiInfo']?['result']);
     final gatewayStatus =
         state.testResultsDisplay['pingGateway']?['status'] as TestStatus? ??
             TestStatus.pending;
     final gatewayResult =
-        state.testResultsDisplay['pingGateway']?['result'] as String?;
+        _safeResultString(state.testResultsDisplay['pingGateway']?['result']);
     final ipStatus =
         state.testResultsDisplay['publicIp']?['status'] as TestStatus? ??
             TestStatus.pending;
-    final ipResult = state.testResultsDisplay['publicIp']?['result'] as String?;
+    final ipResult =
+        _safeResultString(state.testResultsDisplay['publicIp']?['result']);
     final googleStatus =
         state.testResultsDisplay['pingGoogle']?['status'] as TestStatus? ??
             TestStatus.pending;
     final googleResult =
-        state.testResultsDisplay['pingGoogle']?['result'] as String?;
+        _safeResultString(state.testResultsDisplay['pingGoogle']?['result']);
     final cloudflareStatus =
         state.testResultsDisplay['pingCloudflare']?['status'] as TestStatus? ??
             TestStatus.pending;
     final cloudflareResult =
-        state.testResultsDisplay['pingCloudflare']?['result'] as String?;
+        _safeResultString(state.testResultsDisplay['pingCloudflare']?['result']);
 
     return _buildAdaptiveCard(
         isLayout05: isLayout05,
@@ -528,7 +551,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                 ElevatedButton(
                     onPressed: () {
                       // Call service to retry only speed
-                      _service.runSpeedTestsOnly();
+                      _service!.runSpeedTestsOnly();
                     },
                     child: const Text("Tentar Novamente"))
               ]))
@@ -580,7 +603,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               TextButton(
                   onPressed: () {
                     // Retry
-                    _service.runSpeedTestsOnly();
+                    _service!.runSpeedTestsOnly();
                   },
                   child: const Text("Refazer Teste"))
             ],
@@ -649,7 +672,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         state.testResultsDisplay['wifiInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
-        state.testResultsDisplay['wifiInfo']?['result'] as String?;
+        _safeResultString(state.testResultsDisplay['wifiInfo']?['result']);
 
     return _buildAdaptiveCard(
       isLayout05: isLayout05,
@@ -685,7 +708,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         state.testResultsDisplay['deviceInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
-        state.testResultsDisplay['deviceInfo']?['result'] as String?;
+        _safeResultString(state.testResultsDisplay['deviceInfo']?['result']);
 
     return _buildAdaptiveCard(
       isLayout05: isLayout05,
@@ -747,7 +770,10 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         state.testResultsDisplay['batteryInfo']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
-        state.testResultsDisplay['batteryInfo']?['result'] as String?;
+        // batteryInfo salva Map em 'result' e o texto formatado em 'displayText'
+        state.testResultsDisplay['batteryInfo']?['displayText'] as String? ??
+            _safeResultString(
+                state.testResultsDisplay['batteryInfo']?['result']);
 
     return _buildAdaptiveCard(
       isLayout05: isLayout05,
@@ -817,7 +843,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         state.testResultsDisplay['lanScan']?['status'] as TestStatus? ??
             TestStatus.pending;
     final resultText =
-        state.testResultsDisplay['lanScan']?['result'] as String?;
+        _safeResultString(state.testResultsDisplay['lanScan']?['result']);
 
     final textColor = isDarkLayout
         ? Colors.white

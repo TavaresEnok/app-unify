@@ -4,7 +4,6 @@
 // INTEGRAÇÃO COM SERVIÇOS REAIS - Janeiro 2026
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,14 +17,6 @@ import '../../utils/pdf_generator_service.dart';
 import '../../controllers/wifi_management_controller.dart';
 
 // UX Enhancements - Sprint 1-3
-import '../../models/test_mode.dart';
-import '../../models/network_health_score.dart';
-import '../../widgets/health_score_widget.dart';
-import '../../widgets/test_mode_selector.dart';
-import '../../widgets/comparison_widget.dart';
-import '../../services/diagnostic_integration_helper.dart';
-import '../../services/achievement_service.dart';
-import '../../services/test_history_service.dart';
 import '../../utils/diagnostic_utils.dart';
 
 // ============ THEME CONFIG (WHITE MODE) ============
@@ -64,6 +55,17 @@ class Diagnostic07Page extends ConsumerStatefulWidget {
 
 class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
     with TickerProviderStateMixin {
+
+  /// Extrai com segurança um String do campo 'result' de um teste.
+  /// Quando o service salva um Map (ex: wifiInfo, onuInfo), retorna
+  /// o campo 'display' ou toString() do Map, evitando cast exceptions.
+  static String? _safeResultString(dynamic result) {
+    if (result == null) return null;
+    if (result is String) return result;
+    if (result is Map) return result['display'] as String? ?? result.toString();
+    return result.toString();
+  }
+
   // State
   DiagStep _step = DiagStep.ready;
   String _statusMessage = "Sistema pronto";
@@ -90,8 +92,8 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
   real_state.DiagnosticoState? _lastRealState;
   OnuWifiService? _onuWifiService;
 
-  // WiFi Management TR-069
-  late WifiManagementController _wifiController;
+  // WiFi Management TR-069 — inicializado com null para evitar LateInitializationError
+  WifiManagementController _wifiController = WifiManagementController(null);
 
   @override
   void initState() {
@@ -133,7 +135,8 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             contrato: user.contratoId?.toString(),
             sgpParams: sgpParams,
           );
-          _wifiController = WifiManagementController(_onuWifiService);
+          _onuWifiService = onuService;
+          _wifiController = WifiManagementController(onuService);
         }
 
         _realService = real_service.DiagnosticoService(
@@ -141,12 +144,18 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
           context: context,
           onuService: onuService,
         );
-        _realSub = _realService!.stateStream.listen(_handleRealServiceState);
+        _realSub = _realService!.stateStream.listen(
+          _handleRealServiceState,
+          onError: (e, st) =>
+              debugPrint('[Diagnostic07] Erro no stream: $e\n$st'),
+          cancelOnError: false,
+        );
       }
     }
   }
 
   void _handleRealServiceState(real_state.DiagnosticoState realState) {
+    try {
     setState(() {
       // Speed History updates
       _speedHistory.clear();
@@ -265,7 +274,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
       }
       if (results['traceroute']?['status'] == real_state.TestStatus.success) {
         _hops = [];
-        final resultStr = results['traceroute']!['result'] as String? ?? "";
+        final resultStr = _safeResultString(results['traceroute']!['result']) ?? "";
         final lines = resultStr.split('\n');
         for (var line in lines) {
           if (line.contains(':')) {
@@ -312,6 +321,9 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
 
       _lastRealState = realState;
     });
+    } catch (e, st) {
+      debugPrint('[Diagnostic07] Erro no handler de estado: $e\n$st');
+    }
   }
 
   @override
@@ -329,6 +341,52 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
 
   Future<void> _runDiagnostics() async {
     if (!mounted) return;
+
+    // Tenta inicializar o serviço se ainda não foi (pode acontecer se config
+    // carregou depois do didChangeDependencies inicial)
+    if (_realService == null) {
+      final config = ref.read(configurationProvider).providerConfig;
+      if (config == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Configuração do provedor não carregada. Tente novamente.'),
+            ),
+          );
+        }
+        return;
+      }
+      OnuWifiService? onuService;
+      final user = ref.read(authNotifierProvider).value;
+      if (user != null) {
+        final integrations = config.config.integrations;
+        onuService = OnuWifiService(
+          apiUrl: config.apiUrl,
+          cpfCnpj: user.cpfCnpj,
+          senha: user.senha,
+          contrato: user.contratoId?.toString(),
+          sgpParams: {
+            'sgpBaseUrl': integrations.sgpBaseUrl,
+            'token': integrations.apiToken,
+            'appName': integrations.appName,
+          },
+        );
+        _onuWifiService = onuService;
+        _wifiController = WifiManagementController(onuService);
+      }
+      _realService = real_service.DiagnosticoService(
+        providerConfig: config,
+        context: context,
+        onuService: onuService,
+      );
+      _realSub = _realService!.stateStream.listen(
+        _handleRealServiceState,
+        onError: (e, st) =>
+            debugPrint('[Diagnostic07] Erro no stream: $e\n$st'),
+        cancelOnError: false,
+      );
+    }
+
     HapticFeedback.mediumImpact();
 
     // Clear state
@@ -535,7 +593,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                           gradient: SweepGradient(
                               colors: [
                                 Colors.transparent,
-                                AppTheme.primary.withOpacity(0.15)
+                                AppTheme.primary.withValues(alpha: 0.15)
                               ],
                               startAngle: 0,
                               endAngle: 1,
@@ -595,11 +653,11 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                       boxShadow: [
                         BoxShadow(
                             color: AppTheme.primary
-                                .withOpacity(0.3 * _pulseController.value),
+                                .withValues(alpha: 0.3 * _pulseController.value),
                             blurRadius: 40 + (20 * _pulseController.value),
                             spreadRadius: 5),
                         BoxShadow(
-                            color: AppTheme.accent.withOpacity(0.2),
+                            color: AppTheme.accent.withValues(alpha: 0.2),
                             blurRadius: 60,
                             spreadRadius: 10,
                             offset: const Offset(-10, -10)),
@@ -607,7 +665,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   child: child,
                 );
               },
-              child: Center(
+              child: const Center(
                 child: Icon(Icons.play_arrow_rounded,
                     size: 60, color: AppTheme.primary),
               ),
@@ -645,7 +703,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                      color: AppTheme.success.withOpacity(0.1),
+                      color: AppTheme.success.withValues(alpha: 0.1),
                       shape: BoxShape.circle),
                   child: const Icon(Icons.check_circle_outline_rounded,
                       color: AppTheme.success, size: 48),
@@ -669,7 +727,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.primary,
                         side: BorderSide(
-                            color: AppTheme.primary.withOpacity(0.5)),
+                            color: AppTheme.primary.withValues(alpha: 0.5)),
                       ),
                     ),
                   ),
@@ -691,24 +749,30 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   index: 1,
                   child: _buildMetricCard(
                       "Download",
-                      "${_results?['download'].toInt()}",
+                      "${(_results?['download'] as double? ?? 0.0).toInt()}",
                       "Mbps",
                       AppTheme.success)),
               _StaggeredItem(
                   index: 2,
                   child: _buildMetricCard(
                       "Upload",
-                      "${_results?['upload'].toInt()}",
+                      "${(_results?['upload'] as double? ?? 0.0).toInt()}",
                       "Mbps",
                       AppTheme.accent)),
               _StaggeredItem(
                   index: 3,
-                  child: _buildMetricCard("Ping",
-                      "${_results?['ping'].toInt()}", "ms", AppTheme.warning)),
+                  child: _buildMetricCard(
+                      "Ping",
+                      "${(_results?['ping'] as double? ?? 0.0).toInt()}",
+                      "ms",
+                      AppTheme.warning)),
               _StaggeredItem(
                   index: 4,
-                  child: _buildMetricCard("Jitter", "${_results?['jitter']}",
-                      "ms", AppTheme.secondary)),
+                  child: _buildMetricCard(
+                      "Jitter",
+                      (_results?['jitter'] as double? ?? 0.0).toStringAsFixed(1),
+                      "ms",
+                      AppTheme.secondary)),
             ],
           ),
           const SizedBox(height: 32),
@@ -722,7 +786,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textLight,
                       letterSpacing: 2))),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           if (_wifi != null)
             _StaggeredItem(
@@ -731,7 +795,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   _buildSectionHeader("Wi-Fi Spectrum", Icons.wifi),
                   _buildWifiCard(_wifi!)
                 ])),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           if (_fiber != null)
             _StaggeredItem(
@@ -740,7 +804,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   _buildSectionHeader("Fibra Óptica", Icons.cable),
                   _buildFiberCard(_fiber!)
                 ])),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           if (_hops.isNotEmpty)
             _StaggeredItem(
@@ -749,7 +813,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   _buildSectionHeader("Rota (Traceroute)", Icons.alt_route),
                   _buildTracertList()
                 ])),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           if (_devices.isNotEmpty)
             _StaggeredItem(
@@ -759,17 +823,17 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   _buildDeviceGrid()
                 ])),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _StaggeredItem(index: 10, child: _buildConnectionJourneyCard()),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _StaggeredItem(index: 11, child: _buildWifiDetailsCard()),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _StaggeredItem(index: 12, child: _buildOnuDetailsCard()),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _StaggeredItem(index: 13, child: _buildDeviceDetailsCard()),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _StaggeredItem(index: 14, child: _buildWifiManagementCard()),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _StaggeredItem(index: 15, child: _buildTroubleshooterCard()),
 
           const SizedBox(height: 48),
@@ -820,7 +884,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
       child: Column(
         children: [
           _row("SSID", data['ssid'], bold: true),
-          Divider(color: Colors.black.withOpacity(0.05)),
+          Divider(color: Colors.black.withValues(alpha: 0.05)),
           _row("Sinal", "${data['rssi']} dBm"),
           _row("Frequência", data['frequency']),
           _row("Canal", "${data['channel']}"),
@@ -836,7 +900,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
       child: Column(
         children: [
           _row("Status", data['status'], color: AppTheme.success),
-          Divider(color: Colors.black.withOpacity(0.05)),
+          Divider(color: Colors.black.withValues(alpha: 0.05)),
           _row("RX Power", "${data['rx']} dBm"),
           _row("TX Power", "${data['tx']} dBm"),
           _row("Voltagem", "${data['volt']} V"),
@@ -864,10 +928,10 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                     width: 24,
                     height: 24,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                         color: AppTheme.bgLight, shape: BoxShape.circle),
                     child: Text("${h['hop']}",
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textGrey)),
@@ -910,7 +974,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withOpacity(0.05))),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
             child: Row(
               children: [
                 Icon(_devices[i]['icon'] as IconData,
@@ -1013,7 +1077,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
           ]),
       child: Icon(icon, color: AppTheme.textDark, size: 20),
     );
@@ -1081,16 +1145,16 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
     final r = _lastRealState!.testResultsDisplay;
     final wifiS = r['wifiInfo']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final wifiR = r['wifiInfo']?['result'] as String?;
+    final wifiR = _safeResultString(r['wifiInfo']?['result']);
     final gwS = r['pingGateway']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final gwR = r['pingGateway']?['result'] as String?;
+    final gwR = _safeResultString(r['pingGateway']?['result']);
     final ipS = r['publicIp']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final ipR = r['publicIp']?['result'] as String?;
+    final ipR = _safeResultString(r['publicIp']?['result']);
     final gS = r['pingGoogle']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
-    final gR = r['pingGoogle']?['result'] as String?;
+    final gR = _safeResultString(r['pingGoogle']?['result']);
 
     return _GlassContainer(
         padding: const EdgeInsets.all(20),
@@ -1124,8 +1188,8 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             height: 32,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: c.withOpacity(0.1),
-                border: Border.all(color: c.withOpacity(0.3))),
+                color: c.withValues(alpha: 0.1),
+                border: Border.all(color: c.withValues(alpha: 0.3))),
             child: Icon(icon, color: c, size: 16)),
         const SizedBox(width: 12),
         Expanded(
@@ -1151,7 +1215,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             margin: const EdgeInsets.only(left: 15),
             width: 2,
             height: 20,
-            color: c.withOpacity(0.1)),
+            color: c.withValues(alpha: 0.1)),
     ]);
   }
 
@@ -1235,9 +1299,9 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
     return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: c.withOpacity(0.05),
+            color: c.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: c.withOpacity(0.2))),
+            border: Border.all(color: c.withValues(alpha: 0.2))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
               style: const TextStyle(color: AppTheme.textGrey, fontSize: 11)),
@@ -1250,7 +1314,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
   Widget _buildDeviceDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
     final devR =
-        _lastRealState!.testResultsDisplay['deviceInfo']?['result'] as String?;
+        _safeResultString(_lastRealState!.testResultsDisplay['deviceInfo']?['result']);
     final s = _lastRealState!.testResultsDisplay['deviceInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1419,24 +1483,31 @@ class _GlassContainer extends StatelessWidget {
   const _GlassContainer({required this.child, this.padding});
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: AppTheme.borderRadius,
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.6),
-              borderRadius: AppTheme.borderRadius,
-              border: Border.all(color: Colors.white),
-              boxShadow: [
-                BoxShadow(
-                    color: AppTheme.primary.withOpacity(0.05),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5))
-              ]),
-          child: child,
-        ),
+    // BackdropFilter removido: causa crash silencioso em release mode em certos
+    // dispositivos Android (GPU sem suporte a composição de camadas).
+    // Efeito visual equivalente via opacidade + borda + sombra.
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: AppTheme.borderRadius,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primary.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.5),
+            blurRadius: 4,
+            offset: const Offset(-2, -2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: AppTheme.borderRadius,
+        child: child,
       ),
     );
   }
@@ -1464,38 +1535,60 @@ class _CombinedBackgroundPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    // 1. Bg
-    canvas.drawRect(rect, Paint()..color = AppTheme.bgLight);
+    try {
+      final rect = Offset.zero & size;
+      // 1. Bg
+      canvas.drawRect(rect, Paint()..color = AppTheme.bgLight);
 
-    // 2. Mesh Orbs
-    final p = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
-    p.color = AppTheme.primary.withOpacity(0.08);
-    canvas.drawCircle(
-        Offset(size.width * 0.3 + math.sin(meshTime) * 30, size.height * 0.2),
-        size.width * 0.5,
-        p);
-    p.color = AppTheme.accent.withOpacity(0.08);
-    canvas.drawCircle(
-        Offset(size.width * 0.8 - math.cos(meshTime) * 30, size.height * 0.6),
-        size.width * 0.6,
-        p);
+      // 2. Mesh Orbs — gradiente radial (sem MaskFilter.blur, que crasha em GPUs antigas)
+      final cx1 = size.width * 0.3 + math.sin(meshTime) * 30;
+      final cy1 = size.height * 0.2;
+      final r1 = size.width * 0.5;
+      final p1 = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            AppTheme.primary.withValues(alpha: 0.14),
+            AppTheme.primary.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromCircle(center: Offset(cx1, cy1), radius: r1));
+      canvas.drawCircle(Offset(cx1, cy1), r1, p1);
 
-    // 3. Particles
-    final rnd = math.Random(
-        42); // Seeded for consistency in static snapshot but dynamic in animation
-    final pp = Paint()..color = AppTheme.primary.withOpacity(0.2);
-    for (int i = 0; i < 30; i++) {
-      final x = (rnd.nextDouble() * size.width + math.sin(meshTime + i) * 20) %
-          size.width;
-      final y = (rnd.nextDouble() * size.height + math.cos(meshTime + i) * 20) %
-          size.height;
-      canvas.drawCircle(Offset(x, y), rnd.nextDouble() * 3, pp);
+      final cx2 = size.width * 0.8 - math.cos(meshTime) * 30;
+      final cy2 = size.height * 0.6;
+      final r2 = size.width * 0.6;
+      final p2 = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            AppTheme.accent.withValues(alpha: 0.12),
+            AppTheme.accent.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromCircle(center: Offset(cx2, cy2), radius: r2));
+      canvas.drawCircle(Offset(cx2, cy2), r2, p2);
+
+      // 3. Particles (sem blur)
+      final rnd = math.Random(42);
+      final pp = Paint()..color = AppTheme.primary.withValues(alpha: 0.18);
+      for (int i = 0; i < 20; i++) {
+        final x =
+            (rnd.nextDouble() * size.width + math.sin(meshTime + i) * 20) %
+                size.width;
+        final y =
+            (rnd.nextDouble() * size.height + math.cos(meshTime + i) * 20) %
+                size.height;
+        canvas.drawCircle(Offset(x, y), rnd.nextDouble() * 2.5 + 0.5, pp);
+      }
+    } catch (_) {
+      // Falha silenciosa: nunca deixa o painter crashar a UI
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()..color = AppTheme.bgLight,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _CombinedBackgroundPainter old) => true;
+  bool shouldRepaint(covariant _CombinedBackgroundPainter old) =>
+      old.meshTime != meshTime;
 }
 
 class _SmoothChartPainter extends CustomPainter {
@@ -1504,38 +1597,41 @@ class _SmoothChartPainter extends CustomPainter {
   _SmoothChartPainter({required this.data, required this.color});
   @override
   void paint(Canvas canvas, Size size) {
-    if (data.length < 2) return;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final path = Path();
-    final widthStep = size.width / (data.length - 1);
-    path.moveTo(0, size.height - (data[0] / 1000 * size.height));
-    for (int i = 0; i < data.length - 1; i++) {
-      final x1 = i * widthStep;
-      final y1 =
-          size.height - (data[i] / 1000 * size.height).clamp(0.0, size.height);
-      final x2 = (i + 1) * widthStep;
-      final y2 = size.height -
-          (data[i + 1] / 1000 * size.height).clamp(0.0, size.height);
-      path.cubicTo(x1 + widthStep / 2, y1, x1 + widthStep / 2, y2, x2, y2);
+    try {
+      if (data.length < 2) return;
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      final path = Path();
+      final widthStep = size.width / (data.length - 1);
+      path.moveTo(0, size.height - (data[0] / 1000 * size.height).clamp(0.0, size.height));
+      for (int i = 0; i < data.length - 1; i++) {
+        final x1 = i * widthStep;
+        final y1 =
+            size.height - (data[i] / 1000 * size.height).clamp(0.0, size.height);
+        final x2 = (i + 1) * widthStep;
+        final y2 = size.height -
+            (data[i + 1] / 1000 * size.height).clamp(0.0, size.height);
+        path.cubicTo(x1 + widthStep / 2, y1, x1 + widthStep / 2, y2, x2, y2);
+      }
+      final fillPath = Path.from(path)
+        ..lineTo(size.width, size.height)
+        ..lineTo(0, size.height)
+        ..close();
+      canvas.drawPath(
+          fillPath,
+          Paint()
+            ..shader = LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.0)])
+                .createShader(Offset.zero & size));
+      canvas.drawPath(path, paint);
+    } catch (_) {
+      // Falha silenciosa no painter
     }
-    // Gradient Fill
-    final fillPath = Path.from(path)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(
-        fillPath,
-        Paint()
-          ..shader = LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [color.withOpacity(0.2), color.withOpacity(0.0)])
-              .createShader(Offset.zero & size));
-    canvas.drawPath(path, paint);
   }
 
   @override

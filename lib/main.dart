@@ -54,15 +54,56 @@ void main() async {
   await _ensureFirebaseSession();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Crashlytics Setup (Immortal Mode)
+  // Crashlytics Setup + ErrorWidget customizado para debug
   FlutterError.onError = (errorDetails) {
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    debugPrint('🚨 FLUTTER ERROR: ${errorDetails.exception}');
+    debugPrint('📍 ${errorDetails.stack}');
   };
 
   // Async errors
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    debugPrint('🚨 ZONE ERROR: $error');
+    debugPrint('📍 $stack');
     return true;
+  };
+
+  // Override ErrorWidget para mostrar o erro REAL em vez de tela cinza/branca
+  // Essencial para diagnóstico de crashes em release mode
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    final message = details.exception.toString();
+    final shortMsg = message.length > 200 ? '${message.substring(0, 200)}...' : message;
+    return Material(
+      color: const Color(0xFF1A1A2E),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.bug_report, color: Color(0xFFE94560), size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                'Erro interno',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                shortMsg,
+                style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Envie este texto ao suporte técnico',
+                style: TextStyle(color: Color(0xFF666666), fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   };
 
   runApp(

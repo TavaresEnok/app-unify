@@ -32,17 +32,32 @@ class TroubleshooterCard extends StatelessWidget {
     this.isDarkLayout = false,
   });
 
+  /// Extrai com segurança um String do campo result (que pode ser Map ou String).
+  static String? _safeResultString(dynamic result) {
+    if (result == null) return null;
+    if (result is String) return result;
+    if (result is Map) {
+      return result['display'] as String? ??
+          result['displayText'] as String? ??
+          result['stateStr'] as String? ??
+          result.toString();
+    }
+    return result.toString();
+  }
+
   List<TroubleshootingRecommendation> _analyzeProblems(BuildContext context) {
     final List<TroubleshootingRecommendation> problems = [];
 
-    String? wifiResult =
-        state.testResultsDisplay['wifiInfo']?['result'] as String?;
-    String? pingResult =
-        state.testResultsDisplay['pingGateway']?['result'] as String?;
-    String? batteryResult =
-        state.testResultsDisplay['batteryInfo']?['result'] as String?;
-    String? lanResult =
-        state.testResultsDisplay['lanScan']?['result'] as String?;
+    final wifiResult =
+        _safeResultString(state.testResultsDisplay['wifiInfo']?['result']);
+    final pingResult =
+        _safeResultString(state.testResultsDisplay['pingGateway']?['result']);
+    final batteryResult =
+        state.testResultsDisplay['batteryInfo']?['displayText'] as String? ??
+            _safeResultString(
+                state.testResultsDisplay['batteryInfo']?['result']);
+    final lanResult =
+        _safeResultString(state.testResultsDisplay['lanScan']?['result']);
 
     // 1. Análise de Sinal Wi-Fi
     if (wifiResult != null) {

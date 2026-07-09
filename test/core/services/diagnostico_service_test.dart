@@ -8,15 +8,13 @@ import 'package:network_info_plus/network_info_plus.dart';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:lan_scanner/lan_scanner.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_internet_speed_test/flutter_internet_speed_test.dart';
 import 'package:app_provedor_unified/core/services/diagnostico_service.dart';
 import 'package:app_provedor_unified/core/services/onu_wifi_service.dart';
 import 'package:app_provedor_unified/core/models/provider_config.dart';
 import 'package:app_provedor_unified/core/models/diagnostico_state.dart';
-import 'package:app_provedor_unified/core/models/diagnostic_enums.dart'; // Fix: singular
-import 'package:flutter/material.dart';
+// Fix: singular
 
 import 'diagnostico_service_test.mocks.dart';
 
@@ -43,7 +41,7 @@ void main() {
   late MockPing mockPing;
   late DiagnosticoService service;
 
-  final providerConfig = ProviderConfig(
+  const providerConfig = ProviderConfig(
     id: 'test-id',
     name: 'Test',
     apiUrl: 'http://test.api',
@@ -136,9 +134,9 @@ void main() {
     });
 
     test('runPingTest handles success and calculates jitter', () async {
-      final pingData1 =
+      const pingData1 =
           PingData(response: PingResponse(time: Duration(milliseconds: 10)));
-      final pingData2 =
+      const pingData2 =
           PingData(response: PingResponse(time: Duration(milliseconds: 20)));
 
       when(mockPingFactory.create('8.8.8.8',

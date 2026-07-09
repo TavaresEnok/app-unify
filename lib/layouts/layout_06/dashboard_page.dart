@@ -51,8 +51,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   late AnimationController _waveController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Dias da semana para o gráfico
-  final List<String> _days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  // Removido: _days fixo (dias da semana); agora vem dinamicamente do provider mensal
 
   @override
   void initState() {
@@ -266,7 +265,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                 right: -6,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: Layout06Theme.primaryGradient,
                     shape: BoxShape.circle,
                   ),
@@ -663,7 +662,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   Widget _buildPlanCard() {
     final remainingDays = widget.billDueDate.difference(DateTime.now()).inDays;
     final formattedDate =
-        '${widget.billDueDate.day.toString().padLeft(2, '0')}/${widget.billDueDate.month.toString().padLeft(2, '0')}/${widget.billDueDate.year}';
+        '${widget.billDueDate.day.toString().padLeft(2, '0')}/${widget.billDueDate.month.toString().padLeft(2, '0')}/${widget.billDueDate.year}'
+        '${remainingDays > 0 ? ' (${remainingDays}d)' : remainingDays == 0 ? ' (hoje)' : ' (vencida)'}';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -835,9 +835,22 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   }
 
   Widget _buildUsageChart() {
-    final weeklyState = ref.watch(weeklyUsageProvider);
-    final usageHistory = weeklyState.usageData;
-    final maxUsage = usageHistory.reduce(math.max);
+    final monthlyState = ref.watch(weeklyUsageProvider);
+    final usageHistory = monthlyState.usageData;
+    final dayLabels = monthlyState.dayLabels;
+    final maxUsage =
+        usageHistory.isNotEmpty ? usageHistory.reduce(math.max) : 0.0;
+
+    // Mês/ano para exibição no título
+    final now = DateTime.now();
+    final displayMonth = monthlyState.month > 0 ? monthlyState.month : now.month;
+    final displayYear = monthlyState.year > 0 ? monthlyState.year : now.year;
+    final monthNames = [
+      '', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+    ];
+    final monthLabel =
+        '${monthNames[displayMonth]}/$displayYear';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -845,12 +858,23 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Consumo Semanal',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Consumo do Mês',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  monthLabel,
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                      fontSize: 12),
+                ),
+              ],
             ),
             GestureDetector(
               onTap: () => ref.read(weeklyUsageProvider.notifier).refresh(),
@@ -864,7 +888,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (weeklyState.isLoading)
+                    if (monthlyState.isLoading)
                       const SizedBox(
                         width: 8,
                         height: 8,
@@ -883,7 +907,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                       ),
                     const SizedBox(width: 6),
                     Text(
-                      '${weeklyState.totalWeeklyUsage.toStringAsFixed(0)} GB',
+                      '${monthlyState.totalMonthlyUsage.toStringAsFixed(1)} GB',
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 12),
@@ -904,88 +928,114 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           ),
           child: Column(
             children: [
-              SizedBox(
-                height: 125,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(usageHistory.length, (i) {
-                    final height =
-                        maxUsage > 0 ? (usageHistory[i] / maxUsage) * 100 : 0.0;
-                    final isToday = i == usageHistory.length - 1;
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            AnimatedBuilder(
-                              animation: _pulseController,
-                              builder: (context, _) {
-                                return Container(
-                                  height: height,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: isToday
+              if (monthlyState.isLoading && usageHistory.isEmpty)
+                const SizedBox(
+                  height: 125,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: Layout06Theme.primary,
+                    ),
+                  ),
+                )
+              else if (usageHistory.isEmpty)
+                SizedBox(
+                  height: 125,
+                  child: Center(
+                    child: Text(
+                      monthlyState.error != null
+                          ? 'Sem dados disponíveis'
+                          : 'Carregando...',
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 13),
+                    ),
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 125,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(usageHistory.length, (i) {
+                      final height =
+                          maxUsage > 0 ? (usageHistory[i] / maxUsage) * 100 : 0.0;
+                      final isToday = i == usageHistory.length - 1;
+                      final label = i < dayLabels.length ? dayLabels[i] : '';
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              AnimatedBuilder(
+                                animation: _pulseController,
+                                builder: (context, _) {
+                                  return Container(
+                                    height: math.max(height, 4),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: isToday
+                                            ? [
+                                                Layout06Theme.primary,
+                                                Layout06Theme.primaryDark
+                                              ]
+                                            : [
+                                                Colors.white
+                                                    .withValues(alpha: 0.15),
+                                                Colors.white
+                                                    .withValues(alpha: 0.08)
+                                              ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                      boxShadow: isToday
                                           ? [
-                                              Layout06Theme.primary,
-                                              Layout06Theme.primaryDark
+                                              BoxShadow(
+                                                color: Layout06Theme.primary
+                                                    .withValues(
+                                                        alpha: 0.3 +
+                                                            _pulseController
+                                                                    .value *
+                                                                0.1),
+                                                blurRadius: 8,
+                                              )
                                             ]
-                                          : [
-                                              Colors.white
-                                                  .withValues(alpha: 0.15),
-                                              Colors.white
-                                                  .withValues(alpha: 0.08)
-                                            ],
+                                          : null,
                                     ),
-                                    borderRadius: BorderRadius.circular(6),
-                                    boxShadow: isToday
-                                        ? [
-                                            BoxShadow(
-                                              color: Layout06Theme.primary
-                                                  .withValues(
-                                                      alpha: 0.3 +
-                                                          _pulseController
-                                                                  .value *
-                                                              0.1),
-                                              blurRadius: 8,
-                                            )
-                                          ]
-                                        : null,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _days[i],
-                              style: TextStyle(
-                                color: isToday
-                                    ? Layout06Theme.primary
-                                    : Colors.white.withValues(alpha: 0.4),
-                                fontSize: 11,
+                                  );
+                                },
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  color: isToday
+                                      ? Layout06Theme.primary
+                                      : Colors.white.withValues(alpha: 0.35),
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
-              ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${(widget.totalGb - widget.usedGb).toStringAsFixed(0)} GB restantes',
+                    'Total: ${monthlyState.totalMonthlyUsage.toStringAsFixed(1)} GB',
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 13),
                   ),
                   Text(
-                    'Renova em 10 dias',
+                    monthLabel,
                     style: TextStyle(
                         color: Layout06Theme.primary.withValues(alpha: 0.8),
                         fontSize: 13,
@@ -1003,28 +1053,26 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   Widget _buildServiceStatus() {
     final config = ref.watch(configurationProvider);
     final otherSettings = config.providerConfig?.config.other;
-    final showTv = otherSettings?.showTvService ?? true;
-    final showPhone = otherSettings?.showPhoneService ?? true;
+    final showTv = otherSettings?.showTvService ?? false;
+    // Telefone fixo removido — provedores de internet oferecem apenas Internet e/ou IPTV
 
-    // Lista de serviços a mostrar
+    // Status real baseado no estado da conta do usuário
+    final userStatus = widget.connectionStatus.toLowerCase();
+    final isActive = userStatus == 'ativo' || userStatus == 'operacional' || userStatus == 'active';
+    final internetStatus = isActive ? 'Operacional' : widget.connectionStatus;
+    final internetColor = isActive ? Layout06Theme.success : Layout06Theme.error;
+
     final services = <Widget>[
       Expanded(
-          child: _buildStatusCard('Internet', 'Operacional',
-              Icons.public_rounded, Layout06Theme.success, true)),
+          child: _buildStatusCard('Internet', internetStatus,
+              Icons.public_rounded, internetColor, isActive)),
     ];
 
     if (showTv) {
       services.add(const SizedBox(width: 12));
       services.add(Expanded(
-          child: _buildStatusCard('TV', 'Operacional', Icons.tv_rounded,
-              Layout06Theme.success, true)));
-    }
-
-    if (showPhone) {
-      services.add(const SizedBox(width: 12));
-      services.add(Expanded(
-          child: _buildStatusCard('Telefone', 'Operacional',
-              Icons.phone_rounded, Layout06Theme.success, true)));
+          child: _buildStatusCard('IPTV', internetStatus, Icons.tv_rounded,
+              internetColor, isActive)));
     }
 
     return Column(
@@ -1322,7 +1370,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: Layout06Theme.primaryGradient,
               ),
               child: Row(

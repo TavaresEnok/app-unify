@@ -152,15 +152,15 @@ class _LoginPageState extends ConsumerState<LoginPage>
       width: 100,
       height: 100,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: secondary.withOpacity(0.3),
+            color: secondary.withValues(alpha: 0.3),
             blurRadius: 30,
             spreadRadius: 5,
           ),
@@ -214,7 +214,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           'Acesse sua conta',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -232,7 +232,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 30,
             offset: const Offset(0, 15),
           ),
@@ -241,7 +241,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          const Text(
             'Entrar',
             style: TextStyle(
               fontSize: 24,
@@ -254,7 +254,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             'Digite seu CPF ou CNPJ para acessar',
             style: TextStyle(
               fontSize: 14,
-              color: Layout02Theme.textGrey.withOpacity(0.8),
+              color: Layout02Theme.textGrey.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 28),
@@ -272,11 +272,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
               labelText: 'CPF ou CNPJ',
               hintText: '000.000.000-00',
               labelStyle: TextStyle(
-                color: Layout02Theme.textGrey.withOpacity(0.8),
+                color: Layout02Theme.textGrey.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w500,
               ),
               hintStyle: TextStyle(
-                color: Layout02Theme.textGrey.withOpacity(0.5),
+                color: Layout02Theme.textGrey.withValues(alpha: 0.5),
               ),
               prefixIcon: Container(
                 margin: const EdgeInsets.only(left: 16, right: 12),
@@ -309,7 +309,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: errorColor.withOpacity(0.1),
+                color: errorColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -346,7 +346,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         decoration: BoxDecoration(
           gradient: _isLoading
               ? LinearGradient(
-                  colors: [Colors.grey, Colors.grey.withOpacity(0.8)],
+                  colors: [Colors.grey, Colors.grey.withValues(alpha: 0.8)],
                 )
               : LinearGradient(
                   begin: Alignment.topLeft,
@@ -358,7 +358,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ? null
               : [
                   BoxShadow(
-                    color: primary.withOpacity(0.4),
+                    color: primary.withValues(alpha: 0.4),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -403,7 +403,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         Text(
           'Precisa de ajuda?',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             fontSize: 14,
           ),
         ),
@@ -413,9 +413,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -426,7 +426,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 Text(
                   'Falar com Suporte',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/providers.dart';
 import '../../core/models/provider_config.dart';
+import '../../core/models/usuario.dart';
 import 'theme.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -58,6 +59,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Monitora erros de autenticação via AsyncValue
+    ref.listen<AsyncValue<Usuario?>>(authNotifierProvider, (previous, next) {
+      if (next is AsyncError) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _localErrorMessage = next.error
+                .toString()
+                .replaceAll('Exception:', '')
+                .trim();
+          });
+        }
+      }
+    });
+
     // Config via Riverpod
     final configProvider = ref.watch(configurationProvider);
     final config = configProvider.providerConfig;

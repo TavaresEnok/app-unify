@@ -279,10 +279,10 @@ class _HexagonGridPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
-    final double r = 30; // Hexagon radius
+    const double r = 30; // Hexagon radius
     // Calculate hex dimensions
     final double w = sqrt(3) * r;
-    final double h = 2 * r;
+    const double h = 2 * r;
 
     // Offset grid by scroll
     final double yOffset = (scroll * h * 2) % (h * 3); // Loop smoothly
