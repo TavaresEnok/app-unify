@@ -85,7 +85,7 @@ class _CardScannerPainter extends CustomPainter {
       Offset(0, y),
       Offset(size.width, y),
       Paint()
-        ..color = color.withOpacity(0.8)
+        ..color = color.withValues(alpha: 0.8)
         ..strokeWidth = 2
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
@@ -98,7 +98,7 @@ class _CardScannerPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
-          colors: [color.withOpacity(0.3), Colors.transparent],
+          colors: [color.withValues(alpha: 0.3), Colors.transparent],
         ).createShader(trailRect),
     );
   }
@@ -119,7 +119,7 @@ class _CornerPainter extends CustomPainter {
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.square;
 
-    final double len = 10;
+    const double len = 10;
 
     // Top Left
     canvas.drawPath(

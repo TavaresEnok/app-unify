@@ -769,7 +769,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                     child: _buildTestResult(
                         'Download',
                         _downloadSpeed > 0
-                            ? '${_downloadSpeed.toStringAsFixed(1)}'
+                            ? _downloadSpeed.toStringAsFixed(1)
                             : '—',
                         _downloadSpeed > 0
                             ? Layout05Theme.success
@@ -782,7 +782,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                     child: _buildTestResult(
                         'Upload',
                         _uploadSpeed > 0
-                            ? '${_uploadSpeed.toStringAsFixed(1)}'
+                            ? _uploadSpeed.toStringAsFixed(1)
                             : '—',
                         _uploadSpeed > 0
                             ? Layout05Theme.primary

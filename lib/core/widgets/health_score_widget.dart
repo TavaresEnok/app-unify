@@ -26,9 +26,9 @@ class HealthScoreWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: score.color.withOpacity(0.1),
+        color: score.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: score.color.withOpacity(0.3)),
+        border: Border.all(color: score.color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -46,7 +46,7 @@ class HealthScoreWidget extends StatelessWidget {
             '/100',
             style: TextStyle(
               fontSize: 12,
-              color: score.color.withOpacity(0.7),
+              color: score.color.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(width: 8),
@@ -62,14 +62,14 @@ class HealthScoreWidget extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            score.color.withOpacity(0.15),
-            score.color.withOpacity(0.05),
+            score.color.withValues(alpha: 0.15),
+            score.color.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: score.color.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: score.color.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Column(
         children: [
@@ -80,7 +80,7 @@ class HealthScoreWidget extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: score.color.withOpacity(0.2),
+                  color: score.color.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -114,7 +114,7 @@ class HealthScoreWidget extends StatelessWidget {
                           '/100',
                           style: TextStyle(
                             fontSize: 14,
-                            color: score.color.withOpacity(0.7),
+                            color: score.color.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -159,7 +159,7 @@ class HealthScoreWidget extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: score.color.withOpacity(0.8),
+              color: score.color.withValues(alpha: 0.8),
             ),
           ),
         ),
@@ -171,7 +171,7 @@ class HealthScoreWidget extends StatelessWidget {
               Container(
                 height: 6,
                 decoration: BoxDecoration(
-                  color: score.color.withOpacity(0.1),
+                  color: score.color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),

@@ -140,7 +140,7 @@ class TestHistoryService {
           )
           .toList();
     } catch (e) {
-      print('Error loading test history: $e');
+      debugPrint('Error saving test to history: $e');
       return [];
     }
   }

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/usuario.dart';
 import '../models/provider_config.dart';
@@ -37,15 +38,9 @@ class AuthRepository {
 
   Future<Usuario> performLoginApi(String cpf, ProviderConfig config) async {
     final apiUrl = config.apiUrl;
-    final sgpParams = {
-      "token": config.config.integrations.apiToken,
-      "app": config.config.integrations.appName,
-      "sgpBaseUrl": config.config.integrations.sgpBaseUrl
-    };
-
     final requestBody = {
       'cpf': cpf,
-      'sgpParams': sgpParams,
+      'providerId': config.id,
       'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
     };
 
@@ -83,6 +78,15 @@ class AuthRepository {
       // and 'saveUserLocally' persists it. However, to keep it simple and aligned
       // with previous logic, we can have a method that does both or separates them.
       // Let's create a User object here.
+
+      if (data['customToken'] != null) {
+        try {
+          await FirebaseAuth.instance.signInWithCustomToken(data['customToken']);
+          debugPrint('DEBUG: Firebase Auth signInWithCustomToken sucesso!');
+        } catch (e) {
+          debugPrint('DEBUG: Erro ao logar no Firebase Auth: $e');
+        }
+      }
 
       return Usuario(
         cpfCnpj: cpf.replaceAll(RegExp(r'[^0-9]'), ''),
@@ -144,6 +148,12 @@ class AuthRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     await _secureStorage.delete(key: 'userSenha');
+    
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      debugPrint('DEBUG: Erro ao fazer signout do Firebase Auth: $e');
+    }
   }
 
   Future<void> _saveDeviceToken(String cpfCnpj, String providerId) async {

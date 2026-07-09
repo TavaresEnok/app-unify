@@ -15,6 +15,7 @@ import 'core/pages/onboarding_page.dart';
 import 'core/widgets/rating_prompt_dialog.dart';
 import 'layout_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 // ========================================
 // CONFIGURAÇÃO DO PROVEDOR
@@ -33,6 +34,10 @@ void main() async {
   await initializeDateFormatting('pt_BR', null);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  await Hive.initFlutter();
+  await Hive.openBox('faturas_cache');
+  await Hive.openBox('consumo_cache');
 
   // Crashlytics Setup (Immortal Mode)
   FlutterError.onError = (errorDetails) {
@@ -137,6 +142,7 @@ class AuthGate extends ConsumerStatefulWidget {
 class _AuthGateState extends ConsumerState<AuthGate> {
   bool _showOnboarding = false;
   bool _onboardingChecked = false;
+  bool _ratingPromptShown = false;
 
   @override
   void initState() {
@@ -171,7 +177,12 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     }
 
     if (config.errorMessage != null) {
-      return FatalErrorScreen(error: config.errorMessage!);
+      return FatalErrorScreen(
+        error: config.errorMessage!,
+        onRetry: () {
+          ref.invalidate(configurationProvider);
+        },
+      );
     }
 
     // Mostrar onboarding para novos usuários
@@ -182,12 +193,15 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     final layoutType = config.providerConfig?.layoutType ?? 'layout_06';
 
     if (authState.value != null) {
-      // Mostrar prompt de avaliação após login (com delay)
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) RatingPromptDialog.showIfNeeded(context);
+      // Mostrar prompt de avaliação após login (apenas uma vez por sessão)
+      if (!_ratingPromptShown) {
+        _ratingPromptShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) RatingPromptDialog.showIfNeeded(context);
+          });
         });
-      });
+      }
       return const PainelPage();
     } else {
       return LayoutSelector.getLoginPage(layoutType: layoutType);
@@ -196,38 +210,69 @@ class _AuthGateState extends ConsumerState<AuthGate> {
 }
 
 class SplashScreen extends StatelessWidget {
-  final Color backgroundColor;
-  const SplashScreen({super.key, this.backgroundColor = Colors.white});
+  const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final isDark = brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: const Center(child: CircularProgressIndicator()),
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      body: Center(
+        child: CircularProgressIndicator(
+          color: isDark ? Colors.white70 : null,
+        ),
+      ),
     );
   }
 }
 
 class FatalErrorScreen extends StatelessWidget {
   final String error;
-  const FatalErrorScreen({super.key, required this.error});
+  final VoidCallback? onRetry;
+  const FatalErrorScreen({super.key, required this.error, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final isDark = brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 64),
+              Icon(Icons.error_outline,
+                  color: isDark ? Colors.redAccent : Colors.red, size: 64),
               const SizedBox(height: 16),
-              const Text('Erro crítico',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Text('Erro crítico',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: isDark ? Colors.white : Colors.black87,
+                  )),
               const SizedBox(height: 8),
-              Text(error, textAlign: TextAlign.center),
+              Text(
+                error,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Tentar Novamente'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

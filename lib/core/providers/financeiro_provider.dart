@@ -21,11 +21,8 @@ final financeiroServiceProvider =
     apiUrl: '${config.apiUrl}/get-invoices',
     cpfCnpjUnformatted: usuario.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
     senha: usuario.senha,
-    sgpParams: {
-      'token': config.config.integrations.apiToken,
-      'app': config.config.integrations.appName,
-      'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
-    },
+    providerId: config.id,
+    sgpBaseUrl: config.config.integrations.sgpBaseUrl,
   );
 });
 

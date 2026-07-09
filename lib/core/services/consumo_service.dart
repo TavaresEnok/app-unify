@@ -4,6 +4,8 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class ConsumoService {
   final String apiUrl;
@@ -37,26 +39,50 @@ class ConsumoService {
         if (year != null) 'ano': year,
       };
 
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (e) {
+        // ignore
+      }
+
       final response = await http
           .post(
             Uri.parse(apiUrl),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
             body: json.encode(requestBody),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 15)); // Reduced timeout for fallback
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body)['data'];
-        return responseData as Map<String, dynamic>;
+        
+        final String cacheKey = '$cpfCnpj-${month ?? 'all'}-${year ?? 'all'}';
+        try {
+          final box = Hive.box('consumo_cache');
+          await box.put(cacheKey, json.encode(responseData));
+        } catch (_) {}
+
+        return responseData is Map<String, dynamic> ? responseData : {};
       } else {
-        final errorBody = json.decode(response.body)['error'];
-        throw Exception(errorBody?['message'] ??
-            'Falha ao carregar dados de consumo. Código: ${response.statusCode}');
+        throw Exception(
+            "Falha ao buscar dados de consumo. Erro: ${response.statusCode}");
       }
-    } on TimeoutException {
-      throw TimeoutException(
-          'O servidor demorou muito para responder. Verifique sua conexão.');
     } catch (e) {
+      if (e.toString().contains('SocketException') || e is TimeoutException) {
+        final String cacheKey = '$cpfCnpj-${month ?? 'all'}-${year ?? 'all'}';
+        try {
+          final box = Hive.box('consumo_cache');
+          final cached = box.get(cacheKey);
+          if (cached != null) {
+            return json.decode(cached) as Map<String, dynamic>;
+          }
+        } catch (_) {}
+        throw Exception('Sem conexão com a internet e sem dados de consumo salvos.');
+      }
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
     }
   }

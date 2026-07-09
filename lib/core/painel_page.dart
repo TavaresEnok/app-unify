@@ -4,10 +4,9 @@ import '../layouts/layout_04/widgets/skeleton_dashboard_page.dart';
 import 'services/diagnostico_service.dart';
 import '../layout_selector.dart';
 import '../layouts/layout_03/theme.dart';
-import '../layouts/layout_03/widgets/neumorphic_bottom_nav.dart';
-import 'providers/providers.dart';
 import 'widgets/offline_banner.dart';
 import 'models/usuario.dart';
+import 'services/push_notification_service.dart';
 
 /// PainelPage - Widget principal de navegação após login
 class PainelPage extends ConsumerStatefulWidget {
@@ -24,6 +23,21 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   @override
   void initState() {
     super.initState();
+    
+    // Register push notification routing
+    PushNotificationService().onNotificationTap = (String? route) {
+      if (route != null && mounted) {
+        if (route == '/faturas' || route == 'financeiro' || route == 'invoices') {
+          _navigateToPage('invoices');
+        } else if (route == '/consumo' || route == 'internet_usage') {
+          _navigateToPage('internet_usage');
+        } else if (route.isNotEmpty) {
+          // Fallback generic routing
+          _navigateToPage(route.replaceAll('/', ''));
+        }
+      }
+    };
+
     // Refresh data in background when Painel opens
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _refreshData();
@@ -124,8 +138,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     final layoutType = configProvider.providerConfig?.layoutType ?? 'layout_02';
     // Layouts with custom bottom navigation - Layout 02, 05, 06 handle their own in dashboard_page
     // Layout 05 now has its own _buildBottomNav inside dashboard_page.dart
-    final hasBottomNav =
-        false; // Nenhum layout usa mais o NeumorphicBottomNav externo
 
     if (authState.isLoading) {
       return const SkeletonDashboardPage();
@@ -189,16 +201,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               right: 0,
               child: OfflineBanner(),
             ),
-            if (hasBottomNav)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: NeumorphicBottomNav(
-                  currentIndex: _getBottomNavIndex(),
-                  onTap: _onBottomNavTap,
-                ),
-              ),
+
           ],
         ),
       ),
@@ -306,40 +309,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     );
   }
 
-  int _getBottomNavIndex() {
-    switch (_currentPage) {
-      case 'dashboard':
-        return 0;
-      case 'wifi':
-        return 1;
-      case 'invoices':
-        return 2;
-      case 'support':
-        return 3;
-      default:
-        return 0;
-    }
-  }
 
-  void _onBottomNavTap(int index) {
-    switch (index) {
-      case 0:
-        _navigateToPage('dashboard');
-        break;
-      case 1:
-        _navigateToPage('wifi');
-        break;
-      case 2:
-        _navigateToPage('invoices');
-        break;
-      case 3:
-        _navigateToPage('support');
-        break;
-      case 4:
-        _scaffoldKey.currentState?.openDrawer();
-        break;
-    }
-  }
 
   Widget _buildDrawer(
       BuildContext context, Usuario usuario, WidgetRef ref, String layoutType) {

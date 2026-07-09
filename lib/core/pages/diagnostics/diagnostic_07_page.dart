@@ -18,14 +18,6 @@ import '../../utils/pdf_generator_service.dart';
 import '../../controllers/wifi_management_controller.dart';
 
 // UX Enhancements - Sprint 1-3
-import '../../models/test_mode.dart';
-import '../../models/network_health_score.dart';
-import '../../widgets/health_score_widget.dart';
-import '../../widgets/test_mode_selector.dart';
-import '../../widgets/comparison_widget.dart';
-import '../../services/diagnostic_integration_helper.dart';
-import '../../services/achievement_service.dart';
-import '../../services/test_history_service.dart';
 import '../../utils/diagnostic_utils.dart';
 
 // ============ THEME CONFIG (WHITE MODE) ============
@@ -529,9 +521,6 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
         return _buildReadyView();
       case DiagStep.done:
         return _buildResultsView();
-      default:
-        title = "Inicializando...";
-        content = const SizedBox();
     }
 
     return Column(
@@ -566,7 +555,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                           gradient: SweepGradient(
                               colors: [
                                 Colors.transparent,
-                                AppTheme.primary.withOpacity(0.15)
+                                AppTheme.primary.withValues(alpha: 0.15)
                               ],
                               startAngle: 0,
                               endAngle: 1,
@@ -626,11 +615,11 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                       boxShadow: [
                         BoxShadow(
                             color: AppTheme.primary
-                                .withOpacity(0.3 * _pulseController.value),
+                                .withValues(alpha: 0.3 * _pulseController.value),
                             blurRadius: 40 + (20 * _pulseController.value),
                             spreadRadius: 5),
                         BoxShadow(
-                            color: AppTheme.accent.withOpacity(0.2),
+                            color: AppTheme.accent.withValues(alpha: 0.2),
                             blurRadius: 60,
                             spreadRadius: 10,
                             offset: const Offset(-10, -10)),
@@ -638,7 +627,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                   child: child,
                 );
               },
-              child: Center(
+              child: const Center(
                 child: Icon(Icons.play_arrow_rounded,
                     size: 60, color: AppTheme.primary),
               ),
@@ -676,7 +665,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                      color: AppTheme.success.withOpacity(0.1),
+                      color: AppTheme.success.withValues(alpha: 0.1),
                       shape: BoxShape.circle),
                   child: const Icon(Icons.check_circle_outline_rounded,
                       color: AppTheme.success, size: 48),
@@ -700,7 +689,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.primary,
                         side: BorderSide(
-                            color: AppTheme.primary.withOpacity(0.5)),
+                            color: AppTheme.primary.withValues(alpha: 0.5)),
                       ),
                     ),
                   ),
@@ -851,7 +840,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
       child: Column(
         children: [
           _row("SSID", data['ssid'], bold: true),
-          Divider(color: Colors.black.withOpacity(0.05)),
+          Divider(color: Colors.black.withValues(alpha: 0.05)),
           _row("Sinal", "${data['rssi']} dBm"),
           _row("Frequência", data['frequency']),
           _row("Canal", "${data['channel']}"),
@@ -867,7 +856,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
       child: Column(
         children: [
           _row("Status", data['status'], color: AppTheme.success),
-          Divider(color: Colors.black.withOpacity(0.05)),
+          Divider(color: Colors.black.withValues(alpha: 0.05)),
           _row("RX Power", "${data['rx']} dBm"),
           _row("TX Power", "${data['tx']} dBm"),
           _row("Voltagem", "${data['volt']} V"),
@@ -895,10 +884,10 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
                     width: 24,
                     height: 24,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                         color: AppTheme.bgLight, shape: BoxShape.circle),
                     child: Text("${h['hop']}",
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textGrey)),
@@ -941,7 +930,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withOpacity(0.05))),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.05))),
             child: Row(
               children: [
                 Icon(_devices[i]['icon'] as IconData,
@@ -1044,7 +1033,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
           ]),
       child: Icon(icon, color: AppTheme.textDark, size: 20),
     );
@@ -1155,8 +1144,8 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             height: 32,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: c.withOpacity(0.1),
-                border: Border.all(color: c.withOpacity(0.3))),
+                color: c.withValues(alpha: 0.1),
+                border: Border.all(color: c.withValues(alpha: 0.3))),
             child: Icon(icon, color: c, size: 16)),
         const SizedBox(width: 12),
         Expanded(
@@ -1182,7 +1171,7 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
             margin: const EdgeInsets.only(left: 15),
             width: 2,
             height: 20,
-            color: c.withOpacity(0.1)),
+            color: c.withValues(alpha: 0.1)),
     ]);
   }
 
@@ -1266,9 +1255,9 @@ class _Diagnostic07PageState extends ConsumerState<Diagnostic07Page>
     return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: c.withOpacity(0.05),
+            color: c.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: c.withOpacity(0.2))),
+            border: Border.all(color: c.withValues(alpha: 0.2))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
               style: const TextStyle(color: AppTheme.textGrey, fontSize: 11)),
@@ -1457,12 +1446,12 @@ class _GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               borderRadius: AppTheme.borderRadius,
               border: Border.all(color: Colors.white),
               boxShadow: [
                 BoxShadow(
-                    color: AppTheme.primary.withOpacity(0.05),
+                    color: AppTheme.primary.withValues(alpha: 0.05),
                     blurRadius: 15,
                     offset: const Offset(0, 5))
               ]),
@@ -1501,12 +1490,12 @@ class _CombinedBackgroundPainter extends CustomPainter {
 
     // 2. Mesh Orbs
     final p = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
-    p.color = AppTheme.primary.withOpacity(0.08);
+    p.color = AppTheme.primary.withValues(alpha: 0.08);
     canvas.drawCircle(
         Offset(size.width * 0.3 + math.sin(meshTime) * 30, size.height * 0.2),
         size.width * 0.5,
         p);
-    p.color = AppTheme.accent.withOpacity(0.08);
+    p.color = AppTheme.accent.withValues(alpha: 0.08);
     canvas.drawCircle(
         Offset(size.width * 0.8 - math.cos(meshTime) * 30, size.height * 0.6),
         size.width * 0.6,
@@ -1515,7 +1504,7 @@ class _CombinedBackgroundPainter extends CustomPainter {
     // 3. Particles
     final rnd = math.Random(
         42); // Seeded for consistency in static snapshot but dynamic in animation
-    final pp = Paint()..color = AppTheme.primary.withOpacity(0.2);
+    final pp = Paint()..color = AppTheme.primary.withValues(alpha: 0.2);
     for (int i = 0; i < 30; i++) {
       final x = (rnd.nextDouble() * size.width + math.sin(meshTime + i) * 20) %
           size.width;
@@ -1564,7 +1553,7 @@ class _SmoothChartPainter extends CustomPainter {
           ..shader = LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [color.withOpacity(0.2), color.withOpacity(0.0)])
+                  colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.0)])
               .createShader(Offset.zero & size));
     canvas.drawPath(path, paint);
   }

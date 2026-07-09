@@ -130,7 +130,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Layout06Theme.primary.withOpacity(0.1),
+                    Layout06Theme.primary.withValues(alpha: 0.1),
                     Colors.transparent,
                   ],
                 ),
@@ -147,7 +147,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Layout06Theme.tertiary.withOpacity(0.08),
+                    Layout06Theme.tertiary.withValues(alpha: 0.08),
                     Colors.transparent,
                   ],
                 ),
@@ -173,7 +173,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               boxShadow: [
                 BoxShadow(
                   color: Layout06Theme.primary
-                      .withOpacity(0.25 + _pulseController.value * 0.15),
+                      .withValues(alpha: 0.25 + _pulseController.value * 0.15),
                   blurRadius: 25,
                   spreadRadius: 2,
                 ),
@@ -224,7 +224,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           'Acesse sua conta para gerenciar\nseus serviços de internet',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             height: 1.5,
           ),
           textAlign: TextAlign.center,
@@ -242,7 +242,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           Text(
             'CPF / CNPJ',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -259,14 +259,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
             decoration: InputDecoration(
               hintText: '000.000.000-00',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
               ),
               prefixIcon: const Icon(
                 Icons.person_outline_rounded,
                 color: Layout06Theme.primary,
               ),
               filled: true,
-              fillColor: Layout06Theme.cardBg.withOpacity(0.5),
+              fillColor: Layout06Theme.cardBg.withValues(alpha: 0.5),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -291,9 +291,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Layout06Theme.error.withOpacity(0.1),
+          color: Layout06Theme.error.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Layout06Theme.error.withOpacity(0.3)),
+          border: Border.all(color: Layout06Theme.error.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
@@ -334,7 +334,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               boxShadow: [
                 BoxShadow(
                   color: Layout06Theme.primary
-                      .withOpacity(0.25 + _pulseController.value * 0.1),
+                      .withValues(alpha: 0.25 + _pulseController.value * 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),

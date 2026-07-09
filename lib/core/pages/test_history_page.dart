@@ -103,14 +103,14 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
           Icon(
             Icons.history,
             size: 80,
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
             'Nenhum teste realizado',
             style: TextStyle(
               fontSize: 18,
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 8),
@@ -118,7 +118,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
             'Execute um diagnóstico para ver o histórico',
             style: TextStyle(
               fontSize: 13,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
           ),
         ],
@@ -132,12 +132,12 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF00F5FF).withOpacity(0.1),
-            const Color(0xFF0EA5E9).withOpacity(0.05),
+            const Color(0xFF00F5FF).withValues(alpha: 0.1),
+            const Color(0xFF0EA5E9).withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF00F5FF).withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFF00F5FF).withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +204,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -225,7 +225,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
             ),
           ),
         ],
@@ -241,9 +241,9 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,7 +266,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                   drawVerticalLine: false,
                   horizontalInterval: 20,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     strokeWidth: 1,
                   ),
                 ),
@@ -285,7 +285,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                       getTitlesWidget: (value, meta) => Text(
                         '${value.toInt()}',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                           fontSize: 10,
                         ),
                       ),
@@ -309,8 +309,8 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF00F5FF).withOpacity(0.3),
-                          const Color(0xFF00F5FF).withOpacity(0.0),
+                          const Color(0xFF00F5FF).withValues(alpha: 0.3),
+                          const Color(0xFF00F5FF).withValues(alpha: 0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -355,9 +355,9 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -365,7 +365,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: scoreColor.withOpacity(0.2),
+              color: scoreColor.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -398,14 +398,14 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                     Icon(
                       Icons.access_time,
                       size: 12,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       entry.formattedDate,
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -413,7 +413,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                       '🎮 ${entry.testMode}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
                     ),
                   ],

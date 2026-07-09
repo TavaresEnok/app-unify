@@ -4,7 +4,6 @@
 // INTEGRAÇÃO COM SERVIÇOS REAIS - Janeiro 2026
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,14 +17,6 @@ import '../../utils/pdf_generator_service.dart';
 import '../../controllers/wifi_management_controller.dart';
 
 // UX Enhancements - Sprint 1-3
-import '../../models/test_mode.dart';
-import '../../models/network_health_score.dart';
-import '../../widgets/health_score_widget.dart';
-import '../../widgets/test_mode_selector.dart';
-import '../../widgets/comparison_widget.dart';
-import '../../services/diagnostic_integration_helper.dart';
-import '../../services/achievement_service.dart';
-import '../../services/test_history_service.dart';
 import '../../utils/diagnostic_utils.dart';
 
 // main() function removed for integration - use Diagnostic05Page directly
@@ -226,8 +217,9 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       final results = realState.testResultsDisplay;
 
       // WiFi
-      if (results['wifiInfo']?['status'] == real_state.TestStatus.running)
+      if (results['wifiInfo']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.wifi;
+      }
       if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
         final res = results['wifiInfo']!['result'];
         if (res is Map) {
@@ -259,8 +251,9 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       }
 
       // Fiber (ONU)
-      if (results['onuInfo']?['status'] == real_state.TestStatus.running)
+      if (results['onuInfo']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.fiber;
+      }
       if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
         _progress = 0.4;
       } else if (results['onuInfo']?['status'] == real_state.TestStatus.error) {
@@ -271,8 +264,9 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       }
 
       // Devices
-      if (results['lanScan']?['status'] == real_state.TestStatus.running)
+      if (results['lanScan']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.devices;
+      }
       if (results['lanScan']?['status'] == real_state.TestStatus.success) {
         if (_devices.isEmpty) {
           final res = results['lanScan']!['result'];
@@ -309,8 +303,9 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       }
 
       // Traceroute
-      if (results['traceroute']?['status'] == real_state.TestStatus.running)
+      if (results['traceroute']?['status'] == real_state.TestStatus.running) {
         _currentStep = DiagStep.route;
+      }
       if (results['traceroute']?['status'] == real_state.TestStatus.success) {
         _hops = [];
         final resultStr = results['traceroute']!['result'] as String? ?? "";
@@ -480,20 +475,20 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                           if (_wifi != null)
                             _AnimatedCard(
                                 delay: 100,
-                                child: _buildWifiContent(),
-                                accentColor: AppColors.primary),
+                                accentColor: AppColors.primary,
+                                child: _buildWifiContent()),
                           // REMOVIDO: Card de Fibra duplicado (O usuário prefere o 'ONU / Fibra' abaixo)
                           // if (_fiber != null) ...
                           if (_devices.isNotEmpty)
                             _AnimatedCard(
                                 delay: 300,
-                                child: _buildDevicesContent(),
-                                accentColor: AppColors.accent),
+                                accentColor: AppColors.accent,
+                                child: _buildDevicesContent()),
                           if (_hops.isNotEmpty)
                             _AnimatedCard(
                                 delay: 400,
-                                child: _buildRouteContent(),
-                                accentColor: AppColors.warning),
+                                accentColor: AppColors.warning,
+                                child: _buildRouteContent()),
                           // NEW SECTIONS - Only show when diagnostic is complete
                           if (_currentStep == DiagStep.done &&
                               _lastRealState != null) ...[
@@ -529,16 +524,16 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           builder: (_, __) => Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
                   color: AppColors.success
-                      .withOpacity(0.3 + _pulseController.value * 0.2),
+                      .withValues(alpha: 0.3 + _pulseController.value * 0.2),
                   width: 2),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.success
-                      .withOpacity(0.1 + _pulseController.value * 0.1),
+                      .withValues(alpha: 0.1 + _pulseController.value * 0.1),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -555,7 +550,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.success.withOpacity(0.5),
+                        color: AppColors.success.withValues(alpha: 0.5),
                         blurRadius: 6,
                         spreadRadius: 2,
                       ),
@@ -600,7 +595,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: AppColors.primary.withOpacity(0.08),
+                    color: AppColors.primary.withValues(alpha: 0.08),
                     width: 1,
                   ),
                 ),
@@ -614,7 +609,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.15),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       blurRadius: 30,
                       offset: const Offset(0, 12),
                     ),
@@ -636,7 +631,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.play_arrow_rounded,
@@ -697,7 +692,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.4),
+                          color: AppColors.primary.withValues(alpha: 0.4),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         )
@@ -743,7 +738,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: isComplete
-                      ? AppColors.success.withOpacity(0.5)
+                      ? AppColors.success.withValues(alpha: 0.5)
                       : AppColors.border,
                   borderRadius: BorderRadius.circular(1),
                 ),
@@ -779,13 +774,13 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                           color: (isComplete
                                   ? AppColors.success
                                   : AppColors.primary)
-                              .withOpacity(0.4),
+                              .withValues(alpha: 0.4),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       if (!isActive && !isComplete)
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -829,9 +824,9 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.1),
+        color: AppColors.success.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.success.withOpacity(0.2)),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -879,7 +874,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(_isDownload ? "DOWNLOAD" : "UPLOAD",
@@ -974,7 +969,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        const _SectionHeader(
             icon: Icons.wifi_rounded,
             title: "Conexão Wi-Fi",
             color: AppColors.primary),
@@ -1004,7 +999,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       children: [
         Row(
           children: [
-            _SectionHeader(
+            const _SectionHeader(
                 icon: Icons.devices_rounded,
                 title: "Dispositivos",
                 color: AppColors.accent),
@@ -1012,7 +1007,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.12),
+                  color: AppColors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20)),
               child: Text("${_devices.length} Online",
                   style: GoogleFonts.inter(
@@ -1072,7 +1067,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -1106,7 +1101,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        const _SectionHeader(
             icon: Icons.alt_route_rounded,
             title: "Traceroute",
             color: AppColors.warning),
@@ -1130,10 +1125,10 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withOpacity(0.15),
+                      color: AppColors.warning.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                       border:
-                          Border.all(color: AppColors.warning.withOpacity(0.3)),
+                          Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
                     ),
                     child: Center(
                         child: Text("${hop['hop']}",
@@ -1166,7 +1161,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                            color: latencyColor.withOpacity(0.1),
+                            color: latencyColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12)),
                         child: Text("${latency}ms",
                             style: GoogleFonts.inter(
@@ -1205,7 +1200,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
                 elevation: 8,
-                shadowColor: AppColors.primary.withOpacity(0.4),
+                shadowColor: AppColors.primary.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -1309,12 +1304,12 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withOpacity(0.3))),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Icon(Icons.route_rounded, color: AppColors.primary, size: 20),
+              const Icon(Icons.route_rounded, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
               Text('Jornada da Conexão',
                   style: GoogleFonts.outfit(
@@ -1345,8 +1340,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
             height: 28,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: c.withOpacity(0.15),
-                border: Border.all(color: c.withOpacity(0.4))),
+                color: c.withValues(alpha: 0.15),
+                border: Border.all(color: c.withValues(alpha: 0.4))),
             child: Icon(icon, color: c, size: 14)),
         const SizedBox(width: 10),
         Expanded(
@@ -1356,7 +1351,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
               style:
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           Text(detail,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 10))
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10))
         ])),
         Icon(
             s == real_state.TestStatus.success
@@ -1372,7 +1367,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
             margin: const EdgeInsets.only(left: 13),
             width: 2,
             height: 16,
-            color: c.withOpacity(0.2)),
+            color: c.withValues(alpha: 0.2)),
     ]);
   }
 
@@ -1388,7 +1383,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withOpacity(0.3))),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1439,7 +1434,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withOpacity(0.3))),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1485,12 +1480,12 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
     return Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: c.withOpacity(0.1),
+            color: c.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: c.withOpacity(0.3))),
+            border: Border.all(color: c.withValues(alpha: 0.3))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
           Text(value,
               style: TextStyle(
                   color: c, fontSize: 12, fontWeight: FontWeight.bold))
@@ -1511,7 +1506,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withOpacity(0.3))),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1541,7 +1536,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
         child:
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(label,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           Text(value, style: const TextStyle(fontSize: 11))
         ]));
   }
@@ -1553,7 +1548,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withOpacity(0.3))),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child: ValueListenableBuilder<WifiState>(
             valueListenable: _wifiController,
@@ -1585,7 +1580,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                       Center(
                           child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                             elevation: 0),
                         onPressed: _wifiController.fetchNetworks,
                         icon:
@@ -1601,7 +1596,7 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                         color:
-                                            AppColors.primary.withOpacity(0.1),
+                                            AppColors.primary.withValues(alpha: 0.1),
                                         borderRadius:
                                             BorderRadius.circular(10)),
                                     child: Row(children: [
@@ -1706,15 +1701,15 @@ class _AnimatedCardState extends State<_AnimatedCard>
         child: Container(
           margin: const EdgeInsets.only(top: 16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
+            color: Colors.white.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                  color: const Color(0xFF64748B).withOpacity(0.08),
+                  color: const Color(0xFF64748B).withValues(alpha: 0.08),
                   blurRadius: 24,
                   offset: const Offset(0, 8))
             ],
-            border: Border.all(color: Colors.white.withOpacity(0.6), width: 1),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
@@ -1749,7 +1744,7 @@ class _SectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12)),
           child: Icon(icon, color: color, size: 20),
         ),
@@ -1774,7 +1769,6 @@ class _InfoRow extends StatelessWidget {
       {this.icon,
       required this.label,
       required this.value,
-      this.valueColor,
       this.isBold = false});
 
   @override
@@ -1824,11 +1818,11 @@ class _MetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 8))
         ],
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Column(
         children: [
@@ -1882,7 +1876,7 @@ class _MeshGradientPainter extends CustomPainter {
         Offset(size.width * 0.15 + math.cos(t) * 40,
             size.height * 0.2 + math.sin(t) * 40),
         220,
-        AppColors.primary.withOpacity(0.12));
+        AppColors.primary.withValues(alpha: 0.12));
 
     // Orb 2 - Bottom Right (Purple)
     _drawOrb(
@@ -1890,7 +1884,7 @@ class _MeshGradientPainter extends CustomPainter {
         Offset(size.width * 0.85 + math.sin(t) * 35,
             size.height * 0.75 + math.cos(t) * 35),
         280,
-        AppColors.secondary.withOpacity(0.10));
+        AppColors.secondary.withValues(alpha: 0.10));
 
     // Orb 3 - Center Right (Cyan)
     _drawOrb(
@@ -1898,7 +1892,7 @@ class _MeshGradientPainter extends CustomPainter {
         Offset(size.width * 0.9 + math.cos(t * 0.7) * 25,
             size.height * 0.4 + math.sin(t * 0.7) * 25),
         160,
-        AppColors.accent.withOpacity(0.08));
+        AppColors.accent.withValues(alpha: 0.08));
 
     // Orb 4 - Top Right (Pink) - NEW
     _drawOrb(
@@ -1906,13 +1900,13 @@ class _MeshGradientPainter extends CustomPainter {
         Offset(size.width * 0.7 + math.sin(t * 0.5) * 30,
             size.height * 0.1 + math.cos(t * 0.5) * 30),
         120,
-        AppColors.pink.withOpacity(0.07));
+        AppColors.pink.withValues(alpha: 0.07));
   }
 
   void _drawOrb(Canvas canvas, Offset center, double radius, Color color) {
     final paint = Paint()
       ..shader = RadialGradient(
-        colors: [color, color.withOpacity(0)],
+        colors: [color, color.withValues(alpha: 0)],
         stops: const [0.0, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: radius))
       ..blendMode = BlendMode.screen;
@@ -1959,7 +1953,7 @@ class _LightGaugePainter extends CustomPainter {
 
     final gradientRect = Rect.fromCircle(center: center, radius: radius);
     fillPaint.shader = SweepGradient(
-      colors: [color.withOpacity(0.4), color],
+      colors: [color.withValues(alpha: 0.4), color],
       startAngle: startAngle,
       endAngle: startAngle + sweepAngle,
       transform: const GradientRotation(0),
@@ -1980,7 +1974,7 @@ class _LightGaugePainter extends CustomPainter {
       final tipY = center.dy + (radius - strokeWidth / 2) * math.sin(endAngle);
 
       final glowPaint = Paint()
-        ..color = color.withOpacity(0.5)
+        ..color = color.withValues(alpha: 0.5)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 
       canvas.drawCircle(Offset(tipX, tipY), 12, glowPaint);
@@ -2004,7 +1998,7 @@ class _ChartPainter extends CustomPainter {
 
     final path = Path();
     final stepX = size.width / (data.length - 1);
-    final maxVal = 600.0;
+    const maxVal = 600.0;
 
     for (int i = 0; i < data.length; i++) {
       final x = i * stepX;
@@ -2047,7 +2041,7 @@ class _ChartPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [color.withOpacity(0.25), color.withOpacity(0)],
+            colors: [color.withValues(alpha: 0.25), color.withValues(alpha: 0)],
           ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
           ..style = PaintingStyle.fill);
   }

@@ -88,10 +88,10 @@ class Layout04Theme {
   static BoxDecoration cardDecoration = BoxDecoration(
     color: surface,
     borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+    border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.2),
+        color: Colors.black.withValues(alpha: 0.2),
         blurRadius: 10,
         offset: const Offset(0, 4),
       ),
@@ -102,7 +102,7 @@ class Layout04Theme {
   static BoxDecoration activeCardDecoration = BoxDecoration(
     color: surfaceHighlight,
     borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: primary.withOpacity(0.3), width: 1),
+    border: Border.all(color: primary.withValues(alpha: 0.3), width: 1),
   );
 
   // Simple Input Decoration
@@ -121,7 +121,7 @@ class Layout04Theme {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: border, width: 1),
+        borderSide: const BorderSide(color: border, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),

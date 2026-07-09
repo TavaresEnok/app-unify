@@ -66,6 +66,14 @@ service cloud.firestore {
       allow create: if signedIn();
     }
 
+    // Secrets do provedor — acesso RESTRITO apenas a admins do provedor
+    // IMPORTANTE: esta regra deve vir ANTES da wildcard {document=**}
+    match /provedores/{providerId}/secrets/{secretId} {
+      allow read, write: if canManageProvider(providerId);
+    }
+
+    // Wildcard para subcoleções genéricas do provedor
+    // NÃO cobre secrets pois a regra acima é mais específica
     match /provedores/{providerId}/{document=**} {
       allow read, write: if canManageProvider(providerId);
     }
@@ -80,18 +88,18 @@ service cloud.firestore {
       allow read, write: if canManageProvider(providerId);
     }
 
-    // Clientes: leitura restrita ao admin do provedor ou superAdmin
+    // Clientes: leitura restrita ao admin do provedor, superAdmin, ou ao próprio cliente
     match /clientes/{clientId} {
-      allow read: if isSuperAdmin() || (signedIn() && resource.data.providerId == request.auth.token.providerId);
+      allow read: if isSuperAdmin() || (signedIn() && resource.data.providerId == request.auth.token.providerId) || (signedIn() && request.auth.uid == clientId);
       allow create: if signedIn() && (
         isSuperAdmin() ||
         isProviderAdmin(request.resource.data.providerId) ||
-        clientSyncFieldsValid()
+        (request.auth.uid == clientId && clientSyncFieldsValid())
       );
       allow update: if signedIn() && (
         isSuperAdmin()
         || isProviderAdmin(resource.data.providerId)
-        || (clientSyncFieldsValid() && resource.data.providerId == request.resource.data.providerId)
+        || (request.auth.uid == clientId && clientSyncFieldsValid() && resource.data.providerId == request.resource.data.providerId)
       );
       allow delete: if isSuperAdmin() || isProviderAdmin(resource.data.providerId);
     }

@@ -266,7 +266,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                 right: -6,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: Layout06Theme.primaryGradient,
                     shape: BoxShape.circle,
                   ),
@@ -661,7 +661,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   }
 
   Widget _buildPlanCard() {
-    final remainingDays = widget.billDueDate.difference(DateTime.now()).inDays;
     final formattedDate =
         '${widget.billDueDate.day.toString().padLeft(2, '0')}/${widget.billDueDate.month.toString().padLeft(2, '0')}/${widget.billDueDate.year}';
 
@@ -1322,7 +1321,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: Layout06Theme.primaryGradient,
               ),
               child: Row(

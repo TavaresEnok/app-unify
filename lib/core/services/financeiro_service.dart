@@ -4,26 +4,29 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class FinanceiroService {
   final String apiUrl;
   final String cpfCnpjUnformatted;
   final String? senha;
-  final Map<String, dynamic> sgpParams;
+  final String providerId;
+  final String sgpBaseUrl;
 
   FinanceiroService({
     required this.apiUrl,
     required this.cpfCnpjUnformatted,
     this.senha,
-    required this.sgpParams,
+    required this.providerId,
+    required this.sgpBaseUrl,
   });
 
   /// Busca as faturas do cliente
   Future<List<dynamic>> fetchInvoices() async {
     try {
-      // [MOCK] If no token/app configured, return mock data for UI testing
-      if ((sgpParams['token'] ?? '').isEmpty ||
-          (sgpParams['app'] ?? '').isEmpty) {
+      // [MOCK] If no providerId configured, return mock data for UI testing
+      if (providerId.isEmpty) {
         // Retrieve colors to use the correct formatting if needed (though model parses strings mostly)
         return _getMockInvoices();
       }
@@ -35,35 +38,57 @@ class FinanceiroService {
       final requestBody = {
         'cpfCnpj': cpfCnpjUnformatted,
         'senha': senha,
-        'sgpParams': sgpParams,
-        'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+        'providerId': providerId,
+        'sgpBaseUrl': sgpBaseUrl,
       };
+
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (e) {
+        // ignore
+      }
 
       final response = await http
           .post(
             Uri.parse(apiUrl),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
             body: json.encode(requestBody),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 15)); // Reduced timeout for faster fallback
 
       final responseBody = json.decode(response.body);
 
       if (response.statusCode == 200) {
         final responseData = responseBody['data'];
-        return responseData is List ? responseData : [];
+        final invoices = responseData is List ? responseData : [];
+        // Save to cache
+        try {
+           final box = Hive.box('faturas_cache');
+           await box.put(cpfCnpjUnformatted, json.encode(invoices));
+        } catch (_) {}
+        return invoices;
       } else {
         final errorMessage = responseBody['error']?['message'] ??
             responseBody['error'] ??
             'Falha ao carregar faturas. Código: ${response.statusCode}';
         throw Exception(errorMessage);
       }
-    } on TimeoutException {
-      throw TimeoutException(
-          'O servidor demorou muito para responder. Verifique sua conexão.');
     } catch (e) {
-      // If we are debugging/testing, maybe fallback to mock on error too?
-      // For now, let's stick to explicit mock only if config is missing.
+      // Offline fallback
+      if (e.toString().contains('SocketException') || e is TimeoutException) {
+        try {
+          final box = Hive.box('faturas_cache');
+          final cached = box.get(cpfCnpjUnformatted);
+          if (cached != null) {
+            return json.decode(cached) as List<dynamic>;
+          }
+        } catch (_) {}
+        throw Exception('Sem conexão com a internet e sem dados salvos offline.');
+      }
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
     }
   }
@@ -106,19 +131,32 @@ class FinanceiroService {
   /// Solicita desbloqueio por confiança
   Future<bool> solicitarDesbloqueioConfianca() async {
     try {
-      final unlockUrl = apiUrl.replaceAll('get-invoices', 'unlock-trust');
+      // Constrói a URL de unlock a partir da base da API (não depende de 'get-invoices' estar na URL)
+      final uri = Uri.parse(apiUrl);
+      final unlockUri = uri.replace(path: '/unlock-trust');
+      final unlockUrl = unlockUri.toString();
 
       final requestBody = {
         'cpfCnpj': cpfCnpjUnformatted,
         'senha': senha,
-        'sgpParams': sgpParams,
-        'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+        'providerId': providerId,
+        'sgpBaseUrl': sgpBaseUrl,
       };
+
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (e) {
+        // ignore
+      }
 
       final response = await http
           .post(
             Uri.parse(unlockUrl),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
             body: json.encode(requestBody),
           )
           .timeout(const Duration(seconds: 30));

@@ -1,5 +1,6 @@
 /// Widgets de Animação Reutilizáveis
 /// Componentes com animações otimizadas para performance
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

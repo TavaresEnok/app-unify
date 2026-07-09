@@ -1,5 +1,5 @@
-import { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { createContext, useState, useEffect, useCallback, useContext, ReactNode } from 'react';
+import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -84,47 +84,81 @@ export function SettingsProvider({ children, providerId }: { children: React.Rea
   useEffect(() => {
     setLoading(true);
     if (!providerId) return;
-    const unsubscribe = onSnapshot(doc(db, 'provedores', providerId), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setProvider(data);
+    
+    let unsubscribe: (() => void) | null = null;
 
-        // Lógica de Leitura: Mescla Defaults + Antigo + Novo
-        const legacy = data.config || {};
-        const root = { ...data };
-        delete root.config;
-        const finalConfig = { ...UI_DEFAULTS, ...legacy, ...root };
-
-        // Segurança extra para cores vazias
-        Object.keys(UI_DEFAULTS).forEach(key => {
-          if (!finalConfig[key]) finalConfig[key] = UI_DEFAULTS[key];
-        });
-
-        setConfig(finalConfig);
-      } else {
-        setConfig(UI_DEFAULTS);
+    const init = async () => {
+      // Fetch secrets once
+      let secrets: any = {};
+      try {
+        const secretSnap = await getDoc(doc(db, 'provedores', providerId, 'secrets', 'sgp'));
+        if (secretSnap.exists()) {
+          secrets = secretSnap.data();
+        }
+      } catch (e) {
+        console.error("Erro ao buscar secrets", e);
       }
-      setTimeout(() => setLoading(false), 100);
-    }, (error) => {
-      console.error("Erro config:", error);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+
+      unsubscribe = onSnapshot(doc(db, 'provedores', providerId), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setProvider(data);
+
+          // Lógica de Leitura: Mescla Defaults + Antigo + Novo
+          const legacy = data.config || {};
+          const root = { ...data };
+          delete root.config;
+          const finalConfig = { ...UI_DEFAULTS, ...legacy, ...root };
+
+          // Injetar os secrets (integrations) de volta no config para uso interno do painel
+          if (secrets.integrations) {
+            finalConfig.integrations = secrets.integrations;
+          }
+
+          // Segurança extra para cores vazias
+          Object.keys(UI_DEFAULTS).forEach(key => {
+            if (!finalConfig[key]) finalConfig[key] = (UI_DEFAULTS as any)[key];
+          });
+
+          setConfig(finalConfig);
+        } else {
+          setConfig(UI_DEFAULTS);
+        }
+        setTimeout(() => setLoading(false), 100);
+      }, (error) => {
+        console.error("Erro config:", error);
+        setLoading(false);
+      });
+    };
+
+    init();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [providerId]);
 
   const saveConfig = useCallback(async () => {
     setIsSaving(true);
     try {
       const payload = JSON.parse(JSON.stringify(config));
+      
+      // Isolar as integrações (dados sensíveis)
+      const integrationsData = payload.integrations;
+      delete payload.integrations; // Remove from public doc
       delete payload.config;
 
-      console.log("💾 Salvando:", payload);
+      console.log("💾 Salvando público:", payload);
 
-      // Salva direto no banco para garantir
-      await setDoc(doc(db, 'provedores', providerId), {
-        ...payload,
-        config: payload // Espelho para compatibilidade
-      }, { merge: true });
+      // Salva os dados sensíveis na subcoleção protegida
+      if (integrationsData) {
+        await setDoc(doc(db, 'provedores', providerId, 'secrets', 'sgp'), { 
+          integrations: integrationsData 
+        }, { merge: true });
+      }
+
+      // Salva o resto no documento público (sem duplicar em config)
+      await setDoc(doc(db, 'provedores', providerId), payload, { merge: true });
 
       toast.success("Salvo com sucesso!");
     } catch (error: any) {

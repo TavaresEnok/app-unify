@@ -243,7 +243,7 @@ class _SpeedGraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final maxPoints = 60;
+    const maxPoints = 60;
 
     // Grid lines
     for (int i = 0; i <= 4; i++) {
@@ -275,7 +275,7 @@ class _SpeedGraphPainter extends CustomPainter {
   ) {
     if (data.isEmpty) return;
 
-    final maxVal = 500.0;
+    const maxVal = 500.0;
     final path = Path();
     final fillPath = Path();
 

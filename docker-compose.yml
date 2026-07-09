@@ -1,4 +1,39 @@
 services:
+  # =========================================================================
+  # CADDY — Reverse Proxy com HTTPS automático (Let's Encrypt)
+  # =========================================================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: painel_caddy
+    restart: always
+    ports:
+      - "8080:8080"
+      - "8443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend-proxy
+      - api-service
+      - landing-page
+      - speed-test
+
+  # =========================================================================
+  # REDIS — Cache compartilhado e rate limiting persistente
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: painel_redis
+    restart: always
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   frontend:
     build:
       context: ./admin-painel
@@ -7,6 +42,11 @@ services:
     restart: always
     ports:
       - "8031:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     environment:
       # URL pública da API usada no build do Vite (defina no .env da máquina host, ex.: VITE_API_URL=https://api.seudominio.com)
       - VITE_API_URL=${VITE_API_URL:-http://127.0.0.1:8034}
@@ -19,8 +59,37 @@ services:
     restart: always
     ports:
       - "8030:3002"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     env_file:
       - ./proxy-sgp/.env
+    environment:
+      - DATABASE_URL=postgresql://sgp_user:sgp_password@postgres:5432/sgp_cache
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: painel_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: sgp_user
+      POSTGRES_PASSWORD: sgp_password
+      POSTGRES_DB: sgp_cache
+    # SEGURANÇA: porta NÃO exposta publicamente — acesso apenas via rede Docker interna
+    # Para acessar via host: docker exec -it painel_postgres psql -U sgp_user -d sgp_cache
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sgp_user -d sgp_cache"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   landing-page:
     build:
@@ -50,6 +119,11 @@ services:
     restart: always
     ports:
       - "8034:9136"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9136/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     env_file:
       - ./api-service/.env
     volumes:
@@ -80,3 +154,9 @@ services:
 networks:
   default:
     name: painel_net
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+

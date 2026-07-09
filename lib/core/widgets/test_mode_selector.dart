@@ -64,18 +64,18 @@ class TestModeSelector extends StatelessWidget {
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: isSelected ? null : Colors.white.withOpacity(0.1),
+          color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? Colors.white.withOpacity(0.3)
-                : Colors.white.withOpacity(0.1),
+                ? Colors.white.withValues(alpha: 0.3)
+                : Colors.white.withValues(alpha: 0.1),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: colors.first.withOpacity(0.4),
+                    color: colors.first.withValues(alpha: 0.4),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -114,7 +114,7 @@ class TestModeSelector extends StatelessWidget {
               mode.description,
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -153,9 +153,9 @@ class CompactTestModeSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<TestMode>(

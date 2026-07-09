@@ -1,5 +1,6 @@
 /// Design System Centralizado
 /// Tokens de design reutilizáveis para consistência visual
+library;
 
 import 'package:flutter/material.dart';
 

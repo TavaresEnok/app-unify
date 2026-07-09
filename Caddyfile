@@ -1,0 +1,73 @@
+# Caddyfile — Reverse Proxy para Painel Provedores
+# =================================================================
+# Para HTTPS automático: substitua 168.194.13.18 pelo seu domínio
+# Exemplo: painel.seudominio.com.br
+# O Caddy vai gerar certificado SSL automaticamente via Let's Encrypt
+# =================================================================
+
+# Enquanto não tiver domínio, usar HTTP no IP direto
+:8080 {
+    # Admin Painel (frontend)
+    handle /painel/* {
+        uri strip_prefix /painel
+        reverse_proxy frontend:80
+    }
+
+    # API Service
+    handle /api/* {
+        reverse_proxy api-service:9136
+    }
+
+    # Proxy SGP
+    handle /sgp/* {
+        uri strip_prefix /sgp
+        reverse_proxy backend-proxy:3002
+    }
+
+    # Speed Test
+    handle /speedtest/* {
+        uri strip_prefix /speedtest
+        reverse_proxy speed-test:3001
+    }
+
+    # Landing page como default
+    handle {
+        reverse_proxy landing-page:80
+    }
+
+    # Headers de segurança
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Logs
+    log {
+        output stdout
+        format console
+    }
+}
+
+# =================================================================
+# QUANDO TIVER DOMÍNIO: descomente abaixo e comente o bloco :80
+# =================================================================
+# painel.seudominio.com.br {
+#     reverse_proxy frontend:80
+#
+#     header {
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "DENY"
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#     }
+# }
+#
+# api.seudominio.com.br {
+#     reverse_proxy api-service:9136
+# }
+#
+# sgp.seudominio.com.br {
+#     reverse_proxy backend-proxy:3002
+# }

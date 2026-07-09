@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.env
+cache.db
+venv/
+debug_login.log
+output.log
+proxy_debug.log
+*.before_sed

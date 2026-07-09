@@ -37,11 +37,13 @@ export default function UsersPage() {
             return () => { };
         }
         setLoading(true);
+        let responded = false; // Flag mutável para evitar stale closure
         const requestId = doc(collection(db, 'function_requests')).id;
         const responseDocRef = doc(db, 'function_responses', requestId);
 
         const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
             if (docSnap.exists()) {
+                responded = true;
                 const response = docSnap.data();
                 if (response.result && response.result.users) {
                     setUsers(response.result.users);
@@ -68,9 +70,9 @@ export default function UsersPage() {
             }
         };
 
-        // Timeout de segurança (15 segundos)
+        // Timeout de segurança (15 segundos) — usa flag `responded` em vez de `loading`
         const timeoutId = setTimeout(() => {
-            if (loading) {
+            if (!responded) {
                 setLoading(false);
                 toast.error("O servidor demorou muito para responder.", {
                     description: "Verifique se as Funções Cloud foram implantadas (deploy)."

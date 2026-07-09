@@ -142,19 +142,16 @@ export default function DashboardPage() {
                     title="Total de Provedores"
                     value={stats.providerCount}
                     icon={Server}
-                    trend={5}
                 />
                 <StatsCard
                     title="Total de Clientes (App)"
                     value={stats.clientCount}
                     icon={Users}
-                    trend={12}
                 />
                 <StatsCard
                     title="Tickets Abertos"
                     value={stats.openTicketsCount}
                     icon={MessageSquare}
-                    trend={-2}
                 />
                 <StatsCard
                     title="Notificações (24h)"

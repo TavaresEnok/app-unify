@@ -29,7 +29,26 @@ if (!FIREBASE_API_KEY) {
   console.warn('[WARN] FIREBASE_API_KEY não definida. Endpoint de login admin falhará.');
 }
 
-app.use(cors());
+// =========================================================================
+// CORS — restringir origens permitidas
+// =========================================================================
+const ALLOWED_ORIGINS = [
+  'http://168.194.13.18:8031',   // Admin Painel
+  'http://168.194.13.18:8032',   // Landing Page
+  'http://localhost:5173',        // Dev local Vite
+  'http://localhost:8031',        // Dev local
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requisições sem origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    console.warn(`[CORS] Origem bloqueada: ${origin}`);
+    callback(new Error('Bloqueado por política CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // =========================================================================

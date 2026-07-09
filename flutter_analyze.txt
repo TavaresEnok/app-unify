@@ -1,0 +1,928 @@
+
+┌─────────────────────────────────────────────────────────┐
+│ A new version of Flutter is available!                  │
+│                                                         │
+│ To update to the latest version, run "flutter upgrade". │
+└─────────────────────────────────────────────────────────┘
+Analyzing painel_provedores...                                  
+
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • app-flutter/admin_app/lib/pages/login_page.dart:277:42 • use_build_context_synchronously
+warning • The value of 'refresh' should be used • app-flutter/admin_app/lib/pages/providers/providers_list_page.dart:385:31 • unused_result
+warning • The value of 'refresh' should be used • app-flutter/admin_app/lib/pages/tickets/ticket_details_page.dart:44:11 • unused_result
+warning • The value of 'refresh' should be used • app-flutter/admin_app/lib/pages/tickets/ticket_details_page.dart:45:11 • unused_result
+warning • The value of 'refresh' should be used • app-flutter/admin_app/lib/pages/tickets/ticket_details_page.dart:73:11 • unused_result
+   info • The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • app-flutter/unified/lib/core/controllers/wifi_management_controller.dart:1:8 • unnecessary_import
+   info • Dangling library doc comment • app-flutter/unified/lib/core/design_system.dart:1:1 • dangling_library_doc_comments
+   info • Unnecessary braces in a string interpolation • app-flutter/unified/lib/core/models/test_history.dart:109:25 • unnecessary_brace_in_string_interps
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:69:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:70:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:74:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:84:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:124:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:133:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:160:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:161:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:165:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:166:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:177:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:178:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/achievements_page.dart:222:52 • deprecated_member_use
+   info • The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:8:8 • unnecessary_import
+   info • The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:9:8 • unnecessary_import
+warning • Unused import: '../../models/achievement.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:34:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:35:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:36:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:37:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:40:8 • unused_import
+warning • Unused import: '../../pages/test_history_page.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:41:8 • unused_import
+warning • Unused import: '../../pages/achievements_page.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:42:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:770:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:778:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:801:35 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:912:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:926:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:932:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:933:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:942:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:948:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:949:33 • prefer_const_constructors
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1126:21 • unnecessary_string_interpolations
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1130:21 • unnecessary_string_interpolations
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1210:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1383:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1422:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1539:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1555:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1561:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1563:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1573:26 • prefer_const_constructors
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1588:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1589:29 • curly_braces_in_flow_control_structures
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1678:20 • prefer_const_constructors
+   info • The private field _selectedTestMode could be 'final' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1730:12 • prefer_final_fields
+warning • The value of the field '_selectedTestMode' isn't used • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1730:12 • unused_field
+warning • The value of the field '_integrationHelper' isn't used • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1731:9 • unused_field
+warning • The value of the field '_achievementService' isn't used • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1732:9 • unused_field
+   info • The private field _testSavedToHistory could be 'final' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1733:8 • prefer_final_fields
+warning • The value of the field '_testSavedToHistory' isn't used • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1733:8 • unused_field
+warning • The value of the field '_healthScore' isn't used • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1734:23 • unused_field
+warning • The value of the field '_comparison' isn't used • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1735:25 • unused_field
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1795:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1797:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1849:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1872:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1874:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1893:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1895:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1920:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1922:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1952:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1954:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart:1983:9 • curly_braces_in_flow_control_structures
+warning • Unused import: '../../models/test_mode.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:20:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:21:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:24:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:27:8 • unused_import
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:264:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:274:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:282:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:287:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:302:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:446:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:448:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:449:26 • curly_braces_in_flow_control_structures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:464:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:468:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:495:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:496:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:499:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:502:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:519:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:548:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:551:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:590:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:602:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:621:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:668:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:671:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:672:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:676:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:681:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:693:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:706:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:718:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:719:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:741:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:747:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:752:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:766:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:767:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:770:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:773:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:803:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:818:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:822:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:833:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:860:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:871:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:891:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:892:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:895:48 • deprecated_member_use
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:900:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:903:57 • deprecated_member_use
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:904:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:907:57 • deprecated_member_use
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:908:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:911:57 • deprecated_member_use
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:912:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:929:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:961:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:990:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1003:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1016:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1021:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1025:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1040:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1047:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1058:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1157:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1158:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1201:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1202:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1215:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1231:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1277:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1278:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1339:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1340:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1389:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1391:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1395:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1424:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1425:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1457:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1477:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1478:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1514:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1529:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1554:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1664:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1691:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1696:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1712:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1714:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1717:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1756:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1769:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1782:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1813:14 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1844:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1857:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1857:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1886:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1892:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1959:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart:1965:27 • deprecated_member_use
+   info • The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:7:8 • unnecessary_import
+warning • Unused import: '../../models/test_mode.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:21:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:24:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:27:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:28:8 • unused_import
+warning • The declaration '_DiagnosticApp' isn't referenced • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:66:7 • unused_element
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:245:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:278:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:290:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:328:9 • curly_braces_in_flow_control_structures
+   info • The 'child' argument should be last in widget constructor invocations • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:502:33 • sort_child_properties_last
+   info • The 'child' argument should be last in widget constructor invocations • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:511:33 • sort_child_properties_last
+   info • The 'child' argument should be last in widget constructor invocations • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:518:33 • sort_child_properties_last
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1007:9 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1037:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1139:9 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1347:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1389:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1523:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1574:22 • prefer_const_constructors
+warning • A value for optional parameter 'valueColor' isn't ever given • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart:1807:12 • unused_element_parameter
+warning • Unused import: '../../models/test_mode.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:20:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:21:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:24:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:27:8 • unused_import
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:177:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:206:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:249:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:271:9 • curly_braces_in_flow_control_structures
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:400:35 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:403:35 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:464:24 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:567:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:590:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:606:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:715:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:1043:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:1300:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:1400:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:1438:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart:1498:50 • prefer_const_constructors
+warning • Unused import: '../../models/test_mode.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:20:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:21:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:24:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:27:8 • unused_import
+warning • The value of the field '_onuWifiService' isn't used • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:101:19 • unused_field
+warning • This default clause is covered by the previous cases • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:567:7 • unreachable_switch_default
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:676:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:677:24 • prefer_const_constructors
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:781:23 • unnecessary_string_interpolations
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:939:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart:942:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/onboarding_page.dart:29:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/onboarding_page.dart:36:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/onboarding_page.dart:42:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/pages/onboarding_page.dart:48:14 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/onboarding_page.dart:102:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/onboarding_page.dart:211:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:106:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:113:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:121:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:135:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:136:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:140:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:207:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:228:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:244:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:246:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:269:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:288:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:312:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:313:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:358:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:360:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:368:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:401:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:408:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/pages/test_history_page.dart:416:45 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/painel_page.dart:127:5 • prefer_const_declarations
+warning • Dead code • app-flutter/unified/lib/core/painel_page.dart:193:15 • dead_code
+warning • The operand can't be 'null', so the condition is always 'true' • app-flutter/unified/lib/core/providers/providers.dart:93:37 • unnecessary_null_comparison
+warning • The value of the local variable 'unlockedTypes' isn't used • app-flutter/unified/lib/core/services/achievement_service.dart:127:11 • unused_local_variable
+   info • Dangling library doc comment • app-flutter/unified/lib/core/services/cache_service.dart:1:1 • dangling_library_doc_comments
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/services/diagnostic_integration_helper.dart:35:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/services/diagnostic_integration_helper.dart:36:5 • prefer_const_declarations
+   info • The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • app-flutter/unified/lib/core/services/diagnostico_service.dart:5:8 • unnecessary_import
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/services/diagnostico_service.dart:579:5 • prefer_const_declarations
+   info • Don't invoke 'print' in production code • app-flutter/unified/lib/core/services/test_history_service.dart:69:7 • avoid_print
+   info • Don't invoke 'print' in production code • app-flutter/unified/lib/core/services/test_history_service.dart:73:7 • avoid_print
+   info • Don't invoke 'print' in production code • app-flutter/unified/lib/core/services/test_history_service.dart:143:7 • avoid_print
+warning • The value of the field '_yellowLight' isn't used • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:21:16 • unused_field
+warning • The value of the field '_redLight' isn't used • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:23:16 • unused_field
+warning • The declaration '_isOk' isn't referenced • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:66:8 • unused_element
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:486:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:488:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:490:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:492:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:499:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • app-flutter/unified/lib/core/utils/pdf_generator_service.dart:501:9 • curly_braces_in_flow_control_structures
+   info • Dangling library doc comment • app-flutter/unified/lib/core/widgets/accessibility_widgets.dart:1:1 • dangling_library_doc_comments
+   info • Dangling library doc comment • app-flutter/unified/lib/core/widgets/animation_widgets.dart:1:1 • dangling_library_doc_comments
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/comparison_widget.dart:25:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/comparison_widget.dart:27:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/comparison_widget.dart:36:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/comparison_widget.dart:55:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/comparison_widget.dart:108:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/comparison_widget.dart:115:35 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/widgets/diagnostics/holo_background.dart:55:5 • prefer_const_declarations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/diagnostics/holo_card.dart:88:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/diagnostics/holo_card.dart:101:26 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/widgets/diagnostics/holo_card.dart:122:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/widgets/diagnostics/live_speed_graph.dart:246:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/widgets/diagnostics/live_speed_graph.dart:278:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • app-flutter/unified/lib/core/widgets/diagnostics/welcome_screen.dart:282:5 • prefer_const_declarations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:29:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:31:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:49:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:65:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:66:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:72:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:83:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:117:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:162:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/health_score_widget.dart:174:38 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • app-flutter/unified/lib/core/widgets/rating_prompt_dialog.dart:46:11 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/core/widgets/rating_prompt_dialog.dart:123:29 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/test_mode_selector.dart:67:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/test_mode_selector.dart:71:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/test_mode_selector.dart:72:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/test_mode_selector.dart:78:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/test_mode_selector.dart:117:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/test_mode_selector.dart:156:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/core/widgets/test_mode_selector.dart:158:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:207:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:236:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:256:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:299:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:318:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:336:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:351:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:385:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:391:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:412:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:427:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:428:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:435:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:455:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:456:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:457:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:480:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:481:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:482:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:540:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:549:62 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:630:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:657:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:692:19 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:731:19 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:767:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:824:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:844:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:879:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:900:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:959:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:980:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:1033:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:1106:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:1109:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:1128:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart:1188:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:155:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:158:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:163:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:217:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:235:33 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/layouts/layout_02/login_page.dart:244:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/layouts/layout_02/login_page.dart:246:20 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:257:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:275:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:279:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:312:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:349:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:361:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:406:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:416:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:418:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/login_page.dart:429:41 • deprecated_member_use
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/lib/layouts/layout_02/theme.dart:66:20 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/layouts/layout_02/theme.dart:67:11 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/theme.dart:80:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/theme.dart:88:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/theme.dart:90:48 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/layouts/layout_02/theme.dart:143:22 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/widgets/bottom_nav.dart:29:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/widgets/bottom_nav.dart:77:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_02/widgets/bottom_nav.dart:78:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:370:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:403:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:426:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:436:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:438:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:471:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:494:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:504:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:506:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:700:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:753:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart:798:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/theme.dart:78:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/theme.dart:84:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/theme.dart:98:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/theme.dart:116:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_03/theme.dart:122:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_04/theme.dart:91:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_04/theme.dart:94:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_04/theme.dart:105:39 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/layouts/layout_04/theme.dart:124:21 • prefer_const_constructors
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/layouts/layout_05/dashboard_page.dart:772:31 • unnecessary_string_interpolations
+   info • Unnecessary use of string interpolation • app-flutter/unified/lib/layouts/layout_05/dashboard_page.dart:785:31 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:141:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:158:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:185:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:240:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:258:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:275:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:282:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:307:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:309:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/login_page.dart:350:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:89:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:91:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:98:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:108:21 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:109:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:113:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:120:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/theme.dart:128:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/widgets/glass_card.dart:31:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_05/widgets/glass_card.dart:34:35 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/layouts/layout_06/dashboard_page.dart:268:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/layouts/layout_06/dashboard_page.dart:1373:27 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:133:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:150:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:176:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:227:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:245:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:262:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:269:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:294:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:296:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/login_page.dart:337:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:97:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:102:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:104:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:113:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:114:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:119:16 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:130:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:133:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:143:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/theme.dart:151:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/widgets/glass_card.dart:31:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • app-flutter/unified/lib/layouts/layout_06/widgets/glass_card.dart:34:35 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/lib/main.dart:98:15 • prefer_const_constructors
+warning • Unused import: 'package:device_info_plus/device_info_plus.dart' • app-flutter/unified/test/core/services/diagnostico_service_test.dart:11:8 • unused_import
+warning • Unused import: 'package:app_provedor_unified/core/models/diagnostic_enums.dart' • app-flutter/unified/test/core/services/diagnostico_service_test.dart:18:8 • unused_import
+warning • Unused import: 'package:flutter/material.dart' • app-flutter/unified/test/core/services/diagnostico_service_test.dart:19:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:46:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:50:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:54:21 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/test/core/services/diagnostico_service_test.dart:59:12 • prefer_const_literals_to_create_immutables
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/test/core/services/diagnostico_service_test.dart:60:13 • prefer_const_literals_to_create_immutables
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/test/core/services/diagnostico_service_test.dart:61:24 • prefer_const_literals_to_create_immutables
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/test/core/services/diagnostico_service_test.dart:62:22 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:64:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:65:17 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/test/core/services/diagnostico_service_test.dart:65:35 • prefer_const_literals_to_create_immutables
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • app-flutter/unified/test/core/services/diagnostico_service_test.dart:65:46 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:140:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:140:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:140:49 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:142:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:142:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • app-flutter/unified/test/core/services/diagnostico_service_test.dart:142:49 • prefer_const_constructors
+   info • The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/core/controllers/wifi_management_controller.dart:1:8 • unnecessary_import
+   info • Dangling library doc comment • lib/core/design_system.dart:1:1 • dangling_library_doc_comments
+   info • Unnecessary braces in a string interpolation • lib/core/models/test_history.dart:109:25 • unnecessary_brace_in_string_interps
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:69:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:70:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:74:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:84:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:124:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:133:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:160:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:161:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:165:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:166:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:177:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:178:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/achievements_page.dart:222:52 • deprecated_member_use
+   info • The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'dart:ui' • lib/core/pages/diagnostics/diagnostic_02_page.dart:9:8 • unnecessary_import
+   info • The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:10:8 • unnecessary_import
+warning • Unused import: '../../models/achievement.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:35:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:36:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:37:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:38:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:41:8 • unused_import
+warning • Unused import: '../../pages/test_history_page.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:42:8 • unused_import
+warning • Unused import: '../../pages/achievements_page.dart' • lib/core/pages/diagnostics/diagnostic_02_page.dart:43:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:759:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:767:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:790:35 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:903:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:917:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:923:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:924:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:933:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:939:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:940:33 • prefer_const_constructors
+   info • Unnecessary use of string interpolation • lib/core/pages/diagnostics/diagnostic_02_page.dart:1116:21 • unnecessary_string_interpolations
+   info • Unnecessary use of string interpolation • lib/core/pages/diagnostics/diagnostic_02_page.dart:1120:21 • unnecessary_string_interpolations
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1200:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1373:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1412:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1529:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1545:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1551:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1553:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1563:26 • prefer_const_constructors
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1578:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1579:29 • curly_braces_in_flow_control_structures
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_02_page.dart:1668:20 • prefer_const_constructors
+   info • The private field _selectedTestMode could be 'final' • lib/core/pages/diagnostics/diagnostic_02_page.dart:1707:12 • prefer_final_fields
+warning • The value of the field '_selectedTestMode' isn't used • lib/core/pages/diagnostics/diagnostic_02_page.dart:1707:12 • unused_field
+warning • The value of the field '_integrationHelper' isn't used • lib/core/pages/diagnostics/diagnostic_02_page.dart:1708:9 • unused_field
+warning • The value of the field '_achievementService' isn't used • lib/core/pages/diagnostics/diagnostic_02_page.dart:1709:9 • unused_field
+   info • The private field _testSavedToHistory could be 'final' • lib/core/pages/diagnostics/diagnostic_02_page.dart:1710:8 • prefer_final_fields
+warning • The value of the field '_testSavedToHistory' isn't used • lib/core/pages/diagnostics/diagnostic_02_page.dart:1710:8 • unused_field
+warning • The value of the field '_healthScore' isn't used • lib/core/pages/diagnostics/diagnostic_02_page.dart:1711:23 • unused_field
+warning • The value of the field '_comparison' isn't used • lib/core/pages/diagnostics/diagnostic_02_page.dart:1712:25 • unused_field
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1772:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1774:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1826:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1849:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1851:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1870:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1872:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1897:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1899:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1929:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1931:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_02_page.dart:1960:9 • curly_braces_in_flow_control_structures
+warning • Unused import: '../../models/test_mode.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:21:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:24:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:27:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • lib/core/pages/diagnostics/diagnostic_03_page.dart:28:8 • unused_import
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:271:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:281:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:289:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:294:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:309:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:433:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:435:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_03_page.dart:436:26 • curly_braces_in_flow_control_structures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:451:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:455:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:482:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:483:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:486:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:489:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:506:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:535:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:538:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:577:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:589:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:608:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:655:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:658:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:659:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:663:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:668:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:680:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:693:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:705:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:706:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:728:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:734:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:739:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:753:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:754:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:757:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:760:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:790:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:805:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:809:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:820:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:847:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:858:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:878:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:879:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:882:48 • deprecated_member_use
+   info • Unnecessary use of string interpolation • lib/core/pages/diagnostics/diagnostic_03_page.dart:887:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:890:57 • deprecated_member_use
+   info • Unnecessary use of string interpolation • lib/core/pages/diagnostics/diagnostic_03_page.dart:891:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:894:57 • deprecated_member_use
+   info • Unnecessary use of string interpolation • lib/core/pages/diagnostics/diagnostic_03_page.dart:895:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:898:57 • deprecated_member_use
+   info • Unnecessary use of string interpolation • lib/core/pages/diagnostics/diagnostic_03_page.dart:899:22 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:916:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:948:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:977:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:990:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1003:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1008:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1012:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1027:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1034:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1045:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1144:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1145:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1188:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1189:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1202:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1218:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1264:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1265:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1326:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1327:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1376:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1378:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1382:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1411:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1412:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1444:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1464:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1465:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1501:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1516:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1541:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1651:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1678:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1683:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1703:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1705:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1738:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1751:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1764:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1794:12 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1821:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1833:27 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1863:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1869:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1929:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/diagnostics/diagnostic_03_page.dart:1934:27 • deprecated_member_use
+   info • The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:7:8 • unnecessary_import
+warning • Unused import: '../../models/test_mode.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:21:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:24:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:27:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • lib/core/pages/diagnostics/diagnostic_05_page.dart:28:8 • unused_import
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_05_page.dart:230:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_05_page.dart:263:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_05_page.dart:275:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_05_page.dart:313:9 • curly_braces_in_flow_control_structures
+   info • The 'child' argument should be last in widget constructor invocations • lib/core/pages/diagnostics/diagnostic_05_page.dart:483:33 • sort_child_properties_last
+   info • The 'child' argument should be last in widget constructor invocations • lib/core/pages/diagnostics/diagnostic_05_page.dart:490:33 • sort_child_properties_last
+   info • The 'child' argument should be last in widget constructor invocations • lib/core/pages/diagnostics/diagnostic_05_page.dart:495:33 • sort_child_properties_last
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_05_page.dart:977:9 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_05_page.dart:1007:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_05_page.dart:1109:9 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_05_page.dart:1317:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_05_page.dart:1359:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_05_page.dart:1493:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_05_page.dart:1544:22 • prefer_const_constructors
+warning • A value for optional parameter 'valueColor' isn't ever given • lib/core/pages/diagnostics/diagnostic_05_page.dart:1777:12 • unused_element_parameter
+   info • Use 'const' for final variables initialized to a constant value • lib/core/pages/diagnostics/diagnostic_05_page.dart:2007:5 • prefer_const_declarations
+warning • Unused import: '../../models/test_mode.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:20:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:21:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:24:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • lib/core/pages/diagnostics/diagnostic_06_page.dart:27:8 • unused_import
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_06_page.dart:188:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_06_page.dart:217:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_06_page.dart:260:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/core/pages/diagnostics/diagnostic_06_page.dart:282:9 • curly_braces_in_flow_control_structures
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:408:35 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/core/pages/diagnostics/diagnostic_06_page.dart:411:35 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:472:24 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:575:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:598:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:614:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:705:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:1033:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:1290:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:1390:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:1428:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_06_page.dart:1488:50 • prefer_const_constructors
+warning • Unused import: '../../models/test_mode.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:21:8 • unused_import
+warning • Unused import: '../../models/network_health_score.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:22:8 • unused_import
+warning • Unused import: '../../widgets/health_score_widget.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:23:8 • unused_import
+warning • Unused import: '../../widgets/test_mode_selector.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:24:8 • unused_import
+warning • Unused import: '../../widgets/comparison_widget.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:25:8 • unused_import
+warning • Unused import: '../../services/diagnostic_integration_helper.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:26:8 • unused_import
+warning • Unused import: '../../services/achievement_service.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:27:8 • unused_import
+warning • Unused import: '../../services/test_history_service.dart' • lib/core/pages/diagnostics/diagnostic_07_page.dart:28:8 • unused_import
+warning • This default clause is covered by the previous cases • lib/core/pages/diagnostics/diagnostic_07_page.dart:532:7 • unreachable_switch_default
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_07_page.dart:641:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_07_page.dart:642:24 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_07_page.dart:898:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/diagnostics/diagnostic_07_page.dart:901:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/onboarding_page.dart:29:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/onboarding_page.dart:36:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/onboarding_page.dart:42:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/core/pages/onboarding_page.dart:48:14 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/onboarding_page.dart:102:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/onboarding_page.dart:211:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:106:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:113:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:121:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:135:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:136:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:140:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:207:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:228:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:244:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:246:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:269:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:288:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:312:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:313:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:358:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:360:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:368:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:401:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:408:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/pages/test_history_page.dart:416:45 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • lib/core/painel_page.dart:127:5 • prefer_const_declarations
+warning • Dead code • lib/core/painel_page.dart:193:15 • dead_code
+warning • The operand can't be 'null', so the condition is always 'true' • lib/core/providers/providers.dart:93:37 • unnecessary_null_comparison
+   info • Use 'const' with the constructor to improve performance • lib/core/providers/weekly_usage_provider.dart:55:46 • prefer_const_constructors
+   info • Use 'const' for final variables initialized to a constant value • lib/core/providers/weekly_usage_provider.dart:161:5 • prefer_const_declarations
+warning • The value of the local variable 'unlockedTypes' isn't used • lib/core/services/achievement_service.dart:127:11 • unused_local_variable
+   info • Dangling library doc comment • lib/core/services/cache_service.dart:1:1 • dangling_library_doc_comments
+   info • Use 'const' for final variables initialized to a constant value • lib/core/services/diagnostic_integration_helper.dart:35:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • lib/core/services/diagnostic_integration_helper.dart:36:5 • prefer_const_declarations
+   info • The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/core/services/diagnostico_service.dart:5:8 • unnecessary_import
+   info • Use 'const' for final variables initialized to a constant value • lib/core/services/diagnostico_service.dart:570:5 • prefer_const_declarations
+   info • Don't invoke 'print' in production code • lib/core/services/test_history_service.dart:69:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/core/services/test_history_service.dart:73:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/core/services/test_history_service.dart:143:7 • avoid_print
+   info • Dangling library doc comment • lib/core/widgets/accessibility_widgets.dart:1:1 • dangling_library_doc_comments
+   info • Dangling library doc comment • lib/core/widgets/animation_widgets.dart:1:1 • dangling_library_doc_comments
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/comparison_widget.dart:25:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/comparison_widget.dart:27:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/comparison_widget.dart:36:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/comparison_widget.dart:55:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/comparison_widget.dart:108:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/comparison_widget.dart:115:35 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • lib/core/widgets/diagnostics/holo_background.dart:55:5 • prefer_const_declarations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/diagnostics/holo_card.dart:88:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/diagnostics/holo_card.dart:101:26 • deprecated_member_use
+   info • Use 'const' for final variables initialized to a constant value • lib/core/widgets/diagnostics/holo_card.dart:122:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • lib/core/widgets/diagnostics/live_speed_graph.dart:246:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • lib/core/widgets/diagnostics/live_speed_graph.dart:278:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • lib/core/widgets/diagnostics/welcome_screen.dart:282:5 • prefer_const_declarations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:29:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:31:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:49:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:65:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:66:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:72:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:83:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:117:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:162:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/health_score_widget.dart:174:38 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/core/widgets/rating_prompt_dialog.dart:46:11 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/core/widgets/rating_prompt_dialog.dart:123:29 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/test_mode_selector.dart:67:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/test_mode_selector.dart:71:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/test_mode_selector.dart:72:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/test_mode_selector.dart:78:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/test_mode_selector.dart:117:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/test_mode_selector.dart:156:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/test_mode_selector.dart:158:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:207:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:236:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:256:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:299:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:318:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:336:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:351:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:385:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:391:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:412:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:427:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:428:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:435:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:455:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:456:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:457:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:480:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:481:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:482:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:540:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:549:62 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:630:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:657:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:692:19 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:731:19 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:767:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:824:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:844:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:879:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:900:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:959:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:980:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:1033:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:1106:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:1109:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:1128:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/dashboard_page.dart:1188:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:155:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:158:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:163:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:217:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:235:33 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/layouts/layout_02/login_page.dart:244:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/layouts/layout_02/login_page.dart:246:20 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:257:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:275:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:279:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:312:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:349:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:361:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:406:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:416:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:418:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/login_page.dart:429:41 • deprecated_member_use
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/layouts/layout_02/theme.dart:66:20 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/layouts/layout_02/theme.dart:67:11 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/theme.dart:80:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/theme.dart:88:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/theme.dart:90:48 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/layouts/layout_02/theme.dart:143:22 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/widgets/bottom_nav.dart:29:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/widgets/bottom_nav.dart:77:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_02/widgets/bottom_nav.dart:78:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:370:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:403:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:426:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:436:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:438:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:471:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:494:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:504:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:506:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:700:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:753:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/dashboard_page.dart:798:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/theme.dart:78:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/theme.dart:84:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/theme.dart:98:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/theme.dart:116:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_03/theme.dart:122:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_04/theme.dart:91:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_04/theme.dart:94:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_04/theme.dart:105:39 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/layouts/layout_04/theme.dart:124:21 • prefer_const_constructors
+   info • Unnecessary use of string interpolation • lib/layouts/layout_05/dashboard_page.dart:772:31 • unnecessary_string_interpolations
+   info • Unnecessary use of string interpolation • lib/layouts/layout_05/dashboard_page.dart:785:31 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:141:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:158:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:185:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:240:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:258:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:275:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:282:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:307:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:309:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/login_page.dart:350:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:89:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:91:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:98:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:108:21 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:109:25 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:113:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:120:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/theme.dart:128:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/widgets/glass_card.dart:31:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_05/widgets/glass_card.dart:34:35 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/layouts/layout_06/dashboard_page.dart:269:31 • prefer_const_constructors
+warning • The value of the local variable 'remainingDays' isn't used • lib/layouts/layout_06/dashboard_page.dart:664:11 • unused_local_variable
+   info • Use 'const' with the constructor to improve performance • lib/layouts/layout_06/dashboard_page.dart:1325:27 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:133:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:150:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:176:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:227:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:245:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:262:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:269:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:294:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:296:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/login_page.dart:337:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:97:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:102:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:104:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:113:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:114:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:119:16 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:130:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:133:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:143:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/theme.dart:151:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/widgets/glass_card.dart:31:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/layouts/layout_06/widgets/glass_card.dart:34:35 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/main.dart:188:56 • use_build_context_synchronously
+

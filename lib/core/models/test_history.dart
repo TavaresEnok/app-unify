@@ -106,5 +106,5 @@ class TestHistoryEntry {
 
   @override
   String toString() =>
-      'TestHistoryEntry(${formattedDate}, $speedSummary, Score: $healthScore)';
+      'TestHistoryEntry($formattedDate, $speedSummary, Score: $healthScore)';
 }

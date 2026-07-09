@@ -120,8 +120,8 @@ class _RatingPromptDialogState extends State<RatingPromptDialog> {
               child: Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEF3C7),
                   shape: BoxShape.circle,
                 ),
                 child: const Center(

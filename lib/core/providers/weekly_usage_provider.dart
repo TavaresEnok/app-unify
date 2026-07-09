@@ -52,7 +52,7 @@ class WeeklyUsageNotifier extends StateNotifier<WeeklyUsageState> {
   static const String _cacheKey = 'weekly_usage_cache';
   static const Duration _cacheValidity = Duration(hours: 1);
 
-  WeeklyUsageNotifier(this._service) : super(WeeklyUsageState()) {
+  WeeklyUsageNotifier(this._service) : super(const WeeklyUsageState()) {
     _loadFromCache();
   }
 
@@ -158,7 +158,7 @@ class WeeklyUsageNotifier extends StateNotifier<WeeklyUsageState> {
   /// Gera consumo realístico simulado
   List<double> _generateRealisticUsage() {
     final now = DateTime.now();
-    final baseUsage = 15.0; // 15 GB/dia base
+    const baseUsage = 15.0; // 15 GB/dia base
 
     return List.generate(7, (i) {
       final dayOfWeek = (now.weekday - 6 + i) % 7;

@@ -2,82 +2,149 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
+const admin = require('firebase-admin');
+const Redis = require('ioredis');
+
+// Initialize Firebase Admin (Uses ADC)
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
+const firestoreDb = admin.firestore();
+
 const app = express();
 
-// --- RATE LIMITING ---
-// Configuração de rate limiting para proteger contra abuso
-const rateLimitStore = new Map();
+// --- REDIS CONNECTION ---
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+let redis = null;
+let redisConnected = false;
+
+try {
+    redis = new Redis(REDIS_URL, {
+        maxRetriesPerRequest: 3,
+        retryStrategy: (times) => Math.min(times * 200, 3000),
+        lazyConnect: true,
+    });
+    redis.connect().then(() => {
+        redisConnected = true;
+        console.log('✅ Redis conectado com sucesso');
+    }).catch(err => {
+        console.warn('⚠️ Redis indisponível, usando fallback in-memory:', err.message);
+        redisConnected = false;
+    });
+    redis.on('error', () => { redisConnected = false; });
+    redis.on('connect', () => { redisConnected = true; });
+} catch (err) {
+    console.warn('⚠️ Falha ao inicializar Redis, usando fallback in-memory');
+}
+
+// --- RATE LIMITING (Redis-backed com fallback in-memory) ---
+const rateLimitStoreFallback = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minuto
 const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requisições por minuto
 
-function rateLimiter(req, res, next) {
+async function rateLimiter(req, res, next) {
     const clientId = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const now = Date.now();
 
-    if (!rateLimitStore.has(clientId)) {
-        rateLimitStore.set(clientId, { count: 1, startTime: now });
+    try {
+        if (redisConnected && redis) {
+            const key = `rl:${clientId}`;
+            const count = await redis.incr(key);
+            if (count === 1) {
+                await redis.pexpire(key, RATE_LIMIT_WINDOW_MS);
+            }
+            const ttl = await redis.pttl(key);
+
+            if (count > RATE_LIMIT_MAX_REQUESTS) {
+                const retryAfter = Math.ceil(ttl / 1000);
+                res.set('Retry-After', retryAfter.toString());
+                res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
+                res.set('X-RateLimit-Remaining', '0');
+                return res.status(429).json({
+                    error: { message: 'Muitas requisições. Tente novamente em alguns segundos.', retryAfter }
+                });
+            }
+
+            res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
+            res.set('X-RateLimit-Remaining', (RATE_LIMIT_MAX_REQUESTS - count).toString());
+            return next();
+        }
+    } catch (err) {
+        // Fallback silencioso para in-memory
+    }
+
+    // Fallback in-memory (mesmo comportamento anterior)
+    if (!rateLimitStoreFallback.has(clientId)) {
+        rateLimitStoreFallback.set(clientId, { count: 1, startTime: now });
         return next();
     }
 
-    const clientData = rateLimitStore.get(clientId);
-
-    // Reset se a janela expirou
+    const clientData = rateLimitStoreFallback.get(clientId);
     if (now - clientData.startTime > RATE_LIMIT_WINDOW_MS) {
-        rateLimitStore.set(clientId, { count: 1, startTime: now });
+        rateLimitStoreFallback.set(clientId, { count: 1, startTime: now });
         return next();
     }
 
-    // Incrementa contador
     clientData.count++;
-
-    // Verifica limite
     if (clientData.count > RATE_LIMIT_MAX_REQUESTS) {
         const retryAfter = Math.ceil((clientData.startTime + RATE_LIMIT_WINDOW_MS - now) / 1000);
         res.set('Retry-After', retryAfter.toString());
         res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
         res.set('X-RateLimit-Remaining', '0');
         return res.status(429).json({
-            error: {
-                message: 'Muitas requisições. Tente novamente em alguns segundos.',
-                retryAfter
-            }
+            error: { message: 'Muitas requisições. Tente novamente em alguns segundos.', retryAfter }
         });
     }
 
-    // Adiciona headers informativos
     res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
     res.set('X-RateLimit-Remaining', (RATE_LIMIT_MAX_REQUESTS - clientData.count).toString());
-
     next();
 }
 
-// Limpa clientes inativos a cada 5 minutos
+// Limpa fallback in-memory a cada 5 minutos
 setInterval(() => {
     const now = Date.now();
-    for (const [clientId, data] of rateLimitStore.entries()) {
+    for (const [clientId, data] of rateLimitStoreFallback.entries()) {
         if (now - data.startTime > RATE_LIMIT_WINDOW_MS * 5) {
-            rateLimitStore.delete(clientId);
+            rateLimitStoreFallback.delete(clientId);
         }
     }
 }, 5 * 60 * 1000);
 
-// --- CACHE SYSTEM (Simple In-Memory) ---
-const cacheStore = new Map();
+// --- CACHE SYSTEM (Redis-backed com fallback in-memory) ---
+const cacheStoreFallback = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Minutes
 
-function getFromCache(key) {
-    if (!cacheStore.has(key)) return null;
-    const item = cacheStore.get(key);
+async function getFromCache(key) {
+    try {
+        if (redisConnected && redis) {
+            const cached = await redis.get(`cache:${key}`);
+            if (cached) return JSON.parse(cached);
+            return null;
+        }
+    } catch (err) { /* fallback */ }
+
+    // Fallback in-memory
+    if (!cacheStoreFallback.has(key)) return null;
+    const item = cacheStoreFallback.get(key);
     if (Date.now() > item.expiry) {
-        cacheStore.delete(key);
+        cacheStoreFallback.delete(key);
         return null;
     }
     return item.data;
 }
 
-function setInCache(key, data) {
-    cacheStore.set(key, {
+async function setInCache(key, data) {
+    try {
+        if (redisConnected && redis) {
+            await redis.set(`cache:${key}`, JSON.stringify(data), 'PX', CACHE_TTL_MS);
+            return;
+        }
+    } catch (err) { /* fallback */ }
+
+    // Fallback in-memory
+    cacheStoreFallback.set(key, {
         data,
         expiry: Date.now() + CACHE_TTL_MS
     });
@@ -85,11 +152,32 @@ function setInCache(key, data) {
 // ----------------------------------------
 
 // --- CONFIGURAÇÃO ---
-app.use((req, res, next) => {
-    console.log(`[DEBUG] Incoming Request: ${req.method} ${req.url} from ${req.ip}`);
-    next();
-});
-app.use(cors());
+// Debug logging — desabilitado em produção para reduzir ruído nos logs
+// Para habilitar, defina DEBUG_REQUESTS=true no .env
+if (process.env.DEBUG_REQUESTS === 'true') {
+    app.use((req, res, next) => {
+        console.log(`[DEBUG] ${req.method} ${req.url} from ${req.ip}`);
+        next();
+    });
+}
+
+// CORS — restringir origens permitidas
+const ALLOWED_ORIGINS = [
+    'http://168.194.13.18:8031',   // Admin Painel
+    'http://168.194.13.18:8034',   // API Service (proxy interno)
+    'http://localhost:5173',        // Dev local
+    'http://localhost:3002',        // Dev local
+];
+app.use(cors({
+    origin: (origin, callback) => {
+        // Permitir requisições sem origin (mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        console.warn(`[CORS] Origem bloqueada: ${origin}`);
+        callback(new Error('Bloqueado por política CORS'));
+    },
+    credentials: true,
+}));
 app.use(bodyParser.json());
 app.use(rateLimiter); // Aplica rate limiting a todas as rotas
 
@@ -101,12 +189,13 @@ if (!PROXY_SECRET_KEY) {
 const ENABLE_DEV_MOCK = process.env.ENABLE_DEV_CPF_MOCK === 'true';
 const DEV_CPF = ENABLE_DEV_MOCK ? (process.env.DEV_MOCK_CPF || '').replace(/\D/g, '') : '';
 // --------------------
-const DB_FILE_PATH = './cache.db';
-const db = new sqlite3.Database(DB_FILE_PATH, (err) => {
-    if (err) console.error("Erro ao abrir o banco de dados:", err.message);
-    else console.log("Conectado ao banco de dados SQLite 'cache.db'.");
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://sgp_user:sgp_password@localhost:5432/sgp_cache',
 });
 
+pool.on('error', (err) => {
+    console.error("Erro inesperado no banco de dados PostgreSQL", err);
+});
 // Função para chamar a API do SGP diretamente via HTTP (substitui o PHP)
 async function callSgpApi(params) {
     const { url, ...rest } = params;
@@ -236,9 +325,39 @@ function secureLog(prefix, payload) {
 }
 
 // --- HELPER: credenciais SGP (NUNCA hardcodar tokens no repositório) ---
-function ensureSgpCredentials(body) {
-    const sgpParams = { ...(body.sgpParams || {}) };
-    const sgpBaseUrl = (body.sgpBaseUrl || process.env.SGP_BASE_URL || 'https://vibetelecom.sgp.net.br').trim().replace(/\/$/, '');
+async function ensureSgpCredentials(body) {
+    let sgpParams = { ...(body.sgpParams || {}) };
+    let sgpBaseUrl = body.sgpBaseUrl;
+
+    if (!body.providerId && (body.cpfCnpj || body.cpf)) {
+        try {
+            const cpfCnpj = (body.cpfCnpj || body.cpf).replace(/[^0-9]/g, '');
+            const clienteDoc = await firestoreDb.collection('clientes').doc(cpfCnpj).get();
+            if (clienteDoc.exists) {
+                body.providerId = clienteDoc.data().providerId;
+            }
+        } catch (error) {
+            console.error("[SGP-API] Erro ao buscar providerId do cliente:", error.message);
+        }
+    }
+
+    if (body.providerId) {
+        try {
+            const secretDoc = await firestoreDb.collection('provedores').doc(body.providerId).collection('secrets').doc('sgp').get();
+            if (secretDoc.exists) {
+                const integrations = secretDoc.data().integrations;
+                if (integrations) {
+                    if (!sgpParams.token) sgpParams.token = integrations.apiToken;
+                    if (!sgpParams.app) sgpParams.app = integrations.appName;
+                }
+            }
+        } catch (error) {
+            console.error("[SGP-API] Erro ao buscar secrets:", error.message);
+        }
+    }
+
+    if (!sgpBaseUrl) sgpBaseUrl = process.env.SGP_BASE_URL || 'https://vibetelecom.sgp.net.br';
+    sgpBaseUrl = sgpBaseUrl.trim().replace(/\/$/, '');
 
     if (!sgpParams.token && process.env.SGP_TOKEN) sgpParams.token = process.env.SGP_TOKEN;
     if (!sgpParams.app && process.env.SGP_APP_NAME) sgpParams.app = process.env.SGP_APP_NAME;
@@ -268,6 +387,31 @@ function assertProxySecret(secret, res) {
     return true;
 }
 
+// Middleware de Autenticação Firebase
+async function verifyFirebaseToken(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: { message: 'Não autorizado. Token Ausente.' } });
+    }
+    const token = authHeader.split('Bearer ')[1];
+    try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        const reqCpf = (req.body.cpfCnpj || req.body.cpf || '').replace(/[^0-9]/g, '');
+        
+        // Se houver CPF na requisição, ele DEVE bater com o UID do token (que é o CPF do login)
+        if (reqCpf && decodedToken.uid !== reqCpf) {
+            console.error(`[AUTH] Tentativa de acesso cruzado: UID(${decodedToken.uid}) tentou acessar CPF(${reqCpf})`);
+            return res.status(403).json({ error: { message: 'Acesso negado: Tentativa de acessar dados de outro cliente.' } });
+        }
+
+        req.user = decodedToken;
+        next();
+    } catch (error) {
+        console.error('[AUTH] Erro na verificação do token:', error.message);
+        return res.status(401).json({ error: { message: 'Não autorizado. Token Inválido ou Expirado.' } });
+    }
+}
+
 async function resolveClientContractCredentials({ cpfCnpjUnformatted, sgpParams, sgpBaseUrl, contratoPreferido }) {
     const consultaParams = {
         ...sgpParams,
@@ -294,9 +438,9 @@ async function resolveClientContractCredentials({ cpfCnpjUnformatted, sgpParams,
 }
 
 // 1. Rota de Consumo
-app.post('/get-consumption-data', async (req, res) => {
+app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj, senha: senhaInput, mes, ano } = req.body;
-    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
     if (!requireSgpClientCredentials(sgpParams, res)) return;
 
     if (!cpfCnpj) return res.status(400).json({ error: { message: "Dados incompletos (CPF)." } });
@@ -417,32 +561,36 @@ app.post('/sync-clients', async (req, res) => {
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
 
     // Helper para salvar lote
-    const saveBatch = (clients) => {
-        return new Promise((resolve, reject) => {
-            db.serialize(() => {
-                db.run("BEGIN TRANSACTION");
-                const stmt = db.prepare(`INSERT OR REPLACE INTO ${tableName} (id, nome, cpfcnpj, contratos) VALUES (?, ?, ?, ?)`);
-                clients.forEach(c => {
-                    if (c?.id) stmt.run(c.id, c.nome, c.cpfcnpj, JSON.stringify(c.contratos));
-                });
-                stmt.finalize();
-                db.run("COMMIT", (err) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
-        });
+    const saveBatch = async (clients) => {
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+            for (const c of clients) {
+                if (c?.id) {
+                    await client.query(
+                        `INSERT INTO "${tableName}" (id, nome, cpfcnpj, contratos) 
+                         VALUES ($1, $2, $3, $4) 
+                         ON CONFLICT (id) DO UPDATE SET 
+                         nome = EXCLUDED.nome, cpfcnpj = EXCLUDED.cpfcnpj, contratos = EXCLUDED.contratos`,
+                        [c.id, c.nome, c.cpfcnpj, JSON.stringify(c.contratos)]
+                    );
+                }
+            }
+            await client.query("COMMIT");
+        } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+        } finally {
+            client.release();
+        }
     };
 
     try {
         console.log(`[SYNC] Iniciando sincronização incremental para ${providerId}...`);
 
         // Criar tabela se não existir (apenas na primeira vez)
-        await new Promise((resolve, reject) => {
-            db.run(`CREATE TABLE IF NOT EXISTS ${tableName} (id INTEGER PRIMARY KEY, nome TEXT, cpfcnpj TEXT, contratos TEXT)`, (err) => {
-                if (err) reject(err); else resolve();
-            });
-        });
+        await pool.query(`CREATE TABLE IF NOT EXISTS "${tableName}" (id INTEGER PRIMARY KEY, nome TEXT, cpfcnpj TEXT, contratos TEXT)`);
+
 
         // Loop principal
         const firstPageParams = { ...params, limit: 100, pagina: 1, url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/') };
@@ -502,7 +650,7 @@ app.post('/sync-clients', async (req, res) => {
         if (!res.headersSent) res.status(500).json({ error: { message: error.message } });
     }
 });
-app.post('/get-cached-clients', (req, res) => {
+app.post('/get-cached-clients', async (req, res) => {
     const { secret, providerId } = req.body;
     const { limit = 25, offset = 0, searchTerm = '' } = req.body.params || {};
 
@@ -512,46 +660,49 @@ app.post('/get-cached-clients', (req, res) => {
     console.log(`[CACHE] Buscando clientes para ${providerId}: limit=${limit}, offset=${offset}, search="${searchTerm}"`);
 
     const searchQuery = `%${searchTerm}%`;
-    db.get(`SELECT COUNT(*) as total FROM ${tableName} WHERE nome LIKE ? OR cpfcnpj LIKE ?`, [searchQuery, searchQuery], (err, row) => {
-        if (err) {
-            if (err.message.includes('no such table')) {
-                console.warn(`[CACHE] Tabela ${tableName} não existe ainda.`);
-                return res.status(200).json({ clientes: [], paginacao: { total: 0, limit, offset } });
-            }
-            console.error(`[CACHE] Erro Count: ${err.message}`);
-            return res.status(500).json({ error: { message: err.message } });
+
+    try {
+        const countRes = await pool.query(`SELECT COUNT(*) as total FROM "${tableName}" WHERE nome ILIKE $1 OR cpfcnpj ILIKE $2`, [searchQuery, searchQuery]);
+        const total = parseInt(countRes.rows[0].total, 10);
+
+        const rowsRes = await pool.query(`SELECT * FROM "${tableName}" WHERE nome ILIKE $1 OR cpfcnpj ILIKE $2 LIMIT $3 OFFSET $4`, [searchQuery, searchQuery, limit, offset]);
+        const clientes = rowsRes.rows.map(row => ({
+            ...row,
+            contratos: JSON.parse(row.contratos || '[]')
+        }));
+
+        return res.status(200).json({ clientes, paginacao: { total, limit, offset } });
+    } catch (err) {
+        if (err.code === '42P01') { // undefined_table
+            console.warn(`[CACHE] Tabela ${tableName} não existe ainda.`);
+            return res.status(200).json({ clientes: [], paginacao: { total: 0, limit, offset } });
         }
-
-        const total = row ? row.total : 0;
-        console.log(`[CACHE] Total encontrado: ${total}`);
-
-        db.all(`SELECT * FROM ${tableName} WHERE nome LIKE ? OR cpfcnpj LIKE ? LIMIT ? OFFSET ?`, [searchQuery, searchQuery, limit, offset], (err, rows) => {
-            if (err) {
-                console.error(`[CACHE] Erro Select: ${err.message}`);
-                return res.status(500).json({ error: { message: err.message } });
-            }
-            const clients = rows.map(r => ({ ...r, contratos: JSON.parse(r.contratos || '[]') }));
-            console.log(`[CACHE] Retornando ${clients.length} clientes.`);
-            res.status(200).json({ clientes: clients, paginacao: { total, limit, offset } });
-        });
-    });
+        console.error(`[CACHE] Erro DB: ${err.message}`);
+        return res.status(500).json({ error: { message: err.message } });
+    }
 });
-app.post('/get-single-client', (req, res) => {
+app.post('/get-single-client', async (req, res) => {
     const { secret, providerId, params } = req.body;
     if (!assertProxySecret(secret, res)) return;
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
-    db.get(`SELECT * FROM ${tableName} WHERE id = ?`, [params?.clientId], (err, row) => {
-        if (err) return res.status(500).json({ error: { message: err.message } });
-        if (!row) return res.status(404).json({ error: "Cliente não encontrado." });
+    
+    try {
+        const resDb = await pool.query(`SELECT * FROM "${tableName}" WHERE id = $1`, [params?.clientId]);
+        if (resDb.rows.length === 0) return res.status(404).json({ error: "Cliente não encontrado." });
+        
+        const row = resDb.rows[0];
         row.contratos = JSON.parse(row.contratos || '[]');
-        res.status(200).json(row);
-    });
+        return res.status(200).json(row);
+    } catch (err) {
+        console.error(`[CACHE] Erro DB Single: ${err.message}`);
+        return res.status(500).json({ error: { message: err.message } });
+    }
 });
 // 3. Info Básica Cliente (Check-CPF) + Mock
 app.post('/check-cpf', async (req, res) => {
     const { cpf } = req.body;
     const cpfCnpjUnformatted = cpf ? cpf.replace(/[^0-9]/g, '') : '';
-    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
     if (!requireSgpClientCredentials(sgpParams, res)) return;
 
     console.log(`\n[Check-CPF] Recebido POST para CPF: ${maskCpfCnpj(cpfCnpjUnformatted || cpf)}`);
@@ -572,6 +723,11 @@ app.post('/check-cpf', async (req, res) => {
     // MOCK LOGIN (somente com ENABLE_DEV_CPF_MOCK=true + DEV_MOCK_CPF)
     if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
         console.log(`[MOCK] Login Check-CPF para DEV: ${maskCpfCnpj(DEV_CPF)}`);
+        let mockToken = '';
+        try {
+            mockToken = await admin.auth().createCustomToken(DEV_CPF);
+        } catch (e) { console.error('[MOCK] Auth Error', e); }
+
         return res.status(200).json({
             nome: "Desenvolvedor Teste Mock",
             cpfCnpj: DEV_CPF,
@@ -580,7 +736,8 @@ app.post('/check-cpf', async (req, res) => {
             valorFatura: "99,90",
             vencimentoFatura: "10/12/2025",
             contratoId: 222356,
-            email: "dev@teste.com"
+            email: "dev@teste.com",
+            customToken: mockToken
         });
     }
     try {
@@ -717,8 +874,20 @@ app.post('/check-cpf', async (req, res) => {
 
         secureLog('[Check-CPF] Resposta enviada (sanitizada):', responseData);
 
-        // CACHE DISABLED - also disable save
-        // setInCache(cacheKey, responseData);
+        // Gera custom token APENAS para clientes com status ativo
+        const activeStatuses = ['Online', 'Ativo', 'ativo'];
+        if (activeStatuses.includes(responseData.status)) {
+            try {
+                const customToken = await admin.auth().createCustomToken(cpfCnpjUnformatted);
+                responseData.customToken = customToken;
+                console.log('[Check-CPF] Custom Token gerado para cliente ativo.');
+            } catch (tokenError) {
+                console.error('[Check-CPF] Falha ao gerar Custom Token do Firebase:', tokenError.message);
+            }
+        } else {
+            console.log(`[Check-CPF] Token NÃO gerado — cliente com status "${responseData.status}".`);
+            // Retorna os dados sem token — o app pode mostrar informações mas não permitir login
+        }
 
         res.status(200).json(responseData);
     } catch (error) { res.status(500).json({ error: { message: error.message } }); }
@@ -739,9 +908,9 @@ app.post('/get-client-data-for-login', async (req, res) => {
     // Se precisar do código completo desta rota, avise.
     res.status(501).json({ error: "Rota em manutenção. Use Check-CPF." });
 });
-// 4. Rotas de Hardware / Diagnóstico (ONU)
-app.post('/diagnostic/onu-signal', async (req, res) => { handleOnuRequest(req, res, true); });
-app.post('/diagnostic/onu-signal-base', async (req, res) => { handleOnuRequest(req, res, false); });
+// 4. Rotas de Hardware // 3. Rotas Diagnóstico / ONU
+app.post('/diagnostic/onu-signal', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, true); });
+app.post('/diagnostic/onu-signal-base', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, false); });
 async function handleOnuRequest(req, res, useFilters) {
     const { cpfCnpj, senha: senhaInput, contrato, sgpParams, sgpBaseUrl } = req.body;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
@@ -812,8 +981,8 @@ async function handleOnuRequest(req, res, useFilters) {
         res.status(200).json({ data: formattedData });
     } catch (error) { res.status(500).json({ error: { message: error.message } }); }
 }
-// 4.1 Rota de Análise Inteligente (IA Mock)
-app.post('/diagnostic/analyze', async (req, res) => {
+// 4. Rota Analyze
+app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
     // Recebe os dados do diagnóstico
     const { cpfCnpj, data } = req.body;
     // Mock Analysis - Estrutura exata esperada pelo App (com wrapper data)
@@ -835,9 +1004,9 @@ app.post('/diagnostic/analyze', async (req, res) => {
     res.status(200).json(mockAnalysis);
 });
 // 5. Rotas CPE Manager (Wi-Fi)
-app.post('/cpe/wifi/list', async (req, res) => {
+app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj, senha: senhaInput, contrato } = req.body;
-    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
     if (!requireSgpClientCredentials(sgpParams, res)) return;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     let contratoId = contrato;
@@ -879,9 +1048,9 @@ app.post('/cpe/wifi/list', async (req, res) => {
         res.status(500).json({ error: { message: error.message } });
     }
 });
-app.post('/cpe/wifi/update', async (req, res) => {
+app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj, senha: senhaInput, contrato, wifiId, ssid, password } = req.body;
-    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
     if (!requireSgpClientCredentials(sgpParams, res)) return;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     console.log(`[WIFI-UPDATE] Tentando atualizar WiFi ID: ${wifiId} do Contrato: ${contrato}`);
@@ -913,9 +1082,9 @@ app.post('/cpe/wifi/update', async (req, res) => {
 });
 
 // 6. ROTA DE FATURAS (APP FLUTTER) - ADICIONADA
-app.post('/get-invoices', async (req, res) => {
+app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj } = req.body;
-    const { sgpParams, sgpBaseUrl } = ensureSgpCredentials(req.body);
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
     if (!requireSgpClientCredentials(sgpParams, res)) return;
 
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
@@ -983,7 +1152,6 @@ app.post('/get-invoices', async (req, res) => {
         }
 
         console.log(`[Faturas] Total de faturas formatadas: ${formattedInvoices.length}`);
-        console.log(`[Faturas] Total de faturas formatadas: ${formattedInvoices.length}`);
 
         const responseData = { data: formattedInvoices };
         setInCache(cacheKey, responseData);
@@ -995,13 +1163,15 @@ app.post('/get-invoices', async (req, res) => {
     }
 });
 
-// 7. ROTA DE DESBLOQUEIO POR CONFIANÇA (APP FLUTTER) - ADICIONADA
-app.post('/unlock-trust', async (req, res) => {
-    const { cpfCnpj, sgpParams, sgpBaseUrl } = req.body;
+// 7. ROTA DESBLOQUEIO CONFIANCA
+app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
+    const { cpfCnpj } = req.body;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
 
-    if (!cpfCnpjUnformatted || !sgpParams || !sgpBaseUrl) {
-        return res.status(400).json({ error: { message: "cpfCnpj, sgpParams e sgpBaseUrl são obrigatórios." } });
+    if (!cpfCnpjUnformatted) {
+        return res.status(400).json({ error: { message: "cpfCnpj é obrigatório." } });
     }
     console.log(`[Unlock] Solicitando desbloqueio para: ${maskCpfCnpj(cpfCnpjUnformatted)}`);
 
@@ -1045,7 +1215,7 @@ app.post('/build-apk', async (req, res) => {
         const execAsync = promisify(exec);
 
         // Executar script de build com timeout estendido
-        const buildScript = '/home/app/painel-provedores-projeto/build-apk.sh';
+        const buildScript = '/home/app/projects/painel_provedores/build-apk.sh';
         const command = `bash ${buildScript} ${providerId} ${architecture}`;
 
         console.log(`[Build-APK] Executando: ${command}`);
@@ -1136,8 +1306,7 @@ app.post('/build-apk', async (req, res) => {
         console.error(`[Build-APK] Erro crítico não tratado:`, error?.message || 'erro desconhecido');
         res.status(500).json({
             error: {
-                message: `Erro inesperado: ${error.message}`,
-                stack: error.stack
+                message: `Erro inesperado ao processar build de APK.`
             }
         });
     }
@@ -1149,4 +1318,7 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3002;
+// Iniciar Cron Jobs
+require('./cron-jobs')(app, { admin, firestoreDb, ensureSgpCredentials, callSgpApi });
+
 app.listen(PORT, () => { console.log(`✅ Proxy SGP PROD rodando na porta ${PORT}`); });

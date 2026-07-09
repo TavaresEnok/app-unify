@@ -87,9 +87,13 @@ app.post('/generate-apk', verifySuperAdmin, async (req, res) => {
     const tempLogoPath = path.join(os.tmpdir(), `logo_${providerId}_${Date.now()}.png`);
 
     try {
-        // Use curl to download (follows redirects, handles SSL properly)
-        const { execSync } = require('child_process');
-        execSync(`curl -sL "${downloadUrl}" -o "${tempLogoPath}"`, { timeout: 30000 });
+        // Use fetch to download securely (avoids command injection)
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const buffer = await response.arrayBuffer();
+        fs.writeFileSync(tempLogoPath, Buffer.from(buffer));
 
         // Validate downloaded file
         const stats = fs.statSync(tempLogoPath);

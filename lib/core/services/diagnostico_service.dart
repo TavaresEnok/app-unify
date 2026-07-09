@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -567,7 +566,7 @@ class DiagnosticoService {
       "Iniciando Rastreamento de Rota (Tracert)...",
     );
 
-    final target = '8.8.8.8';
+    const target = '8.8.8.8';
 
     try {
       // Usa o servidor para executar traceroute real

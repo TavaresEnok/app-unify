@@ -32,8 +32,21 @@ if (cluster.isMaster) {
 
 function startWorkerServer() {
     const server = http.createServer((req, res) => {
-        // Headers CORS e Cache
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        // CORS — restringir a origens conhecidas
+        const allowedOrigins = [
+            'http://168.194.13.18:8031',
+            'http://168.194.13.18:8032',
+            'http://localhost:5173',
+        ];
+        const requestOrigin = req.headers.origin || '';
+        // Permitir requisições sem origin (app mobile) ou de origens permitidas
+        const corsOrigin = (!requestOrigin || allowedOrigins.includes(requestOrigin))
+            ? (requestOrigin || '*')
+            : '';
+
+        if (corsOrigin) {
+            res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+        }
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, HEAD, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
