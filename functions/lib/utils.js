@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TICKET_STATUSES = void 0;
+exports.logger = exports.TICKET_STATUSES = void 0;
 exports.parseJsonSafely = parseJsonSafely;
 exports.isValidTicketStatus = isValidTicketStatus;
 exports.isValidNewProviderId = isValidNewProviderId;
@@ -21,4 +21,23 @@ function isValidTicketStatus(status) {
 function isValidNewProviderId(id) {
     return /^[a-z0-9_-]+$/.test(id);
 }
+function structuredLog(severity, message, context = {}) {
+    const entry = Object.assign(Object.assign({ severity,
+        message }, context), { timestamp: new Date().toISOString() });
+    if (severity === "ERROR" || severity === "CRITICAL") {
+        console.error(JSON.stringify(entry));
+    }
+    else if (severity === "WARNING") {
+        console.warn(JSON.stringify(entry));
+    }
+    else {
+        console.log(JSON.stringify(entry));
+    }
+}
+exports.logger = {
+    info: (message, context) => structuredLog("INFO", message, context),
+    warn: (message, context) => structuredLog("WARNING", message, context),
+    error: (message, context) => structuredLog("ERROR", message, context),
+    critical: (message, context) => structuredLog("CRITICAL", message, context),
+};
 //# sourceMappingURL=utils.js.map

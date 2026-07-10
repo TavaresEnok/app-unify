@@ -93,6 +93,33 @@ const DEFAULT_PROVIDER_CONFIG = {
     },
     socialNetworks: {}
 };
+const SENSITIVE_CONTRACT_KEYS = new Set([
+    "contratocentralsenha",
+    "senha",
+    "password",
+    "token",
+    "apitoken",
+    "authorization",
+    "secret",
+]);
+function sanitizeContractData(contracts) {
+    if (!Array.isArray(contracts)) {
+        return [];
+    }
+    return contracts.map((contract) => {
+        if (!contract || typeof contract !== "object") {
+            return contract;
+        }
+        const sanitized = {};
+        for (const [key, value] of Object.entries(contract)) {
+            if (SENSITIVE_CONTRACT_KEYS.has(key.toLowerCase())) {
+                continue;
+            }
+            sanitized[key] = value;
+        }
+        return sanitized;
+    });
+}
 // --- HTTP CALLABLE: UPLOAD LOGO (Bypasses CORS) ---
 exports.uploadProviderLogo = (0, https_1.onCall)({
     region: "southamerica-east1",
@@ -876,8 +903,9 @@ exports.handleSgpApiProxyRequest = (0, firestore_2.onDocumentCreated)({
                         const docId = client.cpfcnpj ? client.cpfcnpj.replace(/[^0-9]/g, '') : null;
                         if (!docId)
                             continue;
+                        const sanitizedContracts = sanitizeContractData(client.contratos || []);
                         const clientDocRef = clientsRef.doc(docId);
-                        currentBatch.set(clientDocRef, Object.assign(Object.assign({}, client), { id: client.id, nome: client.nome, cpfcnpj: client.cpfcnpj, contratos: client.contratos || [], updatedAt: firestore_1.FieldValue.serverTimestamp(), providerId: providerId }), { merge: true });
+                        currentBatch.set(clientDocRef, Object.assign(Object.assign({}, client), { id: client.id, nome: client.nome, cpfcnpj: client.cpfcnpj, contratos: sanitizedContracts, updatedAt: firestore_1.FieldValue.serverTimestamp(), providerId: providerId }), { merge: true });
                         count++;
                         if (count >= 400) {
                             batches.push(currentBatch.commit());
@@ -925,7 +953,10 @@ exports.handleSgpApiProxyRequest = (0, firestore_2.onDocumentCreated)({
             const countQuery = db.collection(`provedores/${providerId}/clientes`);
             const countSnap = await countQuery.count().get();
             const total = countSnap.data().count;
-            const clientes = snapshot.docs.map(doc => doc.data());
+            const clientes = snapshot.docs.map((doc) => {
+                const data = doc.data();
+                return Object.assign(Object.assign({}, data), { contratos: sanitizeContractData(data.contratos || []) });
+            });
             // Fallback se Firestore vazio: Tenta buscar 1 página do SGP em tempo real (opcional)
             // Se o usuário nunca clicou em sync, vai estar vazio.
             if (total === 0 && !searchTerm) {

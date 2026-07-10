@@ -1,1 +1,0 @@
-import{r as e}from"./index-xKbblwXp.js";const s=e.createContext(void 0),r=()=>{const t=e.useContext(s);if(!t)throw new Error("useSettings must be used within a SettingsProvider");return t};export{s as S,r as u};
