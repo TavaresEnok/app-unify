@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Plus, Save, Eye, Trash2, GripVertical, BarChart3, Image as ImageIcon, Grid3x3, TrendingUp, Smartphone, ChevronUp, ChevronDown } from 'lucide-react';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 type WidgetType = 'stats_card' | 'banner' | 'action_grid' | 'carousel' | 'chart' | 'announcements' | 'quick_pay' | 'speed_test' | 'usage_meter';
 
@@ -101,17 +102,12 @@ export default function DashboardBuilder() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Grid3x3 className="h-8 w-8" />
-            Dashboard Builder
-          </h2>
-          <p className="text-muted-foreground">Monte o dashboard perfeito para seus clientes</p>
-        </div>
-
-        <div className="flex gap-2">
+    <SettingsPage
+      title="Dashboard Builder"
+      description="Monte o dashboard perfeito para seus clientes."
+      icon={Grid3x3}
+      actions={(
+        <>
           <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
             <Eye className="h-4 w-4 mr-2" />
             {showPreview ? 'Esconder' : 'Preview'}
@@ -120,18 +116,14 @@ export default function DashboardBuilder() {
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? 'Salvando...' : 'Salvar Dashboard'}
           </Button>
-        </div>
-      </div>
+        </>
+      )}
+    >
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Widgets List */}
         <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Widgets Ativos ({widgets.length})</CardTitle>
-              <CardDescription>Use as setas para reordenar</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <SettingsSection title={`Widgets ativos (${widgets.length})`} description="Use as setas para reordenar.">
               {widgets.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Grid3x3 className="h-12 w-12 mx-auto mb-4 opacity-20" />
@@ -143,8 +135,7 @@ export default function DashboardBuilder() {
                   {widgets.map((widget, index) => {
                     const Icon = widgetIcons[widget.type];
                     return (
-                      <Card key={widget.id} className={widget.visible ? '' : 'opacity-50'}>
-                        <CardContent className="p-4 flex items-center gap-4">
+                      <div key={widget.id} className={`flex items-center gap-4 rounded-lg border border-[#EEF0F4] bg-white p-4 ${widget.visible ? '' : 'opacity-50'}`}>
                           <div className="flex flex-col gap-1">
                             <Button
                               variant="ghost"
@@ -184,23 +175,18 @@ export default function DashboardBuilder() {
                           <Button variant="ghost" size="sm" onClick={() => deleteWidget(widget.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
-                        </CardContent>
-                      </Card>
+                      </div>
                     );
                   })}
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </SettingsSection>
         </div>
 
         {/* Add Widgets Panel */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Adicionar Widget</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+          <SettingsSection title="Adicionar widget" description="Inclua novos blocos no dashboard.">
+            <div className="space-y-2">
               {(Object.entries(widgetLabels) as [WidgetType, string][]).map(([type, label]) => {
                 const Icon = widgetIcons[type];
                 return (
@@ -215,19 +201,12 @@ export default function DashboardBuilder() {
                   </Button>
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          </SettingsSection>
 
           {/* Preview */}
           {showPreview && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="h-5 w-5" />
-                  Preview Mobile
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <SettingsSection title="Preview Mobile" description="Ordem visual dos widgets ativos.">
                 <div className="w-full aspect-[9/19.5] border-4 border-gray-800 rounded-3xl overflow-hidden bg-gray-900">
                   <div className="h-full overflow-auto bg-white p-4 space-y-3">
                     {widgets
@@ -243,8 +222,7 @@ export default function DashboardBuilder() {
                       ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+            </SettingsSection>
           )}
         </div>
       </div>
@@ -291,7 +269,7 @@ export default function DashboardBuilder() {
           </Card>
         </div>
       )}
-    </div>
+    </SettingsPage>
   );
 }
 

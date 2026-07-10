@@ -3,13 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Activity, Trash2, Search, Download } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import DataTable from '@/components/DataTable';
+import StatusBadge from '@/components/StatusBadge';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -49,11 +48,10 @@ interface DiagnosticResult {
     createdAt?: Timestamp;
 }
 
-function getScoreColor(score: number): string {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-yellow-500';
-    if (score >= 40) return 'bg-orange-500';
-    return 'bg-red-500';
+function getScoreTone(score: number) {
+    if (score >= 80) return 'green';
+    if (score >= 60) return 'amber';
+    return 'red';
 }
 
 function formatDate(timestamp: string | Timestamp): string {
@@ -154,21 +152,11 @@ export default function DiagnosticHistoryPage() {
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div>
-                        <CardTitle className="flex items-center gap-2">
-                            <Activity className="h-5 w-5" />
-                            Histórico de Diagnósticos
-                        </CardTitle>
-                        <CardDescription>
-                            {results.length > 0
-                                ? `${results.length} testes registrados no total.`
-                                : "Nenhum diagnóstico registrado ainda."}
-                        </CardDescription>
-                    </div>
-                    <div className="flex w-full sm:w-auto items-center gap-4">
+        <DataTable<DiagnosticResult>
+            title="Diagnósticos"
+            description={results.length > 0 ? `${results.length} testes registrados no total.` : "Nenhum diagnóstico registrado ainda."}
+            actions={(
+                <>
                         <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -183,11 +171,24 @@ export default function DiagnosticHistoryPage() {
                             <Download className="mr-2 h-4 w-4" />
                             Exportar CSV
                         </Button>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {filteredResults.length === 0 ? (
+                </>
+            )}
+            columns={[
+                { label: "Cliente" },
+                { label: "Data" },
+                { label: "↓ Mbps", className: "text-right" },
+                { label: "↑ Mbps", className: "text-right" },
+                { label: "Ping", className: "text-right" },
+                { label: "Score" },
+                { label: "Modo" },
+                { label: "Conexão" },
+                { label: "" },
+            ]}
+            gridTemplate="1.7fr 1fr .7fr .7fr .6fr .7fr .8fr .8fr 48px"
+            rows={filteredResults}
+            getRowKey={(result) => result.id}
+            minWidth="940px"
+            empty={(
                     <EmptyState
                         icon={Activity}
                         title={searchTerm ? "Nenhum resultado para sua busca" : "Nenhum Diagnóstico Registrado"}
@@ -195,53 +196,29 @@ export default function DiagnosticHistoryPage() {
                             ? `Não foram encontrados diagnósticos para "${searchTerm}".`
                             : "Os diagnósticos feitos pelos clientes no app aparecerão aqui automaticamente."}
                     />
-                ) : (
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Cliente</TableHead>
-                                    <TableHead>Data/Hora</TableHead>
-                                    <TableHead className="text-right">↓ Mbps</TableHead>
-                                    <TableHead className="text-right">↑ Mbps</TableHead>
-                                    <TableHead className="text-right">Ping</TableHead>
-                                    <TableHead className="text-center">Score</TableHead>
-                                    <TableHead>Modo</TableHead>
-                                    <TableHead>Conexão</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredResults.map((result) => (
-                                    <TableRow key={result.id}>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-medium">{result.clientName}</div>
-                                                <div className="text-xs text-muted-foreground">{result.clientPlan}</div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-sm">
+            )}
+            renderRow={(result) => (
+                            <div className="grid items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] transition-colors hover:bg-[#F8FAFC]" style={{ gridTemplateColumns: "1.7fr 1fr .7fr .7fr .6fr .7fr .8fr .8fr 48px" }}>
+                                <span className="min-w-0">
+                                    <span className="block truncate text-[13px] font-semibold text-[#1A2233]">{result.clientName}</span>
+                                    <span className="block truncate text-[11.5px] text-[#98A1B1]">{result.clientPlan}</span>
+                                </span>
+                                <span className="text-[12px] text-[#687181]">
                                             {formatDate(result.timestamp || result.createdAt!)}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono">
+                                </span>
+                                <span className="text-right font-mono text-[12px] text-[#4A5364]">
                                             {result.downloadSpeed.toFixed(1)}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono">
+                                </span>
+                                <span className="text-right font-mono text-[12px] text-[#4A5364]">
                                             {result.uploadSpeed.toFixed(1)}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono">
+                                </span>
+                                <span className="text-right font-mono text-[12px] text-[#4A5364]">
                                             {result.ping}ms
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Badge className={getScoreColor(result.healthScore)}>
-                                                {result.healthScore}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">{result.testMode}</Badge>
-                                        </TableCell>
-                                        <TableCell className="capitalize">{result.connectionType}</TableCell>
-                                        <TableCell className="text-right">
+                                </span>
+                                <StatusBadge status={String(result.healthScore)} tone={getScoreTone(result.healthScore)} />
+                                <StatusBadge status={result.testMode} tone="gray" />
+                                <span className="capitalize text-[12.5px] text-[#4A5364]">{result.connectionType}</span>
+                                <div className="flex justify-end">
                                             <AlertDialog open={deleteId === result.id} onOpenChange={(open) => !open && setDeleteId(null)}>
                                                 <AlertDialogTrigger asChild>
                                                     <Button
@@ -268,19 +245,14 @@ export default function DiagnosticHistoryPage() {
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                )}
-            </CardContent>
-            {filteredResults.length > 0 && (
-                <CardFooter className="text-sm text-muted-foreground">
-                    Exibindo {filteredResults.length} de {results.length} registros
-                </CardFooter>
+                                </div>
+                            </div>
             )}
-        </Card>
+            footer={filteredResults.length > 0 && (
+                <div className="text-[12px] text-[#98A1B1]">
+                    Exibindo {filteredResults.length} de {results.length} registros
+                </div>
+            )}
+        />
     );
 }

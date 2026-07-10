@@ -46,6 +46,12 @@ build/Release
 
 # Dependency directories
 node_modules/
+venv/
+**/venv/
+
+# Build output (built in Docker/CI, never committed)
+api-service/dist/
+admin-painel/dist_final/
 
 # Optional npm cache directory
 .npm

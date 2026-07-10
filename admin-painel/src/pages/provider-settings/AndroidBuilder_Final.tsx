@@ -9,6 +9,7 @@ import { Loader2, Smartphone, Download, AlertTriangle, CheckCircle, Save } from 
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebase/config';
 import { toast } from 'sonner';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 // FINAL-FINAL FIX - RENAMED FILE
 export default function AndroidBuilderPage() {
@@ -125,12 +126,11 @@ export default function AndroidBuilderPage() {
 
 
     return (
-        <div className="space-y-6">
-            <div>
-                <p className="text-sm text-muted-foreground">
-                    Gere versões do aplicativo para Teste (APK) ou para Loja (AAB).
-                </p>
-            </div>
+        <SettingsPage
+            title="Gerar app"
+            description="Gere versões do aplicativo para teste (APK) ou para loja (AAB)."
+            icon={Smartphone}
+        >
 
             {window.location.protocol === 'https:' && (
                 <Alert variant="destructive" className="bg-amber-500/10 text-amber-600 border-amber-500/50 dark:text-amber-400">
@@ -150,17 +150,8 @@ export default function AndroidBuilderPage() {
                 </Alert>
             )}
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Smartphone className="h-5 w-5 text-primary" />
-                        Gerador de Versão Android
-                    </CardTitle>
-                    <CardDescription>
-                        Configurações atuais: {providerData.name} ({providerData.id})
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            <SettingsSection title="Gerador de Versão Android" description={`Configurações atuais: ${providerData.name} (${providerData.id})`}>
+                <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Nome do Aplicativo</label>
@@ -411,8 +402,8 @@ export default function AndroidBuilderPage() {
                             </AlertDescription>
                         </Alert>
                     )}
-                </CardContent>
-            </Card>
-        </div>
+                </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

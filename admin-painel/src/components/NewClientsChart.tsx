@@ -1,6 +1,5 @@
 // src/components/NewClientsChart.tsx
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import { useTheme } from "@/components/theme-provider";
 
 interface NewClientsChartProps {
   data: {
@@ -10,8 +9,7 @@ interface NewClientsChartProps {
 }
 
 export default function NewClientsChart({ data }: NewClientsChartProps) {
-    const { theme } = useTheme();
-    const tickColor = theme === 'dark' ? '#A1A1AA' : '#71717A'; // zinc-400 or zinc-500
+    const tickColor = '#98A1B1';
 
     if (data.length === 0) {
         return (
@@ -41,12 +39,14 @@ export default function NewClientsChart({ data }: NewClientsChartProps) {
                  <Tooltip 
                     cursor={{fill: 'transparent'}}
                     contentStyle={{
-                        backgroundColor: theme === 'dark' ? '#09090B' : '#FFFFFF', // zinc-950 or white
-                        borderColor: theme === 'dark' ? '#27272A' : '#E4E4E7' // zinc-800 or zinc-200
+                        backgroundColor: '#FFFFFF',
+                        borderColor: '#E6E9EF',
+                        borderRadius: 8,
+                        fontSize: 12,
                     }}
                 />
                 <Legend />
-                <Bar dataKey="clientes" name="Novos Clientes" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="clientes" name="Novos Clientes" fill="#2F55D4" radius={[4, 4, 0, 0]} />
             </BarChart>
         </ResponsiveContainer>
     );

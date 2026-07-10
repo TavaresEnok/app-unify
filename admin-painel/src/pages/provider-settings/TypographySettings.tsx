@@ -1,11 +1,10 @@
 import { useContext, useCallback, memo } from 'react';
 import { SettingsContext } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Type, Save, Loader2, ALargeSmall, Weight } from 'lucide-react';
-import { toast } from 'sonner';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 // Google Fonts disponíveis
 const GOOGLE_FONTS = [
@@ -41,9 +40,9 @@ interface TypographyRowProps {
 }
 
 const TypographyRow = memo(({ label, icon: Icon, value, options, onChange }: TypographyRowProps) => (
-    <div className="space-y-2">
-        <Label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Icon className="h-4 w-4" /> {label}
+    <div className="space-y-2 rounded-lg border border-[#EEF0F4] bg-white p-3">
+        <Label className="flex items-center gap-2 text-[12.5px] font-semibold text-[#39414F]">
+            <Icon className="h-4 w-4 text-[#98A1B1]" /> {label}
         </Label>
         <Select value={value} onValueChange={onChange}>
             <SelectTrigger className="w-full">
@@ -87,20 +86,23 @@ export default function TypographySettings() {
     }, [setConfig]);
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Type className="h-5 w-5" />
-                    Tipografia
-                </CardTitle>
-                <CardDescription>
-                    Configure as fontes e tamanhos de texto do aplicativo.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                {/* Preview da Fonte */}
+        <SettingsPage
+            title="Tipografia"
+            description="Configure fontes, pesos e tamanhos de texto do aplicativo."
+            icon={Type}
+            footer={(
+                <>
+                    <SettingsFooterNote>As fontes serão aplicadas no próximo build do aplicativo.</SettingsFooterNote>
+                    <Button onClick={saveConfig} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        {isSaving ? "Salvando..." : "Salvar alterações"}
+                    </Button>
+                </>
+            )}
+        >
+                <SettingsSection title="Preview da fonte" description="Visualize a família selecionada antes de salvar.">
                 <div
-                    className="p-6 border rounded-lg bg-muted/30 text-center"
+                    className="rounded-lg border border-[#EEF0F4] bg-white p-6 text-center"
                     style={{ fontFamily: typography.fontFamily }}
                 >
                     <p className="text-2xl font-bold mb-2">Exemplo de Título</p>
@@ -111,8 +113,9 @@ export default function TypographySettings() {
                         ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789
                     </p>
                 </div>
+                </SettingsSection>
 
-                {/* Seletores */}
+                <SettingsSection title="Seletores" description="Ajustes de família, peso e escala de leitura.">
                 <div className="grid gap-6 sm:grid-cols-2">
                     <TypographyRow
                         label="Família da Fonte"
@@ -146,30 +149,7 @@ export default function TypographySettings() {
                         onChange={(val) => updateTypography('bodySize', val)}
                     />
                 </div>
-
-                {/* Informação */}
-                <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <p className="text-sm text-blue-600 dark:text-blue-400">
-                        <strong>Nota:</strong> As fontes serão aplicadas no próximo build do aplicativo.
-                        As mudanças são salvas imediatamente na configuração.
-                    </p>
-                </div>
-
-                {/* Botão Salvar */}
-                <div className="pt-4 border-t">
-                    <Button
-                        onClick={saveConfig}
-                        disabled={isSaving}
-                        className="w-full"
-                    >
-                        {isSaving ? (
-                            <><Loader2 className="animate-spin mr-2 h-4 w-4" />Salvando...</>
-                        ) : (
-                            <><Save className="mr-2 h-4 w-4" />Salvar Alterações</>
-                        )}
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+                </SettingsSection>
+        </SettingsPage>
     );
 }

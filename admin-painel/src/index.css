@@ -1,67 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Default to Dark Mode for this Premium Theme */
-    --background: 222 47% 6%;
-    /* #0b0e14 - Deepest Navy */
-    --foreground: 210 40% 98%;
-    /* #f8fafc */
+    --background: 225 22% 96%;
+    --foreground: 222 39% 9%;
 
-    --card: 222 41% 10%;
-    /* #111620 - Slightly Lighter */
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 39% 9%;
 
-    --popover: 222 41% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 39% 9%;
 
-    --primary: 252 87% 67%;
-    /* #8e7dff - Neon Violet/Blue */
-    --primary-foreground: 210 40% 98%;
+    --primary: 226 65% 51%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 190 90% 50%;
-    /* #0cc - Cyan Accent */
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 28% 96%;
+    --secondary-foreground: 220 22% 21%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 28% 96%;
+    --muted-foreground: 220 11% 46%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 226 65% 96%;
+    --accent-foreground: 226 65% 45%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 4 64% 46%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 252 87% 67%;
+    --border: 220 24% 92%;
+    --input: 218 24% 87%;
+    --ring: 226 65% 51%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;
+
+    --brand: #2F55D4;
+    --brand-strong: #24439F;
+    --app-bg: #F4F5F8;
+    --panel: #FFFFFF;
+    --panel-border: #E6E9EF;
+    --panel-soft: #FAFBFC;
+    --text-strong: #0E1320;
+    --text-body: #39414F;
+    --text-muted: #687181;
+    --text-subtle: #98A1B1;
+    --sidebar-bg: #0F1524;
+    --sidebar-border: rgba(255,255,255,.06);
+    --sidebar-title: #FFFFFF;
+    --sidebar-muted: #66708A;
+    --sidebar-item: #97A0B3;
+    --sidebar-active-bg: rgba(255,255,255,.09);
   }
 
   .dark {
-    /* Same as root because we are forcing dark mode aesthetic */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 41% 10%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 41% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 252 87% 67%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 190 90% 50%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 252 87% 67%;
+    --background: 225 22% 96%;
+    --foreground: 222 39% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 39% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 39% 9%;
+    --primary: 226 65% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 28% 96%;
+    --secondary-foreground: 220 22% 21%;
+    --muted: 220 28% 96%;
+    --muted-foreground: 220 11% 46%;
+    --accent: 226 65% 96%;
+    --accent-foreground: 226 65% 45%;
+    --destructive: 4 64% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 24% 92%;
+    --input: 218 24% 87%;
+    --ring: 226 65% 51%;
   }
 }
 
@@ -72,37 +84,44 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
-    /* Setup for Google Font */
+    font-family: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  a {
+    color: var(--brand);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--brand-strong);
   }
 }
 
-/* Glassmorphism Utilities */
 .glass-panel {
-  @apply bg-card/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+  @apply border bg-card shadow-sm;
 }
 
 .glass-card {
-  @apply bg-card/40 backdrop-blur-md border border-white/5 hover:bg-card/60 transition-all duration-300;
+  @apply border bg-card shadow-sm transition-colors duration-200;
 }
 
 .glass-header {
-  @apply bg-background/80 backdrop-blur-lg border-b border-white/5;
+  @apply border-b bg-card;
 }
 
-/* Neon Glows */
 .neon-text {
-  text-shadow: 0 0 10px rgba(142, 125, 255, 0.5);
+  text-shadow: none;
 }
 
 .neon-border {
-  box-shadow: 0 0 15px rgba(142, 125, 255, 0.2);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -110,14 +129,15 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/30 rounded-full;
+  background: #D3D8E2;
+  border: 3px solid var(--app-bg);
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-primary/60;
+  background: #B9C0CC;
 }
 
-/* Animations */
 .fade-in {
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }

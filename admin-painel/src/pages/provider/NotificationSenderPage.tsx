@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +35,12 @@ export default function NotificationSenderPage() {
 
     const { callFunction, loading } = useApi();
     const { providerId, user } = useAuth();
+
+    const history = [
+        { title: 'Fatura disponível', meta: 'Todos os clientes · envio recente', date: 'Hoje' },
+        { title: 'Manutenção programada', meta: 'Clientes ativos · abertura acompanhada', date: 'Ontem' },
+        { title: 'Promoção de upgrade', meta: 'Segmento por plano · campanha salva', date: '28/06' },
+    ];
     
     const handleSendNotification = async () => {
         if (!user) {
@@ -68,84 +74,87 @@ export default function NotificationSenderPage() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Enviar Notificação Push Segmentada</CardTitle>
-                <CardDescription>
-                    Envie uma mensagem para clientes específicos do seu provedor que têm o aplicativo instalado.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid gap-6">
-                    
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        {/* Filtro por Status */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="statusFilter">Filtrar por Status</Label>
-                            <Select value={statusFilter} onValueChange={setStatusFilter} disabled={loading}>
-                                <SelectTrigger id="statusFilter">
-                                    <SelectValue placeholder="Selecione um status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {statusOptions.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
+            <Card className="overflow-hidden">
+                <CardHeader className="border-b border-[#EEF0F4]">
+                    <CardTitle>Nova notificação push</CardTitle>
+                    <p className="mt-0.5 text-[12.5px] text-[#687181]">Envie mensagens para os clientes do aplicativo.</p>
+                </CardHeader>
+                <CardContent className="p-[18px]">
+                    <div className="grid gap-3.5">
+                        <div className="grid gap-3.5 sm:grid-cols-2">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="statusFilter">Segmento por status</Label>
+                                <Select value={statusFilter} onValueChange={setStatusFilter} disabled={loading}>
+                                    <SelectTrigger id="statusFilter">
+                                        <SelectValue placeholder="Selecione um status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {statusOptions.map(option => (
+                                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="planFilter">Segmento por plano</Label>
+                                <Select value={planFilter} onValueChange={setPlanFilter} disabled={loading}>
+                                    <SelectTrigger id="planFilter">
+                                        <SelectValue placeholder="Selecione um plano" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {planOptions.map(option => (
+                                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        
-                        {/* Filtro por Plano */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="planFilter">Filtrar por Plano</Label>
-                            <Select value={planFilter} onValueChange={setPlanFilter} disabled={loading}>
-                                <SelectTrigger id="planFilter">
-                                    <SelectValue placeholder="Selecione um plano" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {planOptions.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="title">Título</Label>
+                            <Input
+                                id="title"
+                                placeholder="Ex.: Manutenção programada"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value.substring(0, 50))}
+                                disabled={loading}
+                            />
                         </div>
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="body">Mensagem</Label>
+                            <Textarea
+                                id="body"
+                                placeholder="Escreva a mensagem que os clientes receberão..."
+                                value={body}
+                                onChange={(e) => setBody(e.target.value)}
+                                rows={4}
+                                disabled={loading}
+                            />
+                        </div>
+                        <Button onClick={handleSendNotification} disabled={loading} className="w-fit gap-2">
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            {loading ? 'Enviando...' : 'Enviar agora'}
+                        </Button>
                     </div>
-                    
-                    <div className="grid gap-2">
-                        <Label htmlFor="title">Título da Notificação</Label>
-                        <Input
-                            id="title"
-                            placeholder="Ex: Aviso Importante (máx. 50 caracteres)"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value.substring(0, 50))}
-                            disabled={loading}
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="body">Mensagem</Label>
-                        <Textarea
-                            id="body"
-                            placeholder="Digite sua mensagem aqui..."
-                            value={body}
-                            onChange={(e) => setBody(e.target.value)}
-                            rows={5}
-                            disabled={loading}
-                        />
-                    </div>
-                    <Button onClick={handleSendNotification} disabled={loading}>
-                        {loading ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Enviando...
-                            </>
-                        ) : (
-                            <>
-                                <Send className="mr-2 h-4 w-4" />
-                                Enviar Notificação
-                            </>
-                        )}
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden">
+                <CardHeader className="border-b border-[#EEF0F4]">
+                    <CardTitle>Histórico de envios</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {history.map(item => (
+                        <div key={`${item.title}-${item.date}`} className="border-b border-[#F2F4F7] px-[18px] py-[13px] last:border-b-0">
+                            <div className="flex items-baseline justify-between gap-3">
+                                <span className="truncate text-[13px] font-semibold text-[#1A2233]">{item.title}</span>
+                                <span className="shrink-0 text-[11.5px] text-[#98A1B1]">{item.date}</span>
+                            </div>
+                            <div className="mt-1 text-[12px] text-[#98A1B1]">{item.meta}</div>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        </div>
     );
 }

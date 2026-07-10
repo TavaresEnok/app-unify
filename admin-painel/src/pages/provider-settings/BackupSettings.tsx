@@ -1,6 +1,5 @@
 // admin-painel/src/pages/provider-settings/BackupSettings.tsx - VERSÃO ATUALIZADA
 import { useState, useEffect, useContext, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -11,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase/config';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
 import EmptyState from '@/components/EmptyState.tsx';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 interface Backup {
     id: string;
@@ -123,20 +123,18 @@ export default function BackupSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle>Backup e Restauração</CardTitle>
-                        <CardDescription>Crie cópias de segurança das configurações de personalização ou restaure uma versão anterior.</CardDescription>
-                    </div>
+        <SettingsPage
+            title="Backup e Restauração"
+            description="Crie cópias de segurança das configurações de personalização ou restaure uma versão anterior."
+            icon={DatabaseZap}
+            actions={(
                     <Button onClick={handleCreateBackup} disabled={!!isActioning || isLoading}>
                         {isActioning === true ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HardDriveUpload className="mr-2 h-4 w-4" />}
                         Criar Novo Backup
                     </Button>
-                </div>
-            </CardHeader>
-            <CardContent>
+            )}
+        >
+            <SettingsSection title="Histórico de backups" description="Versões disponíveis para restauração.">
                 {isLoading ? (
                     <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
                 ) : backups.length === 0 ? (
@@ -174,7 +172,7 @@ export default function BackupSettings() {
                         </TableBody>
                     </Table>
                 )}
-            </CardContent>
-        </Card>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

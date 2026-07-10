@@ -1,12 +1,12 @@
 import { useContext, useState, useEffect, useCallback } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, HelpCircle, PlusCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export interface FaqItem {
     id: string;
@@ -80,18 +80,23 @@ export default function FaqSettings() {
     }, []);
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Perguntas Frequentes (FAQ)</CardTitle>
-                <CardDescription>
-                    Gerencie a lista de perguntas e respostas exibidas na seção de ajuda do aplicativo.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                
+        <SettingsPage
+            title="Perguntas Frequentes"
+            description="Gerencie perguntas e respostas exibidas na seção de ajuda do aplicativo."
+            icon={HelpCircle}
+            footer={(
+                <>
+                    <SettingsFooterNote>As alterações são aplicadas localmente e devem ser salvas nas configurações gerais.</SettingsFooterNote>
+                    <Button onClick={handleApplyChanges} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Aplicar FAQ
+                    </Button>
+                </>
+            )}
+        >
+            <SettingsSection title="Adicionar FAQ" description="Crie uma pergunta e resposta para a central de ajuda.">
                 {/* Adicionar Nova FAQ */}
-                <div className="space-y-4 pt-4 pb-6 border-b">
-                    <Label className="text-base font-semibold">Adicionar Nova FAQ</Label>
+                <div className="space-y-4">
                     <Input
                         placeholder="Pergunta"
                         value={newQuestion}
@@ -108,14 +113,14 @@ export default function FaqSettings() {
                         <PlusCircle className="h-4 w-4 mr-2" /> Adicionar FAQ
                     </Button>
                 </div>
+            </SettingsSection>
 
+            <SettingsSection title={`FAQs atuais (${localFaqs.length})`} description="Itens exibidos no app para autoatendimento.">
                 {/* Lista de FAQs Atuais */}
-                {localFaqs.length > 0 && (
-                    <div className="space-y-3 pt-4">
-                        <Label className="text-base font-semibold">FAQs Atuais ({localFaqs.length})</Label>
+                {localFaqs.length > 0 ? (
                         <Accordion type="single" collapsible className="w-full">
                             {localFaqs.map((faq) => (
-                                <AccordionItem key={faq.id} value={faq.id}>
+                                <AccordionItem key={faq.id} value={faq.id} className="rounded-lg border border-[#EEF0F4] bg-white px-3">
                                     <AccordionTrigger className="font-medium text-left">
                                         <div className="flex items-center gap-2">
                                             <HelpCircle className="h-4 w-4 text-primary" />
@@ -137,17 +142,10 @@ export default function FaqSettings() {
                                 </AccordionItem>
                             ))}
                         </Accordion>
-                    </div>
+                ) : (
+                    <p className="rounded-lg border border-dashed border-[#C6CDD9] bg-white p-6 text-center text-sm text-muted-foreground">Nenhuma FAQ configurada ainda.</p>
                 )}
-                
-                {localFaqs.length === 0 && (
-                    <p className="text-sm text-muted-foreground pt-4">Nenhuma FAQ configurada ainda.</p>
-                )}
-                
-                <Button onClick={handleApplyChanges} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Aplicar FAQ (Salvar Localmente)"}
-                </Button>
-            </CardContent>
-        </Card>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

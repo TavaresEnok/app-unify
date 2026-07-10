@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect, useCallback } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Phone, Mail, MapPin, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import AddEditContactDialog from '@/components/dialogs/AddEditContactDialog';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 interface SupportContact {
     id: string;
@@ -75,26 +75,21 @@ export default function SupportSettings() {
 
 
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Contatos de Suporte</CardTitle>
-                    <CardDescription>
-                        Gerencie os telefones, emails e endereços exibidos na tela de suporte do app.
-                    </CardDescription>
-                </div>
-                {/* CORRIGIDO: O diálogo recebe a função de salvar com a tipagem correta */}
-                <AddEditContactDialog onSave={handleSaveContact} />
-            </CardHeader>
-            <CardContent>
+        <SettingsPage
+            title="Contatos de Suporte"
+            description="Gerencie os telefones, emails e endereços exibidos na tela de suporte do app."
+            icon={Phone}
+            actions={<AddEditContactDialog onSave={handleSaveContact} />}
+        >
+            <SettingsSection title="Lista de contatos" description="Canais que aparecem para o assinante no aplicativo.">
                 {localContacts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum contato configurado ainda.</p>
+                    <p className="rounded-lg border border-dashed border-[#C6CDD9] bg-white p-6 text-center text-sm text-muted-foreground">Nenhum contato configurado ainda.</p>
                 ) : (
-                    <div className="space-y-4">
-                        <Label className="text-base font-semibold">Lista de Contatos</Label>
+                    <div className="space-y-3">
+                        <Label className="text-[12.5px] font-semibold text-[#39414F]">Contatos cadastrados</Label>
                         <div className="grid gap-4">
                             {localContacts.map((contact) => (
-                                <div key={contact.id} className="flex items-center justify-between p-3 border rounded-md">
+                                <div key={contact.id} className="flex flex-col justify-between gap-3 rounded-lg border border-[#EEF0F4] bg-white p-3 sm:flex-row sm:items-center">
                                     <div className="flex items-center gap-4">
                                         {getIcon(contact.type)}
                                         <div>
@@ -123,7 +118,7 @@ export default function SupportSettings() {
                         </div>
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

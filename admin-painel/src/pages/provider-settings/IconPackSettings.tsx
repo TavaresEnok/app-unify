@@ -1,10 +1,9 @@
 import { useCallback } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Save, Loader2, Check, Circle, Square, Hexagon, Diamond } from 'lucide-react';
 import { toast } from 'sonner';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 // Icon pack options
 const ICON_PACKS = [
@@ -96,43 +95,33 @@ export default function IconPackSettings() {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold flex items-center gap-2">
-                        <Hexagon className="h-8 w-8" />
-                        Pack de Ícones
-                    </h2>
-                    <p className="text-muted-foreground">Escolha o estilo dos ícones do aplicativo</p>
-                </div>
-                <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? (
-                        <><Loader2 className="animate-spin mr-2 h-4 w-4" />Salvando...</>
-                    ) : (
-                        <><Save className="mr-2 h-4 w-4" />Salvar</>
-                    )}
-                </Button>
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Estilo de Ícones</CardTitle>
-                    <CardDescription>
-                        O pack selecionado será usado em todo o aplicativo.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
+        <SettingsPage
+            title="Pack de Ícones"
+            description="Escolha o estilo dos ícones do aplicativo."
+            icon={Hexagon}
+            footer={(
+                <>
+                    <SettingsFooterNote>A mudança do pack de ícones requer rebuild para ser aplicada no app.</SettingsFooterNote>
+                    <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        {isSaving ? "Salvando..." : "Salvar alterações"}
+                    </Button>
+                </>
+            )}
+        >
+            <SettingsSection title="Estilo de ícones" description="O pack selecionado será usado em todo o aplicativo.">
+                <div className="grid gap-3">
                     {ICON_PACKS.map((pack) => (
                         <div
                             key={pack.id}
                             onClick={() => handlePackChange(pack.id)}
-                            className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all
+                            className={`flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-all
                                 ${currentPack === pack.id
                                     ? 'border-primary bg-primary/5'
-                                    : 'border-muted hover:bg-muted/50'}`}
+                                    : 'border-[#EEF0F4] bg-white hover:bg-[#F8FAFC]'}`}
                         >
                             {/* Preview icons grid */}
-                            <div className="grid grid-cols-2 gap-1 p-3 rounded-lg bg-muted/50 min-w-[70px]">
+                            <div className="grid min-w-[70px] grid-cols-2 gap-1 rounded-lg bg-[#F2F4F7] p-3">
                                 {renderPreviewIcons(pack.id)}
                             </div>
 
@@ -153,16 +142,8 @@ export default function IconPackSettings() {
                             )}
                         </div>
                     ))}
-                </CardContent>
-            </Card>
-
-            {/* Nota informativa */}
-            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <p className="text-sm text-amber-600 dark:text-amber-400">
-                    <strong>Nota:</strong> A mudança do pack de ícones requer rebuild do aplicativo
-                    para ser aplicada. As alterações são salvas imediatamente na configuração.
-                </p>
-            </div>
-        </div>
+                </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

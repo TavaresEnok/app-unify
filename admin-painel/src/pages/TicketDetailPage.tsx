@@ -5,10 +5,10 @@ import { db } from '@/firebase/config';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, ArrowLeft, Send } from 'lucide-react';
+import StatusBadge from '@/components/StatusBadge';
 // Import de { Skeleton } removido - TS6133
 
 interface Message {
@@ -161,14 +161,17 @@ export default function TicketDetailPage() {
         }
     }, [ticketId, user, ticket]);
 
+    const initialsFor = (value: string) => value
+        .split(/[\s@.]+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase();
 
-    const getStatusVariant = (status: Ticket['status']) => {
-        switch (status) {
-            case 'Aberto': return 'default';
-            case 'Em Andamento': return 'secondary';
-            case 'Fechado': return 'outline';
-            default: return 'default';
-        }
+    const messageAuthor = (msg: Message) => {
+        if (msg.senderEmail === user?.email) return "Você";
+        return msg.senderEmail || ticket?.createdBy || "Atendimento";
     };
 
     if (loading) {
@@ -180,63 +183,121 @@ export default function TicketDetailPage() {
     }
 
     return (
-        <div className="flex flex-col gap-6 h-full">
-            <div className="flex items-center justify-between">
+        <div className="space-y-5">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <Button variant="outline" onClick={() => navigate(-1)} className="gap-2">
                     <ArrowLeft className="h-4 w-4" /> Voltar
                 </Button>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     {ticket.status !== 'Em Andamento' && <Button variant="secondary" onClick={() => handleUpdateStatus('Em Andamento')}>Iniciar Trabalho</Button>}
                     {ticket.status !== 'Fechado' && <Button variant="destructive" onClick={() => handleUpdateStatus('Fechado')}>Fechar Ticket</Button>}
                 </div>
             </div>
 
-            <Card className="flex-shrink-0">
-                <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                        {ticket.subject}
-                        <Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge>
-                    </CardTitle>
-                    <CardDescription>ID: {ticket.id} | Provedor: {ticket.providerName} | Cliente: {ticket.createdBy}</CardDescription>
-                </CardHeader>
-            </Card>
-
-            <Card className="flex-1 min-h-0 flex flex-col">
-                <CardHeader>
-                    <CardTitle>Histórico de Mensagens</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-y-auto space-y-4">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className={`p-3 rounded-lg max-w-[80%] ${msg.senderEmail === user?.email ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted text-muted-foreground mr-auto'}`}>
-                            <p className="text-xs font-semibold mb-1">
-                                {msg.senderEmail === user?.email ? 'Você' : ticket.createdBy}
-                                <span className="ml-2 font-normal text-[10px] opacity-70">{formatTimestamp(msg.timestamp)}</span>
-                            </p>
-                            {msg.message && <p className="text-sm">{msg.message}</p>}
-                            {msg.imageUrl && (
-                                <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
-                                    <img src={msg.imageUrl} alt="Anexo" className="max-w-full h-auto rounded-md shadow-md cursor-pointer" />
-                                    <p className="text-xs mt-1 underline">Ver Imagem</p>
-                                </a>
+            <div className="grid gap-4 xl:grid-cols-[1fr_290px]">
+                <Card className="min-h-[640px] overflow-hidden">
+                    <CardHeader className="border-b border-[#EEF0F4]">
+                        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                            <div className="min-w-0">
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                    <StatusBadge status={ticket.status} />
+                                    <span className="rounded-full bg-[#EEF0F4] px-2.5 py-0.5 font-mono text-[11px] font-semibold text-[#5B6472]">{ticket.id}</span>
+                                </div>
+                                <CardTitle className="text-[18px] leading-6">{ticket.subject}</CardTitle>
+                                <p className="mt-1 text-[12.5px] text-[#687181]">Solicitado por {ticket.createdBy}</p>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex min-h-[520px] flex-col p-0">
+                        <div className="flex-1 space-y-0 overflow-y-auto">
+                            {messages.length === 0 ? (
+                                <div className="py-16 text-center text-[13px] text-[#98A1B1]">Nenhuma mensagem registrada.</div>
+                            ) : (
+                                messages.map((msg) => (
+                                    <div key={msg.id} className="flex gap-3 border-b border-[#F2F4F7] px-[18px] py-4">
+                                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0E1320] text-[11px] font-bold text-white">
+                                            {initialsFor(messageAuthor(msg))}
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                                                <span className="text-[13px] font-semibold text-[#1A2233]">{messageAuthor(msg)}</span>
+                                                {msg.senderEmail !== ticket.createdBy && <StatusBadge status="Equipe Unify" tone="blue" />}
+                                                <span className="font-mono text-[11px] text-[#98A1B1]">{formatTimestamp(msg.timestamp)}</span>
+                                            </div>
+                                            {msg.message && <p className="whitespace-pre-wrap text-[13px] leading-6 text-[#4A5364]">{msg.message}</p>}
+                                            {msg.imageUrl && (
+                                                <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block">
+                                                    <img src={msg.imageUrl} alt="Anexo" className="max-h-80 max-w-full rounded-lg border border-[#EEF0F4] object-contain" />
+                                                    <span className="mt-1 block text-[12px] font-semibold text-primary">Ver imagem</span>
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
                             )}
                         </div>
-                    ))}
-                </CardContent>
-                <div className="p-4 border-t">
-                    <Textarea
-                        placeholder="Digite sua resposta aqui..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        rows={3}
-                        disabled={isSending || ticket.status === 'Fechado'}
-                    />
-                    <div className="flex justify-end mt-3">
-                        <Button onClick={handleReply} disabled={isSending || ticket.status === 'Fechado' || !newMessage.trim()}>
-                            {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Enviar Resposta"}
-                        </Button>
-                    </div>
+                        <div className="border-t border-[#EEF0F4] bg-[#FAFBFC] p-[18px]">
+                            <Textarea
+                                placeholder={ticket.status === 'Fechado' ? "Ticket fechado" : "Digite sua resposta aqui..."}
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                rows={4}
+                                disabled={isSending || ticket.status === 'Fechado'}
+                            />
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-[12px] text-[#98A1B1]">{ticket.status === 'Fechado' ? "Respostas desativadas para tickets fechados." : "A resposta será registrada no histórico do ticket."}</span>
+                                <Button onClick={handleReply} disabled={isSending || ticket.status === 'Fechado' || !newMessage.trim()} className="gap-2">
+                                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    Responder
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <div className="space-y-4">
+                    <Card>
+                        <CardHeader className="border-b border-[#EEF0F4]">
+                            <CardTitle>Detalhes</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 p-[18px] text-[12.5px]">
+                            <div>
+                                <p className="mb-1 text-[#98A1B1]">Provedor</p>
+                                <p className="font-semibold text-[#1A2233]">{ticket.providerName}</p>
+                            </div>
+                            <div>
+                                <p className="mb-1 text-[#98A1B1]">Solicitante</p>
+                                <p className="break-words font-semibold text-[#1A2233]">{ticket.createdBy}</p>
+                            </div>
+                            <div>
+                                <p className="mb-1 text-[#98A1B1]">Prioridade</p>
+                                <StatusBadge status="Média" tone="gray" />
+                            </div>
+                            <div>
+                                <p className="mb-1 text-[#98A1B1]">Última atualização</p>
+                                <p className="font-mono text-[11.5px] text-[#4A5364]">{ticket.updatedAt ? formatTimestamp(ticket.updatedAt) : '-'}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="border-b border-[#EEF0F4]">
+                            <CardTitle>Ações</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2 p-[18px]">
+                            <Button variant="outline" className="w-full justify-start" onClick={() => handleUpdateStatus('Aberto')} disabled={ticket.status === 'Aberto'}>
+                                Reabrir ticket
+                            </Button>
+                            <Button variant="outline" className="w-full justify-start" onClick={() => handleUpdateStatus('Em Andamento')} disabled={ticket.status === 'Em Andamento'}>
+                                Colocar em andamento
+                            </Button>
+                            <Button className="w-full justify-start bg-[#157347] text-white hover:bg-[#12613c]" onClick={() => handleUpdateStatus('Fechado')} disabled={ticket.status === 'Fechado'}>
+                                Marcar como resolvido
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }

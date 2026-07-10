@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect, useCallback } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Lightbulb, PlusCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 // CORREÇÃO: Interface compatível com o Dialog e o App Flutter
 export interface TipItem {
@@ -103,17 +103,23 @@ export default function TipsSettings() {
     }, []);
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Dicas Úteis (Carrossel)</CardTitle>
-                <CardDescription>
-                    Gerencie as dicas exibidas no aplicativo.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                
+        <SettingsPage
+            title="Dicas Úteis"
+            description="Gerencie as dicas exibidas no aplicativo."
+            icon={Lightbulb}
+            footer={(
+                <>
+                    <SettingsFooterNote>As alterações são aplicadas localmente e devem ser salvas nas configurações gerais.</SettingsFooterNote>
+                    <Button onClick={handleApplyChanges} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Confirmar alterações
+                    </Button>
+                </>
+            )}
+        >
+            <SettingsSection title="Adicionar nova dica" description="Crie uma dica curta para orientar o assinante no app.">
                 {/* Adicionar Nova Dica */}
-                <div className="grid gap-4 p-4 border rounded-lg bg-slate-50 dark:bg-slate-900">
+                <div className="grid gap-4">
                     <div className="grid gap-2">
                         <Label>Título</Label>
                         <Input
@@ -136,13 +142,14 @@ export default function TipsSettings() {
                         <PlusCircle className="h-4 w-4 mr-2" /> Adicionar Dica
                     </Button>
                 </div>
+            </SettingsSection>
 
+            <SettingsSection title={`Dicas atuais (${localTips.length})`} description="Itens exibidos no carrossel de dicas do aplicativo.">
                 {/* Lista de Dicas */}
-                {localTips.length > 0 && (
-                    <div className="space-y-3 pt-4 border-t">
-                        <Label className="text-base font-semibold">Dicas Atuais ({localTips.length})</Label>
+                {localTips.length > 0 ? (
+                    <div className="space-y-3">
                         {localTips.map((tip) => (
-                            <div key={tip.id} className="flex items-start gap-3 p-3 border rounded-md bg-card">
+                            <div key={tip.id} className="flex items-start gap-3 rounded-lg border border-[#EEF0F4] bg-white p-3">
                                 <Lightbulb className="h-5 w-5 mt-1 text-yellow-500 flex-shrink-0" />
                                 <div className="flex-1">
                                     <p className="font-medium text-sm">{tip.title}</p>
@@ -160,16 +167,10 @@ export default function TipsSettings() {
                             </div>
                         ))}
                     </div>
+                ) : (
+                    <p className="rounded-lg border border-dashed border-[#C6CDD9] bg-white p-6 text-center text-sm text-muted-foreground">Nenhuma dica configurada.</p>
                 )}
-                
-                {localTips.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma dica configurada.</p>
-                )}
-                
-                <Button onClick={handleApplyChanges} disabled={isSaving} className="w-full">
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirmar Alterações"}
-                </Button>
-            </CardContent>
-        </Card>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

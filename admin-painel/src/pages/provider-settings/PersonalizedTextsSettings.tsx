@@ -1,10 +1,10 @@
 import { useContext, useState, useEffect } from 'react';
 import { SettingsContext } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Type } from 'lucide-react';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 export default function PersonalizedTextsSettings() {
     const context = useContext(SettingsContext);
     if (!context) return null;
@@ -44,14 +44,13 @@ export default function PersonalizedTextsSettings() {
         setConfig((prev: any) => ({ ...prev, strings: updatedStrings }));
     };
     return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Textos do Aplicativo</CardTitle>
-                    <CardDescription>Personalize os textos e etiquetas exibidos no aplicativo do assinante.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    
+        <SettingsPage
+            title="Textos personalizados"
+            description="Personalize textos, etiquetas e opções exibidas no aplicativo do assinante."
+            icon={Type}
+            footer={<SettingsFooterNote>Esses campos atualizam a configuração local imediatamente. Salve as alterações gerais para persistir.</SettingsFooterNote>}
+        >
+            <SettingsSection title="Tela inicial" description="Saudações, labels de plano e atalhos principais.">
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Saudação (Home)</Label>
@@ -134,34 +133,29 @@ export default function PersonalizedTextsSettings() {
                             <Input 
                                 value={strings.view_invoices_label || ''} 
                                 onChange={(e) => handleStringChange('view_invoices_label', e.target.value)}
-                                placeholder="Ex: Ver faturas"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Botão Pagar Fatura</Label>
-                            <Input 
-                                value={strings.pay_invoice_label || ''} 
-                                onChange={(e) => handleStringChange('pay_invoice_label', e.target.value)}
-                                placeholder="Ex: Pagar fatura"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Botão Promessa Pagamento</Label>
-                            <Input 
-                                value={strings.promise_payment_label || ''} 
-                                onChange={(e) => handleStringChange('promise_payment_label', e.target.value)}
-                                placeholder="Ex: Prometer pagamento"
-                            />
-                        </div>
+                            placeholder="Ex: Ver faturas"
+                        />
                     </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tela de Suporte</CardTitle>
-                    <CardDescription>Textos e opções da área de atendimento.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label>Botão Pagar Fatura</Label>
+                        <Input
+                            value={strings.pay_invoice_label || ''}
+                            onChange={(e) => handleStringChange('pay_invoice_label', e.target.value)}
+                            placeholder="Ex: Pagar fatura"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Botão Promessa Pagamento</Label>
+                        <Input
+                            value={strings.promise_payment_label || ''}
+                            onChange={(e) => handleStringChange('promise_payment_label', e.target.value)}
+                            placeholder="Ex: Prometer pagamento"
+                        />
+                    </div>
+                    </div>
+            </SettingsSection>
+
+            <SettingsSection title="Tela de suporte" description="Textos e opções da área de atendimento.">
                      <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Título da Tela</Label>
@@ -196,8 +190,8 @@ export default function PersonalizedTextsSettings() {
                             />
                         </div>
                     </div>
-                    <div className="space-y-4 pt-4 border-t">
-                        <Label className="text-base">Assuntos de Ticket</Label>
+                    <div className="space-y-4 border-t border-[#EEF0F4] pt-4">
+                        <Label className="text-[12.5px] font-semibold text-[#39414F]">Assuntos de Ticket</Label>
                         <div className="flex gap-2">
                             <Input 
                                 value={newSubject}
@@ -212,7 +206,7 @@ export default function PersonalizedTextsSettings() {
                         
                         <div className="space-y-2">
                             {ticketSubjects.map((subject, index) => (
-                                <div key={index} className="flex items-center justify-between p-2 border rounded bg-muted/50">
+                                <div key={index} className="flex items-center justify-between rounded-lg border border-[#EEF0F4] bg-white p-2">
                                     <span>{subject}</span>
                                     <Button variant="ghost" size="sm" onClick={() => handleRemoveSubject(index)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -224,8 +218,7 @@ export default function PersonalizedTextsSettings() {
                             )}
                         </div>
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

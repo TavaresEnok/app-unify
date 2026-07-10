@@ -3,7 +3,6 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Sparkles, LogIn, Save } from 'lucide-react';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function SplashLoginConfig() {
   const { config, setConfig, saveConfig, isSaving } = useSettings();
@@ -39,20 +39,17 @@ export default function SplashLoginConfig() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="h-8 w-8" />
-            Splash & Login
-          </h2>
-          <p className="text-muted-foreground">Configure a primeira impressão do app</p>
-        </div>
-        <Button onClick={handleSave} disabled={isSaving}>
+    <SettingsPage
+      title="Splash & Login"
+      description="Configure a primeira impressão do app."
+      icon={Sparkles}
+      actions={(
+        <Button onClick={handleSave} disabled={isSaving} className="gap-2">
           <Save className="h-4 w-4 mr-2" />
           {isSaving ? 'Salvando...' : 'Salvar'}
         </Button>
-      </div>
+      )}
+    >
 
       <Tabs defaultValue="splash">
         <TabsList className="grid w-full grid-cols-2">
@@ -61,11 +58,8 @@ export default function SplashLoginConfig() {
         </TabsList>
 
         <TabsContent value="splash" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Splash Screen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <SettingsSection title="Splash Screen" description="Logo, animação e tempo de abertura do app.">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label>Habilitar Splash</Label>
                 <Switch
@@ -141,16 +135,13 @@ export default function SplashLoginConfig() {
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </SettingsSection>
         </TabsContent>
 
         <TabsContent value="login" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Login Screen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <SettingsSection title="Login Screen" description="Estilo, fundo e frase exibidos na entrada.">
+            <div className="space-y-4">
               <div>
                 <Label>Estilo</Label>
                 <Select
@@ -197,10 +188,10 @@ export default function SplashLoginConfig() {
                   onCheckedChange={(c) => setLogin({ ...login, showLogo: c })}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </SettingsSection>
         </TabsContent>
       </Tabs>
-    </div>
+    </SettingsPage>
   );
 }

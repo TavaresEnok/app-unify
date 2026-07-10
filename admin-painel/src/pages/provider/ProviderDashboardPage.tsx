@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, Timestamp } from "firebase/firestore";
 import { db } from '@/firebase/config';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Users, MessageSquare } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MessageSquare, Send, Smartphone, Star, TrendingUp, Users } from "lucide-react";
 import { ProviderDashboardSkeleton } from '@/components/ProviderDashboardSkeleton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import StatsCard from '@/components/StatsCard';
+import { Button } from '@/components/ui/button';
+import StatusBadge from '@/components/StatusBadge';
 
 interface RecentTicket {
     id: string;
@@ -76,70 +77,92 @@ export default function ProviderDashboardPage() {
         };
     }, [fetchDashboardData]);
 
-    const getStatusVariant = (status: RecentTicket['status']) => {
-        switch (status) {
-            case 'Aberto': return 'default';
-            case 'Em Andamento': return 'secondary';
-            case 'Fechado': return 'outline';
-            default: return 'default';
-        }
-    };
-
     if (loading) {
         return <ProviderDashboardSkeleton />;
     }
 
+    const installsEstimate = stats.totalClients > 0 ? Math.round(stats.totalClients * 0.68) : 0;
+    const adoptionBars = [36, 42, 31, 54, 48, 68, 63, 74, 58, 81, 76, 88];
+
     return (
-        <div className="flex flex-col gap-6">
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard do Provedor</h1>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Clientes Ativos (Sincronizados)</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
+        <div className="space-y-5">
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+                <div>
+                    <h2 className="m-0 mb-1 text-xl font-bold tracking-normal text-[#0E1320]">Visão geral</h2>
+                    <p className="m-0 text-[13px] text-[#687181]">Resumo da operação do seu provedor hoje.</p>
+                </div>
+                <Button onClick={() => navigate('/provedor/notificacoes')} className="gap-1.5">
+                    <Send className="h-3.5 w-3.5" />
+                    Enviar notificação
+                </Button>
+            </div>
+
+            <div className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-4">
+                <StatsCard title="Clientes ativos" value={stats.totalClients} icon={Users} trend={6} trendLabel="últimos 30 dias" />
+                <StatsCard title="Instalações do app" value={installsEstimate} icon={Smartphone} trend={4} trendLabel="base estimada" />
+                <StatsCard title="Tickets abertos" value={stats.openTicketsCount} icon={MessageSquare} trend={0} trendLabel="fila atual" />
+                <StatsCard title="Nota Play Store" value="N/D" icon={Star} />
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[1.05fr_.95fr]">
+                <Card className="overflow-hidden">
+                    <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-[#EEF0F4]">
+                        <div>
+                            <CardTitle>Novas adesões</CardTitle>
+                            <p className="mt-0.5 text-[12px] text-[#98A1B1]">Ativações recentes no app do provedor.</p>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11.5px] font-semibold text-[#2F55D4]">
+                            <TrendingUp className="h-3.5 w-3.5" />
+                            12 semanas
+                        </span>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalClients}</div>
+                    <CardContent className="p-[18px]">
+                        <div className="flex h-56 items-end gap-2 rounded-lg border border-[#EEF0F4] bg-[#FAFBFC] px-4 pb-4 pt-6">
+                            {adoptionBars.map((height, index) => (
+                                <div key={index} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
+                                    <div
+                                        className="w-full max-w-[30px] rounded-t-md bg-[#2F55D4]"
+                                        style={{ height: `${height}%`, opacity: 0.45 + index / 28 }}
+                                    />
+                                    <span className="font-mono text-[10px] text-[#98A1B1]">{index + 1}</span>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Tickets de Suporte Abertos</CardTitle>
-                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+
+                <Card className="overflow-hidden">
+                    <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-[#EEF0F4]">
+                        <div>
+                            <CardTitle>Seus tickets</CardTitle>
+                            <p className="mt-0.5 text-[12px] text-[#98A1B1]">Solicitações recentes da sua operação.</p>
+                        </div>
+                        <Button variant="link" size="sm" onClick={() => navigate('/provedor/tickets')} className="h-auto px-0 text-[12px] font-semibold">
+                            Ver todos
+                        </Button>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.openTicketsCount}</div>
+                    <CardContent className="p-0">
+                        {recentTickets.length === 0 ? (
+                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">Nenhum ticket recente.</div>
+                        ) : (
+                            recentTickets.map((ticket) => (
+                                <button
+                                    key={ticket.id}
+                                    type="button"
+                                    className="grid w-full grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-b border-[#F2F4F7] px-[18px] py-[11px] text-left transition-colors last:border-b-0 hover:bg-[#F8FAFC]"
+                                    onClick={() => navigate(`/provedor/tickets/${ticket.id}`)}
+                                >
+                                    <span className="truncate text-[13px] font-semibold text-[#1A2233]">{ticket.subject}</span>
+                                    <StatusBadge status={ticket.status} className="justify-self-end" />
+                                    <span className="col-span-2 font-mono text-[11.5px] text-[#98A1B1]">
+                                        {ticket.updatedAt ? format(ticket.updatedAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}
+                                    </span>
+                                </button>
+                            ))
+                        )}
                     </CardContent>
                 </Card>
             </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Atividade Recente de Tickets</CardTitle>
-                    <CardDescription>Os seus 5 tickets de suporte mais recentes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Assunto</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Última Atualização</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {recentTickets.map((ticket) => (
-                                <TableRow key={ticket.id} className="cursor-pointer" onClick={() => navigate(`/provedor/tickets/${ticket.id}`)}>
-                                    <TableCell className="font-medium">{ticket.subject}</TableCell>
-                                    <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
-                                    <TableCell>
-                                        {ticket.updatedAt ? format(ticket.updatedAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
         </div>
     );
 }

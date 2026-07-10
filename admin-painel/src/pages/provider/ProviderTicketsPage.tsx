@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/firebase/config";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from '@/components/ui/badge';
-import { Loader2, MessageSquare, Search, RefreshCw } from 'lucide-react';
+import { ChevronRight, Loader2, MessageSquare, Search, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import AddTicketDialog from '@/components/AddTicketDialog';
 import EmptyState from '@/components/EmptyState';
+import DataTable from '@/components/DataTable';
+import StatusBadge from '@/components/StatusBadge';
 
 interface Ticket {
     id: string;
@@ -70,24 +69,12 @@ export default function ProviderTicketsPage() {
         t.createdBy?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const getStatusVariant = (status: Ticket['status']) => {
-        switch (status) {
-            case 'Aberto': return 'default';
-            case 'Em Andamento': return 'secondary';
-            case 'Fechado': return 'outline';
-            default: return 'default';
-        }
-    };
-
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <CardTitle>Tickets de Suporte</CardTitle>
-                        <CardDescription>Gerencie as solicitações de suporte dos seus clientes.</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+        <DataTable<Ticket>
+            title="Tickets de suporte"
+            description="Gerencie as solicitações de suporte dos seus clientes."
+            actions={(
+                <>
                         <Button variant="outline" size="sm" onClick={loadTickets} disabled={loading}>
                             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                             Atualizar
@@ -103,68 +90,58 @@ export default function ProviderTicketsPage() {
                             />
                         </div>
                         <AddTicketDialog providerName="Provedor" onTicketCreated={loadTickets} />
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {loading && (
-                    <div className="flex justify-center items-center py-12">
+                </>
+            )}
+            columns={[
+                { label: "Status" },
+                { label: "Assunto" },
+                { label: "Solicitante" },
+                { label: "Prioridade" },
+                { label: "Atualização" },
+                { label: "" },
+            ]}
+            gridTemplate="130px 2.2fr 1.2fr .8fr 1fr 32px"
+            rows={!loading && !error ? filteredTickets : []}
+            getRowKey={(ticket) => ticket.id}
+            minWidth="900px"
+            empty={loading ? (
+                <div className="flex items-center justify-center py-12">
                         <Loader2 className="animate-spin h-8 w-8" />
                     </div>
-                )}
-
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-4">
+            ) : error ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
                         <p className="text-red-500 font-medium">Erro: {error}</p>
                         <Button variant="outline" size="sm" className="mt-2" onClick={loadTickets}>
                             Tentar Novamente
                         </Button>
                     </div>
-                )}
-
-                {!loading && !error && filteredTickets.length === 0 && (
+            ) : (
                     <EmptyState
                         icon={MessageSquare}
                         title="Nenhum ticket encontrado"
                         description={hasFetched ? "A lista está vazia." : "Clique em Atualizar para carregar."}
                     />
-                )}
-
-                {!loading && filteredTickets.length > 0 && (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>ID</TableHead>
-                                <TableHead>Assunto</TableHead>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead className="text-center">Status</TableHead>
-                                <TableHead className="text-right">Última Atualização</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredTickets.map((ticket) => (
-                                <TableRow
-                                    key={ticket.id}
-                                    className="cursor-pointer hover:bg-muted/50"
+            )}
+            renderRow={(ticket) => (
+                            <button
+                                type="button"
+                    className="grid w-full items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] text-left transition-colors hover:bg-[#F8FAFC]"
+                    style={{ gridTemplateColumns: "130px 2.2fr 1.2fr .8fr 1fr 32px" }}
                                     onClick={() => navigate(`/provedor/tickets/${ticket.id}`)}
                                 >
-                                    <TableCell className="font-medium text-xs text-muted-foreground">
-                                        {ticket.id.substring(0, 8)}
-                                    </TableCell>
-                                    <TableCell className="font-medium">{ticket.subject}</TableCell>
-                                    <TableCell>{ticket.createdBy}</TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
+                    <StatusBadge status={ticket.status} />
+                    <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-semibold text-[#1A2233]">{ticket.subject}</span>
+                        <span className="block font-mono text-[10.5px] text-[#98A1B1]">{ticket.id.substring(0, 8)}</span>
+                    </span>
+                                <span className="truncate text-[12.5px] text-[#4A5364]">{ticket.createdBy}</span>
+                    <StatusBadge status="Média" tone="gray" />
+                                <span className="font-mono text-[11.5px] text-[#687181]">
                                         {ticket.updatedAt ? new Date(ticket.updatedAt.seconds * 1000).toLocaleString('pt-BR') : 'N/A'}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-            </CardContent>
-        </Card>
+                                </span>
+                                <ChevronRight className="h-3.5 w-3.5 justify-self-end text-[#B9C0CC]" />
+                            </button>
+            )}
+        />
     );
 }

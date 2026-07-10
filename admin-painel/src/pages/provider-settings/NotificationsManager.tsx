@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Bell, Plus, Send, Trash2, Users, Filter, Loader2 } from 'lucide-react';
+import { Bell, Plus, Send, Trash2, Users } from 'lucide-react';
 import { db } from '@/firebase/config';
 import { doc, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import StatusBadge from '@/components/StatusBadge';
 
 export default function NotificationsManager() {
   const { config, setConfig, saveConfig, isSaving, providerId } = useSettings();
@@ -129,16 +129,12 @@ export default function NotificationsManager() {
     : notifications.filter((n: any) => n.category === filter);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold flex items-center gap-2">
-            <Bell className="h-8 w-8" />
-            Gerenciador de Notificações
-          </h2>
-          <p className="text-muted-foreground">Envie avisos e promoções para seus clientes</p>
-        </div>
-        <div className="flex gap-2">
+    <SettingsPage
+      title="Notificações"
+      description="Envie avisos e promoções para seus clientes."
+      icon={Bell}
+      actions={(
+        <>
           <Button variant="outline" onClick={sendToAll}>
             <Send className="h-4 w-4 mr-2" />
             Enviar Todas
@@ -146,16 +142,13 @@ export default function NotificationsManager() {
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
-        </div>
-      </div>
+        </>
+      )}
+    >
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Nova Notificação</CardTitle>
-            <CardDescription>Crie um aviso para enviar aos clientes</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <SettingsSection title="Nova notificação" description="Crie um aviso para enviar aos clientes.">
+          <div className="space-y-4">
             <div>
               <Label>Título *</Label>
               <Input
@@ -206,13 +199,15 @@ export default function NotificationsManager() {
               <Plus className="h-4 w-4 mr-2" />
               Criar Notificação
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </SettingsSection>
 
-        <Card>
-          <CardHeader>
+        <SettingsSection>
             <div className="flex items-center justify-between">
-              <CardTitle>Notificações Ativas ({filteredNotifications.length})</CardTitle>
+              <div>
+                <h3 className="text-[13px] font-semibold text-[#1A2233]">Notificações ativas ({filteredNotifications.length})</h3>
+                <p className="mt-0.5 text-[12px] text-[#687181]">Filtre, envie ou remova notificações cadastradas.</p>
+              </div>
               <Select value={filter} onValueChange={setFilter}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
@@ -225,9 +220,7 @@ export default function NotificationsManager() {
                 </SelectContent>
               </Select>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-[600px] overflow-auto">
+            <div className="mt-4 max-h-[600px] space-y-3 overflow-auto">
               {filteredNotifications.length === 0 ? (
                 <div className="text-center py-12">
                   <Bell className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
@@ -237,13 +230,13 @@ export default function NotificationsManager() {
                 filteredNotifications.map((notif: any) => {
                   const cat = categories.find((c) => c.value === notif.category);
                   return (
-                    <div key={notif.id} className="p-4 border rounded-lg space-y-2 hover:bg-accent transition-colors">
+                    <div key={notif.id} className="space-y-2 rounded-lg border border-[#EEF0F4] bg-white p-4 transition-colors hover:bg-[#F8FAFC]">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <p className="font-semibold">{notif.title}</p>
-                            <Badge variant={cat?.color as any}>{cat?.label}</Badge>
-                            {!notif.dismissible && <Badge variant="outline">Não dispensável</Badge>}
+                            <StatusBadge status={cat?.label || notif.category} tone={notif.category === 'urgent' ? 'red' : notif.category === 'promo' ? 'amber' : 'blue'} />
+                            {!notif.dismissible && <StatusBadge status="Não dispensável" tone="gray" />}
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-2">{notif.message}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -269,9 +262,8 @@ export default function NotificationsManager() {
                 })
               )}
             </div>
-          </CardContent>
-        </Card>
+        </SettingsSection>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

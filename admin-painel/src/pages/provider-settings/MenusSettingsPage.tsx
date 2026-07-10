@@ -1,6 +1,5 @@
 import { useState, useContext, useEffect } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import AddMenuItemDialog from '@/components/AddMenuItemDialog';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 interface MenuItem {
   id: string;
@@ -175,15 +175,13 @@ export default function MenusSettingsPage() {
     };
 
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Menus & Cores</CardTitle>
-                    <CardDescription>Organize os menus e defina uma cor para cada cartão.</CardDescription>
-                </div>
-                <AddMenuItemDialog onAddItem={handleAddItem} />
-            </CardHeader>
-            <CardContent>
+        <SettingsPage
+            title="Menus & Cores"
+            description="Organize os menus e defina uma cor para cada cartão."
+            icon={GripVertical}
+            actions={<AddMenuItemDialog onAddItem={handleAddItem} />}
+        >
+            <SettingsSection title="Itens do menu" description="Arraste para reordenar e use os switches para controlar visibilidade.">
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <Table>
                         <TableHeader>
@@ -212,7 +210,7 @@ export default function MenusSettingsPage() {
                         </TableBody>
                     </Table>
                 </DndContext>
-            </CardContent>
-        </Card>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

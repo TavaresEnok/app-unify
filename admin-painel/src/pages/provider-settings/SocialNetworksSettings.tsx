@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Save, Loader2, Instagram, Facebook, Globe, MessageCircle } from 'lucide-react'; // Whatsapp substituído por MessageCircle
 import { toast } from 'sonner';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function SocialNetworksSettings() {
     const context = useContext(SettingsContext);
@@ -44,15 +44,22 @@ export default function SocialNetworksSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Redes Sociais e Links</CardTitle>
-                <CardDescription>
-                    Adicione links diretos para as redes sociais da sua empresa.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                
+        <SettingsPage
+            title="Redes Sociais e Links"
+            description="Adicione links diretos para as redes sociais da sua empresa."
+            icon={Globe}
+            footer={(
+                <>
+                    <SettingsFooterNote>Aplica localmente no contexto; salve as alterações gerais para confirmar.</SettingsFooterNote>
+                    <Button onClick={handleSaveSocial} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Aplicar links
+                    </Button>
+                </>
+            )}
+        >
+            <SettingsSection title="Canais públicos" description="Links exibidos no app e nos pontos de contato do cliente.">
+                <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-2">
                     <Label htmlFor="instagram">Link do Instagram</Label>
                     <div className="flex items-center gap-2">
@@ -108,13 +115,8 @@ export default function SocialNetworksSettings() {
                         />
                     </div>
                 </div>
-
-                <Button onClick={handleSaveSocial} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Aplicar Links
-                </Button>
-                
-            </CardContent>
-        </Card>
+                </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

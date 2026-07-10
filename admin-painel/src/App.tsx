@@ -91,7 +91,7 @@ const ProviderSettingsRoutes = (
 // Force HMR Update
 export default function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <AuthProvider>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>

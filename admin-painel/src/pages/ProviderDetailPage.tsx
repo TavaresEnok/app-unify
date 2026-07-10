@@ -4,10 +4,9 @@ import { doc, onSnapshot, setDoc, collection, serverTimestamp } from 'firebase/f
 import { db } from '@/firebase/config';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Loader2, Save, Smartphone } from 'lucide-react';
 import { SettingsContext, ProviderData, ProviderConfigLegacy as ProviderConfig } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
-import Breadcrumbs from '@/components/Breadcrumbs';
 
 // CACHE BUST 2026-01-29 - Force Refresh
 export default function ProviderDetailPage() {
@@ -143,33 +142,71 @@ export default function ProviderDetailPage() {
     }
 
     const providerIdString = providerId ?? 'firebase';
+    const providerInitials = (provider.name || providerIdString)
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part: string) => part[0])
+        .join('')
+        .toUpperCase();
+    const providerCnpj = provider.cnpj || provider.document || providerIdString;
+    const providerPlan = provider.plan || provider.plano || 'Standard';
+    const providerStatus = provider.appStatus || provider.statusApp || 'Publicado';
+    const providerAvatarBg = provider.themeColor || config.themeColor || '#10324B';
 
     return (
         <SettingsContext.Provider value={{ config, setConfig, providerId: providerIdString, provider, loading, saveConfig: handleSave, isSaving }}>
-            <div className="space-y-6 h-full flex flex-col">
-                <div className="flex flex-col gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 py-2 -mx-4 px-4 border-b md:static md:border-none md:p-0 md:mx-0">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <Breadcrumbs />
-                            <h1 className="text-2xl md:text-3xl font-bold truncate">Personalização: {provider.name}</h1>
+            <div className="flex h-full flex-col gap-5">
+                {userRole === 'superAdmin' && (
+                    <button
+                        type="button"
+                        onClick={() => navigate('/provedores')}
+                        className="inline-flex w-fit items-center gap-1.5 text-[12.5px] font-semibold text-[#687181] transition-colors hover:text-primary"
+                    >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Voltar para provedores
+                    </button>
+                )}
+
+                <div className="flex flex-col gap-4 rounded-xl border border-[#E6E9EF] bg-white p-[18px] shadow-[0_1px_2px_rgba(16,24,40,.04)] sm:flex-row sm:items-center">
+                    <div
+                        className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-[10px] text-[15px] font-bold text-white"
+                        style={{ backgroundColor: providerAvatarBg }}
+                    >
+                        {providerInitials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <h2 className="truncate text-[16.5px] font-bold tracking-normal text-[#0E1320]">{provider.name || 'Provedor'}</h2>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className="rounded-[5px] bg-[#F2F4F7] px-2 py-0.5 font-mono text-[11px] text-[#687181]">{providerCnpj}</span>
+                            <span className="rounded-md bg-[#EEF0F4] px-2 py-0.5 text-[11.5px] font-semibold text-[#4A5364]">{providerPlan}</span>
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                {providerStatus}
+                            </span>
                         </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <Button variant="outline" className="gap-2">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Ver app publicado
+                        </Button>
+                        <Button variant="outline" onClick={() => navigate(`${userRole === 'superAdmin' ? `/provedores/${providerIdString}` : '/provedor/personalizacao'}/app-build`)} className="gap-2">
+                            <Smartphone className="h-3.5 w-3.5" />
+                            Gerar APK
+                        </Button>
                         <Button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className={`shrink-0 shadow-lg transition-all ${isSaving ? 'opacity-80' : 'hover:ring-2 hover:ring-primary/50'}`}
+                            className="gap-2"
                         >
-                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            <span className="hidden sm:inline">Salvar Alterações</span>
-                            <span className="sm:hidden">Salvar</span>
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Salvar alterações
                         </Button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start flex-1">
-                    <div className="lg:col-span-2 space-y-6 order-2 lg:order-1 pb-10">
-                        <Outlet />
-                    </div>
-                </div>
+                <Outlet />
             </div>
         </SettingsContext.Provider>
     );

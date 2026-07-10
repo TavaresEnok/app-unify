@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, MessageSquare } from 'lucide-react';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function MessagesSettings() {
     const context = useContext(SettingsContext);
@@ -40,15 +40,22 @@ export default function MessagesSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Mensagens e Textos do App</CardTitle>
-                <CardDescription>
-                    Configure mensagens específicas que aparecem em certas telas ou notificações.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                
+        <SettingsPage
+            title="Mensagens"
+            description="Configure mensagens específicas que aparecem em telas ou notificações."
+            icon={MessageSquare}
+            footer={(
+                <>
+                    <SettingsFooterNote>Aplica no estado local; depois salve as alterações gerais para persistir.</SettingsFooterNote>
+                    <Button onClick={handleSaveMessages} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Aplicar mensagens
+                    </Button>
+                </>
+            )}
+        >
+            <SettingsSection title="Textos operacionais" description="Mensagens exibidas após login e em lembretes financeiros.">
+                <div className="grid gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="welcome">Mensagem de Boas-Vindas (Após Login)</Label>
                     <Input
@@ -72,13 +79,8 @@ export default function MessagesSettings() {
                     />
                     <p className="text-sm text-muted-foreground">Texto usado em notificações e alertas sobre faturas.</p>
                 </div>
-
-                <Button onClick={handleSaveMessages} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Aplicar Configurações de Mensagens
-                </Button>
-                
-            </CardContent>
-        </Card>
+                </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

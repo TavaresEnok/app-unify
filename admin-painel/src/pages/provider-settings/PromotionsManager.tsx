@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Tag, Calendar, Percent, Trash2, Edit } from 'lucide-react';
+import { Tag, Calendar, Percent, Trash2 } from 'lucide-react';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import StatusBadge from '@/components/StatusBadge';
 
 export default function PromotionsManager() {
   const { config, setConfig, saveConfig, isSaving } = useSettings();
@@ -54,26 +54,17 @@ export default function PromotionsManager() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold flex items-center gap-2">
-            <Tag className="h-8 w-8" />
-            Gerenciador de Promoções
-          </h2>
-          <p className="text-muted-foreground">Crie ofertas especiais para seus clientes</p>
-        </div>
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Salvando...' : 'Salvar Promoções'}
-        </Button>
-      </div>
+    <SettingsPage
+      title="Promoções"
+      description="Crie ofertas especiais para seus clientes."
+      icon={Tag}
+      actions={<Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar promoções'}</Button>}
+      contentClassName="space-y-4"
+    >
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Nova Promoção</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <SettingsSection title="Nova promoção" description="Defina a oferta, período e contador." className="lg:col-span-1">
+          <div className="space-y-4">
             <div>
               <Label>Título *</Label>
               <Input
@@ -142,14 +133,10 @@ export default function PromotionsManager() {
               <Tag className="h-4 w-4 mr-2" />
               Criar Promoção
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </SettingsSection>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Promoções Ativas ({promotions.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <SettingsSection title={`Promoções ativas (${promotions.length})`} description="Campanhas cadastradas para exibição no app." className="lg:col-span-2">
             <div className="space-y-4">
               {promotions.length === 0 ? (
                 <div className="text-center py-12">
@@ -158,13 +145,13 @@ export default function PromotionsManager() {
                 </div>
               ) : (
                 promotions.map((promo: any) => (
-                  <div key={promo.id} className="border rounded-lg p-4 hover:bg-accent transition-colors">
+                  <div key={promo.id} className="rounded-lg border border-[#EEF0F4] bg-white p-4 transition-colors hover:bg-[#F8FAFC]">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h4 className="font-semibold text-lg">{promo.title}</h4>
-                          {promo.badge && <Badge className="bg-gradient-to-r from-orange-500 to-red-500">{promo.badge}</Badge>}
-                          <Badge variant="secondary">{promo.status}</Badge>
+                          {promo.badge && <StatusBadge status={promo.badge} tone="amber" />}
+                          <StatusBadge status={promo.status} />
                         </div>
                         {promo.description && (
                           <p className="text-sm text-muted-foreground mb-3">{promo.description}</p>
@@ -176,7 +163,7 @@ export default function PromotionsManager() {
                           </span>
                           <span>até</span>
                           <span>{new Date(promo.endDate).toLocaleDateString('pt-BR')}</span>
-                          {promo.showCountdown && <Badge variant="outline">Com countdown</Badge>}
+                          {promo.showCountdown && <StatusBadge status="Com countdown" tone="gray" />}
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => deletePromotion(promo.id)}>
@@ -187,9 +174,8 @@ export default function PromotionsManager() {
                 ))
               )}
             </div>
-          </CardContent>
-        </Card>
+        </SettingsSection>
       </div>
-    </div>
+    </SettingsPage>
   );
 }

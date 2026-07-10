@@ -4,16 +4,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
 import { db } from '@/firebase/config';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, Trash2, UserX, Search } from 'lucide-react';
 import AddAdminDialog from '@/components/AddAdminDialog.tsx';
 import SetSuperAdminDialog from '@/components/SetSuperAdminDialog.tsx'; // <-- ADICIONADO
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import EmptyState from '@/components/EmptyState.tsx';
+import DataTable from '@/components/DataTable';
+import StatusBadge from '@/components/StatusBadge';
 
 interface AdminUser {
     uid: string;
@@ -141,15 +141,12 @@ export default function UsersPage() {
     if (userRole !== 'superAdmin') return <Card><CardHeader><CardTitle>Acesso Negado</CardTitle></CardHeader></Card>;
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <CardTitle>Gerir Utilizadores</CardTitle>
-                        <CardDescription>Adicione ou remova administradores do painel.</CardDescription>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                        <div className="relative w-full sm:w-auto flex-grow">
+        <DataTable<AdminUser>
+            title="Utilizadores"
+            description="Adicione ou remova administradores do painel."
+            actions={(
+                <>
+                    <div className="relative w-full flex-grow sm:w-[260px] sm:flex-grow-0">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="search"
@@ -161,28 +158,41 @@ export default function UsersPage() {
                         </div>
                         <SetSuperAdminDialog onUpdate={fetchUsers} /> {/* <-- ADICIONADO */}
                         <AddAdminDialog onUpdate={fetchUsers} />
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {filteredUsers.length === 0 ? (
+                </>
+            )}
+            columns={[
+                { label: "Utilizador" },
+                { label: "Permissão" },
+                { label: "Provedor" },
+                { label: "Último acesso" },
+                { label: "Status" },
+                { label: "" },
+            ]}
+            gridTemplate="2fr 1.1fr 1fr .9fr .8fr 52px"
+            rows={paginatedUsers}
+            getRowKey={(adminUser) => adminUser.uid}
+            minWidth="880px"
+            empty={(
                     <EmptyState
                         icon={UserX}
                         title="Nenhum utilizador encontrado"
                         description="Adicione um novo utilizador para começar a gerir."
                     />
-                ) : (
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Email</TableHead><TableHead>Permissão</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {paginatedUsers.map((u) => (
-                                <TableRow key={u.uid}>
-                                    <TableCell className="font-medium">{u.email}</TableCell>
-                                    <TableCell>{u.superAdmin ? <Badge>Super Admin</Badge> : <Badge variant="secondary">Admin de {u.providerId}</Badge>}</TableCell>
-                                    <TableCell className="text-right">
+            )}
+            renderRow={(u) => (
+                            <div className="grid items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] transition-colors hover:bg-[#F8FAFC]" style={{ gridTemplateColumns: "2fr 1.1fr 1fr .9fr .8fr 52px" }}>
+                                <span className="min-w-0">
+                                    <span className="block truncate text-[13px] font-semibold text-[#1A2233]">{u.email}</span>
+                                    <span className="block truncate font-mono text-[10.5px] text-[#98A1B1]">{u.uid}</span>
+                                </span>
+                                <StatusBadge status={u.superAdmin ? "Super Admin" : "Admin"} tone={u.superAdmin ? "blue" : "gray"} />
+                                <span className="truncate text-[12.5px] text-[#4A5364]">{u.superAdmin ? "Plataforma" : u.providerId || "-"}</span>
+                                <span className="font-mono text-[11.5px] text-[#98A1B1]">-</span>
+                                <StatusBadge status="Ativo" />
+                                <div className="flex justify-end">
                                         {user?.uid !== u.uid && (
                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -192,23 +202,18 @@ export default function UsersPage() {
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-            </CardContent>
-            {filteredUsers.length > 0 && (
-                <CardFooter className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">A exibir {paginatedUsers.length} de {filteredUsers.length} utilizadores.</span>
+                                </div>
+                            </div>
+            )}
+            footer={filteredUsers.length > 0 && (
+                <div className="flex items-center justify-between">
+                    <span className="text-[12px] text-[#98A1B1]">Exibindo {paginatedUsers.length} de {filteredUsers.length} utilizadores</span>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
-                        <span className="text-sm">Página {currentPage} de {pageCount > 0 ? pageCount : 1}</span>
                         <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount || pageCount === 0}>Próxima</Button>
                     </div>
-                </CardFooter>
+                </div>
             )}
-        </Card>
+        />
     );
 }

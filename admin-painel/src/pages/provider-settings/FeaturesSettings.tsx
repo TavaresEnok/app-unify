@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Save, Loader2, Zap, MessageSquare, ScrollText, DollarSign, Gauge, Clock, Menu } from 'lucide-react';
 import { toast } from 'sonner';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 interface Feature {
     key: string;
@@ -60,22 +60,26 @@ export default function FeaturesSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Funcionalidades do Aplicativo</CardTitle>
-                <CardDescription>
-                    Selecione quais módulos e recursos estarão visíveis e acessíveis no aplicativo.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                
+        <SettingsPage
+            title="Funcionalidades do Aplicativo"
+            description="Selecione quais módulos e recursos estarão visíveis e acessíveis no aplicativo."
+            icon={Menu}
+            footer={(
+                <Button onClick={handleApplyFeatures} disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Aplicar configurações de recursos
+                </Button>
+            )}
+        >
+            <SettingsSection title="Módulos" description="Ative ou oculte recursos do app do cliente.">
+                <div className="grid gap-3 lg:grid-cols-2">
                 {defaultFeatures.map((feature) => (
-                    <div key={feature.key} className="flex items-center justify-between border-b pb-4 last:border-b-0">
+                    <div key={feature.key} className="flex items-center justify-between gap-4 rounded-lg border border-[#EEF0F4] bg-white p-3">
                         <div className="flex items-start gap-3">
-                            <div className="mt-1 text-primary flex-shrink-0">{feature.icon}</div>
+                            <div className="mt-1 flex-shrink-0 text-primary">{feature.icon}</div>
                             <div>
-                                <Label htmlFor={feature.key} className="font-semibold text-base">{feature.label}</Label>
-                                <p className="text-sm text-muted-foreground">{feature.description}</p>
+                                <Label htmlFor={feature.key} className="text-[12.5px] font-semibold text-[#1A2233]">{feature.label}</Label>
+                                <p className="mt-0.5 text-[12px] leading-5 text-[#687181]">{feature.description}</p>
                             </div>
                         </div>
                         <Switch
@@ -86,13 +90,8 @@ export default function FeaturesSettings() {
                         />
                     </div>
                 ))}
-                
-                <Button onClick={handleApplyFeatures} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Aplicar Configurações de Recursos
-                </Button>
-                
-            </CardContent>
-        </Card>
+                </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

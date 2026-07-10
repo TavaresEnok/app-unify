@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SettingsContext } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Upload, ImageIcon, Monitor, Loader2, Save } from 'lucide-react';
+import { Upload, ImageIcon, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
+import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 interface ImageConfig {
     key: string;
@@ -64,22 +64,20 @@ export default function ImagesIconsSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Imagens e Ícones</CardTitle>
-                <CardDescription>
-                    Configure as URLs para imagens de fundo, ícones e outros elementos visuais do aplicativo.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
+        <SettingsPage
+            title="Imagens e Ícones"
+            description="Configure URLs para imagens de fundo, logos e ícones usados no aplicativo."
+            icon={ImageIcon}
+        >
+            <SettingsSection title="Ativos visuais" description="Cole URLs públicas e aplique cada ativo antes de salvar as alterações gerais.">
                 {imageFields.map((field) => (
-                    <div key={field.key} className="space-y-4 pt-4 border-t first:border-t-0">
-                        <Label htmlFor={field.key} className="text-base font-semibold flex items-center gap-2">
-                            {field.key === 'backgroundUrl' ? <Monitor className="h-5 w-5" /> : <ImageIcon className="h-5 w-5" />}
+                    <div key={field.key} className="mb-4 rounded-lg border border-[#EEF0F4] bg-white p-3 last:mb-0">
+                        <Label htmlFor={field.key} className="mb-3 flex items-center gap-2 text-[12.5px] font-semibold text-[#39414F]">
+                            {field.key === 'backgroundUrl' ? <Monitor className="h-4 w-4 text-[#98A1B1]" /> : <ImageIcon className="h-4 w-4 text-[#98A1B1]" />}
                             {field.label}
                         </Label>
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row">
                             <Input
                                 id={field.key}
                                 placeholder={field.placeholder}
@@ -94,8 +92,8 @@ export default function ImagesIconsSettings() {
 
                         {/* Pré-visualização */}
                         {localUrls[field.key] && (
-                            <div className="mt-4 p-4 border rounded-md bg-muted/50">
-                                <p className="text-sm font-medium mb-2">Pré-visualização:</p>
+                            <div className="mt-4 rounded-lg border border-[#EEF0F4] bg-[#FAFBFC] p-4">
+                                <p className="mb-2 text-[12px] font-semibold text-[#687181]">Pré-visualização</p>
                                 <img
                                     src={localUrls[field.key]}
                                     alt={`${field.label} Preview`}
@@ -106,7 +104,7 @@ export default function ImagesIconsSettings() {
                         )}
                     </div>
                 ))}
-            </CardContent>
-        </Card>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

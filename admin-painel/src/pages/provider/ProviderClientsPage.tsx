@@ -4,18 +4,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
 import { db } from '@/firebase/config';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, UserX, Search, RefreshCw } from 'lucide-react';
+import { Loader2, UserX, Search, RefreshCw, ChevronRight } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import DataTable from '@/components/DataTable';
+import StatusBadge from '@/components/StatusBadge';
 
 interface SgpClient {
     id: number;
     nome: string;
     cpfcnpj: string;
     contratos: { id: number; status: string }[];
+    plano?: string;
+    cidade?: string;
 }
 
 const ITEMS_PER_PAGE = 25;
@@ -127,6 +129,16 @@ export default function ProviderClientsPage() {
         setCurrentPage(1); // Volta para a primeira página sempre que uma nova busca é feita
     };
 
+    const getContractSummary = (client: SgpClient) => {
+        if (!client.contratos?.length) return "-";
+        return client.contratos.map((contract: any) => contract.id).join(', ');
+    };
+
+    const getClientStatus = (client: SgpClient) => {
+        const firstContract = client.contratos?.[0] as any;
+        return firstContract?.status || "Ativo";
+    };
+
     if (loading && clients.length === 0) {
         return (
             <div className="flex flex-col justify-center items-center h-full text-center">
@@ -137,16 +149,11 @@ export default function ProviderClientsPage() {
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div>
-                        <CardTitle>Clientes Ativos (SGP)</CardTitle>
-                        <CardDescription>
-                            {totalClients > 0 ? `Encontrados ${totalClients} clientes no total.` : "Nenhum cliente sincronizado."}
-                        </CardDescription>
-                    </div>
-                    <div className="flex w-full sm:w-auto items-center gap-4">
+        <DataTable<SgpClient>
+            title="Clientes"
+            description={totalClients > 0 ? `Encontrados ${totalClients} clientes no total.` : "Nenhum cliente sincronizado."}
+            actions={(
+                <>
                         <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -158,60 +165,61 @@ export default function ProviderClientsPage() {
                             />
                         </div>
                         <Button onClick={() => callProxy('sync')} disabled={isSyncing} variant="outline">
-                            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                             Sincronizar
                         </Button>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {loading ? (
-                    <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /></div>
-                ) : clients.length === 0 ? (
+                </>
+            )}
+            columns={[
+                { label: "Cliente" },
+                { label: "Contrato" },
+                { label: "CPF/CNPJ" },
+                { label: "Status" },
+                { label: "Cidade" },
+                { label: "" },
+            ]}
+            gridTemplate="2.2fr .9fr 1.2fr .9fr 1fr 32px"
+            rows={!loading ? clients : []}
+            getRowKey={(client) => String(client.id)}
+            minWidth="850px"
+            empty={loading ? (
+                <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : (
                     <EmptyState
                         icon={UserX}
                         title={searchTerm ? "Nenhum resultado para sua busca" : "Nenhum Cliente no Cache"}
                         description={searchTerm ? `Não foram encontrados clientes com o termo "${searchTerm}". Limpe a busca para ver todos.` : "Clique em 'Sincronizar' para buscar os dados do SGP."}
                     />
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>ID</TableHead>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>CPF/CNPJ</TableHead>
-                                <TableHead>Contratos</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {clients.map((client) => (
-                                <TableRow 
-                                    key={client.id} 
-                                    className="cursor-pointer hover:bg-muted" 
-                                    // CORREÇÃO: Passa o CPF/CNPJ (ID do documento no Firestore)
+            )}
+            renderRow={(client) => (
+                            <button
+                                type="button"
+                    className="grid w-full items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] text-left transition-colors hover:bg-[#F8FAFC]"
+                    style={{ gridTemplateColumns: "2.2fr .9fr 1.2fr .9fr 1fr 32px" }}
                                     onClick={() => navigate(`/provedor/clientes/${client.cpfcnpj}`)}
                                 >
-                                    <TableCell>{client.id}</TableCell>
-                                    <TableCell className="font-medium">{client.nome}</TableCell>
-                                    <TableCell>{client.cpfcnpj}</TableCell>
-                                    <TableCell>{client.contratos && client.contratos.map((c: any) => c.id).join(', ')}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-            </CardContent>
-            {pageCount > 1 && (
-                <CardFooter className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
+                                <span className="min-w-0">
+                                    <span className="block truncate text-[13px] font-semibold text-[#1A2233]">{client.nome}</span>
+                                    <span className="block font-mono text-[10.5px] text-[#98A1B1]">ID {client.id}</span>
+                                </span>
+                                <span className="truncate font-mono text-[12px] text-[#4A5364]">{getContractSummary(client)}</span>
+                                <span className="truncate font-mono text-[12px] text-[#4A5364]">{client.cpfcnpj}</span>
+                    <StatusBadge status={getClientStatus(client)} />
+                                <span className="truncate text-[12.5px] text-[#687181]">{client.cidade || "-"}</span>
+                                <ChevronRight className="h-3.5 w-3.5 justify-self-end text-[#B9C0CC]" />
+                            </button>
+            )}
+            footer={pageCount > 1 && (
+                <div className="flex items-center justify-between">
+                    <span className="text-[12px] text-[#98A1B1]">
                         Página {currentPage} de {pageCount}
                     </span>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || loading}>Anterior</Button>
                         <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount || loading}>Próxima</Button>
                     </div>
-                </CardFooter>
+                </div>
             )}
-        </Card>
+        />
     );
 }

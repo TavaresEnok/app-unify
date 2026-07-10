@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2, Upload, Loader2, Image, Link } from 'lucide-react';
+import { PlusCircle, Trash2, Image, Link } from 'lucide-react';
 import { toast } from 'sonner';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function CarouselSettings() {
     const context = useContext(SettingsContext);
@@ -51,17 +51,15 @@ export default function CarouselSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Carrossel de Imagens</CardTitle>
-                <CardDescription>
-                    Gerencie a lista de imagens que aparecerão no carrossel da tela inicial do aplicativo.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                
+        <SettingsPage
+            title="Carrossel de Imagens"
+            description="Gerencie a lista de imagens que aparecem no carrossel da tela inicial."
+            icon={Image}
+            footer={<SettingsFooterNote>Adicionar ou remover imagens já atualiza a configuração local. Salve as alterações gerais para persistir.</SettingsFooterNote>}
+        >
+            <SettingsSection title="Adicionar imagem" description="Use uma URL pública iniciada por http ou https.">
                 {/* Adicionar Nova Imagem */}
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                     <Input
                         placeholder="Insira a URL da imagem (Ex: https://meusite.com/promo.jpg)"
                         value={newImageUrl}
@@ -72,17 +70,15 @@ export default function CarouselSettings() {
                         <PlusCircle className="h-4 w-4 mr-2" /> Adicionar
                     </Button>
                 </div>
+            </SettingsSection>
 
+            <SettingsSection title={`Imagens atuais (${localImages.length})`} description="Banners configurados para o app.">
                 {/* Lista de Imagens Atuais */}
-                {localImages.length > 0 && (
-                    <div className="space-y-4 pt-4 border-t">
-                        <Label className="text-base font-semibold flex items-center gap-2">
-                            <Image className="h-5 w-5" /> Imagens Atuais ({localImages.length})
-                        </Label>
+                {localImages.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {/* CORRIGIDO: Tipagem do image e index para resolver TS7006 */}
                             {localImages.map((image: string, index: number) => (
-                                <div key={index} className="relative group overflow-hidden rounded-lg border bg-muted">
+                                <div key={index} className="group relative overflow-hidden rounded-lg border border-[#EEF0F4] bg-white">
                                     <img 
                                         src={image} 
                                         alt={`Carrossel Imagem ${index + 1}`} 
@@ -105,17 +101,10 @@ export default function CarouselSettings() {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                ) : (
+                    <p className="rounded-lg border border-dashed border-[#C6CDD9] bg-white p-6 text-center text-sm text-muted-foreground">Nenhuma imagem configurada ainda.</p>
                 )}
-                
-                {localImages.length === 0 && (
-                    <p className="text-sm text-muted-foreground pt-4">Nenhuma imagem configurada ainda.</p>
-                )}
-                
-                <Button disabled={isSaving} className="mt-4">
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Aplicar Carrossel (Salvar Localmente)"}
-                </Button>
-            </CardContent>
-        </Card>
+            </SettingsSection>
+        </SettingsPage>
     );
 }

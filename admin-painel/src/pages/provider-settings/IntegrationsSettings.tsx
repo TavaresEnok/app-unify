@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect } from 'react';
 import { SettingsContext } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Save, Loader2, Link, Server, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function IntegrationsSettings() {
     const context = useContext(SettingsContext);
@@ -41,22 +41,26 @@ export default function IntegrationsSettings() {
     };
 
     return (
-        <div className="space-y-6">
-            {/* CRITICAL: API URL Card */}
-            <Card className="border-amber-500/50 bg-amber-500/5">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Server className="h-5 w-5" />
-                        URL do Servidor (API)
-                    </CardTitle>
-                    <CardDescription>
-                        <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                            <AlertTriangle className="h-4 w-4" />
-                            Configuração crítica - todos os apps usam esta URL
-                        </span>
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+        <SettingsPage
+            title="Integrações"
+            description="Configure as conexões usadas pelo aplicativo e pelo SGP."
+            icon={Server}
+            footer={(
+                <>
+                    <SettingsFooterNote>As integrações entram em vigor após aplicar e salvar as alterações gerais.</SettingsFooterNote>
+                    <Button onClick={handleSaveIntegration} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Aplicar configurações
+                    </Button>
+                </>
+            )}
+        >
+            <SettingsSection
+                title="URL do Servidor (API)"
+                description="Configuração crítica: todos os apps usam esta URL."
+                className="border-amber-200 bg-amber-50"
+                actions={<AlertTriangle className="h-4 w-4 text-amber-600" />}
+            >
                     <div className="space-y-2">
                         <Label htmlFor="apiUrl">URL da API do Servidor</Label>
                         <Input
@@ -72,18 +76,9 @@ export default function IntegrationsSettings() {
                             automaticamente a nova URL sem precisar de atualização.
                         </p>
                     </div>
-                </CardContent>
-            </Card>
+            </SettingsSection>
 
-            {/* SGP Integration Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Integrações SGP</CardTitle>
-                    <CardDescription>
-                        Configure o token e o nome do aplicativo para sincronizar dados do SGP.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+            <SettingsSection title="Integração SGP" description="Configure o token e o nome do aplicativo para sincronizar dados do SGP.">
 
                     <div className="space-y-2">
                         <Label htmlFor="apiToken">Token da API do SGP</Label>
@@ -109,18 +104,11 @@ export default function IntegrationsSettings() {
                         <p className="text-sm text-muted-foreground">Nome da sua aplicação cadastrada no SGP.</p>
                     </div>
 
-                    <Button onClick={handleSaveIntegration} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Aplicar Configurações
-                    </Button>
-
-                    <div className="flex items-center text-sm text-muted-foreground pt-4 border-t">
+                    <div className="flex items-center border-t border-[#EEF0F4] pt-4 text-sm text-muted-foreground">
                         <Link className="h-4 w-4 mr-2" />
                         As integrações entrarão em vigor após salvar as alterações no painel.
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }
-

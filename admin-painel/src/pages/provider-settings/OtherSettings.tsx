@@ -1,11 +1,11 @@
 import { useContext, useState, useEffect } from 'react';
 import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
+import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function OtherSettings() {
     const context = useContext(SettingsContext);
@@ -41,15 +41,22 @@ export default function OtherSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Outras Configurações</CardTitle>
-                <CardDescription>
-                    Opções diversas e links não cobertos nas outras seções.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-
+        <SettingsPage
+            title="Outros"
+            description="Opções diversas e links não cobertos nas outras seções."
+            icon={SlidersHorizontal}
+            footer={(
+                <>
+                    <SettingsFooterNote>Aplica localmente no contexto; salve as alterações gerais para confirmar.</SettingsFooterNote>
+                    <Button onClick={handleSaveOtherSettings} disabled={isSaving} className="gap-2">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Aplicar outras configurações
+                    </Button>
+                </>
+            )}
+        >
+            <SettingsSection title="Links e domínios" description="URLs auxiliares usadas pelo aplicativo.">
+                <div className="grid gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="privacyUrl">URL da Política de Privacidade</Label>
                     <Input
@@ -87,13 +94,8 @@ export default function OtherSettings() {
                         Link direto para seu servidor próprio. O app usará este endereço para forçar o download/upload.
                     </p>
                 </div>
-
-                <Button onClick={handleSaveOtherSettings} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Aplicar Outras Configurações
-                </Button>
-
-            </CardContent>
-        </Card>
+                </div>
+            </SettingsSection>
+        </SettingsPage>
     );
 }
