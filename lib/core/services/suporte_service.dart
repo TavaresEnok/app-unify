@@ -41,7 +41,7 @@ class SuporteService {
       // Faz upload da imagem
       final fileExtension = imageFile.name.split('.').last;
       final storageRef = _storage.ref().child(
-          'ticket_images/$providerId/${DateTime.now().millisecondsSinceEpoch}.$fileExtension');
+          'providers/$providerId/ticket_attachments/${DateTime.now().millisecondsSinceEpoch}.$fileExtension');
 
       await storageRef.putData(await imageFile.readAsBytes());
       imageUrl = await storageRef.getDownloadURL();
@@ -58,6 +58,7 @@ class SuporteService {
       // Envia a requisição
       await requestDocRef.set({
         'type': 'CREATE_TICKET',
+        'requesterUid': requesterUid,
         'createdAt': FieldValue.serverTimestamp(),
         'payload': {
           'subject': subject,

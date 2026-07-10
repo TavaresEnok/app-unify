@@ -87,7 +87,6 @@ class Diagnostic05Page extends ConsumerStatefulWidget {
 
 class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
     with TickerProviderStateMixin {
-
   static String? _safeResultString(dynamic result) {
     if (result == null) return null;
     if (result is String) return result;
@@ -196,156 +195,159 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
 
   void _handleRealServiceState(real_state.DiagnosticoState realState) {
     try {
-    setState(() {
-      _isRunning = realState.isTesting;
+      setState(() {
+        _isRunning = realState.isTesting;
 
-      // Speed History
-      _speedHistory.clear();
-      for (final spot in realState.downloadHistory) {
-        _speedHistory.add(spot.y);
-      }
-      // Note: Diag05 only shows one history chart, usually download? or active?
-      // Leaving as is, populating from download mostly.
-
-      final downloadMbps = realState.customDownloadResultMbps;
-      final uploadMbps = realState.customUploadResultMbps;
-
-      if (downloadMbps > 0 || uploadMbps > 0) {
-        _speed = {
-          'download': downloadMbps,
-          'upload': uploadMbps,
-          'ping': realState.speedTestPingLatency ?? 0.0,
-          'jitter': 0.0,
-        };
-
-        if (realState.customUploadResultMbps > 0) {
-          _isDownload = false;
-          _liveSpeed = realState.uploadHistory.lastOrNull?.y ?? 0;
-          // Clear and swap history for upload if needed, but simple append is usually safer
-        } else {
-          _isDownload = true;
-          _liveSpeed = realState.downloadHistory.lastOrNull?.y ?? 0;
+        // Speed History
+        _speedHistory.clear();
+        for (final spot in realState.downloadHistory) {
+          _speedHistory.add(spot.y);
         }
-      }
+        // Note: Diag05 only shows one history chart, usually download? or active?
+        // Leaving as is, populating from download mostly.
 
-      // Detailed Results
-      final results = realState.testResultsDisplay;
+        final downloadMbps = realState.customDownloadResultMbps;
+        final uploadMbps = realState.customUploadResultMbps;
 
-      // WiFi
-      if (results['wifiInfo']?['status'] == real_state.TestStatus.running) {
-        _currentStep = DiagStep.wifi;
-      }
-      if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
-        final res = results['wifiInfo']!['result'];
-        if (res is Map) {
-          _wifi = {
-            'ssid': res['ssid']?.toString() ?? 'Desconhecido',
-            'rssi': res['signalStrength']?.toString() ?? '---',
-            'frequency': res['frequency']?.toString() ?? '',
-            'gateway': res['gateway']?.toString() ?? '',
-            'quality': _getSignalText(res['signalStrength']),
-            'channel': res['channel']?.toString() ?? '---',
-            'security': res['security']?.toString() ?? '---',
-            'bssid': res['bssid']?.toString() ?? '---',
-            'ip': res['ip']?.toString() ?? '---',
-            'dns': res['dns']?.toString() ?? '---',
+        if (downloadMbps > 0 || uploadMbps > 0) {
+          _speed = {
+            'download': downloadMbps,
+            'upload': uploadMbps,
+            'ping': realState.speedTestPingLatency ?? 0.0,
+            'jitter': 0.0,
           };
-        } else {
-          // Fallback parsing if String (Legacy)
-          _wifi = {
-            'ssid': 'Detectado',
-            'rssi': '-50',
-            'frequency': 'N/A',
-            'gateway': '',
-            'quality': 'Bom',
-            'channel': '---',
-            'security': '---'
-          };
-        }
-        _progress = 0.2;
-      }
 
-      // Fiber (ONU)
-      if (results['onuInfo']?['status'] == real_state.TestStatus.running) {
-        _currentStep = DiagStep.fiber;
-      }
-      if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
-        _progress = 0.4;
-      } else if (results['onuInfo']?['status'] == real_state.TestStatus.error) {
-        final errorMsg =
-            results['onuInfo']?['result']?.toString() ?? 'Erro desconhecido';
-        debugPrint('❌ Erro na ONU (UI): $errorMsg');
-        _progress = 0.4; // Avança mesmo com erro para não travar
-      }
-
-      // Devices
-      if (results['lanScan']?['status'] == real_state.TestStatus.running) {
-        _currentStep = DiagStep.devices;
-      }
-      if (results['lanScan']?['status'] == real_state.TestStatus.success) {
-        if (_devices.isEmpty) {
-          final res = results['lanScan']!['result'];
-          if (res is List) {
-            _devices = res.map((d) {
-              if (d is Map) {
-                return {
-                  'name':
-                      d['name']?.toString() ?? d['ip']?.toString() ?? 'Device',
-                  'ip': d['ip']?.toString() ?? '',
-                  'icon': Icons.devices_other
-                };
-              }
-              return {'name': 'Unknown', 'ip': '', 'icon': Icons.help};
-            }).toList();
+          if (realState.customUploadResultMbps > 0) {
+            _isDownload = false;
+            _liveSpeed = realState.uploadHistory.lastOrNull?.y ?? 0;
+            // Clear and swap history for upload if needed, but simple append is usually safer
+          } else {
+            _isDownload = true;
+            _liveSpeed = realState.downloadHistory.lastOrNull?.y ?? 0;
           }
+        }
+
+        // Detailed Results
+        final results = realState.testResultsDisplay;
+
+        // WiFi
+        if (results['wifiInfo']?['status'] == real_state.TestStatus.running) {
+          _currentStep = DiagStep.wifi;
+        }
+        if (results['wifiInfo']?['status'] == real_state.TestStatus.success) {
+          final res = results['wifiInfo']!['result'];
+          if (res is Map) {
+            _wifi = {
+              'ssid': res['ssid']?.toString() ?? 'Desconhecido',
+              'rssi': res['signalStrength']?.toString() ?? '---',
+              'frequency': res['frequency']?.toString() ?? '',
+              'gateway': res['gateway']?.toString() ?? '',
+              'quality': _getSignalText(res['signalStrength']),
+              'channel': res['channel']?.toString() ?? '---',
+              'security': res['security']?.toString() ?? '---',
+              'bssid': res['bssid']?.toString() ?? '---',
+              'ip': res['ip']?.toString() ?? '---',
+              'dns': res['dns']?.toString() ?? '---',
+            };
+          } else {
+            // Fallback parsing if String (Legacy)
+            _wifi = {
+              'ssid': 'Detectado',
+              'rssi': '-50',
+              'frequency': 'N/A',
+              'gateway': '',
+              'quality': 'Bom',
+              'channel': '---',
+              'security': '---'
+            };
+          }
+          _progress = 0.2;
+        }
+
+        // Fiber (ONU)
+        if (results['onuInfo']?['status'] == real_state.TestStatus.running) {
+          _currentStep = DiagStep.fiber;
+        }
+        if (results['onuInfo']?['status'] == real_state.TestStatus.success) {
+          _progress = 0.4;
+        } else if (results['onuInfo']?['status'] ==
+            real_state.TestStatus.error) {
+          final errorMsg =
+              results['onuInfo']?['result']?.toString() ?? 'Erro desconhecido';
+          debugPrint('❌ Erro na ONU (UI): $errorMsg');
+          _progress = 0.4; // Avança mesmo com erro para não travar
+        }
+
+        // Devices
+        if (results['lanScan']?['status'] == real_state.TestStatus.running) {
+          _currentStep = DiagStep.devices;
+        }
+        if (results['lanScan']?['status'] == real_state.TestStatus.success) {
           if (_devices.isEmpty) {
-            _devices = [
-              {
-                'name': 'Gateway',
-                'ip': '192.168.1.1',
-                'icon': Icons.router_rounded
-              },
-            ];
-          }
-        }
-        _progress = 0.6;
-      }
-
-      // Speed
-      if (realState.customDownloadResultMbps > 0 && realState.isTesting) {
-        _currentStep = DiagStep.speed;
-        _progress = 0.8;
-      }
-
-      // Traceroute
-      if (results['traceroute']?['status'] == real_state.TestStatus.running) {
-        _currentStep = DiagStep.route;
-      }
-      if (results['traceroute']?['status'] == real_state.TestStatus.success) {
-        _hops = [];
-        final resultStr = _safeResultString(results['traceroute']!['result']) ?? "";
-        final lines = resultStr.split('\n');
-        for (var line in lines) {
-          if (line.contains(':')) {
-            final parts = line.split(':');
-            final hopNum = int.tryParse(parts[0].trim());
-            final ip = parts.sublist(1).join(':').trim();
-            if (hopNum != null) {
-              _hops.add({'hop': hopNum, 'ip': ip, 'latency': 0.0});
+            final res = results['lanScan']!['result'];
+            if (res is List) {
+              _devices = res.map((d) {
+                if (d is Map) {
+                  return {
+                    'name': d['name']?.toString() ??
+                        d['ip']?.toString() ??
+                        'Device',
+                    'ip': d['ip']?.toString() ?? '',
+                    'icon': Icons.devices_other
+                  };
+                }
+                return {'name': 'Unknown', 'ip': '', 'icon': Icons.help};
+              }).toList();
+            }
+            if (_devices.isEmpty) {
+              _devices = [
+                {
+                  'name': 'Gateway',
+                  'ip': '192.168.1.1',
+                  'icon': Icons.router_rounded
+                },
+              ];
             }
           }
+          _progress = 0.6;
         }
-        _progress = 0.9;
-      }
 
-      if (!realState.isTesting && realState.customDownloadResultMbps > 0) {
-        _currentStep = DiagStep.done;
-        _progress = 1.0;
-        HapticFeedback.mediumImpact();
-      }
+        // Speed
+        if (realState.customDownloadResultMbps > 0 && realState.isTesting) {
+          _currentStep = DiagStep.speed;
+          _progress = 0.8;
+        }
 
-      _lastRealState = realState;
-    });
+        // Traceroute
+        if (results['traceroute']?['status'] == real_state.TestStatus.running) {
+          _currentStep = DiagStep.route;
+        }
+        if (results['traceroute']?['status'] == real_state.TestStatus.success) {
+          _hops = [];
+          final resultStr =
+              _safeResultString(results['traceroute']!['result']) ?? "";
+          final lines = resultStr.split('\n');
+          for (var line in lines) {
+            if (line.contains(':')) {
+              final parts = line.split(':');
+              final hopNum = int.tryParse(parts[0].trim());
+              final ip = parts.sublist(1).join(':').trim();
+              if (hopNum != null) {
+                _hops.add({'hop': hopNum, 'ip': ip, 'latency': 0.0});
+              }
+            }
+          }
+          _progress = 0.9;
+        }
+
+        if (!realState.isTesting && realState.customDownloadResultMbps > 0) {
+          _currentStep = DiagStep.done;
+          _progress = 1.0;
+          HapticFeedback.mediumImpact();
+        }
+
+        _lastRealState = realState;
+      });
     } catch (e, st) {
       debugPrint('[Diagnostic05] Erro no handler de estado: $e\n$st');
     }
@@ -1157,8 +1159,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                     decoration: BoxDecoration(
                       color: AppColors.warning.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.3)),
                     ),
                     child: Center(
                         child: Text("${hop['hop']}",
@@ -1334,12 +1336,14 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
+              border:
+                  Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              const Icon(Icons.route_rounded, color: AppColors.primary, size: 20),
+              const Icon(Icons.route_rounded,
+                  color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
               Text('Jornada da Conexão',
                   style: GoogleFonts.outfit(
@@ -1381,7 +1385,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
               style:
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           Text(detail,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10))
+              style:
+                  const TextStyle(color: AppColors.textSecondary, fontSize: 10))
         ])),
         Icon(
             s == real_state.TestStatus.success
@@ -1413,7 +1418,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
+              border:
+                  Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1464,7 +1470,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
+              border:
+                  Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1515,7 +1522,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
             border: Border.all(color: c.withValues(alpha: 0.3))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 10)),
           Text(value,
               style: TextStyle(
                   color: c, fontSize: 12, fontWeight: FontWeight.bold))
@@ -1524,8 +1532,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
 
   Widget _buildDeviceDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
-    final devR =
-        _safeResultString(_lastRealState!.testResultsDisplay['deviceInfo']?['result']);
+    final devR = _safeResultString(
+        _lastRealState!.testResultsDisplay['deviceInfo']?['result']);
     final s = _lastRealState!.testResultsDisplay['deviceInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1536,7 +1544,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
+              border:
+                  Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1566,7 +1575,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
         child:
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(label,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 11)),
           Text(value, style: const TextStyle(fontSize: 11))
         ]));
   }
@@ -1578,7 +1588,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
           decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3))),
+              border:
+                  Border.all(color: AppColors.border.withValues(alpha: 0.3))),
           padding: const EdgeInsets.all(16),
           child: ValueListenableBuilder<WifiState>(
             valueListenable: _wifiController,
@@ -1610,7 +1621,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                       Center(
                           child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.1),
                             elevation: 0),
                         onPressed: _wifiController.fetchNetworks,
                         icon:
@@ -1625,8 +1637,8 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
                                     margin: const EdgeInsets.only(bottom: 8),
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                        color:
-                                            AppColors.primary.withValues(alpha: 0.1),
+                                        color: AppColors.primary
+                                            .withValues(alpha: 0.1),
                                         borderRadius:
                                             BorderRadius.circular(10)),
                                     child: Row(children: [
@@ -1739,7 +1751,8 @@ class _AnimatedCardState extends State<_AnimatedCard>
                   blurRadius: 24,
                   offset: const Offset(0, 8))
             ],
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.6), width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
@@ -1799,6 +1812,7 @@ class _InfoRow extends StatelessWidget {
       {this.icon,
       required this.label,
       required this.value,
+      this.valueColor,
       this.isBold = false});
 
   @override
@@ -1996,10 +2010,9 @@ class _LightGaugePainter extends CustomPainter {
             center.dx + (radius - strokeWidth / 2) * math.cos(endAngle);
         final tipY =
             center.dy + (radius - strokeWidth / 2) * math.sin(endAngle);
-        canvas.drawCircle(
-            Offset(tipX, tipY), 10, Paint()..color = color.withValues(alpha: 0.4));
-        canvas.drawCircle(
-            Offset(tipX, tipY), 5, Paint()..color = Colors.white);
+        canvas.drawCircle(Offset(tipX, tipY), 10,
+            Paint()..color = color.withValues(alpha: 0.4));
+        canvas.drawCircle(Offset(tipX, tipY), 5, Paint()..color = Colors.white);
       }
     } catch (_) {
       // Falha silenciosa no painter
@@ -2036,8 +2049,7 @@ class _ChartPainter extends CustomPainter {
           final prevX = (i - 1) * stepX;
           final prevY = size.height -
               (data[i - 1] / maxVal * size.height).clamp(0.0, size.height);
-          path.cubicTo(
-              prevX + stepX / 2, prevY, x - stepX / 2, y, x, y);
+          path.cubicTo(prevX + stepX / 2, prevY, x - stepX / 2, y, x, y);
         }
       }
 
@@ -2060,7 +2072,10 @@ class _ChartPainter extends CustomPainter {
             ..shader = LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [color.withValues(alpha: 0.25), color.withValues(alpha: 0)],
+              colors: [
+                color.withValues(alpha: 0.25),
+                color.withValues(alpha: 0)
+              ],
             ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
             ..style = PaintingStyle.fill);
     } catch (_) {

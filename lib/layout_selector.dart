@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/services/diagnostico_service.dart';
+import 'core/models/layout_registry.dart';
 
 // Imports dos Dashboards (diferentes por layout)
 import 'layouts/layout_02/dashboard_page.dart' as l02;
@@ -64,7 +65,7 @@ class LayoutSelector {
     Color? actionColor,
     Future<void> Function()? onRefresh,
   }) {
-    switch (layoutType) {
+    switch (LayoutRegistry.normalize(layoutType)) {
       case 'layout_02':
         return l02.ProviderDashboardPage(
           customerName: customerName,
@@ -169,7 +170,7 @@ class LayoutSelector {
   /// Retorna o widget de Login correto para o layout especificado
   static Widget getLoginPage(
       {required String layoutType, Map<String, dynamic>? arguments}) {
-    switch (layoutType) {
+    switch (LayoutRegistry.normalize(layoutType)) {
       case 'layout_02':
         return const l02_login.LoginPage();
       case 'layout_03':

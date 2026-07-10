@@ -4,6 +4,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FinanceiroService {
   final String apiUrl;
@@ -21,13 +22,6 @@ class FinanceiroService {
   /// Busca as faturas do cliente
   Future<List<dynamic>> fetchInvoices() async {
     try {
-      // Token/app obrigatórios — em produção nunca usar mock
-      if ((sgpParams['token'] ?? '').isEmpty ||
-          (sgpParams['app'] ?? '').isEmpty) {
-        throw Exception(
-            'Configuração de integração incompleta. Contate o suporte.');
-      }
-
       if (cpfCnpjUnformatted.isEmpty) {
         throw Exception("O CPF/CNPJ está vazio.");
       }
@@ -42,7 +36,7 @@ class FinanceiroService {
       final response = await http
           .post(
             Uri.parse(apiUrl),
-            headers: {'Content-Type': 'application/json'},
+            headers: await _authenticatedHeaders(),
             body: json.encode(requestBody),
           )
           .timeout(const Duration(seconds: 60));
@@ -83,7 +77,7 @@ class FinanceiroService {
       final response = await http
           .post(
             Uri.parse(unlockUrl),
-            headers: {'Content-Type': 'application/json'},
+            headers: await _authenticatedHeaders(),
             body: json.encode(requestBody),
           )
           .timeout(const Duration(seconds: 30));
@@ -99,5 +93,16 @@ class FinanceiroService {
       throw Exception(
           "Erro ao solicitar desbloqueio: ${e.toString().replaceAll('Exception: ', '')}");
     }
+  }
+
+  Future<Map<String, String>> _authenticatedHeaders() async {
+    String? token;
+    try {
+      token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    } catch (_) {}
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 }

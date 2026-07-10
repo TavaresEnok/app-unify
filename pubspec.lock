@@ -106,7 +106,7 @@ packages:
     source: hosted
     version: "5.0.3"
   battery_plus_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: battery_plus_platform_interface
       sha256: e8342c0f32de4b1dfd0223114b6785e48e579bfc398da9471c9179b907fa4910
@@ -282,7 +282,7 @@ packages:
     source: hosted
     version: "5.0.2"
   connectivity_plus_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: connectivity_plus_platform_interface
       sha256: cf1d1c28f4416f8c654d7dc3cd638ec586076255d407cef3ddbdaf178272a71a

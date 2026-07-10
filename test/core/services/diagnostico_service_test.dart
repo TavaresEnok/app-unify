@@ -98,10 +98,10 @@ void main() {
 
       expect(service.currentState.testResultsDisplay['batteryInfo']?['status'],
           TestStatus.success);
-      expect(service.currentState.testResultsDisplay['batteryInfo']?['result'],
-          contains('Nível: 85%'));
-      expect(service.currentState.testResultsDisplay['batteryInfo']?['result'],
-          contains('Estado: Descarregando'));
+      final result = service.currentState.testResultsDisplay['batteryInfo']
+          ?['result'] as Map<String, dynamic>;
+      expect(result['batteryLevel'], 85);
+      expect(result['stateStr'], 'Descarregando');
     });
 
     test('runDeviceInfoTest updates state with connection and device info',

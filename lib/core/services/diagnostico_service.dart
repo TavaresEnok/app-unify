@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/diagnostico_state.dart';
 import '../models/provider_config.dart';
@@ -582,11 +583,18 @@ class DiagnosticoService {
       final apiUri = Uri.parse(providerConfig.apiUrl);
       final baseUrl = '${apiUri.scheme}://${apiUri.host}:${apiUri.port}';
       final url = '$baseUrl/diagnostic/traceroute';
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (_) {}
 
       final response = await client
           .post(
             Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
             body: json.encode({'target': target, 'maxHops': 15}),
           )
           .timeout(const Duration(seconds: 35));

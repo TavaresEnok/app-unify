@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OnuData {
   final double? signalRx; // null if N/A or offline
@@ -186,10 +187,17 @@ class OnuWifiService {
     debugPrint('[ONU-Service] SGP Params: $sgpParams');
 
     try {
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (_) {}
       final response = await client
           .post(
             Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
             body: json.encode({
               'cpfCnpj': cpfCnpj,
               'senha': senha,
@@ -244,10 +252,17 @@ class OnuWifiService {
     debugPrint('[WiFi-Service] Calling: $url');
 
     try {
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (_) {}
       final response = await client
           .post(
             Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
             body: json.encode({
               'cpfCnpj': cpfCnpj,
               'senha': senha,
@@ -307,10 +322,17 @@ class OnuWifiService {
     debugPrint('[WiFi-Service] Calling: $url');
 
     try {
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (_) {}
       final response = await client
           .post(
             Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
             body: json.encode({
               'cpfCnpj': cpfCnpj,
               'senha': senha,
