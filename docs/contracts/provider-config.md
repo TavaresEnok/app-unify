@@ -1,159 +1,81 @@
 # Contrato: Provider Config
 
-Inventario inicial criado em 2026-07-10.
+Atualizado em 2026-07-10.
 
-O objetivo deste contrato e definir a configuracao white-label de cada provedor sem quebrar o formato antigo.
+## Fonte de verdade
 
-## Fonte atual
+- Tipo canonico: `shared/contracts/index.ts`
+- Defaults web: `admin-painel/src/features/provider-settings/defaults.ts`
+- Schema de secoes: `admin-painel/src/features/provider-settings/schema.ts`
+- Normalizador web: `admin-painel/src/features/provider-settings/normalizers.ts`
+- Normalizador Flutter: `lib/core/models/provider_config_normalizer.dart`
+- Normalizador Flutter unified: `app-flutter/unified/lib/core/models/provider_config_normalizer.dart`
 
-Arquivos relevantes:
+## Compatibilidade
 
-- `admin-painel/src/contexts/SettingsContext.tsx`
-- `admin-painel/src/lib/types/provider-config.ts`
-- `functions/src/index.ts`
-- `lib/core/providers/configuration_provider.dart`
-- layouts Flutter em `lib/layouts/*`
+O sistema continua lendo:
 
-## Defaults atuais do painel
+1. defaults canonicos;
+2. campos legados em `config`;
+3. campos atuais na raiz de `provedores/{providerId}`;
+4. secrets em `provedores/{providerId}/secrets/sgp` quando o painel tem permissao.
 
-Valores principais observados em `SettingsContext`:
+A escrita do painel salva campos publicos na raiz do provedor, remove
+`integrations` do documento publico e grava dados SGP em `secrets/sgp`.
 
-```ts
-{
-  themeColor: "#673AB7",
-  secondaryColor: "#9575CD",
-  textColor: "#FFFFFF",
-  invoiceColor: "#10B981",
-  actionColor: "#E11D48",
-  cardColor: "#F8F8F8",
-  cardTextColor: "#333333",
-  logoUrl: "",
-  layoutType: "layout_06",
-  quickActionsCardColor: "#FFFFFF",
-  quickActionsTextColor: "#333333",
-  otherCardsColor: "#FFFFFF",
-  otherCardsTextColor: "#333333"
-}
+## Layouts
+
+Layouts canonicos:
+
+- `layout_02`
+- `layout_03`
+- `layout_04`
+- `layout_05`
+- `layout_06`
+
+Fallback: `layout_06`.
+
+## Estilos de diagnostico
+
+- `default`
+- `diagnostic_02`
+- `diagnostic_03`
+- `diagnostic_05`
+- `diagnostic_06`
+- `diagnostic_07`
+
+## Grupos configuraveis
+
+| Area | Campos |
+| --- | --- |
+| Aparencia | `layoutType`, `diagnosticStyle`, cores, `other.useBackgroundImage` |
+| Tipografia | `typography` |
+| Imagens | `logoUrl`, `iconUrl`, `backgroundUrl` |
+| Menus | `menuConfig` |
+| Dashboard | `dashboardConfig`, `dashboard` legado |
+| Conteudo | `imageCarousel`, `promotions`, `notifications`, `tips`, `faq`, `messages`, `strings`, `termsOfUse` |
+| Modulos | `features` |
+| Integracoes | `integrations` apenas em secrets |
+| Suporte | `supportContacts`, `supportChannels` |
+| Social | `social`, `socialNetworks` |
+| Distribuicao | `appVersion`, build Android |
+
+## Migracao
+
+Script idempotente:
+
+```bash
+node scripts/migrations/migrate-provider-config.mjs
+node scripts/migrations/migrate-provider-config.mjs --apply
+node scripts/migrations/migrate-provider-config.mjs --apply --remove-legacy
 ```
 
-## Layouts suportados no tipo TypeScript
+O modo padrao e dry-run. O script cria backup em
+`provedores/{providerId}/migration_backups/provider-config-v1` antes de aplicar.
 
-```ts
-"layout_02" | "layout_03" | "layout_04" | "layout_05" | "layout_06"
-```
+## Garantias atuais
 
-Observacao:
-
-- A tela de aparencia tambem apresenta `layout_01`; confirmar se o app Flutter suporta este layout antes de considerar canonico.
-
-## Estilos de diagnostico suportados
-
-```ts
-"default" | "diagnostic_02" | "diagnostic_03" | "diagnostic_05" | "diagnostic_06" | "diagnostic_07"
-```
-
-## Grupos de configuracao
-
-### Identidade visual
-
-- `layoutType`
-- `diagnosticStyle`
-- `themeColor`
-- `secondaryColor`
-- `backgroundColor`
-- `cardColor`
-- `textColor`
-- `iconColor`
-- `actionColor`
-- `invoiceColor`
-- `logoUrl`
-- `iconUrl`
-- `backgroundUrl`
-- `typography`
-
-### Conteudo
-
-- `menuConfig`
-- `imageCarousel`
-- `dashboardConfig`
-- `promotions`
-- `notifications`
-- `faq`
-- `messages`
-- `strings`
-- dicas/tips
-
-### Configuracao
-
-- `features`
-- `supportContacts`
-- `supportChannels`
-- `social`
-- `other`
-- `integrations`
-
-### Distribuicao
-
-- dados para build Android
-- logo de build
-- package/app name
-- historico de builds
-
-## Regra de compatibilidade atual
-
-Leitura no painel:
-
-1. Comeca com defaults.
-2. Mescla `data.config`.
-3. Mescla campos da raiz do documento.
-4. Injeta secrets de `provedores/{providerId}/secrets/sgp`.
-
-Escrita no painel:
-
-1. Copia `config`.
-2. Remove `integrations` do payload publico.
-3. Salva `integrations` em `secrets/sgp`.
-4. Salva o resto em `provedores/{providerId}` com merge.
-
-Escrita em Function legacy:
-
-- `UPDATE_PROVIDER_CONFIG` espelha dados na raiz e em `config`.
-
-## Decisao canonica proposta
-
-Formato canonico futuro:
-
-```ts
-{
-  configVersion: 2,
-  identity: {},
-  content: {},
-  features: {},
-  integrationsPublic: {},
-  distribution: {},
-  updatedAt: Timestamp
-}
-```
-
-Secrets:
-
-```ts
-provedores/{providerId}/secrets/sgp
-{
-  integrations: {
-    appName?: string;
-    apiToken?: string;
-  }
-}
-```
-
-Enquanto o app Flutter nao estiver migrado, manter leitura e escrita compativel com campos atuais.
-
-## Tarefas antes de migrar schema
-
-1. Confirmar todos os campos lidos pelo app Flutter.
-2. Confirmar todos os campos escritos pelas subpaginas de configuracao.
-3. Criar `normalizeProviderConfig` no front.
-4. Criar normalizador equivalente em Dart.
-5. Criar migracao idempotente.
-6. Rodar migracao apenas apos backup.
+- Config vazia renderiza com defaults.
+- Subpagina salva sem apagar campos de outras subpaginas.
+- Secrets SGP nao ficam no documento publico.
+- Flutter root e Flutter unified leem formato atual e legado.

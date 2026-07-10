@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,7 @@ import { toast } from 'sonner';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function IntegrationsSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     // API URL (CRITICAL - used by all apps!)
     const [localApiUrl, setLocalApiUrl] = useState(config.apiUrl || '');

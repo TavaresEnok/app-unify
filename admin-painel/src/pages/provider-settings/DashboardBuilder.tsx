@@ -3,13 +3,12 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Plus, Save, Eye, Trash2, GripVertical, BarChart3, Image as ImageIcon, Grid3x3, TrendingUp, Smartphone, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, Eye, Trash2, BarChart3, Image as ImageIcon, Grid3x3, TrendingUp, ChevronUp, ChevronDown } from 'lucide-react';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 type WidgetType = 'stats_card' | 'banner' | 'action_grid' | 'carousel' | 'chart' | 'announcements' | 'quick_pay' | 'speed_test' | 'usage_meter';
@@ -49,7 +48,7 @@ const widgetLabels: Record<WidgetType, string> = {
 
 export default function DashboardBuilder() {
   const { config, setConfig, saveConfig, isSaving } = useSettings();
-  const [widgets, setWidgets] = useState<Widget[]>(config.dashboard?.widgets || []);
+  const [widgets, setWidgets] = useState<Widget[]>(config.dashboardConfig?.widgets || config.dashboard?.widgets || []);
   const [editingWidget, setEditingWidget] = useState<Widget | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -96,8 +95,10 @@ export default function DashboardBuilder() {
   };
 
   const handleSave = async () => {
-    setConfig({ ...config, dashboard: { ...config.dashboard, widgets } });
-    await saveConfig();
+    const dashboardConfig = { ...config.dashboardConfig, ...config.dashboard, widgets };
+    const nextConfig = { ...config, dashboardConfig, dashboard: dashboardConfig };
+    setConfig(nextConfig);
+    await saveConfig(nextConfig);
     toast.success('Dashboard salvo com sucesso!');
   };
 

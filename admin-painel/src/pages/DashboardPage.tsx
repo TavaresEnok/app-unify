@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { toast } from "sonner";
-import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
-import { db } from '@/firebase/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Plus, Server, Users, Bell, MessageSquare } from "lucide-react";
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import StatsCard from '@/components/StatsCard';
 import StatusBadge from '@/components/StatusBadge';
+import { useApi } from '@/hooks/useApi';
 
 interface ChartData { name: string; clientes: number; }
 interface RecentTicket {
@@ -23,6 +21,7 @@ interface RecentTicket {
 export default function DashboardPage() {
     const { userRole, user } = useAuth();
     const navigate = useNavigate();
+    const { callFunction } = useApi();
     const [stats, setStats] = useState({ providerCount: 0, clientCount: 0, notificationCount: 0, openTicketsCount: 0 });
     const [chartData, setChartData] = useState<ChartData[]>([]);
     const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
@@ -36,90 +35,19 @@ export default function DashboardPage() {
 
         const loadDashboardData = async () => {
             try {
-                // 1. Contar provedores
-                const providersSnapshot = await getDocs(collection(db, 'provedores'));
-                const providerCount = providersSnapshot.size;
-
-                // 2. Preparar dados do gráfico (provedores)
-                const chartDataTemp: ChartData[] = [];
-                providersSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    chartDataTemp.push({
-                        name: data.name || doc.id,
-                        clientes: data.clientCount || 0
-                    });
-                });
-                setChartData(chartDataTemp);
-
-                // 3. Contar usuários (clientes)
-                let clientCount = 0;
-                try {
-                    const usersSnapshot = await getDocs(collection(db, 'users'));
-                    clientCount = usersSnapshot.size;
-                } catch (e) {
-                    console.log('Coleção users não existe ou sem permissão');
-                }
-
-                // 4. Contar tickets abertos
-                let openTicketsCount = 0;
-                let recentTicketsTemp: RecentTicket[] = [];
-                try {
-                    const openTicketsQuery = query(
-                        collection(db, 'tickets'),
-                        where('status', 'in', ['Aberto', 'Em Andamento'])
-                    );
-                    const openTicketsSnapshot = await getDocs(openTicketsQuery);
-                    openTicketsCount = openTicketsSnapshot.size;
-
-                    // Tickets recentes
-                    const recentTicketsQuery = query(
-                        collection(db, 'tickets'),
-                        orderBy('updatedAt', 'desc'),
-                        limit(5)
-                    );
-                    const recentTicketsSnapshot = await getDocs(recentTicketsQuery);
-                    recentTicketsTemp = recentTicketsSnapshot.docs.map(doc => {
-                        const data = doc.data();
-                        return {
-                            id: doc.id,
-                            subject: data.subject || 'Sem assunto',
-                            providerName: data.providerName || 'Desconhecido',
-                            status: data.status || 'Aberto',
-                            updatedAt: data.updatedAt
-                        };
-                    });
-                } catch (e) {
-                    console.log('Coleção tickets não existe ou sem permissão');
-                }
-                setRecentTickets(recentTicketsTemp);
-
-                // 5. Contar notificações (últimas 24h)
-                let notificationCount = 0;
-                try {
-                    const notificationsSnapshot = await getDocs(collection(db, 'notifications'));
-                    notificationCount = notificationsSnapshot.size;
-                } catch (e) {
-                    console.log('Coleção notifications não existe ou sem permissão');
-                }
-
-                // Atualizar stats
-                setStats({
-                    providerCount,
-                    clientCount,
-                    notificationCount,
-                    openTicketsCount
-                });
-
-                setLoading(false);
+                const result = await callFunction('GET_DASHBOARD_DATA', {});
+                setStats(result.stats as typeof stats);
+                setChartData((result.chartData as ChartData[]) || []);
+                setRecentTickets((result.recentTickets as RecentTicket[]) || []);
             } catch (error: any) {
                 console.error('Erro ao carregar dashboard:', error);
-                toast.error(`Erro ao carregar dados: ${error.message}`);
+            } finally {
                 setLoading(false);
             }
         };
 
         loadDashboardData();
-    }, [userRole, user]);
+    }, [userRole, user, callFunction]);
 
     const maxClients = Math.max(...chartData.map(item => item.clientes), 1);
     const visibleProviders = chartData.slice(0, 6);

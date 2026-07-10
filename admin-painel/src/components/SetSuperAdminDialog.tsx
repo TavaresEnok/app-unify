@@ -1,21 +1,19 @@
 // admin-painel/src/components/SetSuperAdminDialog.tsx
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { UserCog, Loader2 } from "lucide-react";
-import { db } from "@/firebase/config";
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
+import { useApi } from "@/hooks/useApi";
 
 interface SetSuperAdminDialogProps {
   onUpdate: () => void;
 }
 
 export default function SetSuperAdminDialog({ onUpdate }: SetSuperAdminDialogProps) {
-    const { user } = useAuth();
+    const { callFunction } = useApi();
     const [email, setEmail] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
@@ -25,44 +23,18 @@ export default function SetSuperAdminDialog({ onUpdate }: SetSuperAdminDialogPro
             toast.error("O campo 'Email' é obrigatório.");
             return;
         }
-        if (!user) {
-            toast.error("Utilizador não autenticado.");
-            return;
-        }
-
         setIsSaving(true);
         const toastId = toast.loading("A conceder permissão...");
-
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                unsubscribe();
-                if (response.result) {
-                    toast.success(response.result.message || "Permissão concedida com sucesso!", { id: toastId });
-                    onUpdate();
-                    setIsOpen(false);
-                    setEmail('');
-                } else {
-                    toast.error(`Erro ao conceder permissão: ${response.error}`, { id: toastId });
-                }
-                setIsSaving(false);
-            }
-        });
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'SET_SUPER_ADMIN_BY_EMAIL',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: { email, requesterUid: user.uid }
-            });
+            await callFunction('SET_SUPER_ADMIN_BY_EMAIL', { email });
+            toast.success("Permissão concedida com sucesso!", { id: toastId });
+            onUpdate();
+            setIsOpen(false);
+            setEmail('');
         } catch (error: any) {
             toast.error(`Falha ao solicitar a operação: ${error.message}`, { id: toastId });
+        } finally {
             setIsSaving(false);
-            unsubscribe();
         }
     };
 

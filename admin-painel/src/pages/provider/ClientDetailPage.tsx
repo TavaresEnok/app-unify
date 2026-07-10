@@ -39,7 +39,7 @@ export default function ClientDetailPage() {
         const fetchDetails = async () => {
             try {
                 // Chamamos o proxy para buscar do CACHE SQLite usando o ID INTERNO do SGP
-                const result = await callFunction('SGP_API_PROXY', {
+                const result: any = await callFunction('SGP_API_PROXY', {
                     providerId: providerId,
                     action: 'get_single', // Ação para buscar cliente único no cache (Proxy ROTA 3)
                     params: { 
@@ -100,7 +100,7 @@ export default function ClientDetailPage() {
             });
             
             navigate('/provedor/clientes');
-        } catch (error: any) {
+        } catch {
              // O toast de erro já é tratado no useApi
         }
     };

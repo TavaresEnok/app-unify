@@ -1,9 +1,9 @@
-import { useContext, useState } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useState } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Smartphone, Download, AlertTriangle, CheckCircle, Save } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
@@ -13,19 +13,14 @@ import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPag
 
 // FINAL-FINAL FIX - RENAMED FILE
 export default function AndroidBuilderPage() {
-    console.log(" >>> LOADED: AndroidBuilder_Final V7 - SAFETY CHECKS ENABLED <<<");
-    // FORCE UPDATE 7
     const { userRole, user } = useAuth();
-    const settings = useContext(SettingsContext);
+    const settings = useSettings();
+    const [loading, setLoading] = useState(false);
+    const [lastResult, setLastResult] = useState<any>(null);
 
     // --- SAFETY CHECK (CRITICAL) ---
     // Handle undefined context or missing provider data gracefully
-    const providerData = settings?.provider || null;
-
-    if (!settings) {
-        console.error("CRITICAL: SettingsContext is undefined in AppBuildSettings");
-        return <div className="p-8 text-destructive border border-destructive rounded-md bg-destructive/10">Erro Crítico: Contexto de Configurações não carregado. Recarregue a página.</div>;
-    }
+    const providerData = settings.provider;
 
     if (!providerData) {
         // If settings exists but provider is null, we are Loading or it failed.
@@ -34,9 +29,6 @@ export default function AndroidBuilderPage() {
         }
         return <div className="p-8 text-destructive">Erro: Dados do provedor não encontrados.</div>;
     }
-
-    const [loading, setLoading] = useState(false);
-    const [lastResult, setLastResult] = useState<any>(null);
 
     // 1. SECURITY CHECK: Only Super Admin can see this page
     if (userRole !== 'superAdmin') {
@@ -307,7 +299,7 @@ export default function AndroidBuilderPage() {
                         <Button
                             variant="secondary"
                             size="sm"
-                            onClick={settings.saveConfig}
+                            onClick={() => void settings.saveConfig()}
                             disabled={settings.isSaving}
                         >
                             {settings.isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}

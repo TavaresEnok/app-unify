@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -25,10 +25,7 @@ const defaultFeatures: Feature[] = [
 ];
 
 export default function FeaturesSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     // Estado local para gerenciar as features ativas/inativas
     const [localFeatures, setLocalFeatures] = useState<Record<string, boolean>>(config.features || {});

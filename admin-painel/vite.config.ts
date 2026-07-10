@@ -12,5 +12,15 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist_final',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions', 'firebase/storage'],
+          charts: ['recharts'],
+          editor: ['react-quill-new'],
+        },
+      },
+    },
   },
 })

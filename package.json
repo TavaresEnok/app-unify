@@ -1,6 +1,19 @@
 {
+  "scripts": {
+    "contracts:sync": "node scripts/sync-contracts.mjs",
+    "contracts:check": "node scripts/check-contracts.mjs",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "test:rules": "firebase emulators:exec --only firestore,storage \"node --test tests/firestore-rules.test.mjs\"",
+    "validate:web": "npm run contracts:check && npm run security:secrets && npm run lint --prefix admin-painel && npm run test --prefix admin-painel && npm run build --prefix admin-painel && npm run build --prefix functions && npm run test:ci --prefix functions && npm run test --prefix api-service && npm run build --prefix api-service && npm run test --prefix proxy-sgp",
+    "validate:e2e": "npm run test:e2e --prefix admin-painel",
+    "validate:flutter": "flutter analyze --no-fatal-infos --no-fatal-warnings && flutter test && cd app-flutter/unified && flutter analyze --no-fatal-infos --no-fatal-warnings && flutter test && cd ../admin_app && flutter analyze --no-fatal-infos --no-fatal-warnings && flutter test",
+    "validate": "npm run validate:web && npm run validate:e2e && npm run validate:flutter"
+  },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "autoprefixer": "^10.4.21",
+    "firebase": "^12.16.0",
+    "firebase-tools": "^15.23.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13"
   },
@@ -9,7 +22,6 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "firebase-admin": "^13.6.0",
-    "firebase-tools": "^15.0.0"
+    "firebase-admin": "^13.6.0"
   }
 }

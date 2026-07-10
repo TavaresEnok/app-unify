@@ -2,41 +2,7 @@ import { NavLink, Outlet, useParams, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-
-const menuItems = [
-  { name: "Aparência", path: "appearance" },
-  { name: "Tipografia", path: "typography" },
-  { name: "Pack de Ícones", path: "icon-pack" },
-  { name: "Imagens & Ícones", path: "images" },
-  { name: "Splash/Login", path: "splash-login" },
-  { name: "Menus", path: "menus" },
-  { name: "Dashboard", path: "dashboard-builder" },
-  { name: "Notificações", path: "notifications" },
-  { name: "Promoções", path: "promotions" },
-  { name: "Módulos", path: "features" },
-  { name: "Integrações", path: "integrations" },
-  { name: "Contato & Suporte", path: "support" },
-  { name: "Carrossel", path: "carousel" },
-  { name: "Redes Sociais", path: "social" },
-  { name: "Dicas", path: "tips" },
-  { name: "FAQ", path: "faq" },
-  { name: "Mensagens", path: "messages" },
-  { name: "Textos", path: "texts" },
-  { name: "Outros", path: "other" },
-  { name: "Backup/Restore", path: "backup" },
-];
-
-const superAdminItems = [
-  ...menuItems,
-  { name: "Gerar app", path: "app-build" },
-];
-
-const groups = [
-  { label: "Identidade visual", items: ["appearance", "typography", "icon-pack", "images", "splash-login"] },
-  { label: "Conteúdo", items: ["menus", "dashboard-builder", "carousel", "promotions", "notifications", "tips", "faq", "messages", "texts"] },
-  { label: "Configuração", items: ["features", "integrations", "support", "social", "other", "backup"] },
-  { label: "Distribuição", items: ["app-build"] },
-];
+import { SETTINGS_GROUPS, SETTINGS_NAVIGATION } from "@/app/navigation";
 
 export default function ProviderSettingsLayout() {
   const { providerId: providerIdFromParams } = useParams();
@@ -46,8 +12,8 @@ export default function ProviderSettingsLayout() {
   const providerId = userRole === 'superAdmin' ? providerIdFromParams : providerIdFromAuth;
   const basePath = userRole === 'superAdmin' ? `/provedores/${providerId}` : '/provedor/personalizacao';
 
-  const items = userRole === 'superAdmin' ? superAdminItems : menuItems;
-  const groupedItems = groups
+  const items = SETTINGS_NAVIGATION.filter((item) => userRole === 'superAdmin' || !item.superAdminOnly);
+  const groupedItems = SETTINGS_GROUPS
     .map(group => ({
       ...group,
       items: group.items

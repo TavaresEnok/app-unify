@@ -1,5 +1,5 @@
-import { useContext, useMemo } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useMemo } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Battery, Signal, Wifi, User, Bell } from 'lucide-react';
 import { Home, BarChart2, LifeBuoy, FileText, Lock, Zap, Globe, HelpCircle, Lightbulb, Share2, Image as ImageIcon } from 'lucide-react';
 
@@ -55,10 +55,7 @@ const LAYOUT_THEMES: Record<string, {
 };
 
 export default function MobilePreview() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config } = context;
+    const { config } = useSettings();
 
     const layoutType = config.layoutType || 'layout_06';
     const theme = LAYOUT_THEMES[layoutType] || LAYOUT_THEMES.layout_06;

@@ -68,7 +68,7 @@ export default function NotificationSenderPage() {
             setStatusFilter('all');
             setPlanFilter('all');
             
-        } catch (error) {
+        } catch {
             // O hook useApi já trata os erros com toast.
         }
     };

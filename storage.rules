@@ -1,19 +1,47 @@
 rules_version = '2';
 
 service firebase.storage {
-  match /b/{bucket}/o {
+    match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function canManageProvider(providerId) {
+      return signedIn() &&
+             (request.auth.token.superAdmin == true || request.auth.token.providerId == providerId);
+    }
+
+    function isClientOfProvider(providerId) {
+      return signedIn() &&
+             firestore.get(/databases/(default)/documents/clientes/$(request.auth.uid)).data.providerId == providerId;
+    }
+
+    function validImage() {
+      return request.resource.size < 5 * 1024 * 1024 &&
+             request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
     
     // Regra para todos os ficheiros dentro da pasta de um provedor
-    match /providers/{providerId}/{allPaths=**} {
+    match /providers/{providerId}/{fileName} {
 
       // Qualquer pessoa pode ler as imagens (necessário para o app Flutter)
       allow read: if true;
 
       // Apenas Super Admins ou o Admin do provedor correto podem escrever (upload, update, delete)
-      allow write: if request.auth != null &&
-                    (request.auth.token.superAdmin == true || request.auth.token.providerId == providerId) &&
-                    request.resource.size < 5 * 1024 * 1024 && // Limite de 5MB
-                    request.resource.contentType.matches('image/(jpeg|png|webp)'); // Apenas imagens
+      allow create, update: if canManageProvider(providerId) && validImage();
+      allow delete: if canManageProvider(providerId);
+    }
+
+    match /providers/{providerId}/public_assets/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if canManageProvider(providerId) && validImage();
+      allow delete: if canManageProvider(providerId);
+    }
+
+    match /providers/{providerId}/ticket_attachments/{fileName} {
+      allow read: if canManageProvider(providerId) || isClientOfProvider(providerId);
+      allow create, update: if (canManageProvider(providerId) || isClientOfProvider(providerId)) && validImage();
+      allow delete: if canManageProvider(providerId) || isClientOfProvider(providerId);
     }
   }
 }

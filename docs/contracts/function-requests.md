@@ -1,90 +1,96 @@
 # Contrato: Function Requests
 
-Inventario inicial criado em 2026-07-10 para a refatoracao completa.
+Atualizado em 2026-07-10 apos a refatoracao da fila `function_requests`.
 
-O painel e o app usam o padrao:
+## Visao geral
 
-- Criar documento em `function_requests/{requestId}`.
-- Aguardar documento em `function_responses/{requestId}`.
-- Usar `requesterUid`, `payload` e `createdAt`.
+O painel admin e o app Flutter enviam operacoes privilegiadas criando documentos em
+`function_requests/{requestId}`. Uma unica Cloud Function, `handleFunctionRequest`,
+roteia o pedido para handlers de dominio e grava a resposta em
+`function_responses/{requestId}`.
 
-## Formato base atual
+Formato do request:
 
 ```ts
 {
-  type: string;
-  createdAt: serverTimestamp;
+  type: FunctionRequestType;
   requesterUid: string;
-  payload: Record<string, unknown>;
+  payload: FunctionRequestPayloadMap[FunctionRequestType];
+  createdAt: serverTimestamp;
 }
 ```
 
-Resposta esperada:
+Formato da resposta:
 
 ```ts
 {
   result?: unknown;
   error?: string;
-  requesterUid?: string | null;
+  code?: ErrorCode;
+  requesterUid: string;
   completedAt: serverTimestamp;
+  expiresAt: Timestamp;
 }
 ```
 
-## Handlers encontrados em `functions/src/index.ts`
+## Fonte canonica
 
-| Tipo | Status | Consumidores identificados | Observacoes |
-| --- | --- | --- | --- |
-| `UPDATE_PROVIDER_CONFIG` | ativo | `ProviderDetailPage` | Atualiza/cria provedor, espelha dados na raiz e em `config`. |
-| `UPDATE_PROVIDER_DETAILS` | ativo | `MyCompanyPage`, `EditProviderDialog` | Atualiza detalhes do provedor. |
-| `GET_DASHBOARD_DATA` | ativo | `useApi` | Handler existe, mas parte do dashboard atual tambem consulta Firestore direto. |
-| `DELETE_PROVIDER` | ativo | `ProvidersPage` | Remove provedor e dados relacionados. |
-| `SEND_PUSH_NOTIFICATION` | ativo | `NotificationsManager` | Usado na area de configuracoes/notificacoes. |
-| `SEND_SCOPED_NOTIFICATION_SEGMENTED` | ativo | `NotificationSenderPage` | Envio segmentado por escopo. |
-| `GET_PROVIDER_DASHBOARD_DATA` | ativo | `ProviderDashboardPage` | Dashboard do provedor. |
-| `SGP_API_PROXY` | ativo | `ProviderClientsPage`, `ClientDetailPage` | Faz proxy para integracao SGP/cache. |
-| `GET_ALL_TICKETS` | ativo | `AdminTicketsPage` | Lista tickets para super admin. |
-| `GET_PROVIDER_TICKETS` | ativo | `useApi` declarado | Handler existe; algumas telas tambem consultam Firestore direto. |
-| `DELETE_TICKET` | ativo | `AdminTicketsPage` | Exclui ticket. |
-| `LIST_ADMIN_USERS` | ativo | `UsersPage` | Lista admins. |
-| `DELETE_ADMIN_USER` | ativo | `UsersPage` | Remove admin. |
+- Contrato mestre: `shared/contracts/index.ts`.
+- Copias sincronizadas:
+  - `admin-painel/src/shared/contracts/index.ts`
+  - `functions/src/contracts/index.ts`
+  - `api-service/src/contracts/index.ts`
+- Sincronizacao: `npm run contracts:sync`.
+- Validacao: `npm run contracts:check`.
 
-## Tipos usados no front/app sem handler encontrado
+## Tipos ativos
 
-Estes tipos aparecem em `admin-painel/src` ou `lib/`, mas nao apareceram como handler em `functions/src/index.ts` nem em `functions/lib/index.js` durante a auditoria inicial.
+Todos os tipos usados pelo painel/app possuem handler registrado em
+`functions/src/handlers/index.ts`.
 
-| Tipo | Onde aparece | Risco |
+| Tipo | Handler | Permissao |
 | --- | --- | --- |
-| `CREATE_PROVIDER` | `AddProviderDialog` | Criacao via dialog pode ficar sem resposta se nao existir outro fluxo. |
-| `CREATE_ADMIN_USER` | `AddAdminDialog` | Criacao de admin pode ficar sem resposta. |
-| `SET_SUPER_ADMIN_BY_EMAIL` | `SetSuperAdminDialog` | Promocao de super admin pode ficar sem resposta. |
-| `CREATE_TICKET` | `AddTicketDialog`, app Flutter `suporte_service.dart` | Abertura de ticket pode depender de handler ausente. |
-| `REPLY_TO_TICKET` | `TicketDetailPage` | Resposta ao ticket pode ficar sem resposta. |
-| `UPDATE_TICKET_STATUS` | `TicketDetailPage` | Atualizacao de status pode ficar sem resposta. |
-| `DELETE_CLIENT` | `ClientDetailPage` | Exclusao de cliente pode ficar sem resposta. |
-| `LIST_PROVIDER_CLIENTS` | `useApi` | Declarado, mas nao identificado como consumidor ativo direto. |
-| `GET_CLIENT_DETAILS` | `useApi` | Declarado, mas nao identificado como consumidor ativo direto. |
-| `BACKUP_PROVIDER_CONFIG` | `BackupSettings` | Backup pode ficar sem resposta. |
-| `LIST_PROVIDER_BACKUPS` | `BackupSettings` | Listagem de backups pode ficar sem resposta. |
-| `RESTORE_PROVIDER_CONFIG` | `BackupSettings` | Restore pode ficar sem resposta. |
-| `DELETE_PROVIDER_BACKUP` | `BackupSettings` | Exclusao de backup pode ficar sem resposta. |
-| `SEND_SCOPED_NOTIFICATION` | `useApi` | Declarado, sem consumidor ativo identificado. |
+| `UPDATE_PROVIDER_CONFIG` | `handlers/providers.ts` | superAdmin ou admin do provedor |
+| `UPDATE_PROVIDER_DETAILS` | `handlers/providers.ts` | superAdmin ou admin do provedor |
+| `CREATE_PROVIDER` | `handlers/providers.ts` | superAdmin |
+| `DELETE_PROVIDER` | `handlers/providers.ts` | superAdmin |
+| `GET_DASHBOARD_DATA` | `handlers/dashboard.ts` | superAdmin |
+| `GET_PROVIDER_DASHBOARD_DATA` | `handlers/dashboard.ts` | superAdmin ou admin do provedor |
+| `SEND_PUSH_NOTIFICATION` | `handlers/notifications.ts` | superAdmin ou admin do provedor |
+| `SEND_SCOPED_NOTIFICATION` | `handlers/notifications.ts` | superAdmin ou admin do provedor |
+| `SEND_SCOPED_NOTIFICATION_SEGMENTED` | `handlers/notifications.ts` | superAdmin ou admin do provedor |
+| `SGP_API_PROXY` | `handlers/sgp.ts` | superAdmin ou admin do provedor |
+| `GET_ALL_TICKETS` | `handlers/tickets.ts` | superAdmin |
+| `GET_PROVIDER_TICKETS` | `handlers/tickets.ts` | superAdmin ou admin do provedor |
+| `CREATE_TICKET` | `handlers/tickets.ts` | admin do provedor, superAdmin ou cliente vinculado |
+| `REPLY_TO_TICKET` | `handlers/tickets.ts` | participante autorizado do ticket |
+| `UPDATE_TICKET_STATUS` | `handlers/tickets.ts` | superAdmin ou admin do provedor |
+| `DELETE_TICKET` | `handlers/tickets.ts` | superAdmin |
+| `LIST_ADMIN_USERS` | `handlers/users.ts` | superAdmin |
+| `CREATE_ADMIN_USER` | `handlers/users.ts` | superAdmin |
+| `DELETE_ADMIN_USER` | `handlers/users.ts` | superAdmin |
+| `SET_SUPER_ADMIN_BY_EMAIL` | `handlers/users.ts` | superAdmin |
+| `LIST_PROVIDER_CLIENTS` | `handlers/clients.ts` | superAdmin ou admin do provedor |
+| `GET_CLIENT_DETAILS` | `handlers/clients.ts` | superAdmin ou admin do provedor |
+| `DELETE_CLIENT` | `handlers/clients.ts` | superAdmin ou admin do provedor |
+| `BACKUP_PROVIDER_CONFIG` | `handlers/backups.ts` | superAdmin ou admin do provedor |
+| `LIST_PROVIDER_BACKUPS` | `handlers/backups.ts` | superAdmin ou admin do provedor |
+| `RESTORE_PROVIDER_CONFIG` | `handlers/backups.ts` | superAdmin ou admin do provedor |
+| `DELETE_PROVIDER_BACKUP` | `handlers/backups.ts` | superAdmin ou admin do provedor |
 
-## Decisao para a refatoracao
+## Regras implementadas
 
-Antes de mover ou dividir `functions/src/index.ts`, executar uma das acoes para cada tipo sem handler:
+- `assertFunctionRequest` valida envelope, tipo e payload minimo.
+- Requests legacy do app que enviam `payload.requesterUid` ainda sao normalizados.
+- Requests duplicados nao reexecutam se ja existe `function_responses/{requestId}`.
+- `function_responses` sempre recebe `completedAt` e `expiresAt`.
+- Erros usam `code` previsivel: `unauthenticated`, `permission-denied`,
+  `invalid-argument`, `not-found`, `conflict`, `internal` ou `timeout`.
+- Auditoria vai para `audit_logs`, com redacao de chaves sensiveis.
+- Documentos antigos da fila sao limpos por `cleanupFunctionDocuments`.
 
-1. Implementar handler compativel.
-2. Remover chamada se for tela/fluxo legado nao usado.
-3. Redirecionar para REST API existente.
-4. Marcar como legado e esconder UI ate existir backend.
+## Testes
 
-Nao iniciar uma modularizacao grande de Functions enquanto esta tabela nao estiver resolvida, porque a refatoracao pode mascarar falhas ja existentes.
-
-## Regras de contrato desejadas
-
-- Todo `type` deve existir em uma lista unica compartilhada.
-- Todo payload deve ter tipo e validador runtime.
-- Todo handler deve responder em `function_responses/{requestId}` em sucesso e erro.
-- Todo erro deve ser string exibivel e, idealmente, ter codigo interno.
-- Toda operacao deve validar `requesterUid` e claims.
-- Requests de provider admin devem ignorar `providerId` arbitrario vindo do cliente e usar claim quando aplicavel.
+- `functions/src/contracts.test.ts` valida nomes e payloads.
+- `functions/src/handlers.test.ts` garante que todos os tipos possuem handler.
+- `admin-painel/src/shared/api/functionRequests.ts` aplica timeout e cleanup de listener.

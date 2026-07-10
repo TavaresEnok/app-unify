@@ -52,6 +52,12 @@ venv/
 # Build output (built in Docker/CI, never committed)
 api-service/dist/
 admin-painel/dist_final/
+admin-painel/test-results/
+admin-painel/playwright-report/
+proxy-sgp/cache.db
+firestore-debug.log
+firebase-debug.log
+**/coverage/
 
 # Optional npm cache directory
 .npm

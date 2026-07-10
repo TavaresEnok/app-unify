@@ -6,56 +6,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PlusCircle, Loader2 } from "lucide-react";
-import { db } from "@/firebase/config";
-// AQUI ESTÁ A CORREÇÃO: onSnapshot foi adicionado à importação
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
-import { useAuth } from "@/contexts/AuthContext";
+import { useApi } from "@/hooks/useApi";
 
 export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }) {
     const [name, setName] = useState('');
     const [providerId, setProviderId] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
-    const { user } = useAuth();
+    const { callFunction } = useApi();
 
     const handleSave = async () => {
         if (!name || !providerId) { toast.error("Nome e ID são obrigatórios."); return; }
-        if (!user) { toast.error("Utilizador não autenticado."); return; }
-
         setIsSaving(true);
         const toastId = toast.loading("Enviando pedido para criar provedor...");
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                if (response.result) {
-                    toast.success(response.result.message || "Provedor criado com sucesso!", { id: toastId });
-                    onUpdate(); // Atualiza a lista na página principal
-                    setIsOpen(false);
-                    setName('');
-                    setProviderId('');
-                } else if (response.error) {
-                    toast.error(`Erro ao criar provedor: ${response.error}`, { id: toastId });
-                }
-                // Parar de ouvir após receber a resposta
-                unsubscribe();
-                setIsSaving(false); // Reativa o botão
-            }
-        });
-        
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'CREATE_PROVIDER',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: { name, providerId }
-            });
+            await callFunction('CREATE_PROVIDER', { name, providerId });
+            toast.success("Provedor criado com sucesso!", { id: toastId });
+            onUpdate();
+            setIsOpen(false);
+            setName('');
+            setProviderId('');
         } catch (error: any) {
             toast.error(`Erro ao solicitar criação: ${error.message}`, { id: toastId });
-            unsubscribe();
-            setIsSaving(false); // Reativa o botão em caso de erro na solicitação
+        } finally {
+            setIsSaving(false);
         }
     };
 

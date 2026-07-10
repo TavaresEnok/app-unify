@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/firebase/config";
 import { ChevronRight, Loader2, MessageSquare, Search, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,6 +8,7 @@ import AddTicketDialog from '@/components/AddTicketDialog';
 import EmptyState from '@/components/EmptyState';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
+import { useApi } from '@/hooks/useApi';
 
 interface Ticket {
     id: string;
@@ -22,13 +21,13 @@ interface Ticket {
 export default function ProviderTicketsPage() {
     const navigate = useNavigate();
     const { providerId } = useAuth();
+    const { callFunction } = useApi();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [hasFetched, setHasFetched] = useState(false);
 
-    const loadTickets = async () => {
+    const loadTickets = useCallback(async () => {
         if (!providerId) {
             setError("Provider ID não encontrado");
             return;
@@ -38,31 +37,20 @@ export default function ProviderTicketsPage() {
         setError(null);
 
         try {
-            const ticketsRef = collection(db, 'tickets');
-            const q = query(ticketsRef, where('providerId', '==', providerId));
-            const snapshot = await getDocs(q);
-
-            const ticketList: Ticket[] = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Ticket[];
-
-            setTickets(ticketList);
-            setHasFetched(true);
+            const result = await callFunction('GET_PROVIDER_TICKETS', { providerId });
+            setTickets(result as unknown as Ticket[]);
         } catch (err: any) {
             console.error("Erro ao carregar tickets:", err);
             setError(err.message || "Erro desconhecido");
         } finally {
             setLoading(false);
         }
-    };
+    }, [providerId, callFunction]);
 
     // Carrega apenas uma vez quando o providerId está disponível
     useEffect(() => {
-        if (providerId && !hasFetched && !loading) {
-            loadTickets();
-        }
-    }, [providerId]);
+        if (providerId) void loadTickets();
+    }, [providerId, loadTickets]);
 
     const filteredTickets = tickets.filter(t =>
         t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -119,7 +107,7 @@ export default function ProviderTicketsPage() {
                     <EmptyState
                         icon={MessageSquare}
                         title="Nenhum ticket encontrado"
-                        description={hasFetched ? "A lista está vazia." : "Clique em Atualizar para carregar."}
+                        description="A lista está vazia."
                     />
             )}
             renderRow={(ticket) => (

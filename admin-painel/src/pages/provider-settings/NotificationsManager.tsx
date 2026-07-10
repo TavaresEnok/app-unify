@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,14 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Bell, Plus, Send, Trash2, Users } from 'lucide-react';
-import { db } from '@/firebase/config';
-import { doc, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import StatusBadge from '@/components/StatusBadge';
+import { useApi } from '@/hooks/useApi';
 
 export default function NotificationsManager() {
   const { config, setConfig, saveConfig, isSaving, providerId } = useSettings();
-  const { user } = useAuth();
+  const { callFunction } = useApi();
   const [notifications, setNotifications] = useState(config.notifications?.list || []);
   const [newNotif, setNewNotif] = useState({ title: '', message: '', category: 'info', targetAll: true });
   const [filter, setFilter] = useState('all');
@@ -54,54 +52,22 @@ export default function NotificationsManager() {
 
   // NOVA FUNÇÃO: Enviar Push Real via Cloud Function
   const sendPushNotification = async (notif: any) => {
-    if (!user) {
-      toast.error('Usuário não autenticado');
-      return;
-    }
-
     setIsSending(true);
     const toastId = toast.loading('Enviando notificação push...');
 
     try {
-      const requestId = doc(collection(db, 'function_requests')).id;
-      const responseDocRef = doc(db, 'function_responses', requestId);
-
-      // Escuta pela resposta
-      const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          unsubscribe();
-          const response = docSnap.data();
-          if (response.result?.success) {
-            toast.success(response.result.message, { id: toastId });
-          } else {
-            toast.error(`Erro: ${response.error}`, { id: toastId });
-          }
-          setIsSending(false);
-        }
-      });
-
-      // Envia request para Cloud Function
-      await setDoc(doc(db, 'function_requests', requestId), {
-        type: 'SEND_PUSH_NOTIFICATION',
-        requesterUid: user.uid,
-        createdAt: serverTimestamp(),
-        payload: {
+      const result = await callFunction('SEND_PUSH_NOTIFICATION', {
           providerId,
           title: notif.title,
           body: notif.message,
           category: notif.category,
           targetAll: notif.targetAll,
           route: notif.route || '',
-        }
       });
-
-      // Timeout de 30 segundos
-      setTimeout(() => {
-        setIsSending(false);
-      }, 30000);
-
+      toast.success(result.message, { id: toastId });
     } catch (error: any) {
       toast.error(`Erro: ${error.message}`, { id: toastId });
+    } finally {
       setIsSending(false);
     }
   };
@@ -119,8 +85,9 @@ export default function NotificationsManager() {
   };
 
   const handleSave = async () => {
-    setConfig({ ...config, notifications: { ...config.notifications, list: notifications } });
-    await saveConfig();
+    const nextConfig = { ...config, notifications: { ...config.notifications, list: notifications } };
+    setConfig(nextConfig);
+    await saveConfig(nextConfig);
     toast.success('Notificações salvas!');
   };
 
@@ -135,7 +102,7 @@ export default function NotificationsManager() {
       icon={Bell}
       actions={(
         <>
-          <Button variant="outline" onClick={sendToAll}>
+          <Button variant="outline" onClick={sendToAll} disabled={isSending}>
             <Send className="h-4 w-4 mr-2" />
             Enviar Todas
           </Button>

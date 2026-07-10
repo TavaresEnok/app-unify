@@ -56,7 +56,7 @@ void main() {
     await tester.pumpWidget(createWidget());
     await tester.pumpAndSettle();
 
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Bem-vindo de volta'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'E-mail'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Senha'), findsOneWidget);
     expect(find.byType(ElevatedButton), findsOneWidget);

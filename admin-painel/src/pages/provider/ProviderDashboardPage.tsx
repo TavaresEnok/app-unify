@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { toast } from "sonner";
-import { doc, setDoc, onSnapshot, serverTimestamp, collection, Timestamp } from "firebase/firestore";
-import { db } from '@/firebase/config';
+import { Timestamp } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Send, Smartphone, Star, TrendingUp, Users } from "lucide-react";
 import { ProviderDashboardSkeleton } from '@/components/ProviderDashboardSkeleton';
@@ -12,6 +10,7 @@ import { ptBR } from 'date-fns/locale';
 import StatsCard from '@/components/StatsCard';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/StatusBadge';
+import { useApi } from '@/hooks/useApi';
 
 interface RecentTicket {
     id: string;
@@ -23,58 +22,31 @@ interface RecentTicket {
 export default function ProviderDashboardPage() {
     const navigate = useNavigate();
     const { user, providerId } = useAuth();
+    const { callFunction } = useApi();
     const [stats, setStats] = useState({ totalClients: 0, openTicketsCount: 0 });
     const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchDashboardData = useCallback(() => {
+    const fetchDashboardData = useCallback(async () => {
         if (!providerId || !user) {
             setLoading(false);
-            return () => {};
+            return;
         }
 
         setLoading(true);
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                if (response.result) {
-                    setStats(response.result.stats || { totalClients: 0, openTicketsCount: 0 });
-                    setRecentTickets(response.result.recentTickets || []);
-                } else if (response.error) {
-                    toast.error(`Erro no Dashboard: ${response.error}`);
-                }
-                setLoading(false);
-                unsubscribe();
-            }
-        });
-
-        const triggerFunction = async () => {
-            try {
-                await setDoc(doc(db, 'function_requests', requestId), {
-                    type: 'GET_PROVIDER_DASHBOARD_DATA',
-                    requesterUid: user.uid,
-                    createdAt: serverTimestamp(),
-                    payload: { providerId, requesterUid: user.uid }
-                });
-            } catch (error: any) {
-                toast.error(`Falha ao solicitar dados: ${error.message}`);
-                setLoading(false);
-                unsubscribe();
-            }
-        };
-
-        triggerFunction();
-        return unsubscribe;
-    }, [providerId, user]);
+        try {
+            const result = await callFunction('GET_PROVIDER_DASHBOARD_DATA', { providerId });
+            setStats((result.stats as typeof stats) || { totalClients: 0, openTicketsCount: 0 });
+            setRecentTickets((result.recentTickets as RecentTicket[]) || []);
+        } catch (error) {
+            console.error("Falha ao carregar dashboard", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [providerId, user, callFunction]);
 
     useEffect(() => {
-        const unsubscribe = fetchDashboardData();
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
+        void fetchDashboardData();
     }, [fetchDashboardData]);
 
     if (loading) {

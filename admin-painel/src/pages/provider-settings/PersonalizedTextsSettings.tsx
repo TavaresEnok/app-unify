@@ -1,14 +1,12 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2, Type } from 'lucide-react';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 export default function PersonalizedTextsSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-    const { config, setConfig } = context;
+    const { config, setConfig } = useSettings();
     // Local state for the strings section
     const [strings, setStrings] = useState<any>({});
     const [ticketSubjects, setTicketSubjects] = useState<string[]>([]);

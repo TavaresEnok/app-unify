@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { doc, setDoc, onSnapshot, serverTimestamp, collection, Timestamp } from "firebase/firestore";
-import { db } from '@/firebase/config';
+import { Timestamp } from "firebase/firestore";
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, MessageSquareOff, Trash2, ChevronRight } from 'lucide-react';
@@ -14,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '@/components/ui/button';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
+import { useApi } from '@/hooks/useApi';
 
 interface Ticket {
     id: string;
@@ -26,72 +25,40 @@ interface Ticket {
 export default function AdminTicketsPage() {
     const navigate = useNavigate();
     const { user, userRole } = useAuth();
+    const { callFunction } = useApi();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('Todos');
 
-    const fetchTickets = useCallback(() => {
+    const fetchTickets = useCallback(async () => {
         if (userRole !== 'superAdmin' || !user) {
             setLoading(false);
-            return () => {};
+            return;
         }
 
         setLoading(true);
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                if (response.result?.tickets) {
-                    setTickets(response.result.tickets);
-                } else if (response.error) {
-                    toast.error(`Erro ao buscar tickets: ${response.error}`);
-                }
-                setLoading(false);
-                unsubscribe();
-            }
-        });
-
-        const triggerFunction = async () => {
-            try {
-                await setDoc(doc(db, 'function_requests', requestId), {
-                    type: 'GET_ALL_TICKETS',
-                    requesterUid: user.uid,
-                    createdAt: serverTimestamp()
-                });
-            } catch (error: any) {
-                toast.error(`Falha ao solicitar tickets: ${error.message}`);
-                setLoading(false);
-                unsubscribe();
-            }
-        };
-
-        triggerFunction();
-        return unsubscribe;
-    }, [userRole, user]);
+        try {
+            const result = await callFunction('GET_ALL_TICKETS', {});
+            setTickets(result as Ticket[]);
+        } catch (error) {
+            console.error("Falha ao carregar tickets", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [userRole, user, callFunction]);
 
     useEffect(() => {
-        const unsubscribe = fetchTickets();
-        return () => { if (unsubscribe) unsubscribe(); };
+        void fetchTickets();
     }, [fetchTickets]);
 
     const handleDelete = async (ticketId: string) => {
         if (!user) return;
-        const toastId = toast.loading("Apagando ticket...");
-        const requestId = doc(collection(db, 'function_requests')).id;
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'DELETE_TICKET',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: { ticketId }
-            });
+            await callFunction('DELETE_TICKET', { ticketId });
             setTickets(prevTickets => prevTickets.filter(t => t.id !== ticketId));
-            toast.success("Ticket apagado.", { id: toastId });
         } catch (error: any) {
-            toast.error(`Falha ao apagar ticket: ${error.message}`, { id: toastId });
+            console.error("Falha ao apagar ticket", error);
         }
     };
 

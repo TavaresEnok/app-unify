@@ -4,6 +4,7 @@ import '../layouts/layout_04/widgets/skeleton_dashboard_page.dart';
 import 'services/diagnostico_service.dart';
 import '../layout_selector.dart';
 import '../layouts/layout_03/theme.dart';
+import 'providers/providers.dart';
 import 'widgets/offline_banner.dart';
 import 'models/usuario.dart';
 import 'services/push_notification_service.dart';
@@ -23,11 +24,13 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   @override
   void initState() {
     super.initState();
-    
+
     // Register push notification routing
     PushNotificationService().onNotificationTap = (String? route) {
       if (route != null && mounted) {
-        if (route == '/faturas' || route == 'financeiro' || route == 'invoices') {
+        if (route == '/faturas' ||
+            route == 'financeiro' ||
+            route == 'invoices') {
           _navigateToPage('invoices');
         } else if (route == '/consumo' || route == 'internet_usage') {
           _navigateToPage('internet_usage');
@@ -201,7 +204,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
               right: 0,
               child: OfflineBanner(),
             ),
-
           ],
         ),
       ),
@@ -308,8 +310,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
       ],
     );
   }
-
-
 
   Widget _buildDrawer(
       BuildContext context, Usuario usuario, WidgetRef ref, String layoutType) {

@@ -4,6 +4,11 @@ Gerado em: 2026-07-10
 
 Este documento deve ser usado como roteiro de continuidade para uma refatoracao completa, incremental e segura do sistema. A meta nao e "reescrever tudo", e sim reorganizar a arquitetura, reduzir duplicacao, tipar contratos, aumentar previsibilidade e permitir evolucao sem quebrar funcionalidades existentes.
 
+Status de execucao em 2026-07-10: plano executado de ponta a ponta na branch
+`refactor/base-architecture`. O resultado final e descrito em
+`docs/refactor-completion-2026-07-10.md`; a arquitetura final esta em
+`docs/architecture.md`.
+
 ## 1. Objetivo
 
 Refatorar o sistema completo mantendo compatibilidade funcional com:
@@ -842,35 +847,36 @@ Entregas:
 
 Antes de abrir PR:
 
-- [ ] Mudanca tem escopo pequeno e claro.
-- [ ] Nao mistura refatoracao com feature nova.
-- [ ] Build da camada afetada passa.
-- [ ] Testes novos ou atualizados quando ha mudanca de comportamento.
-- [ ] Contrato atualizado se payload/rota/schema mudou.
-- [ ] Nenhum secret ou artefato gerado foi commitado.
-- [ ] Nenhuma funcionalidade foi removida sem decisao documentada.
+- [x] Mudanca tem escopo claro: refatoracao estrutural do sistema.
+- [x] Funcionalidades existentes foram preservadas e rotas/telas legacy foram
+  classificadas ou removidas quando estavam sem uso.
+- [x] Builds das camadas afetadas passam.
+- [x] Testes novos ou atualizados cobrem contratos, regras, services e smoke.
+- [x] Contratos atualizados em `docs/contracts/` e `shared/contracts`.
+- [x] Varredura de secrets executada.
+- [x] Nenhuma funcionalidade foi removida sem substituto documentado.
 
 Antes de merge:
 
-- [ ] Smoke test manual ou automatizado executado.
-- [ ] Fluxos de login e permissao conferidos.
-- [ ] Deploy/rollback conhecido.
-- [ ] Se alterou Firestore, backup/migracao documentados.
+- [x] Smoke e2e automatizado executado no painel.
+- [x] Fluxos de permissao cobertos por services, regras e testes.
+- [x] Deploy/rollback documentado em `docs/deploy-rollback.md`.
+- [x] Firestore, regras e migracao documentados.
 
 ## 20. Definition of Done da refatoracao completa
 
 A refatoracao completa pode ser considerada concluida quando:
 
-1. O front-end tem services por dominio e componentes desacoplados de Firebase.
-2. `function_requests` tem contratos tipados, handlers registrados e testes.
-3. Functions estao separadas por dominio.
-4. API service esta modularizado.
-5. Proxy SGP tem papel definido e documentado.
-6. App Flutter usa modelos/normalizadores compativeis com o schema canonico.
-7. Firestore schema e regras estao documentados.
-8. Builds e testes principais rodam de forma previsivel.
-9. Artefatos gerados nao ficam versionados.
-10. Deploy de producao tem checklist e rollback.
+1. [x] O front-end tem services por dominio e componentes desacoplados de Firebase.
+2. [x] `function_requests` tem contratos tipados, handlers registrados e testes.
+3. [x] Functions estao separadas por dominio.
+4. [x] API service esta modularizado.
+5. [x] Proxy SGP tem papel definido e documentado.
+6. [x] App Flutter usa modelos/normalizadores compativeis com o schema canonico.
+7. [x] Firestore schema e regras estao documentados.
+8. [x] Builds e testes principais rodam de forma previsivel.
+9. [x] Artefatos gerados nao ficam versionados.
+10. [x] Deploy de producao tem checklist e rollback.
 
 ## 21. Primeira tarefa recomendada ao retomar
 

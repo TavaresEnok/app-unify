@@ -2,14 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
-import { db } from '@/firebase/config';
 import { Loader2, UserX, Search, RefreshCw, ChevronRight } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
+import { useApi } from '@/hooks/useApi';
 
 interface SgpClient {
     id: number;
@@ -39,6 +38,7 @@ function useDebounce(value: string, delay: number) {
 export default function ProviderClientsPage() {
     const navigate = useNavigate();
     const { user, providerId } = useAuth();
+    const { callFunction } = useApi();
     const [clients, setClients] = useState<SgpClient[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -61,60 +61,37 @@ export default function ProviderClientsPage() {
         }
 
         const offset = (page - 1) * ITEMS_PER_PAGE;
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                unsubscribe();
-                const response = docSnap.data();
-
-                if (response.error) {
-                    toast.error(isSyncAction ? "Falha na sincronização" : "Falha ao carregar clientes", { description: response.error });
-                } else if (response.result) {
-                    if (isSyncAction) {
-                        toast.success("Sincronização concluída!", { description: `${response.result.count} clientes foram salvos.` });
-                        setSearchTerm(''); // Limpa a busca após sincronizar
-                        setCurrentPage(1);
-                        callProxy('get', 1, ''); // Recarrega a primeira página
-                    } else {
-                        setClients(response.result.clientes || []);
-                        setTotalClients(response.result.paginacao?.total || 0);
-                    }
-                }
-                setLoading(false);
-                setIsSyncing(false);
-            }
-        });
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'SGP_API_PROXY',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: {
-                    providerId,
-                    requesterUid: user.uid,
-                    action: action,
-                    params: isSyncAction ? {
+            const result = await callFunction('SGP_API_PROXY', {
+                providerId,
+                action,
+                params: isSyncAction ? {
                         limit: 100,
                         offset: 0,
                         contrato_status: 1,
                         omitir_titulos: 1
-                    } : {
+                } : {
                         limit: ITEMS_PER_PAGE,
                         offset: offset,
                         searchTerm: search
-                    }
-                }
+                },
             });
+
+            if (isSyncAction) {
+                toast.success("Sincronização concluída!", { description: `${result.count || 0} clientes foram salvos.` });
+                setSearchTerm('');
+                setCurrentPage(1);
+            } else {
+                setClients((result.clientes || []) as unknown as SgpClient[]);
+                setTotalClients(result.paginacao?.total || 0);
+            }
         } catch (error: any) {
-            toast.error("Erro ao disparar a função.", { description: error.message });
+            console.error("Falha na operação de clientes", error);
+        } finally {
             setLoading(false);
             setIsSyncing(false);
-            unsubscribe();
         }
-    }, [providerId, user]);
+    }, [providerId, user, callFunction]);
 
     // Efeito para buscar os clientes do cache ao carregar ou mudar de página/busca
     useEffect(() => {

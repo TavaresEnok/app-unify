@@ -1,5 +1,5 @@
-import { useContext, useCallback, memo } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useCallback, useMemo, memo } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -253,10 +253,7 @@ function AppearancePreview({ config }: { config: any }) {
 }
 
 export default function AppearanceSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, saveConfig, isSaving } = context;
+    const { config, setConfig, saveConfig, isSaving } = useSettings();
 
     const updateLayoutThemes = useCallback((newConfig: any, layoutToUpdate: string, values: any) => {
         const currentStrings = newConfig.strings || {};
@@ -293,7 +290,7 @@ export default function AppearanceSettings() {
         });
     }, [setConfig, updateLayoutThemes]);
 
-    const layoutDefaults: Record<string, Record<string, string>> = {
+    const layoutDefaults: Record<string, Record<string, string>> = useMemo(() => ({
         layout_01: {
             themeColor: '#673AB7',
             secondaryColor: '#9575CD',
@@ -366,11 +363,11 @@ export default function AppearanceSettings() {
             otherCardsColor: '#0F1225',
             otherCardsTextColor: '#FFFFFF',
         },
-    };
+    }), []);
 
     const handleLayoutChange = useCallback((newLayout: string) => {
         setConfig((prev: any) => {
-            let nextConfig = updateLayoutThemes(prev, prev.layoutType || 'layout_01', prev);
+            const nextConfig = updateLayoutThemes(prev, prev.layoutType || 'layout_01', prev);
             const layoutThemes = nextConfig.strings?.layoutThemes ? JSON.parse(nextConfig.strings.layoutThemes) : {};
             const savedTheme = layoutThemes[newLayout];
             const defaults = layoutDefaults[newLayout] || layoutDefaults.layout_01;
@@ -382,7 +379,7 @@ export default function AppearanceSettings() {
                 layoutType: newLayout
             };
         });
-    }, [setConfig, updateLayoutThemes]);
+    }, [layoutDefaults, setConfig, updateLayoutThemes]);
 
     const restoreLayoutDefaults = () => {
         const currentLayout = config.layoutType || 'layout_01';
@@ -520,7 +517,7 @@ export default function AppearanceSettings() {
 
                 <CardFooter className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                     <p className="text-[12px] text-[#98A1B1]">As alterações são aplicadas ao preview imediatamente e gravadas ao salvar.</p>
-                    <Button onClick={saveConfig} disabled={isSaving} className="gap-2">
+                    <Button onClick={() => void saveConfig()} disabled={isSaving} className="gap-2">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         {isSaving ? "Salvando..." : "Salvar alterações"}
                     </Button>

@@ -1,0 +1,3 @@
+[submodule "app-flutter/unified"]
+	path = app-flutter/unified
+	url = https://github.com/TavaresEnok/app-unify.git

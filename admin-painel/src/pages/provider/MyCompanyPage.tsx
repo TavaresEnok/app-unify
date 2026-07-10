@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { doc, setDoc, onSnapshot, serverTimestamp, collection, getDoc } from "firebase/firestore";
-import { db } from '@/firebase/config';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from 'lucide-react';
+import { subscribeProvider } from '@/features/providers/providerService';
+import { useApi } from '@/hooks/useApi';
 
 interface CompanyDetails {
     razaoSocial?: string;
@@ -19,6 +19,7 @@ interface CompanyDetails {
 
 export default function MyCompanyPage() {
     const { user, providerId } = useAuth();
+    const { callFunction } = useApi();
     const [details, setDetails] = useState<CompanyDetails>({});
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -26,11 +27,8 @@ export default function MyCompanyPage() {
     useEffect(() => {
         if (!providerId) return;
 
-        const providerRef = doc(db, 'provedores', providerId);
-        const unsubscribe = onSnapshot(providerRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setDetails(docSnap.data().details || {});
-            }
+        const unsubscribe = subscribeProvider(providerId, (provider) => {
+            if (provider) setDetails((provider.details as CompanyDetails) || {});
             setLoading(false);
         });
 
@@ -48,44 +46,14 @@ export default function MyCompanyPage() {
         }
 
         setIsSaving(true);
-        const toastId = toast.loading("Salvando alterações...");
-
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                unsubscribe();
-                const response = docSnap.data();
-                if (response.result) {
-                    toast.success("Dados da empresa atualizados com sucesso!", { id: toastId });
-                } else if (response.error) {
-                    toast.error(`Falha ao salvar: ${response.error}`, { id: toastId });
-                }
-                setIsSaving(false);
-            }
-        });
-
         try {
-            const providerRef = doc(db, 'provedores', providerId);
-            const currentDoc = await getDoc(providerRef);
-            const existingDetails = currentDoc.exists() ? currentDoc.data().details : {};
-
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'UPDATE_PROVIDER_DETAILS',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: {
-                    providerId,
-                    details: { ...existingDetails, ...details }
-                }
-            });
+            await callFunction('UPDATE_PROVIDER_DETAILS', { providerId, details: { ...details } });
         } catch (error: any) {
-            toast.error(`Erro ao solicitar a gravação: ${error.message}`, { id: toastId });
+            console.error("Falha ao salvar empresa", error);
+        } finally {
             setIsSaving(false);
-            unsubscribe();
         }
-    }, [providerId, user, details]);
+    }, [providerId, user, details, callFunction]);
 
     if (loading) {
         return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin h-8 w-8" /></div>;

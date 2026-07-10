@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,7 @@ import { Save, Loader2, MessageSquare } from 'lucide-react';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function MessagesSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     // Estados locais para campos de texto (exemplo)
     const [localWelcomeMessage, setLocalWelcomeMessage] = useState(config.messages?.welcome || 'Bem-vindo ao app!');

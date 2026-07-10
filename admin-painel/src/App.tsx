@@ -33,6 +33,8 @@ const OtherSettings = lazy(() => import("@/pages/provider-settings/OtherSettings
 const BackupSettings = lazy(() => import("@/pages/provider-settings/BackupSettings"));
 const IntegrationsSettings = lazy(() => import("@/pages/provider-settings/IntegrationsSettings"));
 const PersonalizedTextsSettings = lazy(() => import("@/pages/provider-settings/PersonalizedTextsSettings"));
+const TermsOfUseSettings = lazy(() => import("@/pages/provider-settings/TermsOfUseSettings"));
+const ForceUpdate = lazy(() => import("@/pages/provider-settings/ForceUpdate"));
 const ProviderDashboardPage = lazy(() => import("./pages/provider/ProviderDashboardPage"));
 const NotificationSenderPage = lazy(() => import("./pages/provider/NotificationSenderPage"));
 const ProviderClientsPage = lazy(() => import("./pages/provider/ProviderClientsPage"));
@@ -84,6 +86,8 @@ const ProviderSettingsRoutes = (
     <Route path="promotions" element={<PromotionsManager />} />
     <Route path="splash-login" element={<SplashLoginConfig />} />
     <Route path="texts" element={<PersonalizedTextsSettings />} />
+    <Route path="terms" element={<TermsOfUseSettings />} />
+    <Route path="force-update" element={<ForceUpdate />} />
     <Route path="app-build" element={<AndroidBuilderPage />} />
   </Route>
 );

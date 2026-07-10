@@ -1,174 +1,97 @@
-import { createContext, useState, useEffect, useCallback, useContext, ReactNode } from 'react';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import type { ProviderConfig } from "@/shared/contracts";
+import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";
+import {
+  saveProviderSettings,
+  subscribeProviderSettings,
+} from "@/shared/firebase/providerSettingsService";
 
-// Re-export types for gradual adoption
-export type { ProviderConfig, LayoutType, ThemeColors, Typography } from '@/lib/types/provider-config';
-
-export interface ProviderConfigLegacy {
-  [key: string]: any;
-}
-export type ProviderData = any;
-
-// --- CORES PADRÃO E TEXTOS (Garantia Anti-Tela-Preta) ---
-const UI_DEFAULTS: any = {
-  themeColor: '#673AB7',
-  secondaryColor: '#9575CD',
-  textColor: '#FFFFFF',
-  invoiceColor: '#10B981',
-  actionColor: '#E11D48',
-  cardColor: '#F8F8F8',
-  cardTextColor: '#333333',
-  logoUrl: '',
-  layoutType: 'layout_06',
-  quickActionsCardColor: '#FFFFFF', // [NEW] Default value
-  quickActionsTextColor: '#333333', // [NEW] Default value
-  otherCardsColor: '#FFFFFF', // [NEW] Default value
-  otherCardsTextColor: '#333333', // [NEW] Default value
-
-  // --- NOVOS DEFAULTS DE TEXTO ---
-  strings: {
-    hello_prefix: "Bem-vindo",
-    plan_prefix: "Seu plano é:",
-    logout_label: "Sair",
-    home_tab_title: "Início",
-    diagnostics_button: "Diagnóstico de Rede",
-    status_ok_title: "Tudo certo",
-    status_ok_message: "com seu(s) plano(s)!",
-    select_contract_message: "Selecionar contrato",
-    last_invoice_label: "Última fatura",
-    view_invoices_label: "Ver faturas",
-    pay_invoice_label: "Pagar fatura",
-    promise_payment_label: "Prometer pagamento",
-    support_title: "Suporte Técnico",
-    channels_title: "Canais de Atendimento",
-    open_ticket_title: "Abrir Novo Ticket",
-    terms_title: "Termos de Serviço",
-    ticket_subjects: [
-      "Financeiro",
-      "Suporte Técnico",
-      "Comercial",
-      "Outros"
-    ]
-  },
-
-  // Typography defaults
-  typography: {
-    fontFamily: 'Inter',
-    titleSize: 'medium',
-    bodySize: 'medium',
-    fontWeight: 'medium',
-  }
-};
+export type { ProviderConfig, LayoutType } from "@/shared/contracts";
+export type ProviderConfigLegacy = ProviderConfig;
+export type ProviderData = Record<string, any>;
 
 interface SettingsContextType {
-  config: ProviderConfigLegacy;
-  setConfig: React.Dispatch<React.SetStateAction<any>>;
+  config: ProviderConfig;
+  setConfig: Dispatch<SetStateAction<ProviderConfig>>;
   loading: boolean;
-  saveConfig: () => Promise<void>;
+  saveConfig: (nextConfig?: ProviderConfig) => Promise<void>;
   isSaving: boolean;
   providerId: string;
-  provider: any;
+  provider: ProviderData | null;
 }
 
 export const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-export function SettingsProvider({ children, providerId }: { children: React.ReactNode, providerId: string }) {
-  const [config, setConfig] = useState<ProviderConfigLegacy>(UI_DEFAULTS);
-  const [provider, setProvider] = useState<any>(null);
+export function SettingsProvider({ children, providerId }: { children: ReactNode; providerId: string }) {
+  const [config, setConfig] = useState<ProviderConfig>(DEFAULT_PROVIDER_CONFIG);
+  const [provider, setProvider] = useState<ProviderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    let unsubscribe = () => undefined;
     setLoading(true);
-    if (!providerId) return;
-    
-    let unsubscribe: (() => void) | null = null;
 
-    const init = async () => {
-      // Fetch secrets once
-      let secrets: any = {};
-      try {
-        const secretSnap = await getDoc(doc(db, 'provedores', providerId, 'secrets', 'sgp'));
-        if (secretSnap.exists()) {
-          secrets = secretSnap.data();
-        }
-      } catch (e) {
-        console.error("Erro ao buscar secrets", e);
-      }
+    if (!providerId) {
+      setLoading(false);
+      return undefined;
+    }
 
-      unsubscribe = onSnapshot(doc(db, 'provedores', providerId), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setProvider(data);
-
-          // Lógica de Leitura: Mescla Defaults + Antigo + Novo
-          const legacy = data.config || {};
-          const root = { ...data };
-          delete root.config;
-          const finalConfig = { ...UI_DEFAULTS, ...legacy, ...root };
-
-          // Injetar os secrets (integrations) de volta no config para uso interno do painel
-          if (secrets.integrations) {
-            finalConfig.integrations = secrets.integrations;
-          }
-
-          // Segurança extra para cores vazias
-          Object.keys(UI_DEFAULTS).forEach(key => {
-            if (!finalConfig[key]) finalConfig[key] = (UI_DEFAULTS as any)[key];
-          });
-
-          setConfig(finalConfig);
-        } else {
-          setConfig(UI_DEFAULTS);
-        }
-        setTimeout(() => setLoading(false), 100);
-      }, (error) => {
-        console.error("Erro config:", error);
-        setLoading(false);
-      });
-    };
-
-    init();
+    subscribeProviderSettings(providerId, ({ config: nextConfig, provider: nextProvider }) => {
+      if (!active) return;
+      setConfig(nextConfig);
+      setProvider(nextProvider);
+      setLoading(false);
+    }, (error) => {
+      if (!active) return;
+      console.error("Erro ao carregar configurações", error);
+      toast.error("Não foi possível carregar as configurações.");
+      setLoading(false);
+    }).then((stop) => {
+      if (active) unsubscribe = stop;
+      else stop();
+    }).catch((error: Error) => {
+      if (!active) return;
+      console.error("Erro ao iniciar configurações", error);
+      toast.error("Não foi possível carregar as configurações.");
+      setLoading(false);
+    });
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      active = false;
+      unsubscribe();
     };
   }, [providerId]);
 
-  const saveConfig = useCallback(async () => {
+  const saveConfig = useCallback(async (nextConfig: ProviderConfig = config) => {
     setIsSaving(true);
     try {
-      const payload = JSON.parse(JSON.stringify(config));
-      
-      // Isolar as integrações (dados sensíveis)
-      const integrationsData = payload.integrations;
-      delete payload.integrations; // Remove from public doc
-      delete payload.config;
-
-      console.log("💾 Salvando público:", payload);
-
-      // Salva os dados sensíveis na subcoleção protegida
-      if (integrationsData) {
-        await setDoc(doc(db, 'provedores', providerId, 'secrets', 'sgp'), { 
-          integrations: integrationsData 
-        }, { merge: true });
-      }
-
-      // Salva o resto no documento público (sem duplicar em config)
-      await setDoc(doc(db, 'provedores', providerId), payload, { merge: true });
-
+      await saveProviderSettings(providerId, nextConfig);
       toast.success("Salvo com sucesso!");
-    } catch (error: any) {
-      toast.error("Erro ao salvar: " + error.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha inesperada.";
+      toast.error(`Erro ao salvar: ${message}`);
+      throw error;
     } finally {
       setIsSaving(false);
     }
   }, [config, providerId]);
 
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  }
 
   return (
     <SettingsContext.Provider value={{ config, setConfig, loading, saveConfig, isSaving, providerId, provider }}>
@@ -177,8 +100,8 @@ export function SettingsProvider({ children, providerId }: { children: React.Rea
   );
 }
 
-export const useSettings = () => {
+export function useSettings(): SettingsContextType {
   const context = useContext(SettingsContext);
-  if (!context) throw new Error('useSettings must be used within a SettingsProvider');
+  if (!context) throw new Error("useSettings must be used within a SettingsProvider");
   return context;
-};
+}

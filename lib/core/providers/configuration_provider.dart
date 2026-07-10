@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/provider_config.dart';
+import '../models/provider_config_normalizer.dart';
 
 class ConfigurationProvider with ChangeNotifier {
   ProviderConfig? _providerConfig;
@@ -49,7 +50,8 @@ class ConfigurationProvider with ChangeNotifier {
         final rawData = doc.data()!;
         final safeData = Map<String, dynamic>.from(rawData);
 
-        _providerConfig = ProviderConfig.fromJson(safeData, providerId);
+        _providerConfig =
+            ProviderConfigNormalizer.fromFirestore(safeData, providerId);
 
         // DEBUG: Print layoutType and colors being loaded
         debugPrint(
@@ -90,7 +92,8 @@ class ConfigurationProvider with ChangeNotifier {
       final cachedString = prefs.getString('provider_config_$providerId');
       if (cachedString != null) {
         final Map<String, dynamic> data = json.decode(cachedString);
-        _providerConfig = ProviderConfig.fromJson(data, providerId);
+        _providerConfig =
+            ProviderConfigNormalizer.fromFirestore(data, providerId);
         _isLoading = false; // Já temos dados para mostrar!
         notifyListeners();
         debugPrint("📦 Configuração carregada do cache local.");

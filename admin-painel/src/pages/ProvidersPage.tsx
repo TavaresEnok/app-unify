@@ -1,8 +1,6 @@
 // admin-painel/src/pages/ProvidersPage.tsx - VERSÃO CORRIGIDA
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore'; // <-- MUDANÇA AQUI
-import { db } from '@/firebase/config'; // <-- MUDANÇA AQUI (removido functions)
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +14,8 @@ import EditProviderDialog from '@/components/EditProviderDialog.tsx';
 import EmptyState from '@/components/EmptyState.tsx';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
+import { subscribeProviders } from '@/features/providers/providerService';
+import { useApi } from '@/hooks/useApi';
 
 interface Provider {
     id: string;
@@ -32,6 +32,7 @@ const ITEMS_PER_PAGE = 10;
 export default function ProvidersPage() {
     const navigate = useNavigate();
     const { user, userRole } = useAuth();
+    const { callFunction } = useApi();
     const [providers, setProviders] = useState<Provider[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -43,9 +44,8 @@ export default function ProvidersPage() {
             return () => {};
         }
         setLoading(true);
-        const unsubscribe = onSnapshot(collection(db, 'provedores'), (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Provider));
-            setProviders(list);
+        const unsubscribe = subscribeProviders((items) => {
+            setProviders(items as Provider[]);
             setLoading(false);
         }, () => {
             toast.error("Falha ao carregar provedores.");
@@ -94,34 +94,10 @@ export default function ProvidersPage() {
     const handleDelete = async (providerToDelete: Provider) => {
         if (!user) return;
         
-        const toastId = toast.loading(`Apagando ${providerToDelete.name}...`);
-        
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                unsubscribe();
-                if (response.result) {
-                    toast.success(response.result.message || "Provedor apagado com sucesso!", { id: toastId });
-                    // O onSnapshot da 'fetchProviders' irá atualizar a lista automaticamente
-                } else {
-                    toast.error(`Erro ao apagar: ${response.error}`, { id: toastId });
-                }
-            }
-        });
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'DELETE_PROVIDER',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: { providerId: providerToDelete.id }
-            });
+            await callFunction('DELETE_PROVIDER', { providerId: providerToDelete.id });
         } catch (error: any) {
-            toast.error(`Falha ao solicitar a exclusão: ${error.message}`, { id: toastId });
-            unsubscribe();
+            console.error("Falha ao apagar provedor", error);
         }
     };
 

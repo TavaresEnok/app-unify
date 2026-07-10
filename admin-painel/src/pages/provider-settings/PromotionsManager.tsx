@@ -48,8 +48,9 @@ export default function PromotionsManager() {
   };
 
   const handleSave = async () => {
-    setConfig({ ...config, promotions: { enabled: true, items: promotions } });
-    await saveConfig();
+    const nextConfig = { ...config, promotions: { enabled: true, items: promotions } };
+    setConfig(nextConfig);
+    await saveConfig(nextConfig);
     toast.success('Promoções salvas!');
   };
 

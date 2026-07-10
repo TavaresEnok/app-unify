@@ -6,68 +6,36 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Loader2, HardDriveUpload, History, Trash2, DatabaseZap } from 'lucide-react';
 import { toast } from 'sonner';
 import { SettingsContext } from '@/contexts/SettingsContext.tsx';
-import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/firebase/config';
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
 import EmptyState from '@/components/EmptyState.tsx';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import { useApi } from '@/hooks/useApi';
 
 interface Backup {
     id: string;
     createdAt: string;
 }
 
-// Função auxiliar para criar requisições e aguardar respostas
-const makeRequest = (userUid: string, type: string, payload: object): Promise<any> => {
-    return new Promise((resolve, reject) => {
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                unsubscribe();
-                if (response.result) {
-                    resolve(response.result);
-                } else {
-                    reject(new Error(response.error || "Ocorreu um erro desconhecido na função."));
-                }
-            }
-        });
-
-        setDoc(doc(db, 'function_requests', requestId), {
-            type,
-            requesterUid: userUid,
-            createdAt: serverTimestamp(),
-            payload,
-        }).catch(err => {
-            unsubscribe();
-            reject(err);
-        });
-    });
-};
-
 export default function BackupSettings() {
     const context = useContext(SettingsContext);
-    const { user } = useAuth();
+    const { callFunction } = useApi();
     const [backups, setBackups] = useState<Backup[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isActioning, setIsActioning] = useState<string | boolean>(false); // string para ID, boolean para geral
     const providerId = context?.providerId;
 
     const fetchBackups = useCallback(async () => {
-        if (!providerId || !user) return;
+        if (!providerId) return;
         setIsLoading(true);
         try {
-            const result = await makeRequest(user.uid, 'LIST_PROVIDER_BACKUPS', { providerId, requesterUid: user.uid });
-            setBackups(result.backups || []);
+            const result = await callFunction('LIST_PROVIDER_BACKUPS', { providerId });
+            setBackups(result as unknown as Backup[]);
         } catch (error: any) {
             toast.error(`Erro ao listar backups: ${error.message}`);
             setBackups([]); // Limpa em caso de erro
         } finally {
             setIsLoading(false);
         }
-    }, [providerId, user]);
+    }, [providerId, callFunction]);
 
     useEffect(() => {
         if(providerId) {
@@ -78,11 +46,11 @@ export default function BackupSettings() {
     }, [providerId, fetchBackups]);
 
     const handleCreateBackup = async () => {
-        if (!providerId || !user) return;
+        if (!providerId) return;
         setIsActioning(true);
         const toastId = toast.loading("A criar novo backup...");
         try {
-            await makeRequest(user.uid, 'BACKUP_PROVIDER_CONFIG', { providerId, requesterUid: user.uid });
+            await callFunction('BACKUP_PROVIDER_CONFIG', { providerId });
             toast.success("Backup criado com sucesso!", { id: toastId });
             fetchBackups();
         } catch (error: any) {
@@ -93,11 +61,11 @@ export default function BackupSettings() {
     };
 
     const handleRestore = async (backupId: string) => {
-        if (!providerId || !user) return;
+        if (!providerId) return;
         setIsActioning(backupId);
         const toastId = toast.loading(`A restaurar backup...`);
         try {
-            await makeRequest(user.uid, 'RESTORE_PROVIDER_CONFIG', { providerId, backupId, requesterUid: user.uid });
+            await callFunction('RESTORE_PROVIDER_CONFIG', { providerId, backupId });
             toast.success("Configurações restauradas! A página será recarregada.", { id: toastId });
             setTimeout(() => window.location.reload(), 2000);
         } catch (error: any) {
@@ -108,11 +76,11 @@ export default function BackupSettings() {
     };
     
     const handleDelete = async (backupId: string) => {
-        if (!providerId || !user) return;
+        if (!providerId) return;
         setIsActioning(backupId);
         const toastId = toast.loading(`Apagando backup...`);
         try {
-            await makeRequest(user.uid, 'DELETE_PROVIDER_BACKUP', { providerId, backupId, requesterUid: user.uid });
+            await callFunction('DELETE_PROVIDER_BACKUP', { providerId, backupId });
             toast.success("Backup apagado.", { id: toastId });
             fetchBackups(); // Recarrega a lista
         } catch (error: any) {

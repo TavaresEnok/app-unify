@@ -7,10 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PlusCircle, Loader2, Paperclip, XCircle } from "lucide-react";
-import { db } from "@/firebase/config";
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
+import { useApi } from "@/hooks/useApi";
 
 interface AddTicketDialogProps {
   providerName: string;
@@ -26,6 +25,7 @@ export default function AddTicketDialog({ providerName, onTicketCreated }: AddTi
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { user, providerId } = useAuth();
+    const { callFunction } = useApi();
 
     const resetState = () => {
         setSubject('');
@@ -56,25 +56,6 @@ export default function AddTicketDialog({ providerName, onTicketCreated }: AddTi
         setIsSaving(true);
         const toastId = toast.loading("A abrir novo ticket...");
 
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                if (response.result) {
-                    toast.success(response.result.message || "Ticket criado com sucesso!", { id: toastId });
-                    onTicketCreated();
-                    setIsOpen(false);
-                    resetState();
-                } else if (response.error) {
-                    toast.error(`Erro ao criar ticket: ${response.error}`, { id: toastId });
-                }
-                setIsSaving(false);
-                unsubscribe();
-            }
-        });
-
         try {
             let imageUrl: string | null = null;
             if (imageFile) {
@@ -92,17 +73,15 @@ export default function AddTicketDialog({ providerName, onTicketCreated }: AddTi
             }
 
             toast.loading("A registar ticket...", { id: toastId });
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'CREATE_TICKET',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: { subject, message, providerName, providerId, userEmail: user.email, imageUrl }
-            });
-
+            await callFunction('CREATE_TICKET', { subject, message, providerName, providerId, userEmail: user.email, imageUrl });
+            toast.success("Ticket criado com sucesso!", { id: toastId });
+            onTicketCreated();
+            setIsOpen(false);
+            resetState();
         } catch (error: any) {
             toast.error(`Falha crítica ao criar ticket: ${error.message}`, { id: toastId });
+        } finally {
             setIsSaving(false);
-            unsubscribe();
         }
     };
 

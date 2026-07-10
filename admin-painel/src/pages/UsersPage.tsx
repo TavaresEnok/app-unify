@@ -1,9 +1,6 @@
 // admin-painel/src/pages/UsersPage.tsx - VERSÃO FINAL MIGRADA
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from "firebase/firestore";
-import { db } from '@/firebase/config';
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EmptyState from '@/components/EmptyState.tsx';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
+import { useApi } from '@/hooks/useApi';
 
 interface AdminUser {
     uid: string;
@@ -26,74 +24,30 @@ const ITEMS_PER_PAGE = 10;
 
 export default function UsersPage() {
     const { user, userRole } = useAuth();
+    const { callFunction } = useApi();
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
 
-    const fetchUsers = useCallback(() => {
+    const fetchUsers = useCallback(async () => {
         if (userRole !== 'superAdmin' || !user) {
             setLoading(false);
-            return () => { };
+            return;
         }
         setLoading(true);
-        let responded = false; // Flag mutável para evitar stale closure
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                responded = true;
-                const response = docSnap.data();
-                if (response.result && response.result.users) {
-                    setUsers(response.result.users);
-                } else if (response.error) {
-                    toast.error(`Falha ao carregar utilizadores: ${response.error}`);
-                }
-                setLoading(false);
-                unsubscribe();
-            }
-        });
-
-        const triggerFunction = async () => {
-            try {
-                const requestDocRef = doc(db, 'function_requests', requestId);
-                await setDoc(requestDocRef, {
-                    type: 'LIST_ADMIN_USERS',
-                    requesterUid: user.uid,
-                    createdAt: serverTimestamp(),
-                });
-            } catch (error: any) {
-                toast.error(`Falha ao solicitar lista de utilizadores: ${error.message}`);
-                setLoading(false);
-                unsubscribe();
-            }
-        };
-
-        // Timeout de segurança (15 segundos) — usa flag `responded` em vez de `loading`
-        const timeoutId = setTimeout(() => {
-            if (!responded) {
-                setLoading(false);
-                toast.error("O servidor demorou muito para responder.", {
-                    description: "Verifique se as Funções Cloud foram implantadas (deploy)."
-                });
-                if (unsubscribe) unsubscribe();
-            }
-        }, 15000);
-
-        triggerFunction();
-
-        return () => {
-            clearTimeout(timeoutId);
-            unsubscribe();
-        };
-    }, [userRole, user]);
+        try {
+            const result = await callFunction('LIST_ADMIN_USERS', {});
+            setUsers(result);
+        } catch (error) {
+            console.error("Falha ao carregar utilizadores", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [userRole, user, callFunction]);
 
     useEffect(() => {
-        const unsubscribe = fetchUsers();
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
+        void fetchUsers();
     }, [fetchUsers]);
 
     const filteredUsers = useMemo(() => users.filter(u =>
@@ -106,34 +60,11 @@ export default function UsersPage() {
 
     const handleDelete = async (userToDelete: AdminUser) => {
         if (!user) return;
-        const toastId = toast.loading(`Apagando ${userToDelete.email}...`);
-
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                unsubscribe();
-                if (response.result) {
-                    toast.success(response.result.message || "Utilizador apagado com sucesso!", { id: toastId });
-                    fetchUsers();
-                } else {
-                    toast.error(`Erro ao apagar: ${response.error}`, { id: toastId });
-                }
-            }
-        });
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'DELETE_ADMIN_USER',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: { uid: userToDelete.uid, requesterUid: user.uid }
-            });
+            await callFunction('DELETE_ADMIN_USER', { uid: userToDelete.uid });
+            await fetchUsers();
         } catch (error: any) {
-            toast.error(`Falha ao solicitar a exclusão: ${error.message}`, { id: toastId });
-            unsubscribe();
+            console.error("Falha ao apagar utilizador", error);
         }
     };
 

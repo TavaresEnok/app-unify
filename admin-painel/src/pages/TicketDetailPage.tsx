@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, collection, onSnapshot, query, orderBy, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/firebase/config';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -9,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, ArrowLeft, Send } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
+import { subscribeTicket } from '@/features/tickets/ticketService';
+import { useApi } from '@/hooks/useApi';
 // Import de { Skeleton } removido - TS6133
 
 interface Message {
@@ -36,52 +36,22 @@ const formatTimestamp = (timestamp: { seconds: number; nanoseconds: number }) =>
 export default function TicketDetailPage() {
     const { ticketId } = useParams<{ ticketId: string }>();
     const navigate = useNavigate();
-    const { user, userRole } = useAuth();
+    const { user } = useAuth();
+    const { callFunction } = useApi();
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
 
-    const ticketRef = useMemo(() => {
-        if (!ticketId) return null;
-        return doc(db, 'tickets', ticketId);
-    }, [ticketId]);
-
-    // 1. Fetch Ticket Data and Messages
     useEffect(() => {
-        if (!ticketRef) return;
-
-        const unsubscribeTicket = onSnapshot(ticketRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
-            } else {
-                toast.error("Ticket não encontrado.");
-                setTicket(null);
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching ticket:", error);
-            setLoading(false);
-            toast.error("Erro ao carregar detalhes do ticket.");
+        if (!ticketId) return;
+        return subscribeTicket(ticketId, {
+            onTicket: (value) => { setTicket(value as Ticket | null); setLoading(false); },
+            onMessages: (value) => setMessages(value as Message[]),
+            onError: (error) => { console.error("Erro ao carregar ticket", error); toast.error("Erro ao carregar ticket."); setLoading(false); },
         });
-
-        const messagesCollectionRef = collection(ticketRef, 'messages');
-        const q = query(messagesCollectionRef, orderBy('timestamp', 'asc'));
-
-        const unsubscribeMessages = onSnapshot(q, (snapshot) => {
-            const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-            setMessages(msgs);
-        }, (error) => {
-            console.error("Error fetching messages:", error);
-            toast.error("Erro ao carregar mensagens.");
-        });
-
-        return () => {
-            unsubscribeTicket();
-            unsubscribeMessages();
-        };
-    }, [ticketRef]);
+    }, [ticketId]);
 
 
     // 2. Reply Logic
@@ -89,77 +59,26 @@ export default function TicketDetailPage() {
         if (!ticketId || !user || !newMessage.trim()) return;
 
         setIsSending(true);
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                unsubscribe();
-                const response = docSnap.data();
-                if (response.result) {
-                    setNewMessage('');
-                    // Messages update automatically via onSnapshot
-                } else {
-                    toast.error(`Erro ao enviar resposta: ${response.error}`);
-                }
-                setIsSending(false);
-            }
-        });
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'REPLY_TO_TICKET',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: {
-                    ticketId,
-                    message: newMessage.trim(),
-                    userEmail: user.email,
-                    isSuperAdmin: userRole === 'superAdmin',
-                }
-            });
+            await callFunction('REPLY_TO_TICKET', { ticketId, message: newMessage.trim() });
+            setNewMessage('');
         } catch (error: any) {
-            toast.error(`Falha ao solicitar a resposta: ${error.message}`);
+            console.error("Falha ao responder ticket", error);
+        } finally {
             setIsSending(false);
-            unsubscribe();
         }
-    }, [ticketId, user, newMessage, userRole]);
+    }, [ticketId, user, newMessage, callFunction]);
 
     // 3. Status Update Logic
     const handleUpdateStatus = useCallback(async (newStatus: 'Aberto' | 'Em Andamento' | 'Fechado') => {
         if (!ticketId || !user || !ticket || ticket.status === newStatus) return;
 
-        const toastId = toast.loading(`A mudar status para ${newStatus}...`);
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                unsubscribe();
-                const response = docSnap.data();
-                if (response.result) {
-                    toast.success(response.result.message, { id: toastId });
-                } else {
-                    toast.error(`Erro ao atualizar status: ${response.error}`, { id: toastId });
-                }
-            }
-        });
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'UPDATE_TICKET_STATUS',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: {
-                    ticketId,
-                    status: newStatus,
-                }
-            });
+            await callFunction('UPDATE_TICKET_STATUS', { ticketId, status: newStatus });
         } catch (error: any) {
-            toast.error(`Falha ao solicitar atualização de status: ${error.message}`, { id: toastId });
-            unsubscribe();
+            console.error("Falha ao atualizar status", error);
         }
-    }, [ticketId, user, ticket]);
+    }, [ticketId, user, ticket, callFunction]);
 
     const initialsFor = (value: string) => value
         .split(/[\s@.]+/)

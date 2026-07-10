@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -52,25 +53,25 @@ class TestHistoryService {
           .doc(providerId)
           .collection('diagnostic_results')
           .add({
-            // Test data
-            ...entry.toJson(),
-            // Client info from SGP
-            'clientId': clientInfo['id'] ?? '',
-            'clientName': clientInfo['name'] ?? 'Desconhecido',
-            'clientPlan': clientInfo['plan'] ?? '',
-            // Connection info
-            'connectionType': connectionType,
-            // Device info
-            'deviceInfo': deviceInfo,
-            // Server timestamp for consistency
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+        // Test data
+        ...entry.toJson(),
+        // Client info from SGP
+        'clientId': clientInfo['id'] ?? '',
+        'clientName': clientInfo['name'] ?? 'Desconhecido',
+        'clientPlan': clientInfo['plan'] ?? '',
+        // Connection info
+        'connectionType': connectionType,
+        // Device info
+        'deviceInfo': deviceInfo,
+        // Server timestamp for consistency
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-      print(
+      debugPrint(
         '✅ Diagnostic result saved to cloud for client: ${clientInfo['name']}',
       );
     } catch (e) {
-      print('❌ Error saving diagnostic to cloud: $e');
+      debugPrint('Error saving diagnostic to cloud: $e');
       // Don't throw - cloud save failure shouldn't break the app flow
     }
   }
@@ -169,21 +170,19 @@ class TestHistoryService {
 
     final avgDownload =
         history.map((e) => e.downloadSpeed).reduce((a, b) => a + b) /
-        history.length;
+            history.length;
     final avgUpload =
         history.map((e) => e.uploadSpeed).reduce((a, b) => a + b) /
-        history.length;
+            history.length;
     final avgPing =
         history.map((e) => e.ping).reduce((a, b) => a + b) ~/ history.length;
     final avgScore =
         history.map((e) => e.healthScore).reduce((a, b) => a + b) ~/
-        history.length;
-    final bestScore = history
-        .map((e) => e.healthScore)
-        .reduce((a, b) => a > b ? a : b);
-    final worstScore = history
-        .map((e) => e.healthScore)
-        .reduce((a, b) => a < b ? a : b);
+            history.length;
+    final bestScore =
+        history.map((e) => e.healthScore).reduce((a, b) => a > b ? a : b);
+    final worstScore =
+        history.map((e) => e.healthScore).reduce((a, b) => a < b ? a : b);
 
     return {
       'avgDownload': avgDownload,

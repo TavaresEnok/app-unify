@@ -1,6 +1,5 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
-import { Label } from '@/components/ui/label';
+import { useState, useEffect } from 'react';
+import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2, Image, Link } from 'lucide-react';
@@ -8,10 +7,7 @@ import { toast } from 'sonner';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function CarouselSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     // Estado local para a lista de URLs de imagens do carrossel
     const [localImages, setLocalImages] = useState<string[]>(config.imageCarousel || []);

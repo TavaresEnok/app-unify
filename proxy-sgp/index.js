@@ -326,16 +326,18 @@ function secureLog(prefix, payload) {
 
 // --- HELPER: credenciais SGP (NUNCA hardcodar tokens no repositório) ---
 async function ensureSgpCredentials(body) {
-    let sgpParams = { ...(body.sgpParams || {}) };
-    let sgpBaseUrl = body.sgpBaseUrl;
+    const sgpParams = {};
+    let sgpBaseUrl = '';
 
     if (!body.providerId && (body.cpfCnpj || body.cpf)) {
         try {
             const cpfCnpj = (body.cpfCnpj || body.cpf).replace(/[^0-9]/g, '');
-            const clienteDoc = await firestoreDb.collection('clientes').doc(cpfCnpj).get();
-            if (clienteDoc.exists) {
-                body.providerId = clienteDoc.data().providerId;
+            let clienteDoc = await firestoreDb.collection('clientes').doc(cpfCnpj).get();
+            if (!clienteDoc.exists) {
+                const matches = await firestoreDb.collection('clientes').where('cpfCnpj', '==', cpfCnpj).limit(1).get();
+                clienteDoc = matches.docs[0];
             }
+            if (clienteDoc?.exists) body.providerId = clienteDoc.data().providerId;
         } catch (error) {
             console.error("[SGP-API] Erro ao buscar providerId do cliente:", error.message);
         }
@@ -343,14 +345,21 @@ async function ensureSgpCredentials(body) {
 
     if (body.providerId) {
         try {
-            const secretDoc = await firestoreDb.collection('provedores').doc(body.providerId).collection('secrets').doc('sgp').get();
+            const providerRef = firestoreDb.collection('provedores').doc(body.providerId);
+            const [providerDoc, secretDoc] = await Promise.all([
+                providerRef.get(),
+                providerRef.collection('secrets').doc('sgp').get(),
+            ]);
             if (secretDoc.exists) {
                 const integrations = secretDoc.data().integrations;
                 if (integrations) {
-                    if (!sgpParams.token) sgpParams.token = integrations.apiToken;
-                    if (!sgpParams.app) sgpParams.app = integrations.appName;
+                    sgpParams.token = integrations.apiToken;
+                    sgpParams.app = integrations.appName;
+                    sgpBaseUrl = integrations.sgpBaseUrl || '';
                 }
             }
+            const provider = providerDoc.exists ? providerDoc.data() : {};
+            sgpBaseUrl = sgpBaseUrl || provider?.details?.systemUrl || provider?.sgpBaseUrl || '';
         } catch (error) {
             console.error("[SGP-API] Erro ao buscar secrets:", error.message);
         }

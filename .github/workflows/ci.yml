@@ -1,259 +1,64 @@
-name: CI — Build & Lint
+name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, "refactor/**"]
   pull_request:
-    branches: [main, develop]
 
 jobs:
-  # ─────────────────────────────────────────────────────────
-  # 1. Build do Painel Admin (React + Vite)
-  # ─────────────────────────────────────────────────────────
-  admin-panel-build:
-    name: Admin Panel — Build
+  web-and-backend:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            admin-painel/package-lock.json
+            functions/package-lock.json
+            api-service/package-lock.json
+            proxy-sgp/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm ci --prefix admin-painel
+      - run: npm ci --prefix functions
+      - run: npm ci --prefix api-service
+      - run: npm ci --prefix proxy-sgp
+      - run: npm run validate:web
+      - run: npx playwright install --with-deps chromium
         working-directory: admin-painel
+      - run: npm run test:e2e
+        working-directory: admin-painel
+      - run: npm run test:rules
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: admin-painel/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Create .env for build validation
-        run: |
-          cat > .env << 'EOF'
-          VITE_FIREBASE_API_KEY=ci-placeholder
-          VITE_FIREBASE_AUTH_DOMAIN=ci-placeholder.firebaseapp.com
-          VITE_FIREBASE_PROJECT_ID=ci-placeholder
-          VITE_FIREBASE_STORAGE_BUCKET=ci-placeholder.appspot.com
-          VITE_FIREBASE_MESSAGING_SENDER_ID=000000000000
-          VITE_FIREBASE_APP_ID=1:000000000000:web:ci-placeholder
-          VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
-          EOF
-
-      - name: TypeScript check
-        run: npx tsc --noEmit
-
-      - name: Build
-        run: npm run build
-
-  # ─────────────────────────────────────────────────────────
-  # 2. Build das Cloud Functions
-  # ─────────────────────────────────────────────────────────
-  functions-build:
-    name: Cloud Functions — Build
+  flutter:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: functions
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: functions/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Unit tests (Jest)
-        run: npm test
-
-      - name: Build (TypeScript → JS)
-        run: npm run build
-
-  # ─────────────────────────────────────────────────────────
-  # 3. Build do api-service
-  # ─────────────────────────────────────────────────────────
-  api-service-build:
-    name: API Service — Build
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: api-service
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: api-service/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build (TypeScript → JS)
-        run: npm run build
-
-  # ─────────────────────────────────────────────────────────
-  # 4. Verificação de Segredos Expostos
-  # ─────────────────────────────────────────────────────────
-  secrets-scan:
-    name: Secrets Scan
-    runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          submodules: recursive
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter pub get
+        working-directory: app-flutter/unified
+      - run: flutter pub get
+        working-directory: app-flutter/admin_app
+      - run: npm run validate:flutter
 
-      - name: Check for exposed service account keys
-        run: |
-          if find . -name "serviceAccountKey.json" -not -path "*/node_modules/*" | grep -q .; then
-            echo "❌ ERRO: serviceAccountKey.json encontrado no repositório! Remova imediatamente."
-            exit 1
-          fi
-          echo "✅ Nenhuma service account key encontrada."
-
-      - name: Check for hardcoded secrets patterns
-        run: |
-          FOUND=0
-          # Procura padrões de private_key do Google
-          if git grep -rn '"private_key"' -- '*.json' ':!node_modules' ':!*.lock' 2>/dev/null | grep -v '\.example' | grep -q .; then
-            echo "❌ ERRO: Possível private_key encontrada em arquivo JSON"
-            git grep -rn '"private_key"' -- '*.json' ':!node_modules'
-            FOUND=1
-          fi
-          if [ $FOUND -eq 1 ]; then exit 1; fi
-          echo "✅ Nenhum segredo óbvio detectado."
-
-  # ─────────────────────────────────────────────────────────
-  # 5. Guard rails de segurança de API
-  # ─────────────────────────────────────────────────────────
-  api-security-guard:
-    name: API Security Guard
+  docker-build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check for password fields in JSON responses
-        run: |
-          set -euo pipefail
-          FILES=(
-            "proxy-sgp/index.js"
-            "api-service/src/index.ts"
-            "functions/src/index.ts"
-          )
-
-          FOUND=0
-          for file in "${FILES[@]}"; do
-            if [ -f "$file" ]; then
-              if perl -0777 -ne 'if(/res\.(?:status\([^\)]*\)\s*\.)?json\s*\(\s*\{[\s\S]{0,1200}?\bsenha\s*:/m){exit 1}' "$file"; then
-                :
-              else
-                echo "❌ ERRO: Campo \"senha\" encontrado em resposta JSON em $file"
-                FOUND=1
-              fi
-            fi
-          done
-
-          if [ "$FOUND" -eq 1 ]; then
-            exit 1
-          fi
-          echo "✅ Nenhum campo \"senha\" encontrado em respostas JSON analisadas."
-
-      - name: Check for request body logging
-        run: |
-          set -euo pipefail
-          if grep -RInE 'console\.(log|error|warn)\([^\n]*req\.body' \
-            proxy-sgp api-service functions \
-            --exclude-dir=node_modules --exclude='*.d.ts' >/tmp/req_body_logs.txt; then
-            echo "❌ ERRO: Encontrado log direto de req.body em backend."
-            cat /tmp/req_body_logs.txt
-            exit 1
-          fi
-          echo "✅ Nenhum log direto de req.body encontrado."
-
-      - name: Check /check-cpf response contract (no password field)
-        run: |
-          set -euo pipefail
-          if perl -0777 -ne 'if(/app\.post\(\x27\/check-cpf\x27[\s\S]*?res\.status\(200\)\.json\(responseData\);/){ my $route=$&; if($route =~ /const\s+responseData\s*=\s*\{([\s\S]*?)\n\s*\};/){ my $obj=$1; if($obj =~ /\bsenha\s*:/m){ exit 1 } else { exit 0 } } else { exit 2 } } else { exit 2 }' proxy-sgp/index.js; then
-            echo "✅ Contrato /check-cpf sem campo senha na resposta principal."
-          else
-            code=$?
-            if [ "$code" -eq 2 ]; then
-              echo "❌ ERRO: Bloco da rota /check-cpf não encontrado para validação."
-            else
-              echo "❌ ERRO: Campo senha detectado no contrato de resposta de /check-cpf."
-            fi
-            exit 1
-          fi
-
-      - name: Check admin login safe error contract
-        run: |
-          set -euo pipefail
-          if grep -Fq "const errorMessage = isCredentialError" api-service/src/index.ts \
-            && grep -Fq "'Credenciais inválidas.'" api-service/src/index.ts \
-            && grep -Fq "'Falha na autenticação.'" api-service/src/index.ts \
-            && grep -Fq "res.status(401).json({ error: { message: errorMessage } });" api-service/src/index.ts; then
-            echo "✅ Contrato de erro do login admin está padronizado e seguro."
-          else
-            echo "❌ ERRO: Contrato de erro do login admin fora do padrão seguro esperado."
-            exit 1
-          fi
-
-      - name: Check standardized error contract (401/403/500)
-        run: |
-          set -euo pipefail
-          FILES=(
-            "api-service/src/index.ts"
-            "proxy-sgp/index.js"
-          )
-
-          for file in "${FILES[@]}"; do
-            if [ ! -f "$file" ]; then
-              continue
-            fi
-            if ! perl -0777 -ne 'my $bad=0; while(/res\.status\((401|403|500)\)\.json\(([\s\S]*?)\);/g){ my $status=$1; my $payload=$2; if($payload !~ /error\s*:\s*\{\s*message\s*:/s){ print "BAD status $status in $ARGV\n"; $bad=1; } } exit($bad?1:0);' "$file"; then
-              echo "❌ ERRO: Encontradas respostas 401/403/500 fora do contrato de erro padronizado em $file"
-              exit 1
-            fi
-          done
-
-          echo "✅ Contrato padronizado de erro (401/403/500) validado."
-
-      - name: Check critical route smoke coverage (login/invoices/tickets)
-        run: |
-          set -euo pipefail
-          CHECKS=(
-            "api-service/src/index.ts::app.post('/admin/auth/login'"
-            "api-service/src/index.ts::app.post('/getInvoices'"
-            "api-service/src/index.ts::app.get('/admin/tickets'"
-            "api-service/src/index.ts::app.get('/admin/tickets/:ticketId/messages'"
-            "api-service/src/index.ts::app.post('/admin/tickets/:ticketId/messages'"
-            "proxy-sgp/index.js::app.post('/check-cpf'"
-            "proxy-sgp/index.js::app.post('/get-invoices'"
-          )
-
-          for check in "${CHECKS[@]}"; do
-            file="${check%%::*}"
-            pattern="${check##*::}"
-            if ! grep -Fq "$pattern" "$file"; then
-              echo "❌ ERRO: Rota crítica não encontrada: $pattern em $file"
-              exit 1
-            fi
-          done
-
-          echo "✅ Smoke de rotas críticas (login/faturas/tickets) validado."
+        with:
+          submodules: recursive
+      - run: docker compose build frontend api-service backend-proxy

@@ -1,229 +1,144 @@
 # Contrato: Firestore Schema
 
-Inventario inicial criado em 2026-07-10.
+Atualizado em 2026-07-10 apos revisao de regras, Functions e app Flutter.
 
-Este documento registra collections usadas pelo painel, Functions e app. O schema ainda e parcialmente legacy e deve ser normalizado em fases.
+## `provedores/{providerId}`
 
-## Collections principais
+Documento publico usado para carregar tema, layout, app white-label e dados
+basicos do provedor.
 
-### `provedores/{providerId}`
+Campos principais:
 
-Usado por:
+- `name`, `active`, `createdAt`, `updatedAt`
+- `layoutType`, `diagnosticStyle`
+- cores: `themeColor`, `secondaryColor`, `backgroundColor`, `cardColor`,
+  `textColor`, `actionColor`, `invoiceColor`
+- assets: `logoUrl`, `iconUrl`, `backgroundUrl`
+- conteudo: `menuConfig`, `imageCarousel`, `dashboardConfig`, `promotions`,
+  `notifications`, `faq`, `tips`, `messages`, `strings`, `termsOfUse`
+- configuracao: `features`, `supportContacts`, `supportChannels`,
+  `social`, `socialNetworks`, `other`, `appVersion`
+- legado: `config`, `dashboard`
 
-- Painel admin.
-- App Flutter.
-- Functions.
+Regra importante: `integrations` e `config.integrations` nao devem ficar no
+documento publico. As regras bloqueiam escrita publica desses campos.
 
-Campos observados/relevantes:
+## `provedores/{providerId}/secrets/sgp`
 
-- `name`
-- `active`
-- `createdAt`
-- `updatedAt`
-- `logoUrl`
-- `details`
-- `config`
-- `themeColor`
-- `secondaryColor`
-- `textColor`
-- `invoiceColor`
-- `actionColor`
-- `cardColor`
-- `cardTextColor`
-- `layoutType`
-- `diagnosticStyle`
-- `features`
-- `menuConfig`
-- `socialNetworks`
-- `integrations` legado/publico em alguns fluxos
-- `strings`
-- `typography`
-- `imageCarousel`
-- `faq`
-- `messages`
-- `promotions`
-- `notifications`
-- `dashboardConfig`
+Documento sensivel restrito a superAdmin/admin do provedor.
 
-Risco:
+Campos:
 
-- Ha duplicacao entre campos na raiz e objeto `config`.
-- Algumas Functions fazem espelhamento para compatibilidade.
-- `SettingsContext` tenta remover `integrations` do documento publico e salvar em secret.
-
-### `provedores/{providerId}/secrets/sgp`
-
-Usado por:
-
-- `SettingsContext`
-- Integracoes SGP no painel.
-
-Campos observados:
-
-- `integrations`
 - `integrations.apiToken`
 - `integrations.appName`
+- `integrations.sgpBaseUrl`
 
-Regra:
+## `provedores/{providerId}/backups/{backupId}`
 
-- Deve ser tratado como sensivel.
-- Nao deve ser exposto no app cliente.
+Backups criados por Function.
 
-### `provedores/{providerId}/clientes`
+Campos:
 
-Usado por:
-
-- Functions SGP/cache.
-- Provider clients no painel.
-- App/servicos de cliente.
-
-Campos provaveis:
-
-- CPF/CNPJ ou identificador normalizado.
-- Dados retornados do SGP.
-- Contratos associados.
-- Dados cacheados de consulta.
-
-Pendente:
-
-- Definir schema minimo real apos amostragem segura em ambiente controlado.
-
-### `provedores/{providerId}/users`
-
-Usado por:
-
-- Functions de contagem/dashboard.
-- Possivel vinculo provider admin/cliente.
-
-Pendente:
-
-- Confirmar campos e consumidores ativos.
-
-### `provedores/{providerId}/diagnostic_results`
-
-Usado por:
-
-- `DiagnosticHistoryPage`
-- App Flutter `test_history_service.dart`
-
-Campos provaveis:
-
-- resultado de diagnostico
-- data
-- cliente
-- metricas de rede
-
-Pendente:
-
-- Documentar formato final antes de refatorar diagnosticos.
-
-### `tickets/{ticketId}`
-
-Usado por:
-
-- Painel admin.
-- Painel provedor.
-- App Flutter suporte.
-- API service.
-- Functions.
-
-Campos observados/provaveis:
-
-- `providerId`
-- `clientId`
-- `clientName`
-- `subject`
-- `status`
-- `priority`
-- `createdAt`
-- `updatedAt`
-- `lastMessage`
-
-Subcollection:
-
-- `tickets/{ticketId}/messages`
-
-### `tickets/{ticketId}/messages/{messageId}`
-
-Campos observados/provaveis:
-
-- `text`
-- `senderId`
-- `senderName`
-- `senderRole`
-- `createdAt`
-
-### `users/{userId}`
-
-Usado por:
-
-- Listagem de admins.
-- Dashboard.
-- Permissoes/claims complementares.
-
-Campos provaveis:
-
-- `email`
 - `name`
-- `role`
-- `providerId`
+- `providerData`
+- `secrets`
+- `createdBy`
 - `createdAt`
-- `active`
 
-### `clientes/{cpfCnpj}`
+## `provedores/{providerId}/migration_backups/{backupId}`
 
-Usado por:
+Backups tecnicos do script `scripts/migrations/migrate-provider-config.mjs`.
+Usado para rollback pontual de migracao de schema.
 
-- App Flutter auth repository.
-- Functions em fluxos de cliente.
+## `provedores/{providerId}/clientes/{clientId}`
 
-Risco:
+Cache de clientes sincronizados do SGP para operacao administrativa.
 
-- Existe tambem `provedores/{providerId}/clientes`; e necessario definir relacao e fonte canonica.
-
-### `notifications/{notificationId}`
-
-Usado por:
-
-- Functions de envio.
-- App Flutter notification service.
-- Dashboard.
-
-Campos provaveis:
+Campos principais:
 
 - `providerId`
-- `title`
+- `nome`
+- `cpfcnpj`/`cpfCnpj`
+- `status`
+- `plano`
+- `contratos` sanitizados
+- `updatedAt`
+
+## `clientes/{authUid}`
+
+Documento global do assinante autenticado no app.
+
+Campos permitidos pelo proprio cliente:
+
+- `authUid`
+- `cpfCnpj`
+- `providerId`
+- `fcmToken`
+- `nome`
+- `plano`
+- `status`
+- `lastUpdated`
+
+O ID canonico e o UID do Firebase Auth. Fluxos antigos por CPF sao tratados por
+fallback de consulta quando necessario.
+
+## `tickets/{ticketId}` e `tickets/{ticketId}/messages/{messageId}`
+
+Criados e alterados pelas Functions.
+
+Campos do ticket:
+
+- `subject`
+- `status`: `Aberto`, `Em Andamento`, `Fechado`
+- `providerId`, `providerName`
+- `userEmail`
+- `createdByUid`
+- `createdAt`, `updatedAt`
+
+Campos da mensagem:
+
 - `message`
-- `scope`
+- `senderUid`, `senderEmail`, `senderRole`
+- `imageUrl`
 - `createdAt`
-- `sentBy`
-- `target`
 
-### `function_requests/{requestId}`
+## `notifications/{notificationId}`
 
-Contrato documentado em `function-requests.md`.
+Criadas pelas Functions de envio de notificacao.
 
-### `function_responses/{requestId}`
+Campos:
 
-Contrato documentado em `function-requests.md`.
+- `providerId`
+- `title`, `body`
+- `category`
+- filtros/escopo
+- contadores `successCount`, `failureCount`
+- `sentBy`, `createdAt`
 
-## Regras de migracao recomendadas
+Leitura e escopada por superAdmin, admin do provedor ou cliente do provedor.
 
-1. Definir schema canonico de `ProviderConfig`.
-2. Manter leitura legacy na raiz e em `config`.
-3. Passar a escrever no formato canonico.
-4. Rodar script de preenchimento de campos ausentes.
-5. Apenas em fase futura remover duplicacao.
+## `function_requests` e `function_responses`
 
-## Campos sensiveis
+Contratos descritos em `docs/contracts/function-requests.md`.
 
-Nunca devem ficar em documento publico:
+## `users/{userId}`
 
-- tokens SGP
-- senhas
-- `authorization`
-- secrets
-- dados de service account
-- chaves privadas
+Metadados auxiliares de usuarios administrativos.
+Leitura restrita a superAdmin; escrita via Functions/Admin SDK.
 
-O sanitizador em Functions ja remove chaves sensiveis de contratos SGP; esta regra deve virar helper compartilhado.
+## `audit_logs/{auditId}`
+
+Trilha de auditoria de acoes criticas.
+Leitura restrita a superAdmin; escrita via Functions/API Admin SDK.
+
+## `maintenance_logs/{logId}`
+
+Logs de jobs agendados, como limpeza da fila.
+Leitura restrita a superAdmin.
+
+## Regras e indices
+
+- Regras: `firestore.rules`
+- Storage: `storage.rules`
+- Indices: `firestore.indexes.json`
+- Testes: `tests/firestore-rules.test.mjs`

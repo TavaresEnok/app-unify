@@ -19,10 +19,21 @@ service cloud.firestore {
       return isSuperAdmin() || isProviderAdmin(providerId);
     }
 
+    function isClientOfProvider(providerId) {
+      return signedIn() && (
+        request.auth.token.providerId == providerId ||
+        get(/databases/$(database)/documents/clientes/$(request.auth.uid)).data.providerId == providerId
+      );
+    }
+
     function isOwnFunctionRequest() {
       return signedIn() && (
-        request.resource.data.requesterUid == request.auth.uid ||
-        request.resource.data.payload.requesterUid == request.auth.uid
+        (request.resource.data.keys().hasAll(['requesterUid']) &&
+         request.resource.data.requesterUid == request.auth.uid) ||
+        (request.resource.data.keys().hasAll(['payload']) &&
+         request.resource.data.payload is map &&
+         request.resource.data.payload.keys().hasAll(['requesterUid']) &&
+         request.resource.data.payload.requesterUid == request.auth.uid)
       );
     }
 
@@ -42,19 +53,29 @@ service cloud.firestore {
     function clientSyncFieldsValid() {
       return request.resource.data.keys().hasOnly([
         'fcmToken',
+        'authUid',
+        'cpfCnpj',
         'providerId',
         'nome',
         'plano',
         'status',
         'lastUpdated'
-      ]) && request.resource.data.providerId is string;
+      ]) && request.resource.data.providerId is string &&
+      request.resource.data.authUid == request.auth.uid;
+    }
+
+    function publicProviderDataValid() {
+      return !request.resource.data.keys().hasAny(['integrations']) &&
+        (!request.resource.data.keys().hasAny(['config']) ||
+         !(request.resource.data.config is map) ||
+         !request.resource.data.config.keys().hasAny(['integrations']));
     }
 
     // Configurações do provedor — leitura pública necessária para o app carregar
     // tema/logo antes do login do assinante. Escrita restrita a admins.
     match /provedores/{providerId} {
       allow read: if true;
-      allow write: if canManageProvider(providerId);
+      allow write: if canManageProvider(providerId) && publicProviderDataValid();
     }
 
     match /provedores/{providerId}/backups/{backupId} {
@@ -63,7 +84,7 @@ service cloud.firestore {
 
     match /provedores/{providerId}/diagnostic_results/{resultId} {
       allow read, update, delete: if canManageProvider(providerId);
-      allow create: if signedIn();
+      allow create: if canManageProvider(providerId) || isClientOfProvider(providerId);
     }
 
     // Secrets do provedor — acesso RESTRITO apenas a admins do provedor
@@ -72,9 +93,8 @@ service cloud.firestore {
       allow read, write: if canManageProvider(providerId);
     }
 
-    // Wildcard para subcoleções genéricas do provedor
-    // NÃO cobre secrets pois a regra acima é mais específica
-    match /provedores/{providerId}/{document=**} {
+    // Wildcard para documentos em subcoleções genéricas do provedor.
+    match /provedores/{providerId}/{collection}/{document=**} {
       allow read, write: if canManageProvider(providerId);
     }
 
@@ -84,7 +104,7 @@ service cloud.firestore {
       allow write: if canManageProvider(providerId);
     }
 
-    match /providers/{providerId}/{document=**} {
+    match /providers/{providerId}/{collection}/{document=**} {
       allow read, write: if canManageProvider(providerId);
     }
 
@@ -132,12 +152,22 @@ service cloud.firestore {
 
     // Notificações — leitura por qualquer usuário autenticado; escrita apenas pelas Functions
     match /notifications/{notificationId} {
-      allow read: if signedIn();
+      allow read: if isSuperAdmin() || isProviderAdmin(resource.data.providerId) || isClientOfProvider(resource.data.providerId);
       allow write: if false;
     }
 
     // Usuários admin — leitura apenas por superAdmin; escrita pelas Functions
     match /users/{userId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    match /audit_logs/{auditId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    match /maintenance_logs/{logId} {
       allow read: if isSuperAdmin();
       allow write: if false;
     }

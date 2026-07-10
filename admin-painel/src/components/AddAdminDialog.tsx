@@ -6,10 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { PlusCircle, Loader2 } from "lucide-react";
-import { db } from "@/firebase/config";
-import { collection, onSnapshot, doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { useAuth } from "@/contexts/AuthContext";
 import { validatePassword, PASSWORD_STRENGTH_COLORS, PASSWORD_STRENGTH_LABELS } from "@/lib/passwordPolicy";
+import { subscribeProviders } from "@/features/providers/providerService";
+import { useApi } from "@/hooks/useApi";
 
 interface Provider { id: string; name: string; }
 
@@ -21,13 +20,12 @@ export default function AddAdminDialog({ onUpdate }: { onUpdate: () => void }) {
     const [providers, setProviders] = useState<Provider[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
-    const { user } = useAuth();
+    const { callFunction } = useApi();
 
     useEffect(() => {
         if (isOpen) {
-            const unsubscribe = onSnapshot(collection(db, 'provedores'), (snapshot) => {
-                const list = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name as string }));
-                setProviders(list);
+            const unsubscribe = subscribeProviders((items) => {
+                setProviders(items.map((provider) => ({ id: provider.id, name: provider.name })));
             });
             return () => unsubscribe();
         }
@@ -41,39 +39,22 @@ export default function AddAdminDialog({ onUpdate }: { onUpdate: () => void }) {
             toast.error(`Senha inválida: ${pwValidation.errors.join(', ')}`);
             return;
         }
-        if (!user) { toast.error("Utilizador principal não autenticado."); return; }
-
         setIsSaving(true);
         const toastId = toast.loading("Enviando pedido para criar utilizador...");
-        const requestId = doc(collection(db, 'function_requests')).id;
-        const responseDocRef = doc(db, 'function_responses', requestId);
-
-        const unsubscribe = onSnapshot(responseDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const response = docSnap.data();
-                if (response.result) {
-                    toast.success(response.result.message || "Utilizador criado com sucesso!", { id: toastId });
-                    onUpdate();
-                    setIsOpen(false);
-                    setEmail(''); setPassword(''); setRole(''); setProviderId('');
-                } else if (response.error) {
-                    toast.error(`Erro ao criar utilizador: ${response.error}`, { id: toastId });
-                }
-                unsubscribe();
-                setIsSaving(false);
-            }
-        });
-
         try {
-            await setDoc(doc(db, 'function_requests', requestId), {
-                type: 'CREATE_ADMIN_USER',
-                requesterUid: user.uid,
-                createdAt: serverTimestamp(),
-                payload: { email, password, role, providerId }
+            await callFunction('CREATE_ADMIN_USER', {
+                email,
+                password,
+                role: role as 'superAdmin' | 'providerAdmin',
+                ...(providerId ? { providerId } : {}),
             });
+            toast.success("Utilizador criado com sucesso!", { id: toastId });
+            onUpdate();
+            setIsOpen(false);
+            setEmail(''); setPassword(''); setRole(''); setProviderId('');
         } catch (error: any) {
             toast.error(`Erro ao solicitar criação: ${error.message}`, { id: toastId });
-            unsubscribe();
+        } finally {
             setIsSaving(false);
         }
     };

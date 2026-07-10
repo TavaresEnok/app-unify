@@ -41,12 +41,10 @@ class AuthRepository {
     final requestBody = {
       'cpf': cpf,
       'providerId': config.id,
-      'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
     };
 
     final url = '$apiUrl/check-cpf';
     debugPrint('DEBUG: Enviando login para $url');
-    debugPrint('DEBUG: Body: ${jsonEncode(requestBody)}');
 
     final response = await http
         .post(
@@ -66,7 +64,6 @@ class AuthRepository {
     );
 
     debugPrint('DEBUG: Status code: ${response.statusCode}');
-    debugPrint('DEBUG: Response body: ${response.body}');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -79,13 +76,8 @@ class AuthRepository {
       // with previous logic, we can have a method that does both or separates them.
       // Let's create a User object here.
 
-      if (data['customToken'] != null) {
-        try {
-          await FirebaseAuth.instance.signInWithCustomToken(data['customToken']);
-          debugPrint('DEBUG: Firebase Auth signInWithCustomToken sucesso!');
-        } catch (e) {
-          debugPrint('DEBUG: Erro ao logar no Firebase Auth: $e');
-        }
+      if (data['customToken'] is String && data['customToken'].isNotEmpty) {
+        await FirebaseAuth.instance.signInWithCustomToken(data['customToken']);
       }
 
       return Usuario(
@@ -134,12 +126,13 @@ class AuthRepository {
   Future<void> logout(Usuario? currentUser) async {
     try {
       if (currentUser != null) {
-        await FirebaseFirestore.instance
-            .collection('clientes')
-            .doc(currentUser.cpfCnpj)
-            .update({
-          'fcmToken': FieldValue.delete(),
-        });
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid != null) {
+          await FirebaseFirestore.instance
+              .collection('clientes')
+              .doc(authUid)
+              .update({'fcmToken': FieldValue.delete()});
+        }
       }
     } catch (e) {
       debugPrint('ℹ️  Aviso: Falha ao limpar o token FCM durante o logout: $e');
@@ -148,7 +141,8 @@ class AuthRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     await _secureStorage.delete(key: 'userSenha');
-    
+    await clearBiometryCredentials();
+
     try {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
@@ -159,18 +153,21 @@ class AuthRepository {
   Future<void> _saveDeviceToken(String cpfCnpj, String providerId) async {
     try {
       String? token = await FirebaseMessaging.instance.getToken();
+      final authUid = FirebaseAuth.instance.currentUser?.uid;
 
       // Load user data from storage to sync to Firestore
       final usuario = await loadUserFromStorage();
 
-      if (token != null && usuario != null) {
+      if (token != null && usuario != null && authUid != null) {
         // Sync full profile for segmented notifications
         await FirebaseFirestore.instance
             .collection('clientes')
-            .doc(cpfCnpj)
+            .doc(authUid)
             .set(
           {
             'fcmToken': token,
+            'authUid': authUid,
+            'cpfCnpj': cpfCnpj,
             'providerId': providerId,
             'nome': usuario.nome,
             'plano': usuario.plano,

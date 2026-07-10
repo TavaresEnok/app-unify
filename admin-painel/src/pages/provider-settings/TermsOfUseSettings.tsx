@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,7 @@ import { toast } from 'sonner';
 import RichTextEditor from '@/components/RichTextEditor';
 
 export default function TermsOfUseSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     const defaultTerms = "<p>Estes são os termos de uso padrão. Por favor, edite-os no painel.</p>";
 

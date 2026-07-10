@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, Timestamp } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { Timestamp } from 'firebase/firestore';
 import { Loader2, Activity, Trash2, Search, Download } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
@@ -20,6 +19,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { deleteDiagnostic, subscribeDiagnostics } from '@/features/diagnostics/diagnosticService';
 
 interface DiagnosticResult {
     id: string;
@@ -81,16 +81,7 @@ export default function DiagnosticHistoryPage() {
     useEffect(() => {
         if (!providerId) return;
 
-        const q = query(
-            collection(db, 'provedores', providerId, 'diagnostic_results'),
-            orderBy('createdAt', 'desc')
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as DiagnosticResult[];
+        const unsubscribe = subscribeDiagnostics<DiagnosticResult>(providerId, (data) => {
             setResults(data);
             setLoading(false);
         }, (error) => {
@@ -105,7 +96,7 @@ export default function DiagnosticHistoryPage() {
     const handleDelete = async (id: string) => {
         if (!providerId) return;
         try {
-            await deleteDoc(doc(db, 'provedores', providerId, 'diagnostic_results', id));
+            await deleteDiagnostic(providerId, id);
             toast.success('Registro excluído com sucesso');
         } catch (error) {
             console.error('Error deleting:', error);
