@@ -48,7 +48,7 @@ export default function MyCompanyPage() {
         setIsSaving(true);
         try {
             await callFunction('UPDATE_PROVIDER_DETAILS', { providerId, details: { ...details } });
-        } catch (error: any) {
+        } catch (error) {
             console.error("Falha ao salvar empresa", error);
         } finally {
             setIsSaving(false);

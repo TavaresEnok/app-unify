@@ -19,7 +19,12 @@ import {
 
 export type { ProviderConfig, LayoutType } from "@/shared/contracts";
 export type ProviderConfigLegacy = ProviderConfig;
-export type ProviderData = Record<string, any>;
+export interface ProviderData extends Record<string, unknown> {
+  id?: string;
+  name?: string;
+  logoUrl?: string;
+  details?: { appName?: string } & Record<string, unknown>;
+}
 
 interface SettingsContextType {
   config: ProviderConfig;
@@ -41,7 +46,7 @@ export function SettingsProvider({ children, providerId }: { children: ReactNode
 
   useEffect(() => {
     let active = true;
-    let unsubscribe = () => undefined;
+    let unsubscribe: () => void = () => {};
     setLoading(true);
 
     if (!providerId) {

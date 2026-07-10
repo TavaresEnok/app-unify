@@ -56,7 +56,7 @@ export default function ImagesIconsSettings() {
 
         // Atualiza o contexto global
         // CORRIGIDO: Tipagem do prev para resolver TS7006
-        setConfig((prev: any) => ({ ...prev, [key]: url }));
+        setConfig((prev) => ({ ...prev, [key]: url }));
         toast.success(`${imageFields.find(f => f.key === key)?.label} atualizada. Clique em 'Salvar Alterações' no topo.`);
     };
 

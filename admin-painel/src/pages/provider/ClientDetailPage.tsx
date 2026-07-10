@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, UserCircle, AlertTriangle, CreditCard, FileText, Router, Trash2 } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
+import { getErrorMessage } from '@/shared/errors';
 
 interface ClientData {
     id: string; // ID interno do SGP
@@ -65,8 +66,8 @@ export default function ClientDetailPage() {
                 } else {
                     toast.error("Cliente não encontrado no cache.");
                 }
-            } catch (error: any) {
-                toast.error(error.message || "Falha ao carregar detalhes do cliente do cache SGP.");
+            } catch (error) {
+                toast.error(getErrorMessage(error, "Falha ao carregar detalhes do cliente do cache SGP."));
             } finally {
                 setIsLoadingClient(false);
             }

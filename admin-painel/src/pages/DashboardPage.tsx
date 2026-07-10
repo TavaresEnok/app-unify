@@ -39,7 +39,7 @@ export default function DashboardPage() {
                 setStats(result.stats as typeof stats);
                 setChartData((result.chartData as ChartData[]) || []);
                 setRecentTickets((result.recentTickets as RecentTicket[]) || []);
-            } catch (error: any) {
+            } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
             } finally {
                 setLoading(false);

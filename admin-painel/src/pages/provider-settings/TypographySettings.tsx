@@ -1,5 +1,5 @@
 import { useCallback, memo } from 'react';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useSettings, type ProviderConfig } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -72,13 +72,17 @@ export default function TypographySettings() {
         fontWeight: 'medium',
     };
 
-    const updateTypography = useCallback((key: string, value: string) => {
-        setConfig((prev: any) => ({
+    const updateTypography = useCallback((key: keyof NonNullable<ProviderConfig['typography']>, value: string) => {
+        setConfig((prev) => ({
             ...prev,
             typography: {
+                fontFamily: 'Inter',
+                titleSize: 'medium',
+                bodySize: 'medium',
+                fontWeight: 'medium',
                 ...prev.typography,
                 [key]: value,
-            },
+            } as NonNullable<ProviderConfig['typography']>,
         }));
     }, [setConfig]);
 

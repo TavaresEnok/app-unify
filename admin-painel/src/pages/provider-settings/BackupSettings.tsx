@@ -9,6 +9,7 @@ import { SettingsContext } from '@/contexts/SettingsContext.tsx';
 import EmptyState from '@/components/EmptyState.tsx';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import { useApi } from '@/hooks/useApi';
+import { getErrorMessage } from '@/shared/errors';
 
 interface Backup {
     id: string;
@@ -29,8 +30,8 @@ export default function BackupSettings() {
         try {
             const result = await callFunction('LIST_PROVIDER_BACKUPS', { providerId });
             setBackups(result as unknown as Backup[]);
-        } catch (error: any) {
-            toast.error(`Erro ao listar backups: ${error.message}`);
+        } catch (error) {
+            toast.error(`Erro ao listar backups: ${getErrorMessage(error)}`);
             setBackups([]); // Limpa em caso de erro
         } finally {
             setIsLoading(false);
@@ -53,8 +54,8 @@ export default function BackupSettings() {
             await callFunction('BACKUP_PROVIDER_CONFIG', { providerId });
             toast.success("Backup criado com sucesso!", { id: toastId });
             fetchBackups();
-        } catch (error: any) {
-            toast.error(`Erro ao criar backup: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Erro ao criar backup: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsActioning(false);
         }
@@ -68,8 +69,8 @@ export default function BackupSettings() {
             await callFunction('RESTORE_PROVIDER_CONFIG', { providerId, backupId });
             toast.success("Configurações restauradas! A página será recarregada.", { id: toastId });
             setTimeout(() => window.location.reload(), 2000);
-        } catch (error: any) {
-            toast.error(`Erro ao restaurar: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Erro ao restaurar: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsActioning(false);
         }
@@ -83,8 +84,8 @@ export default function BackupSettings() {
             await callFunction('DELETE_PROVIDER_BACKUP', { providerId, backupId });
             toast.success("Backup apagado.", { id: toastId });
             fetchBackups(); // Recarrega a lista
-        } catch (error: any) {
-            toast.error(`Erro ao apagar: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Erro ao apagar: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsActioning(false);
         }

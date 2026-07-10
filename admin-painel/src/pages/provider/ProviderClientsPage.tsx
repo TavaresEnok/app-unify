@@ -85,7 +85,7 @@ export default function ProviderClientsPage() {
                 setClients((result.clientes || []) as unknown as SgpClient[]);
                 setTotalClients(result.paginacao?.total || 0);
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error("Falha na operação de clientes", error);
         } finally {
             setLoading(false);

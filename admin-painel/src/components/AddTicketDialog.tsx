@@ -10,6 +10,7 @@ import { PlusCircle, Loader2, Paperclip, XCircle } from "lucide-react";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { getErrorMessage } from "@/shared/errors";
 
 interface AddTicketDialogProps {
   providerName: string;
@@ -78,8 +79,8 @@ export default function AddTicketDialog({ providerName, onTicketCreated }: AddTi
             onTicketCreated();
             setIsOpen(false);
             resetState();
-        } catch (error: any) {
-            toast.error(`Falha crítica ao criar ticket: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Falha crítica ao criar ticket: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsSaving(false);
         }

@@ -9,6 +9,7 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { validatePassword, PASSWORD_STRENGTH_COLORS, PASSWORD_STRENGTH_LABELS } from "@/lib/passwordPolicy";
 import { subscribeProviders } from "@/features/providers/providerService";
 import { useApi } from "@/hooks/useApi";
+import { getErrorMessage } from "@/shared/errors";
 
 interface Provider { id: string; name: string; }
 
@@ -52,8 +53,8 @@ export default function AddAdminDialog({ onUpdate }: { onUpdate: () => void }) {
             onUpdate();
             setIsOpen(false);
             setEmail(''); setPassword(''); setRole(''); setProviderId('');
-        } catch (error: any) {
-            toast.error(`Erro ao solicitar criação: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Erro ao solicitar criação: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsSaving(false);
         }

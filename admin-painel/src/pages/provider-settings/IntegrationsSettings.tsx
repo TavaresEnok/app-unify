@@ -28,7 +28,7 @@ export default function IntegrationsSettings() {
             appName: localAppName.trim(),
         };
 
-        setConfig((prev: any) => ({
+        setConfig((prev) => ({
             ...prev,
             apiUrl: localApiUrl.trim(),
             integrations: newIntegrations,

@@ -46,7 +46,7 @@ export function callFunctionRequest<T extends FunctionRequestType>(
 
   return new Promise((resolve, reject) => {
     let settled = false;
-    let unsubscribe = () => undefined;
+    let unsubscribe: () => void = () => {};
 
     const finish = (callback: () => void) => {
       if (settled) return;

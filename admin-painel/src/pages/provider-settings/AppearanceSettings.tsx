@@ -1,5 +1,5 @@
 import { useCallback, useMemo, memo } from 'react';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useSettings, type ProviderConfig } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -284,7 +284,7 @@ export default function AppearanceSettings() {
     }, []);
 
     const handleColorChange = useCallback((id: string, val: string) => {
-        setConfig((previous: any) => {
+        setConfig((previous) => {
             const updated = { ...previous, [id]: val };
             return updateLayoutThemes(updated, previous.layoutType || 'layout_06', updated);
         });
@@ -366,7 +366,7 @@ export default function AppearanceSettings() {
     }), []);
 
     const handleLayoutChange = useCallback((newLayout: string) => {
-        setConfig((prev: any) => {
+        setConfig((prev) => {
             const nextConfig = updateLayoutThemes(prev, prev.layoutType || 'layout_01', prev);
             const layoutThemes = nextConfig.strings?.layoutThemes ? JSON.parse(nextConfig.strings.layoutThemes) : {};
             const savedTheme = layoutThemes[newLayout];
@@ -384,7 +384,7 @@ export default function AppearanceSettings() {
     const restoreLayoutDefaults = () => {
         const currentLayout = config.layoutType || 'layout_01';
         const defaults = layoutDefaults[currentLayout] || layoutDefaults.layout_01;
-        setConfig((prev: any) => updateLayoutThemes({ ...prev, ...defaults }, currentLayout, defaults));
+        setConfig((prev) => updateLayoutThemes({ ...prev, ...defaults }, currentLayout, defaults));
         toast.success('Cores padrão restauradas!');
     };
 
@@ -457,7 +457,7 @@ export default function AppearanceSettings() {
                                 <MonitorSmartphone className="h-4 w-4" />
                                 Estilo do diagnóstico
                             </Label>
-                            <Select value={config.diagnosticStyle || 'default'} onValueChange={(val) => setConfig((p: any) => ({ ...p, diagnosticStyle: val }))}>
+                            <Select value={config.diagnosticStyle || 'default'} onValueChange={(val) => setConfig((p) => ({ ...p, diagnosticStyle: val as ProviderConfig['diagnosticStyle'] }))}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Escolha o estilo do diagnóstico" />
                                 </SelectTrigger>
@@ -477,15 +477,15 @@ export default function AppearanceSettings() {
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="text-[12.5px] text-[#4A5364]">Cabeçalho com imagem</span>
-                                    <Switch checked={config.other?.useBackgroundImage || false} onCheckedChange={(checked) => setConfig((p: any) => ({ ...p, other: { ...(p.other || {}), useBackgroundImage: checked } }))} />
+                                    <Switch checked={config.other?.useBackgroundImage || false} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), useBackgroundImage: checked } }))} />
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="text-[12.5px] text-[#4A5364]">Mostrar serviço de TV</span>
-                                    <Switch checked={config.other?.showTvService ?? true} onCheckedChange={(checked) => setConfig((p: any) => ({ ...p, other: { ...(p.other || {}), showTvService: checked } }))} />
+                                    <Switch checked={config.other?.showTvService ?? true} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), showTvService: checked } }))} />
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="text-[12.5px] text-[#4A5364]">Mostrar serviço de Telefone</span>
-                                    <Switch checked={config.other?.showPhoneService ?? true} onCheckedChange={(checked) => setConfig((p: any) => ({ ...p, other: { ...(p.other || {}), showPhoneService: checked } }))} />
+                                    <Switch checked={config.other?.showPhoneService ?? true} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), showPhoneService: checked } }))} />
                                 </div>
                             </div>
                         </div>

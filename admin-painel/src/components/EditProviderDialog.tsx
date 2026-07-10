@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2, FilePenLine } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { getErrorMessage } from "@/shared/errors";
 
 interface Provider {
     id: string;
@@ -57,8 +58,8 @@ export default function EditProviderDialog({ provider, onUpdate }: EditProviderD
             toast.success("Provedor atualizado com sucesso!", { id: toastId });
             onUpdate();
             setIsOpen(false);
-        } catch (error: any) {
-            toast.error(`Falha ao solicitar a operação: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Falha ao solicitar a operação: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsSaving(false);
         }

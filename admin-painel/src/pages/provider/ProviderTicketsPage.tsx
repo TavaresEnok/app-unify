@@ -9,6 +9,7 @@ import EmptyState from '@/components/EmptyState';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { getErrorMessage } from '@/shared/errors';
 
 interface Ticket {
     id: string;
@@ -39,9 +40,9 @@ export default function ProviderTicketsPage() {
         try {
             const result = await callFunction('GET_PROVIDER_TICKETS', { providerId });
             setTickets(result as unknown as Ticket[]);
-        } catch (err: any) {
+        } catch (err) {
             console.error("Erro ao carregar tickets:", err);
-            setError(err.message || "Erro desconhecido");
+            setError(getErrorMessage(err, "Erro desconhecido"));
         } finally {
             setLoading(false);
         }

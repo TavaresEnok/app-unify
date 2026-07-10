@@ -20,8 +20,8 @@ for (const file of tracked) {
   if (forbidden.has(file)) failures.push(`${file}: arquivo legado proibido`);
   if (file.startsWith("functions/lib/")) failures.push(`${file}: artefato compilado versionado`);
   if (file.startsWith("lib/") && extname(file) === ".dart") failures.push(`${file}: Flutter duplicado na raiz`);
-  if (/\.(?:js|mjs|cjs|ts|tsx|dart|py|php)$/.test(file) && statSync(file).size > 80 * 1024) {
-    failures.push(`${file}: fonte maior que 80 KiB; modularize antes de ampliar`);
+  if (/\.(?:js|mjs|cjs|ts|tsx|dart|py|php)$/.test(file) && statSync(file).size > 65 * 1024) {
+    failures.push(`${file}: fonte maior que 65 KiB; modularize antes de ampliar`);
   }
   if (/\.(?:js|mjs|cjs|ts|tsx|dart|py|php|ya?ml)$/.test(file)) {
     const content = readFileSync(file, "utf8");

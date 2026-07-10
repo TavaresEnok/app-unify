@@ -8,7 +8,7 @@ import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/
 export default function PersonalizedTextsSettings() {
     const { config, setConfig } = useSettings();
     // Local state for the strings section
-    const [strings, setStrings] = useState<any>({});
+    const [strings, setStrings] = useState<Record<string, string | string[]>>({});
     const [ticketSubjects, setTicketSubjects] = useState<string[]>([]);
     const [newSubject, setNewSubject] = useState('');
     useEffect(() => {
@@ -21,7 +21,7 @@ export default function PersonalizedTextsSettings() {
         const updatedStrings = { ...strings, [key]: value };
         setStrings(updatedStrings);
         // Update global config immediately
-        setConfig((prev: any) => ({ ...prev, strings: updatedStrings }));
+        setConfig((prev) => ({ ...prev, strings: updatedStrings }));
     };
     const handleAddSubject = () => {
         if (!newSubject.trim()) return;
@@ -31,7 +31,7 @@ export default function PersonalizedTextsSettings() {
         
         const updatedStrings = { ...strings, ticket_subjects: updatedSubjects };
         setStrings(updatedStrings);
-        setConfig((prev: any) => ({ ...prev, strings: updatedStrings }));
+        setConfig((prev) => ({ ...prev, strings: updatedStrings }));
     };
     const handleRemoveSubject = (index: number) => {
         const updatedSubjects = ticketSubjects.filter((_, i) => i !== index);
@@ -39,7 +39,7 @@ export default function PersonalizedTextsSettings() {
         
         const updatedStrings = { ...strings, ticket_subjects: updatedSubjects };
         setStrings(updatedStrings);
-        setConfig((prev: any) => ({ ...prev, strings: updatedStrings }));
+        setConfig((prev) => ({ ...prev, strings: updatedStrings }));
     };
     return (
         <SettingsPage
@@ -53,7 +53,7 @@ export default function PersonalizedTextsSettings() {
                         <div className="space-y-2">
                             <Label>Saudação (Home)</Label>
                             <Input 
-                                value={strings.hello_prefix || ''} 
+                                value={typeof strings.hello_prefix === 'string' ? strings.hello_prefix : ''}
                                 onChange={(e) => handleStringChange('hello_prefix', e.target.value)}
                                 placeholder="Ex: Olá,"
                             />
@@ -61,7 +61,7 @@ export default function PersonalizedTextsSettings() {
                         <div className="space-y-2">
                             <Label>Prefixo do Plano</Label>
                             <Input 
-                                value={strings.plan_prefix || ''} 
+                                value={typeof strings.plan_prefix === 'string' ? strings.plan_prefix : ''}
                                 onChange={(e) => handleStringChange('plan_prefix', e.target.value)}
                                 placeholder="Ex: Seu plano é:"
                             />

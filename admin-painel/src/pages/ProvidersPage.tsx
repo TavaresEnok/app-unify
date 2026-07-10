@@ -96,7 +96,7 @@ export default function ProvidersPage() {
         
         try {
             await callFunction('DELETE_PROVIDER', { providerId: providerToDelete.id });
-        } catch (error: any) {
+        } catch (error) {
             console.error("Falha ao apagar provedor", error);
         }
     };

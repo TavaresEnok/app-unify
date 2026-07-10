@@ -11,13 +11,29 @@ import { functions } from '@/firebase/config';
 import { toast } from 'sonner';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import { publicDownloadUrl, runtimeConfig } from '@/shared/config/runtime';
+import { getErrorMessage } from '@/shared/errors';
+
+interface BuildResult {
+    success: boolean;
+    format?: 'apk' | 'aab';
+    error?: string;
+    downloadUrl?: string;
+    versionName?: string;
+    versionCode?: string | number;
+}
+
+interface UploadResult {
+    success: boolean;
+    url?: string;
+    error?: string;
+}
 
 // FINAL-FINAL FIX - RENAMED FILE
 export default function AndroidBuilderPage() {
     const { userRole, user } = useAuth();
     const settings = useSettings();
     const [loading, setLoading] = useState(false);
-    const [lastResult, setLastResult] = useState<any>(null);
+    const [lastResult, setLastResult] = useState<BuildResult | null>(null);
 
     // --- SAFETY CHECK (CRITICAL) ---
     // Handle undefined context or missing provider data gracefully
@@ -103,12 +119,12 @@ export default function AndroidBuilderPage() {
             toast.success(`${format.toUpperCase()} Gerado com Sucesso!`, {
                 description: "O arquivo está disponível na pasta pública do servidor."
             });
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
             toast.error(`Erro ao gerar ${format.toUpperCase()}`, {
-                description: error.message
+                description: getErrorMessage(error)
             });
-            setLastResult({ success: false, error: error.message });
+            setLastResult({ success: false, error: getErrorMessage(error) });
         } finally {
             setLoading(false);
         }
@@ -151,7 +167,7 @@ export default function AndroidBuilderPage() {
                                     value={settings.config?.details?.appName || settings.config?.name || ''}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        settings.setConfig((prev: any) => ({
+                                        settings.setConfig((prev) => ({
                                             ...prev,
                                             details: { ...(prev.details || {}), appName: val }
                                         }));
@@ -170,7 +186,7 @@ export default function AndroidBuilderPage() {
                                         value={settings.config?.details?.logoUrl || settings.config?.logoUrl || ''}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            settings.setConfig((prev: any) => ({
+                                            settings.setConfig((prev) => ({
                                                 ...prev,
                                                 details: { ...(prev.details || {}), logoUrl: val },
                                                 logoUrl: val // Sync root for backward compatibility
@@ -246,10 +262,10 @@ export default function AndroidBuilderPage() {
                                                             providerId
                                                         });
 
-                                                        const data = result.data as any;
+                                                        const data = result.data as UploadResult;
                                                         if (data.success) {
                                                             // Update State
-                                                            settings.setConfig((prev: any) => ({
+                                                            settings.setConfig((prev) => ({
                                                                 ...prev,
                                                                 logoUrl: data.url,
                                                                 details: { ...(prev.details || {}), logoUrl: data.url }
@@ -259,9 +275,9 @@ export default function AndroidBuilderPage() {
                                                         } else {
                                                             throw new Error(data.error || 'Upload falhou');
                                                         }
-                                                    } catch (error: any) {
+                                                    } catch (error) {
                                                         console.error("Upload error:", error);
-                                                        toast.error(`Erro: ${error.message || error.code || 'Falha desconhecida'}`, {
+                                                        toast.error(`Erro: ${getErrorMessage(error, 'Falha desconhecida')}`, {
                                                             id: toastId,
                                                             duration: 5000
                                                         });
@@ -271,9 +287,9 @@ export default function AndroidBuilderPage() {
                                                     toast.error("Erro ao ler arquivo", { id: toastId });
                                                 };
 
-                                            } catch (error: any) {
+                                            } catch (error) {
                                                 console.error("Resize error:", error);
-                                                toast.error(`Erro ao processar imagem: ${error.message}`, { id: toastId });
+                                                toast.error(`Erro ao processar imagem: ${getErrorMessage(error)}`, { id: toastId });
                                             }
                                         }}
                                     />
@@ -368,7 +384,7 @@ export default function AndroidBuilderPage() {
                                 </div>
                                 <div className="mt-3 flex gap-2">
                                     <a
-                                        href={publicDownloadUrl(lastResult.downloadUrl)}
+                                        href={publicDownloadUrl(lastResult.downloadUrl ?? '')}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"

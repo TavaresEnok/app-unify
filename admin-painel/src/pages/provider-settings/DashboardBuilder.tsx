@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Save, Eye, Trash2, BarChart3, Image as ImageIcon, Grid3x3, TrendingUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, Eye, Trash2, BarChart3, Image as ImageIcon, Grid3x3, TrendingUp, ChevronUp, ChevronDown, type LucideIcon } from 'lucide-react';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 type WidgetType = 'stats_card' | 'banner' | 'action_grid' | 'carousel' | 'chart' | 'announcements' | 'quick_pay' | 'speed_test' | 'usage_meter';
@@ -19,10 +19,10 @@ interface Widget {
   position: number;
   visible: boolean;
   title?: string;
-  config: any;
+  config: Record<string, unknown>;
 }
 
-const widgetIcons: Record<WidgetType, any> = {
+const widgetIcons: Record<WidgetType, LucideIcon> = {
   stats_card: BarChart3,
   banner: ImageIcon,
   action_grid: Grid3x3,
@@ -274,7 +274,7 @@ export default function DashboardBuilder() {
   );
 }
 
-function getDefaultConfig(type: WidgetType): any {
+function getDefaultConfig(type: WidgetType): Record<string, unknown> {
   switch (type) {
     case 'stats_card':
       return { showInvoice: true, showConnection: true, showPlan: true };

@@ -62,7 +62,7 @@ export default function TicketDetailPage() {
         try {
             await callFunction('REPLY_TO_TICKET', { ticketId, message: newMessage.trim() });
             setNewMessage('');
-        } catch (error: any) {
+        } catch (error) {
             console.error("Falha ao responder ticket", error);
         } finally {
             setIsSending(false);
@@ -75,7 +75,7 @@ export default function TicketDetailPage() {
 
         try {
             await callFunction('UPDATE_TICKET_STATUS', { ticketId, status: newStatus });
-        } catch (error: any) {
+        } catch (error) {
             console.error("Falha ao atualizar status", error);
         }
     }, [ticketId, user, ticket, callFunction]);

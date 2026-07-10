@@ -11,6 +11,7 @@ import { Bell, Plus, Send, Trash2, Users } from 'lucide-react';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { getErrorMessage } from '@/shared/errors';
 
 export default function NotificationsManager() {
   const { config, setConfig, saveConfig, isSaving, providerId } = useSettings();
@@ -65,8 +66,8 @@ export default function NotificationsManager() {
           route: notif.route || '',
       });
       toast.success(result.message, { id: toastId });
-    } catch (error: any) {
-      toast.error(`Erro: ${error.message}`, { id: toastId });
+    } catch (error) {
+      toast.error(`Erro: ${getErrorMessage(error)}`, { id: toastId });
     } finally {
       setIsSending(false);
     }

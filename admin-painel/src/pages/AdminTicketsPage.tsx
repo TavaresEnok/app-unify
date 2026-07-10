@@ -57,7 +57,7 @@ export default function AdminTicketsPage() {
         try {
             await callFunction('DELETE_TICKET', { ticketId });
             setTickets(prevTickets => prevTickets.filter(t => t.id !== ticketId));
-        } catch (error: any) {
+        } catch (error) {
             console.error("Falha ao apagar ticket", error);
         }
     };

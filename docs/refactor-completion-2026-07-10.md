@@ -8,6 +8,8 @@ Branch: `refactor/base-architecture`
 - Contratos compartilhados e sincronizados entre painel, Functions e API.
 - Painel admin com camada de request tipada, services por dominio,
   normalizadores de configuracao e design system base.
+- TypeScript `strict` ativo no painel; usos explicitos de `any` reduzidos de
+  90 para 42, mantendo compatibilidade nos contratos de configuracao legados.
 - Settings do provedor preservando todas as personalizacoes existentes, com
   secrets SGP fora do documento publico.
 - Firebase Functions modularizadas por dominio com router unico,
@@ -17,6 +19,8 @@ Branch: `refactor/base-architecture`
 - Proxy SGP mantido como adaptador/cache legado e documentado.
 - App Flutter canonico mantido em `app-flutter/unified`; copia divergente da
   raiz e submodulo recursivo removidos.
+- Paginas extensas dos diagnosticos 02, 03, 05, 06 e 07 divididas em arquivos
+  `part`, preservando escopo privado, rotas e comportamento.
 - Regras Firestore/Storage endurecidas e testadas no emulador.
 - CI com Node 22, Java 21, Flutter, testes web/backend, e2e e Docker build.
 - APK Builder isolado em `services/apk-builder`, com download de logo restrito,
@@ -28,7 +32,9 @@ Branch: `refactor/base-architecture`
 ## Validacoes finais
 
 - Web/admin: lint, unit tests, build e Playwright e2e passaram.
-- Functions: build e 46 testes passaram; cobertura minima bloqueia regressoes.
+- Functions: build e 54 testes passaram; cobertura global chegou a 40,10% de
+  linhas, 39,84% de statements, 34,09% de funcoes e 20,36% de branches.
+  Os respectivos pisos de cobertura bloqueiam regressoes.
 - API service: 7 testes e build passaram.
 - Proxy SGP: 6 testes, contratos, readiness e `node --check` passaram.
 - APK Builder: 2 testes de politica de URL e build Docker passaram.
@@ -37,6 +43,7 @@ Branch: `refactor/base-architecture`
 - Auditoria npm completa passou sem vulnerabilidades conhecidas.
 - O bundle web foi dividido por modulo Firebase; nenhum chunk excede o limite
   operacional configurado.
+- O limite arquitetural de arquivos-fonte foi reduzido de 80 para 65 KiB.
 - Scripts shell legados foram removidos; os tres utilitarios ativos ficam em
   `scripts/` e sao validados por `npm run quality:shell`.
 - `npm run contracts:check`, `npm run security:secrets` e `git diff --check`

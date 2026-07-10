@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { UserCog, Loader2 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { getErrorMessage } from "@/shared/errors";
 
 interface SetSuperAdminDialogProps {
   onUpdate: () => void;
@@ -31,8 +32,8 @@ export default function SetSuperAdminDialog({ onUpdate }: SetSuperAdminDialogPro
             onUpdate();
             setIsOpen(false);
             setEmail('');
-        } catch (error: any) {
-            toast.error(`Falha ao solicitar a operação: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Falha ao solicitar a operação: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsSaving(false);
         }

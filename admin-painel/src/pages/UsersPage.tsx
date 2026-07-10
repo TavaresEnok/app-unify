@@ -63,7 +63,7 @@ export default function UsersPage() {
         try {
             await callFunction('DELETE_ADMIN_USER', { uid: userToDelete.uid });
             await fetchUsers();
-        } catch (error: any) {
+        } catch (error) {
             console.error("Falha ao apagar utilizador", error);
         }
     };

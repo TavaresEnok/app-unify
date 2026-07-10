@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { getErrorMessage } from "@/shared/errors";
 
 export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }) {
     const [name, setName] = useState('');
@@ -26,8 +27,8 @@ export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }
             setIsOpen(false);
             setName('');
             setProviderId('');
-        } catch (error: any) {
-            toast.error(`Erro ao solicitar criação: ${error.message}`, { id: toastId });
+        } catch (error) {
+            toast.error(`Erro ao solicitar criação: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsSaving(false);
         }
