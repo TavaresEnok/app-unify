@@ -41,8 +41,8 @@ class _TicketDetailsPageState extends ConsumerState<TicketDetailsPage> {
       _replyController.clear();
 
       // Refresh messages and tickets list
-      ref.refresh(ticketMessagesProvider(widget.ticket.id));
-      ref.refresh(ticketsListProvider);
+      ref.invalidate(ticketMessagesProvider(widget.ticket.id));
+      ref.invalidate(ticketsListProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -70,7 +70,7 @@ class _TicketDetailsPageState extends ConsumerState<TicketDetailsPage> {
           .updateTicketStatus(widget.ticket.id, status);
 
       // Refresh ticket list to show new status
-      ref.refresh(ticketsListProvider);
+      ref.invalidate(ticketsListProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

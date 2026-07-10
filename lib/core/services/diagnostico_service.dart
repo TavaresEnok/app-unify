@@ -18,7 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_internet_speed_test/flutter_internet_speed_test.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:battery_plus/battery_plus.dart';
-import 'package:lan_scanner/lan_scanner.dart';
+import 'package:network_tools/network_tools.dart';
 import 'onu_wifi_service.dart';
 
 /// Abstração para permitir o mock de Ping em testes
@@ -50,6 +50,20 @@ class DefaultPingFactory implements PingFactory {
       );
 }
 
+abstract interface class LocalNetworkScanner {
+  Future<int> countActiveHosts(String subnet);
+}
+
+class NetworkToolsLocalScanner implements LocalNetworkScanner {
+  @override
+  Future<int> countActiveHosts(String subnet) async {
+    final hosts = await HostScannerService.instance
+        .getAllPingableDevices(subnet)
+        .toList();
+    return hosts.length;
+  }
+}
+
 class DiagnosticoService {
   final ProviderConfig providerConfig;
   final BuildContext? context;
@@ -65,7 +79,7 @@ class DiagnosticoService {
   final NetworkInfo _networkInfo;
   final Connectivity _connectivity;
   final Battery _battery;
-  final LanScanner _lanScanner;
+  final LocalNetworkScanner _lanScanner;
   final FlutterInternetSpeedTest internetSpeedTest;
   final DeviceInfoPlugin _deviceInfo;
   final PackageInfo? _packageInfo;
@@ -96,7 +110,7 @@ class DiagnosticoService {
     NetworkInfo? networkInfo,
     Connectivity? connectivity,
     Battery? battery,
-    LanScanner? lanScanner,
+    LocalNetworkScanner? lanScanner,
     FlutterInternetSpeedTest? speedTest,
     DeviceInfoPlugin? deviceInfo,
     PackageInfo? packageInfo,
@@ -105,7 +119,7 @@ class DiagnosticoService {
         _networkInfo = networkInfo ?? NetworkInfo(),
         _connectivity = connectivity ?? Connectivity(),
         _battery = battery ?? Battery(),
-        _lanScanner = lanScanner ?? LanScanner(),
+        _lanScanner = lanScanner ?? NetworkToolsLocalScanner(),
         internetSpeedTest = speedTest ?? FlutterInternetSpeedTest(),
         _deviceInfo = deviceInfo ?? DeviceInfoPlugin(),
         _packageInfo = packageInfo,
@@ -256,13 +270,13 @@ class DiagnosticoService {
         return;
       }
       final String subnet = ip.substring(0, ip.lastIndexOf('.'));
-      final List<Host> hosts = await _lanScanner.quickIcmpScanAsync(subnet);
+      final hostCount = await _lanScanner.countActiveHosts(subnet);
 
       if (!_currentState.isTesting) return;
       _updateTestState(
         'lanScan',
         TestStatus.success,
-        "Dispositivos encontrados: ${hosts.length}\n(Na sub-rede $subnet.x)",
+        "Dispositivos encontrados: $hostCount\n(Na sub-rede $subnet.x)",
       );
     } catch (e) {
       if (!_currentState.isTesting) return;

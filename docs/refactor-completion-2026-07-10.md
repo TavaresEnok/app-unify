@@ -27,9 +27,10 @@ Branch: `refactor/base-architecture`
 - API service: 7 testes e build passaram.
 - Proxy SGP: contrato e `node --check` passaram.
 - Firestore/Storage rules: 4 testes passaram no emulador.
-- Flutter root: analyze/test passaram com warnings nao fatais.
-- Flutter unified: analyze/test passaram com warnings nao fatais.
-- Flutter admin app: analyze/test passaram com warnings nao fatais.
+- Flutter root, unified e admin: analyze estrito sem issues e testes passaram.
+- Auditoria npm completa passou sem vulnerabilidades conhecidas.
+- O bundle web foi dividido por modulo Firebase; nenhum chunk excede o limite
+  operacional configurado.
 - `npm run contracts:check`, `npm run security:secrets` e `git diff --check`
   passaram.
 

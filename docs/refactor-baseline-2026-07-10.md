@@ -49,16 +49,15 @@ estruturais:
 - `npm test --prefix proxy-sgp`
 - `node --check proxy-sgp/index.js`
 - `npm run test:rules` com Java 21
-- `flutter analyze --no-fatal-infos --no-fatal-warnings && flutter test`
+- `flutter analyze --no-pub && flutter test --no-pub`
 - mesmas validacoes Flutter em `app-flutter/unified`
 - mesmas validacoes Flutter em `app-flutter/admin_app`
 
 ## Riscos residuais documentados
 
-- `flutter analyze` ainda mostra warnings/infos legados, mas sem falhar porque
-  o comando usa `--no-fatal-infos --no-fatal-warnings`.
-- `npm audit --omit=dev` ainda aponta avisos moderados de cadeia Firebase Admin
-  sem correcao sem downgrade/alteracao maior; nao ha critical/high restante nos
-  pacotes de producao apos as atualizacoes aplicadas.
+- Os analisadores Flutter rodam em modo estrito e nao reportam issues.
+- `npm run security:audit` retorna zero vulnerabilidades nos pacotes Node.
+- O scanner LAN descontinuado foi substituido por `network_tools` com adaptador
+  testavel, preservando a contagem de dispositivos na rede local.
 - O deploy de Firebase Functions/regras deve seguir `docs/deploy-rollback.md`,
   pois substitui gatilhos antigos por `handleFunctionRequest`.

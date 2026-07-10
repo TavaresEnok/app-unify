@@ -198,7 +198,9 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         _ratingPromptShown = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Future.delayed(const Duration(seconds: 3), () {
-            if (mounted) RatingPromptDialog.showIfNeeded(context);
+            final currentContext = navigatorKey.currentContext;
+            if (currentContext == null || !currentContext.mounted) return;
+            RatingPromptDialog.showIfNeeded(currentContext);
           });
         });
       }

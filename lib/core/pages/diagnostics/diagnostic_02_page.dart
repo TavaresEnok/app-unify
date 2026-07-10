@@ -28,12 +28,6 @@ import '../../widgets/diagnostics/waiting_box.dart';
 import '../../widgets/diagnostics/welcome_screen.dart';
 import '../../models/diagnostic_enums.dart';
 
-// UX Enhancements - Sprint 1-3
-import '../../models/test_mode.dart';
-import '../../models/network_health_score.dart';
-import '../../services/diagnostic_integration_helper.dart';
-import '../../services/achievement_service.dart';
-
 // ═══════════════════════════════════════════════════════════════════════════
 // MODELS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -756,7 +750,8 @@ class DiagnosticScreen extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 wifiError,
-                                style: const TextStyle(color: DiagnosticTheme.red),
+                                style:
+                                    const TextStyle(color: DiagnosticTheme.red),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 16),
@@ -1105,11 +1100,13 @@ class DiagnosticScreen extends StatelessWidget {
                 details: [
                   (
                     'Google',
-                    (DiagnosticUtils.parseResultLine(googleResult, 'Latência:')),
+                    (DiagnosticUtils.parseResultLine(
+                        googleResult, 'Latência:')),
                   ),
                   (
                     'Cloudflare',
-                    (DiagnosticUtils.parseResultLine(cloudflareResult, 'Latência:')),
+                    (DiagnosticUtils.parseResultLine(
+                        cloudflareResult, 'Latência:')),
                   ),
                 ],
                 isLast: true,
@@ -1568,7 +1565,9 @@ class DiagnosticScreen extends StatelessWidget {
     final rxValue = double.tryParse(rxPower) ?? 0;
     if (rxValue < -25) {
       rxColor = DiagnosticTheme.red;
-    } else if (rxValue < -20) rxColor = DiagnosticTheme.orange;
+    } else if (rxValue < -20) {
+      rxColor = DiagnosticTheme.orange;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1657,7 +1656,8 @@ class DiagnosticScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
+            style:
+                const TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
           ),
           const SizedBox(height: 4),
           Text(

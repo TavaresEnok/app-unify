@@ -37,6 +37,7 @@ Payloads sao redigidos para chaves sensiveis como `password`, `senha`, `token`,
 ## Validacoes
 
 - `npm run security:secrets` faz varredura basica de secrets versionados.
-- `npm audit --omit=dev` foi usado para reduzir advisories de producao.
-- Residuo conhecido: advisories moderados em cadeia Firebase Admin sem correcao
-  segura via upgrade menor ate esta data.
+- `npm run security:audit` valida dependencias de producao e desenvolvimento em
+  todos os pacotes Node.
+- Overrides transitivos corrigem as cadeias `uuid`, `ts-deepmerge` e
+  `@opentelemetry/core`; a auditoria atual retorna zero vulnerabilidades.

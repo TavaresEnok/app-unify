@@ -428,9 +428,11 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
     int bars = 4;
     if (rssi < -70) {
       bars = 1;
-    } else if (rssi < -60)
+    } else if (rssi < -60) {
       bars = 2;
-    else if (rssi < -50) bars = 3;
+    } else if (rssi < -50) {
+      bars = 3;
+    }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -483,7 +485,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                 border: Border.all(color: meta.color.withValues(alpha: 0.5)),
                 boxShadow: [
                   BoxShadow(
-                      color: meta.color.withValues(alpha: 0.3 + _pulse.value * 0.2),
+                      color: meta.color
+                          .withValues(alpha: 0.3 + _pulse.value * 0.2),
                       blurRadius: 16,
                       spreadRadius: 2)
                 ],
@@ -531,8 +534,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
               decoration: BoxDecoration(
                 color: const Color(0xFF00FF88).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
-                border:
-                    Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.4)),
+                border: Border.all(
+                    color: const Color(0xFF00FF88).withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
@@ -602,7 +605,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                         ]),
                         boxShadow: [
                           BoxShadow(
-                              color: stepMeta[_step]!.color.withValues(alpha: 0.6),
+                              color:
+                                  stepMeta[_step]!.color.withValues(alpha: 0.6),
                               blurRadius: 8)
                         ],
                       ),
@@ -651,8 +655,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                             color: done
                                 ? meta.color.withValues(alpha: 0.15)
                                 : active
-                                    ? meta.color
-                                        .withValues(alpha: 0.1 + _pulse.value * 0.1)
+                                    ? meta.color.withValues(
+                                        alpha: 0.1 + _pulse.value * 0.1)
                                     : Colors.white.withValues(alpha: 0.02),
                             border: Border.all(
                                 color: done || active
@@ -662,8 +666,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                             boxShadow: active
                                 ? [
                                     BoxShadow(
-                                        color: meta.color.withOpacity(
-                                            0.4 + _pulse.value * 0.2),
+                                        color: meta.color.withValues(
+                                            alpha: 0.4 + _pulse.value * 0.2),
                                         blurRadius: 12)
                                   ]
                                 : null,
@@ -699,7 +703,9 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
                           color: _step.index > s.index
-                              ? stepMeta[steps[i + 1]]!.color.withValues(alpha: 0.4)
+                              ? stepMeta[steps[i + 1]]!
+                                  .color
+                                  .withValues(alpha: 0.4)
                               : Colors.white.withValues(alpha: 0.05))),
               ],
             ),
@@ -722,7 +728,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(colors: [
-                const Color(0xFF00F5FF).withValues(alpha: 0.15 + _pulse.value * 0.1),
+                const Color(0xFF00F5FF)
+                    .withValues(alpha: 0.15 + _pulse.value * 0.1),
                 Colors.transparent
               ]),
               boxShadow: [
@@ -751,7 +758,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                       const Color(0xFFFF00E5).withValues(alpha: 0.2)
                     ]),
                 border: Border.all(
-                    color: const Color(0xFF00F5FF).withValues(alpha: 0.5), width: 2),
+                    color: const Color(0xFF00F5FF).withValues(alpha: 0.5),
+                    width: 2),
                 boxShadow: [
                   BoxShadow(
                       color: const Color(0xFF00F5FF).withValues(alpha: 0.3),
@@ -884,15 +892,21 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
           _SpeedPill(_speed!.down.toStringAsFixed(0), "Download", "Mb/s",
               const Color(0xFF00F5FF)),
           Container(
-              width: 1, height: 40, color: Colors.white.withValues(alpha: 0.05)),
+              width: 1,
+              height: 40,
+              color: Colors.white.withValues(alpha: 0.05)),
           _SpeedPill(_speed!.up.toStringAsFixed(0), "Upload", "Mb/s",
               const Color(0xFFFF00E5)),
           Container(
-              width: 1, height: 40, color: Colors.white.withValues(alpha: 0.05)),
+              width: 1,
+              height: 40,
+              color: Colors.white.withValues(alpha: 0.05)),
           _SpeedPill(_speed!.ping.toStringAsFixed(0), "Ping", "ms",
               const Color(0xFF10B981)),
           Container(
-              width: 1, height: 40, color: Colors.white.withValues(alpha: 0.05)),
+              width: 1,
+              height: 40,
+              color: Colors.white.withValues(alpha: 0.05)),
           _SpeedPill(_speed!.jitter.toStringAsFixed(1), "Jitter", "ms",
               const Color(0xFFF59E0B)),
         ],
@@ -1006,7 +1020,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                               fontSize: 13))),
                   Text(d.ip,
                       style: GoogleFonts.outfit(
-                          color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 11)),
                 ]),
               )),
         ]),
@@ -1021,7 +1036,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
       decoration: BoxDecoration(
           color: const Color(0xFF0A0A12),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2))),
+          border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.2))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Icon(Icons.terminal, color: Color(0xFFF59E0B), size: 16),
