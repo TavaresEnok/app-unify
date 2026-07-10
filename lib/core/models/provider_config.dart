@@ -73,8 +73,6 @@ class ProviderConfig {
     } else {
       // FALLBACK DE EMERGÊNCIA - Configure apiUrl no Firebase!
       effectiveApiUrl = 'http://168.194.13.18:8034';
-      // ignore: avoid_print
-      print('⚠️ AVISO: apiUrl não configurada no Firebase! Usando fallback.');
     }
 
     final integrationsMap = (json['integrations'] ??

@@ -124,7 +124,6 @@ class AchievementService {
 
   Future<List<Achievement>> getAllAchievements() async {
     final unlocked = await getUnlockedAchievements();
-    final unlockedTypes = unlocked.map((a) => a.type).toSet();
 
     return AchievementType.values.map((type) {
       final existing = unlocked.firstWhere(

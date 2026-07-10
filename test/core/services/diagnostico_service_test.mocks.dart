@@ -8,7 +8,7 @@ import 'dart:convert' as _i6;
 import 'dart:typed_data' as _i8;
 
 import 'package:app_provedor_unified/core/services/diagnostico_service.dart'
-    as _i18;
+    as _i14;
 import 'package:app_provedor_unified/core/services/onu_wifi_service.dart'
     as _i3;
 import 'package:battery_plus/battery_plus.dart' as _i9;
@@ -25,7 +25,6 @@ import 'package:flutter_internet_speed_test/src/flutter_internet_speed_test.dart
 import 'package:flutter_internet_speed_test/src/flutter_internet_speed_test_platform_interface.dart'
     as _i17;
 import 'package:http/http.dart' as _i2;
-import 'package:lan_scanner/lan_scanner.dart' as _i14;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i7;
 import 'package:network_info_plus/network_info_plus.dart' as _i11;
@@ -476,98 +475,23 @@ class MockConnectivity extends _i1.Mock implements _i12.Connectivity {
       ) as _i5.Future<_i13.ConnectivityResult>);
 }
 
-/// A class which mocks [LanScanner].
+/// A class which mocks [LocalNetworkScanner].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockLanScanner extends _i1.Mock implements _i14.LanScanner {
-  MockLanScanner() {
+class MockLocalNetworkScanner extends _i1.Mock
+    implements _i14.LocalNetworkScanner {
+  MockLocalNetworkScanner() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  bool get debugLogging => (super.noSuchMethod(
-        Invocation.getter(#debugLogging),
-        returnValue: false,
-      ) as bool);
-
-  @override
-  bool get isScanInProgress => (super.noSuchMethod(
-        Invocation.getter(#isScanInProgress),
-        returnValue: false,
-      ) as bool);
-
-  @override
-  set debugLogging(bool? value) => super.noSuchMethod(
-        Invocation.setter(
-          #debugLogging,
-          value,
-        ),
-        returnValueForMissingStub: null,
-      );
-
-  @override
-  _i5.Stream<_i14.Host> icmpScan(
-    String? subnet, {
-    int? firstIP = 1,
-    int? lastIP = 255,
-    int? scanThreads = 10,
-    Duration? timeout = const Duration(seconds: 1),
-    _i14.ProgressCallback? progressCallback,
-  }) =>
-      (super.noSuchMethod(
+  _i5.Future<int> countActiveHosts(String? subnet) => (super.noSuchMethod(
         Invocation.method(
-          #icmpScan,
+          #countActiveHosts,
           [subnet],
-          {
-            #firstIP: firstIP,
-            #lastIP: lastIP,
-            #scanThreads: scanThreads,
-            #timeout: timeout,
-            #progressCallback: progressCallback,
-          },
         ),
-        returnValue: _i5.Stream<_i14.Host>.empty(),
-      ) as _i5.Stream<_i14.Host>);
-
-  @override
-  _i5.Future<List<_i14.Host>> quickIcmpScanSync(
-    String? subnet, {
-    int? firstIP = 1,
-    int? lastIP = 255,
-    Duration? timeout = const Duration(seconds: 1),
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #quickIcmpScanSync,
-          [subnet],
-          {
-            #firstIP: firstIP,
-            #lastIP: lastIP,
-            #timeout: timeout,
-          },
-        ),
-        returnValue: _i5.Future<List<_i14.Host>>.value(<_i14.Host>[]),
-      ) as _i5.Future<List<_i14.Host>>);
-
-  @override
-  _i5.Future<List<_i14.Host>> quickIcmpScanAsync(
-    String? subnet, {
-    int? firstIP = 1,
-    int? lastIP = 255,
-    Duration? timeout = const Duration(seconds: 1),
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #quickIcmpScanAsync,
-          [subnet],
-          {
-            #firstIP: firstIP,
-            #lastIP: lastIP,
-            #timeout: timeout,
-          },
-        ),
-        returnValue: _i5.Future<List<_i14.Host>>.value(<_i14.Host>[]),
-      ) as _i5.Future<List<_i14.Host>>);
+        returnValue: _i5.Future<int>.value(0),
+      ) as _i5.Future<int>);
 }
 
 /// A class which mocks [FlutterInternetSpeedTest].
@@ -603,7 +527,7 @@ class MockFlutterInternetSpeedTest extends _i1.Mock
     _i15.TestProgressCallback? onProgress,
     _i16.DefaultCallback? onDefaultServerSelectionInProgress,
     _i16.DefaultServerSelectionCallback? onDefaultServerSelectionDone,
-    _i17.ErrorCallback? onError,
+    _i15.ErrorCallback? onError,
     _i17.CancelCallback? onCancel,
     String? downloadTestServer,
     String? uploadTestServer,
@@ -752,7 +676,7 @@ class MockOnuWifiService extends _i1.Mock implements _i3.OnuWifiService {
 /// A class which mocks [PingFactory].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPingFactory extends _i1.Mock implements _i18.PingFactory {
+class MockPingFactory extends _i1.Mock implements _i14.PingFactory {
   MockPingFactory() {
     _i1.throwOnMissingStub(this);
   }

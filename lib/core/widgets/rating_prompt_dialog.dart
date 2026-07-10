@@ -36,19 +36,18 @@ class RatingPromptDialog extends StatefulWidget {
 
   /// Mostra o dialog se necessário
   static Future<void> showIfNeeded(BuildContext context) async {
-    if (await shouldShow()) {
-      if (context.mounted) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt(
-            'rating_last_shown', DateTime.now().millisecondsSinceEpoch);
+    if (!await shouldShow() || !context.mounted) return;
 
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => const RatingPromptDialog(),
-        );
-      }
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+        'rating_last_shown', DateTime.now().millisecondsSinceEpoch);
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const RatingPromptDialog(),
+    );
   }
 
   @override

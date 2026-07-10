@@ -73,7 +73,8 @@ void main() async {
   // Essencial para diagnóstico de crashes em release mode
   ErrorWidget.builder = (FlutterErrorDetails details) {
     final message = details.exception.toString();
-    final shortMsg = message.length > 200 ? '${message.substring(0, 200)}...' : message;
+    final shortMsg =
+        message.length > 200 ? '${message.substring(0, 200)}...' : message;
     return Material(
       color: const Color(0xFF1A1A2E),
       child: SafeArea(
@@ -86,7 +87,10 @@ void main() async {
               const SizedBox(height: 12),
               const Text(
                 'Erro interno',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
@@ -247,10 +251,8 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Future.delayed(const Duration(seconds: 3), () {
           final currentContext = navigatorKey.currentContext;
-          if (mounted && currentContext != null) {
-            // ignore: use_build_context_synchronously
-            RatingPromptDialog.showIfNeeded(currentContext);
-          }
+          if (currentContext == null || !currentContext.mounted) return;
+          RatingPromptDialog.showIfNeeded(currentContext);
         });
       });
       return const PainelPage();

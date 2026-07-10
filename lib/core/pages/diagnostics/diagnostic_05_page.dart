@@ -53,31 +53,6 @@ class AppColors {
 
 enum DiagStep { ready, wifi, fiber, devices, speed, route, done }
 
-// DiagnosticApp removido — usar Diagnostic05Page diretamente no LayoutSelector.
-class _DiagnosticApp extends StatelessWidget {
-  const _DiagnosticApp();
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Diagnostic Light',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: AppColors.bg,
-        primaryColor: AppColors.primary,
-        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      home: const Diagnostic05Page(),
-    );
-  }
-}
-
 class Diagnostic05Page extends ConsumerStatefulWidget {
   const Diagnostic05Page({super.key});
 
@@ -1806,13 +1781,11 @@ class _InfoRow extends StatelessWidget {
   final IconData? icon;
   final String label;
   final String value;
-  final Color? valueColor;
   final bool isBold;
   const _InfoRow(
       {this.icon,
       required this.label,
       required this.value,
-      this.valueColor,
       this.isBold = false});
 
   @override
@@ -1833,7 +1806,7 @@ class _InfoRow extends StatelessWidget {
               style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-                  color: valueColor ?? AppColors.textPrimary)),
+                  color: AppColors.textPrimary)),
         ],
       ),
     );

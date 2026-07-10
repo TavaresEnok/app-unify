@@ -7,7 +7,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:battery_plus/battery_plus.dart';
-import 'package:lan_scanner/lan_scanner.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_internet_speed_test/flutter_internet_speed_test.dart';
 import 'package:app_provedor_unified/core/services/diagnostico_service.dart';
@@ -23,7 +22,7 @@ import 'diagnostico_service_test.mocks.dart';
   Battery,
   NetworkInfo,
   Connectivity,
-  LanScanner,
+  LocalNetworkScanner,
   FlutterInternetSpeedTest,
   OnuWifiService,
   PingFactory,
@@ -34,7 +33,7 @@ void main() {
   late MockBattery mockBattery;
   late MockNetworkInfo mockNetworkInfo;
   late MockConnectivity mockConnectivity;
-  late MockLanScanner mockLanScanner;
+  late MockLocalNetworkScanner mockLanScanner;
   late MockFlutterInternetSpeedTest mockSpeedTest;
   late MockOnuWifiService mockOnuService;
   late MockPingFactory mockPingFactory;
@@ -68,7 +67,7 @@ void main() {
     mockBattery = MockBattery();
     mockNetworkInfo = MockNetworkInfo();
     mockConnectivity = MockConnectivity();
-    mockLanScanner = MockLanScanner();
+    mockLanScanner = MockLocalNetworkScanner();
     mockSpeedTest = MockFlutterInternetSpeedTest();
     mockOnuService = MockOnuWifiService();
     mockPingFactory = MockPingFactory();
@@ -131,6 +130,20 @@ void main() {
           contains('Conexão: WiFi'));
       expect(service.currentState.testResultsDisplay['deviceInfo']?['result'],
           contains('v1.0.0'));
+    });
+
+    test('runLanScanTest reports devices found by the scanner', () async {
+      when(mockNetworkInfo.getWifiIP()).thenAnswer((_) async => '192.168.1.25');
+      when(mockLanScanner.countActiveHosts('192.168.1'))
+          .thenAnswer((_) async => 3);
+
+      service.setTestingState(true);
+      await service.runLanScanTest();
+
+      expect(service.currentState.testResultsDisplay['lanScan']?['status'],
+          TestStatus.success);
+      expect(service.currentState.testResultsDisplay['lanScan']?['result'],
+          contains('Dispositivos encontrados: 3'));
     });
 
     test('runPingTest handles success and calculates jitter', () async {

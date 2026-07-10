@@ -18,9 +18,7 @@ class PdfGeneratorService {
   static const _green = PdfColor.fromInt(0xFF16A34A);
   static const _greenLight = PdfColor.fromInt(0xFFDCFCE7);
   static const _yellow = PdfColor.fromInt(0xFFD97706);
-  static const _yellowLight = PdfColor.fromInt(0xFFFEF9C3);
   static const _red = PdfColor.fromInt(0xFFDC2626);
-  static const _redLight = PdfColor.fromInt(0xFFFEE2E2);
   static const _grey = PdfColor.fromInt(0xFF64748B);
   static const _greyLight = PdfColor.fromInt(0xFFF1F5F9);
   static const _greyBorder = PdfColor.fromInt(0xFFE2E8F0);
@@ -62,9 +60,6 @@ class PdfGeneratorService {
     if (s.contains('running')) return _yellow;
     return _grey;
   }
-
-  bool _isOk(Map<String, dynamic>? data) =>
-      data?['status']?.toString().contains('success') == true;
 
   String _statusLabel(Map<String, dynamic>? data) {
     final s = data?['status']?.toString() ?? '';
@@ -172,21 +167,17 @@ class PdfGeneratorService {
             pw.SizedBox(height: 3),
             pw.Text('Emitido em $dateStr',
                 style: const pw.TextStyle(
-                    fontSize: 9,
-                    color: PdfColor.fromInt(0xFFBAE6FD))),
+                    fontSize: 9, color: PdfColor.fromInt(0xFFBAE6FD))),
           ]),
           pw.Container(
-            padding:
-                const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: const pw.BoxDecoration(
               color: _white,
               borderRadius: pw.BorderRadius.all(pw.Radius.circular(20)),
             ),
             child: pw.Text('DIAGNÓSTICO',
                 style: pw.TextStyle(
-                    fontSize: 9,
-                    fontWeight: pw.FontWeight.bold,
-                    color: _blue)),
+                    fontSize: 9, fontWeight: pw.FontWeight.bold, color: _blue)),
           ),
         ],
       ),
@@ -226,9 +217,7 @@ class PdfGeneratorService {
           pw.Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: items
-                .map((item) => _badge(item.$1, item.$2))
-                .toList(),
+            children: items.map((item) => _badge(item.$1, item.$2)).toList(),
           ),
         ],
       ),
@@ -249,17 +238,13 @@ class PdfGeneratorService {
         pw.Container(
             width: 7,
             height: 7,
-            decoration: pw.BoxDecoration(
-                color: color,
-                shape: pw.BoxShape.circle)),
+            decoration:
+                pw.BoxDecoration(color: color, shape: pw.BoxShape.circle)),
         pw.SizedBox(width: 5),
         pw.Text('$label  ',
             style: pw.TextStyle(
-                fontSize: 9,
-                fontWeight: pw.FontWeight.bold,
-                color: _dark)),
-        pw.Text(lbl,
-            style: pw.TextStyle(fontSize: 8, color: color)),
+                fontSize: 9, fontWeight: pw.FontWeight.bold, color: _dark)),
+        pw.Text(lbl, style: pw.TextStyle(fontSize: 8, color: color)),
       ]),
     );
   }
@@ -279,21 +264,15 @@ class PdfGeneratorService {
       child: pw.Row(children: [
         pw.Expanded(
             child: _metricBox(
-                'Download',
-                '${dl.toStringAsFixed(1)} Mbps',
-                _speedColor(dl))),
+                'Download', '${dl.toStringAsFixed(1)} Mbps', _speedColor(dl))),
         pw.SizedBox(width: 8),
         pw.Expanded(
-            child: _metricBox(
-                'Upload',
-                '${ul.toStringAsFixed(1)} Mbps',
+            child: _metricBox('Upload', '${ul.toStringAsFixed(1)} Mbps',
                 _speedColor(ul * 2))),
         pw.SizedBox(width: 8),
         pw.Expanded(
-            child: _metricBox(
-                'Ping (Servidor)',
-                '${ping.toStringAsFixed(0)} ms',
-                _pingColor(ping))),
+            child: _metricBox('Ping (Servidor)',
+                '${ping.toStringAsFixed(0)} ms', _pingColor(ping))),
       ]),
     );
   }
@@ -301,8 +280,7 @@ class PdfGeneratorService {
   // ──────────────────────────────────────────────────────────────────────────
   // Card Wi-Fi
   // ──────────────────────────────────────────────────────────────────────────
-  pw.Widget _wifiCard(
-      Map<String, dynamic>? wm, Map<String, dynamic>? gw) {
+  pw.Widget _wifiCard(Map<String, dynamic>? wm, Map<String, dynamic>? gw) {
     final gwResult = _parseResult(gw);
 
     return _card(
@@ -311,36 +289,25 @@ class PdfGeneratorService {
       bgColor: _cyanLight,
       child: pw.Column(children: [
         pw.Row(children: [
-          pw.Expanded(
-              child: _infoCell('Rede (SSID)',
-                  _str(wm?['ssid']))),
+          pw.Expanded(child: _infoCell('Rede (SSID)', _str(wm?['ssid']))),
+          pw.SizedBox(width: 8),
+          pw.Expanded(child: _infoCell('Frequência', _str(wm?['frequency']))),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _infoCell('Frequência',
-                  _str(wm?['frequency']))),
-          pw.SizedBox(width: 8),
-          pw.Expanded(
-              child: _infoCell('Força do Sinal',
-                  _str(wm?['signalStrength']))),
+              child: _infoCell('Força do Sinal', _str(wm?['signalStrength']))),
         ]),
         pw.SizedBox(height: 8),
         pw.Row(children: [
-          pw.Expanded(
-              child: _infoCell('IP do Dispositivo',
-                  _str(wm?['ip']))),
+          pw.Expanded(child: _infoCell('IP do Dispositivo', _str(wm?['ip']))),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _infoCell('Gateway (Roteador)',
-                  _str(wm?['gateway']))),
+              child: _infoCell('Gateway (Roteador)', _str(wm?['gateway']))),
           pw.SizedBox(width: 8),
-          pw.Expanded(
-              child: _infoCell('BSSID',
-                  _str(wm?['bssid']))),
+          pw.Expanded(child: _infoCell('BSSID', _str(wm?['bssid']))),
         ]),
         if (gwResult != '---') ...[
           pw.SizedBox(height: 8),
-          _infoRow('Ping Roteador (Latência)', gwResult,
-              highlight: true),
+          _infoRow('Ping Roteador (Latência)', gwResult, highlight: true),
         ],
       ]),
     );
@@ -357,8 +324,12 @@ class PdfGeneratorService {
     // Extrair campos do IP
     String ipv4 = '---', ipv6 = '---', isp = '---';
     for (final line in ipR.split('\n')) {
-      if (line.startsWith('IPv4:')) ipv4 = line.replaceFirst('IPv4:', '').trim();
-      if (line.startsWith('IPv6:')) ipv6 = line.replaceFirst('IPv6:', '').trim();
+      if (line.startsWith('IPv4:')) {
+        ipv4 = line.replaceFirst('IPv4:', '').trim();
+      }
+      if (line.startsWith('IPv6:')) {
+        ipv6 = line.replaceFirst('IPv6:', '').trim();
+      }
       if (line.startsWith('Provedor:')) {
         isp = line.replaceFirst('Provedor:', '').trim();
       }
@@ -378,11 +349,9 @@ class PdfGeneratorService {
         ]),
         pw.SizedBox(height: 8),
         pw.Row(children: [
-          pw.Expanded(
-              child: _infoCell('Ping Google (8.8.8.8)', googleR)),
+          pw.Expanded(child: _infoCell('Ping Google (8.8.8.8)', googleR)),
           pw.SizedBox(width: 8),
-          pw.Expanded(
-              child: _infoCell('Ping Cloudflare (1.1.1.1)', cloudR)),
+          pw.Expanded(child: _infoCell('Ping Cloudflare (1.1.1.1)', cloudR)),
         ]),
       ]),
     );
@@ -408,10 +377,8 @@ class PdfGeneratorService {
 
     final rxVal = double.tryParse(rx) ?? 0.0;
     final txVal = double.tryParse(tx) ?? 0.0;
-    final rxColor =
-        rxVal >= -20 ? _green : (rxVal >= -25 ? _yellow : _red);
-    final txColor =
-        txVal >= 1 ? _green : (txVal >= 0 ? _yellow : _red);
+    final rxColor = rxVal >= -20 ? _green : (rxVal >= -25 ? _yellow : _red);
+    final txColor = txVal >= 1 ? _green : (txVal >= 0 ? _yellow : _red);
 
     return _card(
       title: 'FIBRA ÓPTICA / ONU',
@@ -422,9 +389,7 @@ class PdfGeneratorService {
         pw.Row(children: [
           pw.Expanded(
               child: _metricBox(
-                  'Status',
-                  status,
-                  status == 'Online' ? _green : _red)),
+                  'Status', status, status == 'Online' ? _green : _red)),
           pw.SizedBox(width: 8),
           pw.Expanded(
               child: _metricBox(
@@ -434,11 +399,9 @@ class PdfGeneratorService {
                       ? _green
                       : _yellow)),
           pw.SizedBox(width: 8),
-          pw.Expanded(
-              child: _metricBox('Sinal RX', '$rx dBm', rxColor)),
+          pw.Expanded(child: _metricBox('Sinal RX', '$rx dBm', rxColor)),
           pw.SizedBox(width: 8),
-          pw.Expanded(
-              child: _metricBox('Sinal TX', '$tx dBm', txColor)),
+          pw.Expanded(child: _metricBox('Sinal TX', '$tx dBm', txColor)),
         ]),
         pw.SizedBox(height: 8),
         pw.Row(children: [
@@ -450,8 +413,8 @@ class PdfGeneratorService {
         ]),
         pw.SizedBox(height: 8),
         pw.Row(children: [
-          pw.Expanded(child: _infoCell('Slot / PON / ONU ID',
-              '$slot / $pon / $onuId')),
+          pw.Expanded(
+              child: _infoCell('Slot / PON / ONU ID', '$slot / $pon / $onuId')),
           pw.SizedBox(width: 8),
           pw.Expanded(child: _infoCell('Modo', mode)),
           pw.SizedBox(width: 8),
@@ -467,8 +430,7 @@ class PdfGeneratorService {
   // Card Dispositivo + Bateria
   // ──────────────────────────────────────────────────────────────────────────
   pw.Widget _deviceCard(
-      Map<String, Map<String, dynamic>> d,
-      Map<String, dynamic>? batteryMap) {
+      Map<String, Map<String, dynamic>> d, Map<String, dynamic>? batteryMap) {
     final devResult = _parseResult(d['deviceInfo']);
     final batteryText = d['batteryInfo']?['displayText'] as String? ??
         (batteryMap != null
@@ -477,10 +439,7 @@ class PdfGeneratorService {
             : _parseResult(d['batteryInfo']));
 
     // Parse deviceInfo lines
-    String connection = '---',
-        device = '---',
-        os = '---',
-        appVer = '---';
+    String connection = '---', device = '---', os = '---', appVer = '---';
     for (final line in devResult.split('\n')) {
       if (line.startsWith('Conexão:')) {
         connection = line.replaceFirst('Conexão:', '').trim();
@@ -523,11 +482,9 @@ class PdfGeneratorService {
         pw.Row(children: [
           pw.Expanded(child: _infoCell('Versão do App', appVer)),
           pw.SizedBox(width: 8),
-          pw.Expanded(
-              child: _infoCell('Nível de Bateria', batLevel)),
+          pw.Expanded(child: _infoCell('Nível de Bateria', batLevel)),
           pw.SizedBox(width: 8),
-          pw.Expanded(
-              child: _infoCell('Estado da Bateria', batState)),
+          pw.Expanded(child: _infoCell('Estado da Bateria', batState)),
         ]),
       ]),
     );
@@ -540,11 +497,8 @@ class PdfGeneratorService {
     final result = _parseResult(traceData);
     if (result == '---' || result.isEmpty) return pw.SizedBox();
 
-    final hops = result
-        .split('\n')
-        .where((l) => l.trim().isNotEmpty)
-        .take(15)
-        .toList();
+    final hops =
+        result.split('\n').where((l) => l.trim().isNotEmpty).take(15).toList();
 
     return _card(
       title: 'ROTA DE REDE (TRACEROUTE  →  8.8.8.8)',
@@ -614,14 +568,12 @@ class PdfGeneratorService {
     return pw.Container(
       padding: const pw.EdgeInsets.only(top: 8),
       decoration: const pw.BoxDecoration(
-        border: pw.Border(
-            top: pw.BorderSide(color: _greyBorder, width: 0.5)),
+        border: pw.Border(top: pw.BorderSide(color: _greyBorder, width: 0.5)),
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(
-              'Relatório gerado automaticamente pelo App Provedor',
+          pw.Text('Relatório gerado automaticamente pelo App Provedor',
               style: const pw.TextStyle(fontSize: 8, color: _grey)),
           pw.Text('Diagnóstico de Rede  •  Confidencial',
               style: const pw.TextStyle(fontSize: 8, color: _grey)),
@@ -651,8 +603,7 @@ class PdfGeneratorService {
         children: [
           // Title bar
           pw.Container(
-            padding:
-                const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: pw.BoxDecoration(
               color: bgColor,
               borderRadius: const pw.BorderRadius.only(
@@ -702,9 +653,7 @@ class PdfGeneratorService {
         children: [
           pw.Text(value,
               style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: color),
+                  fontSize: 14, fontWeight: pw.FontWeight.bold, color: color),
               maxLines: 1),
           pw.SizedBox(height: 3),
           pw.Text(label,
@@ -726,9 +675,7 @@ class PdfGeneratorService {
         pw.Text(
           value,
           style: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-              color: _dark),
+              fontSize: 10, fontWeight: pw.FontWeight.bold, color: _dark),
           maxLines: 2,
           overflow: pw.TextOverflow.clip,
         ),
@@ -736,8 +683,7 @@ class PdfGeneratorService {
     );
   }
 
-  pw.Widget _infoRow(String label, String value,
-      {bool highlight = false}) {
+  pw.Widget _infoRow(String label, String value, {bool highlight = false}) {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: pw.BoxDecoration(
@@ -747,13 +693,10 @@ class PdfGeneratorService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label,
-              style: const pw.TextStyle(fontSize: 9, color: _grey)),
+          pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: _grey)),
           pw.Text(value,
               style: pw.TextStyle(
-                  fontSize: 9,
-                  fontWeight: pw.FontWeight.bold,
-                  color: _dark),
+                  fontSize: 9, fontWeight: pw.FontWeight.bold, color: _dark),
               maxLines: 1),
         ],
       ),
@@ -764,19 +707,15 @@ class PdfGeneratorService {
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         child: pw.Text(text,
             style: pw.TextStyle(
-                fontSize: 8.5,
-                fontWeight: pw.FontWeight.bold,
-                color: _grey)),
+                fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: _grey)),
       );
 
-  pw.Widget _tableCell(String text, {bool centered = false}) =>
-      pw.Padding(
+  pw.Widget _tableCell(String text, {bool centered = false}) => pw.Padding(
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: pw.Text(
           text,
           style: const pw.TextStyle(fontSize: 9, color: _dark),
-          textAlign:
-              centered ? pw.TextAlign.center : pw.TextAlign.left,
+          textAlign: centered ? pw.TextAlign.center : pw.TextAlign.left,
           maxLines: 1,
         ),
       );

@@ -27,12 +27,6 @@ import '../../widgets/diagnostics/waiting_box.dart';
 import '../../widgets/diagnostics/welcome_screen.dart';
 import '../../models/diagnostic_enums.dart';
 
-// UX Enhancements - Sprint 1-3
-import '../../models/test_mode.dart';
-import '../../models/network_health_score.dart';
-import '../../services/diagnostic_integration_helper.dart';
-import '../../services/achievement_service.dart';
-
 // ═══════════════════════════════════════════════════════════════════════════
 // MODELS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -767,7 +761,8 @@ class DiagnosticScreen extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 wifiError,
-                                style: const TextStyle(color: DiagnosticTheme.red),
+                                style:
+                                    const TextStyle(color: DiagnosticTheme.red),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 16),
@@ -895,83 +890,83 @@ class DiagnosticScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-          backgroundColor: DiagnosticTheme.bg2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.edit, color: DiagnosticTheme.cyan),
-              const SizedBox(width: 10),
-              Text(
-                'Editar ${network.frequency}',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: ssidController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'SSID (Nome da Rede)',
-                  labelStyle: TextStyle(color: DiagnosticTheme.textDim),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.textDim),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.cyan),
-                  ),
+        backgroundColor: DiagnosticTheme.bg2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.edit, color: DiagnosticTheme.cyan),
+            const SizedBox(width: 10),
+            Text(
+              'Editar ${network.frequency}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ssidController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'SSID (Nome da Rede)',
+                labelStyle: TextStyle(color: DiagnosticTheme.textDim),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: DiagnosticTheme.textDim),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passwordController,
-                style: const TextStyle(color: Colors.white),
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Senha',
-                  labelStyle: TextStyle(color: DiagnosticTheme.textDim),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.textDim),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: DiagnosticTheme.cyan),
-                  ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: DiagnosticTheme.cyan),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: DiagnosticTheme.textDim),
               ),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DiagnosticTheme.cyan,
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                wifiController!.updateWifi(
-                  context, // Pass context for SnackBar
-                  network.id,
-                  ssidController.text,
-                  passwordController.text,
-                );
-              },
-              child: const Text(
-                'Salvar Alterações',
-                style: TextStyle(color: Colors.black),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              style: const TextStyle(color: Colors.white),
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Senha',
+                labelStyle: TextStyle(color: DiagnosticTheme.textDim),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: DiagnosticTheme.textDim),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: DiagnosticTheme.cyan),
+                ),
               ),
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: DiagnosticTheme.textDim),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DiagnosticTheme.cyan,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              wifiController!.updateWifi(
+                context, // Pass context for SnackBar
+                network.id,
+                ssidController.text,
+                passwordController.text,
+              );
+            },
+            child: const Text(
+              'Salvar Alterações',
+              style: TextStyle(color: Colors.black),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1023,8 +1018,7 @@ class DiagnosticScreen extends StatelessWidget {
     final gatewayStatus =
         results['pingGateway']?['status'] as real_state.TestStatus? ??
             real_state.TestStatus.pending;
-    final gatewayResult =
-        _safeResultString(results['pingGateway']?['result']);
+    final gatewayResult = _safeResultString(results['pingGateway']?['result']);
     final ipStatus = results['publicIp']?['status'] as real_state.TestStatus? ??
         real_state.TestStatus.pending;
     final ipResult = _safeResultString(results['publicIp']?['result']);
@@ -1115,11 +1109,13 @@ class DiagnosticScreen extends StatelessWidget {
                 details: [
                   (
                     'Google',
-                    (DiagnosticUtils.parseResultLine(googleResult, 'Latência:')),
+                    (DiagnosticUtils.parseResultLine(
+                        googleResult, 'Latência:')),
                   ),
                   (
                     'Cloudflare',
-                    (DiagnosticUtils.parseResultLine(cloudflareResult, 'Latência:')),
+                    (DiagnosticUtils.parseResultLine(
+                        cloudflareResult, 'Latência:')),
                   ),
                 ],
                 isLast: true,
@@ -1431,8 +1427,8 @@ class DiagnosticScreen extends StatelessWidget {
   Widget _buildDeviceDetailsSection() {
     if (realState == null) return const SizedBox.shrink();
 
-    final deviceResult =
-        _safeResultString(realState!.testResultsDisplay['deviceInfo']?['result']);
+    final deviceResult = _safeResultString(
+        realState!.testResultsDisplay['deviceInfo']?['result']);
     final status = realState!.testResultsDisplay['deviceInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1578,7 +1574,9 @@ class DiagnosticScreen extends StatelessWidget {
     final rxValue = double.tryParse(rxPower) ?? 0;
     if (rxValue < -25) {
       rxColor = DiagnosticTheme.red;
-    } else if (rxValue < -20) rxColor = DiagnosticTheme.orange;
+    } else if (rxValue < -20) {
+      rxColor = DiagnosticTheme.orange;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1667,7 +1665,8 @@ class DiagnosticScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
+            style:
+                const TextStyle(color: DiagnosticTheme.textDim, fontSize: 11),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1695,7 +1694,6 @@ class DiagnosticPage extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
-
   static String? _safeResultString(dynamic result) {
     if (result == null) return null;
     if (result is String) return result;
@@ -1717,14 +1715,6 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
 
   // WiFi Management Controller
   WifiManagementController? _wifiController;
-
-  // UX Enhancements State
-  final TestMode _selectedTestMode = TestMode.complete;
-  final _integrationHelper = DiagnosticIntegrationHelper();
-  final _achievementService = AchievementService();
-  final bool _testSavedToHistory = false;
-  NetworkHealthScore? _healthScore;
-  Map<String, dynamic>? _comparison;
 
   @override
   void initState() {

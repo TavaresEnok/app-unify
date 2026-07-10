@@ -106,7 +106,6 @@ class Diagnostic03Page extends ConsumerStatefulWidget {
 
 class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
     with TickerProviderStateMixin {
-
   static String? _safeResultString(dynamic result) {
     if (result == null) return null;
     if (result is String) return result;
@@ -205,122 +204,126 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
 
   void _handleRealServiceState(real_state.DiagnosticoState realState) {
     try {
-    setState(() {
-      _running = realState.isTesting;
+      setState(() {
+        _running = realState.isTesting;
 
-      // Update Speed Charts
-      _downloadChart.clear();
-      for (final spot in realState.downloadHistory) {
-        _downloadChart.add(spot.y);
-      }
-      _uploadChart.clear();
-      for (final spot in realState.uploadHistory) {
-        _uploadChart.add(spot.y);
-      }
-
-      if (realState.customDownloadResultMbps > 0 ||
-          realState.customUploadResultMbps > 0) {
-        _liveSpeed = realState.customUploadResultMbps > 0
-            ? real_state.DiagnosticoState.initial()
-                    .uploadHistory
-                    .lastOrNull
-                    ?.y ??
-                0
-            : real_state.DiagnosticoState.initial()
-                    .downloadHistory
-                    .lastOrNull
-                    ?.y ??
-                0;
-        // Actually stick to chart last value
-        if (_uploadChart.isNotEmpty && realState.customUploadResultMbps > 0) {
-          _liveSpeed = _uploadChart.last;
-          _isDownload = false;
-        } else if (_downloadChart.isNotEmpty) {
-          _liveSpeed = _downloadChart.last;
-          _isDownload = true;
+        // Update Speed Charts
+        _downloadChart.clear();
+        for (final spot in realState.downloadHistory) {
+          _downloadChart.add(spot.y);
+        }
+        _uploadChart.clear();
+        for (final spot in realState.uploadHistory) {
+          _uploadChart.add(spot.y);
         }
 
-        _speed = SpeedData(
-          down: realState.customDownloadResultMbps,
-          up: realState.customUploadResultMbps,
-          ping: realState.speedTestPingLatency ?? 0.0,
-          jitter: 0.0,
-        );
-      }
+        if (realState.customDownloadResultMbps > 0 ||
+            realState.customUploadResultMbps > 0) {
+          _liveSpeed = realState.customUploadResultMbps > 0
+              ? real_state.DiagnosticoState.initial()
+                      .uploadHistory
+                      .lastOrNull
+                      ?.y ??
+                  0
+              : real_state.DiagnosticoState.initial()
+                      .downloadHistory
+                      .lastOrNull
+                      ?.y ??
+                  0;
+          // Actually stick to chart last value
+          if (_uploadChart.isNotEmpty && realState.customUploadResultMbps > 0) {
+            _liveSpeed = _uploadChart.last;
+            _isDownload = false;
+          } else if (_downloadChart.isNotEmpty) {
+            _liveSpeed = _downloadChart.last;
+            _isDownload = true;
+          }
 
-      // Parse detailed results
-      final results = realState.testResultsDisplay;
-
-      // 1. Device
-      if (results['deviceInfo']?['status'] == real_state.TestStatus.running) {
-        _step = DiagStep.ready; // Start
-      }
-
-      // 2. WiFi
-      final wifiRes = results['wifiInfo'];
-      if (wifiRes != null &&
-          wifiRes['status'] == real_state.TestStatus.success) {
-        _wifi = WifiData(
-            ssid: "Detectado", rssi: -50, freq: "5GHz", gateway: "192.168.1.1");
-      }
-      if (wifiRes?['status'] == real_state.TestStatus.running) {
-        _step = DiagStep.wifi;
-      }
-
-      // 3. ONU
-      final onuRes = results['onuInfo'];
-      if (onuRes != null && onuRes['status'] == real_state.TestStatus.success) {
-        _onu = OnuData(rx: -19.0, tx: 2.2, temp: 40, status: "Connected");
-      }
-      if (onuRes?['status'] == real_state.TestStatus.running) {
-        _step = DiagStep.onu;
-      }
-
-      // 4. LAN
-      final lanRes = results['lanScan'];
-      if (lanRes?['status'] == real_state.TestStatus.running) {
-        _step = DiagStep.lan;
-      }
-      if (lanRes?['status'] == real_state.TestStatus.success) {
-        // Populate devices if we had real parsing
-        if (_devices.isEmpty) {
-          _devices
-              .add(DeviceData("192.168.1.1", "Gateway", "00:00:00:00:00:00"));
+          _speed = SpeedData(
+            down: realState.customDownloadResultMbps,
+            up: realState.customUploadResultMbps,
+            ping: realState.speedTestPingLatency ?? 0.0,
+            jitter: 0.0,
+          );
         }
-      }
 
-      // 5. Connectivity / Speed
-      if (realState.customDownloadResultMbps > 0) _step = DiagStep.speed;
+        // Parse detailed results
+        final results = realState.testResultsDisplay;
 
-      // 6. Trace
-      final traceRes = results['traceroute'];
-      if (traceRes?['status'] == real_state.TestStatus.running) {
-        _step = DiagStep.trace;
-      }
-      if (traceRes?['status'] == real_state.TestStatus.success) {
-        _hops.clear();
-        final resultStr = _safeResultString(traceRes!['result']) ?? "";
-        final lines = resultStr.split('\n');
-        for (var line in lines) {
-          if (line.contains(':')) {
-            final parts = line.split(':');
-            final hopNum = int.tryParse(parts[0].trim()) ?? 0;
-            final ip = parts.sublist(1).join(':').trim();
-            if (hopNum > 0) {
-              _hops.add(HopData(hopNum, ip, 0));
+        // 1. Device
+        if (results['deviceInfo']?['status'] == real_state.TestStatus.running) {
+          _step = DiagStep.ready; // Start
+        }
+
+        // 2. WiFi
+        final wifiRes = results['wifiInfo'];
+        if (wifiRes != null &&
+            wifiRes['status'] == real_state.TestStatus.success) {
+          _wifi = WifiData(
+              ssid: "Detectado",
+              rssi: -50,
+              freq: "5GHz",
+              gateway: "192.168.1.1");
+        }
+        if (wifiRes?['status'] == real_state.TestStatus.running) {
+          _step = DiagStep.wifi;
+        }
+
+        // 3. ONU
+        final onuRes = results['onuInfo'];
+        if (onuRes != null &&
+            onuRes['status'] == real_state.TestStatus.success) {
+          _onu = OnuData(rx: -19.0, tx: 2.2, temp: 40, status: "Connected");
+        }
+        if (onuRes?['status'] == real_state.TestStatus.running) {
+          _step = DiagStep.onu;
+        }
+
+        // 4. LAN
+        final lanRes = results['lanScan'];
+        if (lanRes?['status'] == real_state.TestStatus.running) {
+          _step = DiagStep.lan;
+        }
+        if (lanRes?['status'] == real_state.TestStatus.success) {
+          // Populate devices if we had real parsing
+          if (_devices.isEmpty) {
+            _devices
+                .add(DeviceData("192.168.1.1", "Gateway", "00:00:00:00:00:00"));
+          }
+        }
+
+        // 5. Connectivity / Speed
+        if (realState.customDownloadResultMbps > 0) _step = DiagStep.speed;
+
+        // 6. Trace
+        final traceRes = results['traceroute'];
+        if (traceRes?['status'] == real_state.TestStatus.running) {
+          _step = DiagStep.trace;
+        }
+        if (traceRes?['status'] == real_state.TestStatus.success) {
+          _hops.clear();
+          final resultStr = _safeResultString(traceRes!['result']) ?? "";
+          final lines = resultStr.split('\n');
+          for (var line in lines) {
+            if (line.contains(':')) {
+              final parts = line.split(':');
+              final hopNum = int.tryParse(parts[0].trim()) ?? 0;
+              final ip = parts.sublist(1).join(':').trim();
+              if (hopNum > 0) {
+                _hops.add(HopData(hopNum, ip, 0));
+              }
             }
           }
         }
-      }
 
-      if (!realState.isTesting && realState.customDownloadResultMbps > 0) {
-        _step = DiagStep.done;
-        _progress = 1.0;
-        HapticFeedback.mediumImpact();
-      }
+        if (!realState.isTesting && realState.customDownloadResultMbps > 0) {
+          _step = DiagStep.done;
+          _progress = 1.0;
+          HapticFeedback.mediumImpact();
+        }
 
-      _lastRealState = realState;
-    });
+        _lastRealState = realState;
+      });
     } catch (e, st) {
       debugPrint('[Diagnostic03] Erro no handler de estado: $e\n$st');
     }
@@ -441,9 +444,11 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
     int bars = 4;
     if (rssi < -70) {
       bars = 1;
-    } else if (rssi < -60)
+    } else if (rssi < -60) {
       bars = 2;
-    else if (rssi < -50) bars = 3;
+    } else if (rssi < -50) {
+      bars = 3;
+    }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -496,7 +501,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                 border: Border.all(color: meta.color.withValues(alpha: 0.5)),
                 boxShadow: [
                   BoxShadow(
-                      color: meta.color.withValues(alpha: 0.3 + _pulse.value * 0.2),
+                      color: meta.color
+                          .withValues(alpha: 0.3 + _pulse.value * 0.2),
                       blurRadius: 16,
                       spreadRadius: 2)
                 ],
@@ -544,8 +550,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
               decoration: BoxDecoration(
                 color: const Color(0xFF00FF88).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
-                border:
-                    Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.4)),
+                border: Border.all(
+                    color: const Color(0xFF00FF88).withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
@@ -615,7 +621,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                         ]),
                         boxShadow: [
                           BoxShadow(
-                              color: stepMeta[_step]!.color.withValues(alpha: 0.6),
+                              color:
+                                  stepMeta[_step]!.color.withValues(alpha: 0.6),
                               blurRadius: 8)
                         ],
                       ),
@@ -664,8 +671,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                             color: done
                                 ? meta.color.withValues(alpha: 0.15)
                                 : active
-                                    ? meta.color
-                                        .withValues(alpha: 0.1 + _pulse.value * 0.1)
+                                    ? meta.color.withValues(
+                                        alpha: 0.1 + _pulse.value * 0.1)
                                     : Colors.white.withValues(alpha: 0.02),
                             border: Border.all(
                                 color: done || active
@@ -675,8 +682,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                             boxShadow: active
                                 ? [
                                     BoxShadow(
-                                        color: meta.color.withOpacity(
-                                            0.4 + _pulse.value * 0.2),
+                                        color: meta.color.withValues(
+                                            alpha: 0.4 + _pulse.value * 0.2),
                                         blurRadius: 12)
                                   ]
                                 : null,
@@ -712,7 +719,9 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
                           color: _step.index > s.index
-                              ? stepMeta[steps[i + 1]]!.color.withValues(alpha: 0.4)
+                              ? stepMeta[steps[i + 1]]!
+                                  .color
+                                  .withValues(alpha: 0.4)
                               : Colors.white.withValues(alpha: 0.05))),
               ],
             ),
@@ -735,7 +744,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(colors: [
-                const Color(0xFF00F5FF).withValues(alpha: 0.15 + _pulse.value * 0.1),
+                const Color(0xFF00F5FF)
+                    .withValues(alpha: 0.15 + _pulse.value * 0.1),
                 Colors.transparent
               ]),
               boxShadow: [
@@ -764,7 +774,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                       const Color(0xFFFF00E5).withValues(alpha: 0.2)
                     ]),
                 border: Border.all(
-                    color: const Color(0xFF00F5FF).withValues(alpha: 0.5), width: 2),
+                    color: const Color(0xFF00F5FF).withValues(alpha: 0.5),
+                    width: 2),
                 boxShadow: [
                   BoxShadow(
                       color: const Color(0xFF00F5FF).withValues(alpha: 0.3),
@@ -897,15 +908,21 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
           _SpeedPill(_speed!.down.toStringAsFixed(0), "Download", "Mb/s",
               const Color(0xFF00F5FF)),
           Container(
-              width: 1, height: 40, color: Colors.white.withValues(alpha: 0.05)),
+              width: 1,
+              height: 40,
+              color: Colors.white.withValues(alpha: 0.05)),
           _SpeedPill(_speed!.up.toStringAsFixed(0), "Upload", "Mb/s",
               const Color(0xFFFF00E5)),
           Container(
-              width: 1, height: 40, color: Colors.white.withValues(alpha: 0.05)),
+              width: 1,
+              height: 40,
+              color: Colors.white.withValues(alpha: 0.05)),
           _SpeedPill(_speed!.ping.toStringAsFixed(0), "Ping", "ms",
               const Color(0xFF10B981)),
           Container(
-              width: 1, height: 40, color: Colors.white.withValues(alpha: 0.05)),
+              width: 1,
+              height: 40,
+              color: Colors.white.withValues(alpha: 0.05)),
           _SpeedPill(_speed!.jitter.toStringAsFixed(1), "Jitter", "ms",
               const Color(0xFFF59E0B)),
         ],
@@ -1019,7 +1036,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
                               fontSize: 13))),
                   Text(d.ip,
                       style: GoogleFonts.outfit(
-                          color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 11)),
                 ]),
               )),
         ]),
@@ -1034,7 +1052,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
       decoration: BoxDecoration(
           color: const Color(0xFF0A0A12),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2))),
+          border: Border.all(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.2))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Icon(Icons.terminal, color: Color(0xFFF59E0B), size: 16),
@@ -1402,8 +1421,8 @@ class _Diagnostic03PageState extends ConsumerState<Diagnostic03Page>
 
   Widget _buildDeviceDetailsCard() {
     if (_lastRealState == null) return const SizedBox.shrink();
-    final devR =
-        _safeResultString(_lastRealState!.testResultsDisplay['deviceInfo']?['result']);
+    final devR = _safeResultString(
+        _lastRealState!.testResultsDisplay['deviceInfo']?['result']);
     final s = _lastRealState!.testResultsDisplay['deviceInfo']?['status']
             as real_state.TestStatus? ??
         real_state.TestStatus.pending;
@@ -1805,8 +1824,8 @@ class _ParticlePainter extends CustomPainter {
         final r = 1 + rand.nextDouble() * 2;
         final opacity = 0.1 + rand.nextDouble() * 0.2;
 
-        paint.color = Color.lerp(const Color(0xFF00F5FF), const Color(0xFFFF00E5),
-                rand.nextDouble())!
+        paint.color = Color.lerp(const Color(0xFF00F5FF),
+                const Color(0xFFFF00E5), rand.nextDouble())!
             .withValues(alpha: opacity);
         canvas.drawCircle(Offset(x, y), r, paint);
       }
@@ -1849,10 +1868,12 @@ class _GaugePainter extends CustomPainter {
       // Glow sem MaskFilter.blur (causa crash em GPUs antigas)
       final glowP = Paint()
         ..shader = SweepGradient(
-                startAngle: start,
-                endAngle: start + sweep,
-                colors: [c1.withValues(alpha: 0.35), c2.withValues(alpha: 0.35)])
-            .createShader(Rect.fromCircle(center: c, radius: r))
+            startAngle: start,
+            endAngle: start + sweep,
+            colors: [
+              c1.withValues(alpha: 0.35),
+              c2.withValues(alpha: 0.35)
+            ]).createShader(Rect.fromCircle(center: c, radius: r))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 20
         ..strokeCap = StrokeCap.round;
@@ -1861,9 +1882,8 @@ class _GaugePainter extends CustomPainter {
 
       final mainP = Paint()
         ..shader = SweepGradient(
-            startAngle: start,
-            endAngle: start + sweep,
-            colors: [c1, c2]).createShader(Rect.fromCircle(center: c, radius: r))
+                startAngle: start, endAngle: start + sweep, colors: [c1, c2])
+            .createShader(Rect.fromCircle(center: c, radius: r))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 14
         ..strokeCap = StrokeCap.round;
