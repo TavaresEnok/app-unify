@@ -1,9 +1,9 @@
 # Guia Git
 
-O sistema possui o repositorio principal e o submodulo do app unificado em
-`app-flutter/unified`.
+O sistema e um monorepo. O app movel canonico fica em
+`app-flutter/unified` e e versionado junto com os demais servicos.
 
-## Repositorio principal
+## Fluxo normal
 
 Execute na raiz do projeto:
 
@@ -14,20 +14,10 @@ git commit -m "tipo: descricao da alteracao"
 git push
 ```
 
-## App unificado
-
-As alteracoes do submodulo devem ser publicadas antes da atualizacao do
-repositorio principal:
+Comandos Flutter podem ser executados pela validacao central:
 
 ```bash
-git -C app-flutter/unified status
-git -C app-flutter/unified add -A
-git -C app-flutter/unified commit -m "tipo: descricao da alteracao"
-git -C app-flutter/unified push
-
-git add app-flutter/unified
-git commit -m "chore: atualizar app unificado"
-git push
+npm run validate:flutter
 ```
 
 ## Convencao de commits

@@ -15,7 +15,8 @@ Branch: `refactor/base-architecture`
 - API service modularizado com middlewares, rotas, services, rate limits,
   correlation ID e auditoria.
 - Proxy SGP mantido como adaptador/cache legado e documentado.
-- Flutter root e unified alinhados ao normalizador canonico de ProviderConfig.
+- App Flutter canonico mantido em `app-flutter/unified`; copia divergente da
+  raiz e submodulo recursivo removidos.
 - Regras Firestore/Storage endurecidas e testadas no emulador.
 - CI com Node 22, Java 21, Flutter, testes web/backend, e2e e Docker build.
 - Plano de deploy/rollback documentado.
@@ -27,7 +28,7 @@ Branch: `refactor/base-architecture`
 - API service: 7 testes e build passaram.
 - Proxy SGP: contrato e `node --check` passaram.
 - Firestore/Storage rules: 4 testes passaram no emulador.
-- Flutter root, unified e admin: analyze estrito sem issues e testes passaram.
+- Flutter unified e admin: analyze estrito sem issues e testes passaram.
 - Auditoria npm completa passou sem vulnerabilidades conhecidas.
 - O bundle web foi dividido por modulo Firebase; nenhum chunk excede o limite
   operacional configurado.

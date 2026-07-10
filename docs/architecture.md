@@ -37,8 +37,8 @@ proxy-sgp
   clientes, backups, dashboards e notificacoes.
 - `api-service/src/routes`: fronteira HTTP.
 - `api-service/src/services`: Firebase Admin, SGP, proxy, APK e auditoria.
-- `lib/core/models` e `app-flutter/unified/lib/core/models`: normalizacao de
-  config remota no Flutter.
+- `app-flutter/unified/lib/core/models`: normalizacao de config remota no app
+  movel canonico.
 
 ## Dados sensiveis
 

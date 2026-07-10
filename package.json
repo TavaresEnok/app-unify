@@ -10,7 +10,7 @@
     "test:rules": "firebase emulators:exec --only firestore,storage \"node --test tests/firestore-rules.test.mjs\"",
     "validate:web": "npm run contracts:check && npm run quality:shell && npm run security:secrets && npm run security:audit && npm run lint --prefix admin-painel && npm run test --prefix admin-painel && npm run build --prefix admin-painel && npm run build --prefix functions && npm run test:ci --prefix functions && npm run test --prefix api-service && npm run build --prefix api-service && npm run test --prefix proxy-sgp",
     "validate:e2e": "npm run test:e2e --prefix admin-painel",
-    "validate:flutter": "flutter analyze --no-pub && flutter test --no-pub && cd app-flutter/unified && flutter analyze --no-pub && flutter test --no-pub && cd ../admin_app && flutter analyze --no-pub && flutter test --no-pub",
+    "validate:flutter": "cd app-flutter/unified && flutter analyze --no-pub && flutter test --no-pub && cd ../admin_app && flutter analyze --no-pub && flutter test --no-pub",
     "validate": "npm run validate:web && npm run validate:e2e && npm run validate:flutter"
   },
   "devDependencies": {

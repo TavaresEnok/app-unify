@@ -78,4 +78,4 @@ O modo padrao e dry-run. O script cria backup em
 - Config vazia renderiza com defaults.
 - Subpagina salva sem apagar campos de outras subpaginas.
 - Secrets SGP nao ficam no documento publico.
-- Flutter root e Flutter unified leem formato atual e legado.
+- Flutter unified le formato atual e legado.

@@ -29,7 +29,7 @@ estruturais:
 - Functions modularizadas por dominio, com router unico e auditoria.
 - API service modularizado por rotas/middlewares/services.
 - Proxy SGP documentado como adaptador/cache legado.
-- Flutter root e unified com normalizador de config e registry de layouts.
+- Flutter unified com normalizador de config e registry de layouts.
 - Firestore/Storage rules com testes de emulador.
 - CI criado para web/backend, Flutter e Docker build.
 - Plano de deploy/rollback documentado.
@@ -49,8 +49,8 @@ estruturais:
 - `npm test --prefix proxy-sgp`
 - `node --check proxy-sgp/index.js`
 - `npm run test:rules` com Java 21
-- `flutter analyze --no-pub && flutter test --no-pub`
-- mesmas validacoes Flutter em `app-flutter/unified`
+- `flutter analyze --no-pub && flutter test --no-pub` em
+  `app-flutter/unified`
 - mesmas validacoes Flutter em `app-flutter/admin_app`
 
 ## Riscos residuais documentados
