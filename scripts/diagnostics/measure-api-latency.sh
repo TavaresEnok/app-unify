@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Mede latência média e p95 de endpoints críticos do app/adm.
 # Uso:
-#   BASE_URL="http://localhost:8034" RUNS=10 ./scripts/measure_api_latency.sh
+#   BASE_URL="http://localhost:8034" RUNS=10 ./scripts/diagnostics/measure-api-latency.sh
 # Variáveis opcionais:
 #   CHECK_CPF_PAYLOAD='{"cpf":"12345678901","sgpParams":{"token":"x","app":"APP"},"sgpBaseUrl":"https://example.com"}'
 #   INVOICES_PAYLOAD='{"cpfCnpj":"12345678901","sgpParams":{"token":"x","app":"APP"},"sgpBaseUrl":"https://example.com"}'

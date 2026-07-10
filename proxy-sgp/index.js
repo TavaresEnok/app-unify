@@ -183,7 +183,7 @@ app.use(rateLimiter); // Aplica rate limiting a todas as rotas
 
 const PROXY_SECRET_KEY = process.env.PROXY_SECRET || process.env.PROXY_SECRET_KEY || '';
 if (!PROXY_SECRET_KEY) {
-    console.warn('[WARN] PROXY_SECRET não definido: rotas administrativas (/sync-clients, /build-apk, etc.) retornarão 503.');
+    console.warn('[WARN] PROXY_SECRET não definido: rotas administrativas retornarão 503.');
 }
 // Mock de login só se explicitamente habilitado (nunca em produção sem intenção)
 const ENABLE_DEV_MOCK = process.env.ENABLE_DEV_CPF_MOCK === 'true';
@@ -1207,117 +1207,6 @@ app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
     } catch (error) {
         console.error("Erro na rota /unlock-trust:", error.message);
         res.status(500).json({ error: { message: error.message || "Erro interno ao processar desbloqueio." } });
-    }
-});
-
-// 8. ROTA DE BUILD DE APK (ADMIN PANEL) - MELHORADA
-app.post('/build-apk', async (req, res) => {
-    const { secret, architecture = 'arm64-v8a', providerId = 'default' } = req.body;
-
-    if (!assertProxySecret(secret, res)) return;
-
-    console.log(`[Build-APK] Iniciando build para ${architecture}...`);
-
-    try {
-        const { exec } = require('child_process');
-        const { promisify } = require('util');
-        const execAsync = promisify(exec);
-
-        // Executar script de build com timeout estendido
-        const buildScript = '/home/app/projects/painel_provedores/build-apk.sh';
-        const command = `bash ${buildScript} ${providerId} ${architecture}`;
-
-        console.log(`[Build-APK] Executando: ${command}`);
-        console.log(`[Build-APK] Timeout: 10 minutos (600s)`);
-
-        let buildResult;
-        try {
-            buildResult = await execAsync(command, {
-                cwd: '/home/app/painel-provedores-projeto',
-                timeout: 600000, // 10 minutos timeout
-                maxBuffer: 10 * 1024 * 1024 // 10MB buffer para logs grandes
-            });
-        } catch (buildError) {
-            console.error(`[Build-APK] Erro no build:`, buildError.message);
-            console.error(`[Build-APK] Stderr:`, buildError.stderr);
-            console.error(`[Build-APK] Stdout:`, buildError.stdout);
-
-            // Se erro for de timeout, informar ao usuário
-            if (buildError.killed || buildError.signal === 'SIGTERM') {
-                return res.status(504).json({
-                    error: {
-                        message: 'Build excedeu tempo limite de 10 minutos. Tente novamente ou use APK pré-compilado.',
-                        timeout: true
-                    }
-                });
-            }
-
-            // Outros erros de build
-            return res.status(500).json({
-                error: {
-                    message: `Erro ao compilar: ${buildError.message}`,
-                    details: buildError.stderr || buildError.stdout
-                }
-            });
-        }
-
-        const { stdout, stderr } = buildResult;
-
-        if (stderr) {
-            console.log(`[Build-APK] Stderr (warnings):`, stderr.substring(0, 500));
-        }
-
-        console.log(`[Build-APK] Build concluído! Output:`, stdout.substring(stdout.length - 500));
-
-        // Determinar nome do APK gerado
-        const apkMap = {
-            'arm64-v8a': 'app-arm64-v8a.apk',
-            'armeabi-v7a': 'app-armeabi-v7a.apk',
-            'all': 'app-release.apk',
-            'universal': 'app-release.apk'
-        };
-
-        const apkFileName = apkMap[architecture] || 'app-release.apk';
-        const timestamp = new Date().getTime();
-
-        // Verificar se APK foi realmente gerado
-        const fs = require('fs');
-        const apkPath = `/home/app/painel-provedores-projeto/admin-painel/public/${apkFileName}`;
-
-        if (!fs.existsSync(apkPath)) {
-            console.error(`[Build-APK] APK não encontrado em ${apkPath}`);
-            return res.status(500).json({
-                error: {
-                    message: 'APK não foi gerado. Verifique logs do Flutter.',
-                    apkPath
-                }
-            });
-        }
-
-        // Obter informações do APK gerado
-        const stats = fs.statSync(apkPath);
-        const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
-
-        // URL do APK com timestamp para evitar cache
-        const apkUrl = `/${apkFileName}?t=${timestamp}`;
-
-        console.log(`[Build-APK] ✅ Sucesso! APK: ${apkUrl}, Tamanho: ${sizeInMB}MB`);
-
-        res.status(200).json({
-            success: true,
-            apkUrl,
-            architecture,
-            timestamp: new Date().toISOString(),
-            size: `${sizeInMB} MB`
-        });
-
-    } catch (error) {
-        console.error(`[Build-APK] Erro crítico não tratado:`, error?.message || 'erro desconhecido');
-        res.status(500).json({
-            error: {
-                message: `Erro inesperado ao processar build de APK.`
-            }
-        });
     }
 });
 

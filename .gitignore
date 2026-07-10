@@ -58,6 +58,9 @@ proxy-sgp/cache.db
 firestore-debug.log
 firebase-debug.log
 **/coverage/
+*.backup
+*.backup2
+dossie_ia_projeto.txt
 
 # Optional npm cache directory
 .npm

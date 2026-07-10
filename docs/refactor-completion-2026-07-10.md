@@ -31,6 +31,8 @@ Branch: `refactor/base-architecture`
 - Auditoria npm completa passou sem vulnerabilidades conhecidas.
 - O bundle web foi dividido por modulo Firebase; nenhum chunk excede o limite
   operacional configurado.
+- Scripts shell legados foram removidos; os tres utilitarios ativos ficam em
+  `scripts/` e sao validados por `npm run quality:shell`.
 - `npm run contracts:check`, `npm run security:secrets` e `git diff --check`
   passaram.
 

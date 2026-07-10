@@ -12,7 +12,6 @@ const endpointContracts = [
   { method: 'POST', path: '/diagnostic/analyze', owner: 'proxy-sgp', access: 'firebase-token', decision: 'keep-temporarily' },
   { method: 'POST', path: '/cpe/wifi/list', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/cpe/wifi/update', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
-  { method: 'POST', path: '/build-apk', owner: 'apk-builder', access: 'internal-secret', decision: 'deprecated' },
   { method: 'GET', path: '/health', owner: 'proxy-sgp', access: 'healthcheck', decision: 'keep' },
 ];
 

@@ -4,7 +4,7 @@
 # Uso:
 #   export GOOGLE_CLOUD_PROJECT=app-ajust-provedor
 #   export ALERT_EMAIL=seu@email.com          # opcional, cria canal de e-mail
-#   ./scripts/setup-monitoring.sh
+#   ./scripts/cloud/setup-monitoring.sh
 #
 # Requer: Google Cloud SDK (gcloud) instalado e autenticado.
 # Alternativa: execute no Cloud Shell -> https://shell.cloud.google.com
