@@ -32,12 +32,18 @@ if (cluster.isMaster) {
 
 function startWorkerServer() {
     const server = http.createServer((req, res) => {
+        if (req.url === '/health') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'ok', service: 'speed-test' }));
+            return;
+        }
+
         // CORS — restringir a origens conhecidas
-        const allowedOrigins = [
-            'http://168.194.13.18:8031',
-            'http://168.194.13.18:8032',
-            'http://localhost:5173',
-        ];
+        const allowedOrigins = (process.env.ALLOWED_ORIGINS
+            || 'http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031')
+            .split(',')
+            .map((origin) => origin.trim())
+            .filter(Boolean);
         const requestOrigin = req.headers.origin || '';
         // Permitir requisições sem origin (app mobile) ou de origens permitidas
         const corsOrigin = (!requestOrigin || allowedOrigins.includes(requestOrigin))

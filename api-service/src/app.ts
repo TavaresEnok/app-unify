@@ -10,7 +10,6 @@ import { usersRouter } from "./routes/users.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
 import { subscriberRouter } from "./routes/subscriber.routes";
 import { diagnosticsRouter } from "./routes/diagnostics.routes";
-import { apkRouter } from "./routes/apk.routes";
 import { proxyRouter } from "./routes/proxy.routes";
 
 export function createApp() {
@@ -27,7 +26,6 @@ export function createApp() {
   app.use("/admin/tickets", ticketsRouter);
   app.use("/admin/users", usersRouter);
   app.use("/admin/dashboard", dashboardRouter);
-  app.use("/admin", apkRouter);
   app.use("/diagnostic", diagnosticsRouter);
   app.use(subscriberRouter);
   app.use(proxyRouter);

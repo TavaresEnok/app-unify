@@ -14,7 +14,7 @@ Status de execucao em 2026-07-10: plano executado de ponta a ponta na branch
 Refatorar o sistema completo mantendo compatibilidade funcional com:
 
 - Painel administrativo React/Vite (`admin-painel`).
-- App Flutter white-label (`lib/`).
+- App Flutter white-label (`app-flutter/unified`).
 - Firebase Functions (`functions`).
 - API service Express (`api-service`).
 - Proxy SGP/cache (`proxy-sgp`).
@@ -87,7 +87,7 @@ Responsabilidades atuais:
 - Endpoints admin para provedores, tickets, usuarios e dashboard.
 - Proxy/normalizacao de chamadas SGP.
 - Diagnosticos de ONU/traceroute.
-- Geracao de APK via endpoint protegido.
+- Diagnosticos e integracao SGP via endpoints protegidos.
 
 Pontos relevantes:
 
@@ -860,7 +860,7 @@ Antes de merge:
 
 - [x] Smoke e2e automatizado executado no painel.
 - [x] Fluxos de permissao cobertos por services, regras e testes.
-- [x] Deploy/rollback documentado em `docs/deploy-rollback.md`.
+- [x] Deploy/rollback documentado em `docs/operations/deploy-rollback.md`.
 - [x] Firestore, regras e migracao documentados.
 
 ## 20. Definition of Done da refatoracao completa

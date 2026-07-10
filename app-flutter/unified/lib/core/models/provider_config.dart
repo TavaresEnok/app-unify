@@ -54,12 +54,6 @@ class ProviderConfig {
     String? finalApiUrl =
         rootApiUrl?.isNotEmpty == true ? rootApiUrl : configApiUrl;
 
-    // CORREÇÃO: Removido replace automático de IP.
-    // O usuário deve configurar o IP correto no Firebase.
-    // if (finalApiUrl != null && finalApiUrl.contains('45.176.56.70')) {
-    //   finalApiUrl = finalApiUrl.replaceAll('45.176.56.70', '168.194.13.18');
-    // }
-
     // IMPORTANTE: A URL da API deve ser configurada no Web Admin (Firebase)
     // Campo: apiUrl no documento do provedor
     // Exemplo: http://seu-servidor:3000
@@ -71,8 +65,10 @@ class ProviderConfig {
     if (finalApiUrl != null && finalApiUrl.isNotEmpty) {
       effectiveApiUrl = finalApiUrl.trim();
     } else {
-      // FALLBACK DE EMERGÊNCIA - Configure apiUrl no Firebase!
-      effectiveApiUrl = 'http://168.194.13.18:8034';
+      effectiveApiUrl = const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'http://10.0.2.2:8034',
+      );
     }
 
     final integrationsMap = (json['integrations'] ??

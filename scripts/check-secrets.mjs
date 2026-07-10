@@ -1,6 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 const patterns = [
   { name: "private key", value: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
@@ -8,6 +7,8 @@ const patterns = [
   { name: "GitHub token", value: /\bgh[pousr]_[A-Za-z0-9_]{30,}\b/ },
   { name: "Slack token", value: /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/ },
   { name: "AWS access key", value: /\bAKIA[0-9A-Z]{16}\b/ },
+  { name: "OpenRouter API key", value: /\bsk-or-v1-[A-Za-z0-9_-]{32,}\b/ },
+  { name: "hardcoded integration UUID", value: /\b(?:apiToken|api_token|token|secret)\s*[:=]\s*["'][0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}["']/i },
   {
     name: "hardcoded shell credential",
     files: /\.sh$/,
@@ -20,18 +21,10 @@ const patterns = [
   },
 ];
 
-const repositories = [".", "app-flutter/unified"].filter((root) =>
-  existsSync(join(root, ".git")),
-);
-const files = repositories.flatMap((root) =>
-  execFileSync("git", ["ls-files", "-co", "--exclude-standard", "-z"], {
-    cwd: root,
-  })
-    .toString("utf8")
-    .split("\0")
-    .filter(Boolean)
-    .map((file) => (root === "." ? file : join(root, file))),
-);
+const files = execFileSync("git", ["ls-files", "-co", "--exclude-standard", "-z"])
+  .toString("utf8")
+  .split("\0")
+  .filter(Boolean);
 const findings = [];
 for (const file of files) {
   let content;

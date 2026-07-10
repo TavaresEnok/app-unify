@@ -97,7 +97,7 @@ export default function EditProviderDialog({ provider, onUpdate }: EditProviderD
                     </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="apiUrl">URL do Proxy/API (usado pelo app)</Label>
-                        <Input id="apiUrl" placeholder="http://168.194.13.18:3000" value={details.apiUrl || ''} onChange={(e) => handleDetailChange('apiUrl', e.target.value)} />
+                        <Input id="apiUrl" placeholder="https://api.seudominio.com" value={details.apiUrl || ''} onChange={(e) => handleDetailChange('apiUrl', e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="city">Cidade</Label>

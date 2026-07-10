@@ -23,6 +23,7 @@ Novos consumidores não devem chamar a porta `8030`. A API pública continua na 
 
 ## Deprecações
 
-`/build-apk` no proxy é legado. Novos builds usam `api-service /admin/generate-apk`, Firebase callable ou o serviço dedicado `apk-builder`.
+`/build-apk` no proxy foi removido. Builds locais usam exclusivamente o serviço
+dedicado `apk-builder`; a callable Firebase permanece como integração remota.
 
 O inventário executável fica em `proxy-sgp/contracts.js`; o teste de contrato confirma que as rotas classificadas continuam presentes.

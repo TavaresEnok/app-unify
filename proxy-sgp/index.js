@@ -5,6 +5,11 @@ const axios = require('axios');
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 const Redis = require('ioredis');
+const { randomUUID } = require('crypto');
+const { loadConfig } = require('./lib/config');
+const { maskCpfCnpj, secureLog } = require('./lib/secure-log');
+
+const config = loadConfig();
 
 // Initialize Firebase Admin (Uses ADC)
 if (!admin.apps.length) {
@@ -14,8 +19,30 @@ const firestoreDb = admin.firestore();
 
 const app = express();
 
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.use((req, res, next) => {
+    const requestId = req.get('x-request-id') || randomUUID();
+    const startedAt = Date.now();
+    req.requestId = requestId;
+    res.set('x-request-id', requestId);
+    res.on('finish', () => {
+        if (req.path === '/health') return;
+        console.log(JSON.stringify({
+            severity: res.statusCode >= 500 ? 'ERROR' : 'INFO',
+            message: 'request.completed',
+            requestId,
+            method: req.method,
+            path: req.path,
+            status: res.statusCode,
+            durationMs: Date.now() - startedAt,
+        }));
+    });
+    next();
+});
+
 // --- REDIS CONNECTION ---
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const REDIS_URL = config.redisUrl;
 let redis = null;
 let redisConnected = false;
 
@@ -40,8 +67,8 @@ try {
 
 // --- RATE LIMITING (Redis-backed com fallback in-memory) ---
 const rateLimitStoreFallback = new Map();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minuto
-const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requisições por minuto
+const RATE_LIMIT_WINDOW_MS = config.rateLimitWindowMs;
+const RATE_LIMIT_MAX_REQUESTS = config.rateLimitMaxRequests;
 
 async function rateLimiter(req, res, next) {
     const clientId = req.ip || req.headers['x-forwarded-for'] || 'unknown';
@@ -114,7 +141,7 @@ setInterval(() => {
 
 // --- CACHE SYSTEM (Redis-backed com fallback in-memory) ---
 const cacheStoreFallback = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Minutes
+const CACHE_TTL_MS = config.cacheTtlMs;
 
 async function getFromCache(key) {
     try {
@@ -162,12 +189,7 @@ if (process.env.DEBUG_REQUESTS === 'true') {
 }
 
 // CORS — restringir origens permitidas
-const ALLOWED_ORIGINS = [
-    'http://168.194.13.18:8031',   // Admin Painel
-    'http://168.194.13.18:8034',   // API Service (proxy interno)
-    'http://localhost:5173',        // Dev local
-    'http://localhost:3002',        // Dev local
-];
+const ALLOWED_ORIGINS = config.allowedOrigins;
 app.use(cors({
     origin: (origin, callback) => {
         // Permitir requisições sem origin (mobile apps, curl, server-to-server)
@@ -181,16 +203,15 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(rateLimiter); // Aplica rate limiting a todas as rotas
 
-const PROXY_SECRET_KEY = process.env.PROXY_SECRET || process.env.PROXY_SECRET_KEY || '';
+const PROXY_SECRET_KEY = config.proxySecret;
 if (!PROXY_SECRET_KEY) {
     console.warn('[WARN] PROXY_SECRET não definido: rotas administrativas retornarão 503.');
 }
 // Mock de login só se explicitamente habilitado (nunca em produção sem intenção)
-const ENABLE_DEV_MOCK = process.env.ENABLE_DEV_CPF_MOCK === 'true';
-const DEV_CPF = ENABLE_DEV_MOCK ? (process.env.DEV_MOCK_CPF || '').replace(/\D/g, '') : '';
+const DEV_CPF = config.devCpf;
 // --------------------
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://sgp_user:sgp_password@localhost:5432/sgp_cache',
+    connectionString: config.databaseUrl,
 });
 
 pool.on('error', (err) => {
@@ -273,55 +294,6 @@ function parseSignalValue(value) {
     const numStr = value.toString().replace(/\s*dBm\s*/i, '').trim();
     const num = parseFloat(numStr);
     return isNaN(num) ? null : num;
-}
-
-const SENSITIVE_KEY_PATTERNS = ['senha', 'password', 'token', 'authorization', 'cpf', 'cnpj', 'apiToken', 'codigoPix', 'linha_digitavel'];
-
-function isSensitiveKey(key = '') {
-    const normalized = String(key).toLowerCase();
-    return SENSITIVE_KEY_PATTERNS.some((pattern) => normalized.includes(pattern.toLowerCase()));
-}
-
-function maskString(value) {
-    if (typeof value !== 'string') return value;
-    if (value.length <= 4) return '***';
-    return `${value.slice(0, 2)}***${value.slice(-2)}`;
-}
-
-function maskCpfCnpj(value) {
-    const digits = String(value || '').replace(/\D/g, '');
-    if (!digits) return 'N/A';
-    if (digits.length <= 4) return '***';
-    return `${digits.slice(0, 2)}***${digits.slice(-2)}`;
-}
-
-function sanitizeForLog(value, currentKey = '') {
-    if (value === null || value === undefined) return value;
-    if (Array.isArray(value)) return value.map((item) => sanitizeForLog(item, currentKey));
-
-    if (typeof value === 'object') {
-        const sanitized = {};
-        for (const [key, val] of Object.entries(value)) {
-            sanitized[key] = sanitizeForLog(val, key);
-        }
-        return sanitized;
-    }
-
-    if (isSensitiveKey(currentKey)) {
-        if (typeof value === 'string') return maskString(value);
-        if (typeof value === 'number') return -1;
-        return '***';
-    }
-
-    return value;
-}
-
-function secureLog(prefix, payload) {
-    if (payload === undefined) {
-        console.log(prefix);
-        return;
-    }
-    console.log(prefix, sanitizeForLog(payload));
 }
 
 // --- HELPER: credenciais SGP (NUNCA hardcodar tokens no repositório) ---
@@ -1215,7 +1187,17 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 3002;
+app.get('/ready', async (req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        if (redisConnected && redis) await redis.ping();
+        res.status(200).json({ status: 'ready', postgres: 'ok', redis: redisConnected ? 'ok' : 'degraded' });
+    } catch (error) {
+        res.status(503).json({ status: 'not-ready', postgres: 'error', redis: redisConnected ? 'ok' : 'degraded' });
+    }
+});
+
+const PORT = config.port;
 // Iniciar Cron Jobs
 require('./cron-jobs')(app, { admin, firestoreDb, ensureSgpCredentials, callSgpApi });
 

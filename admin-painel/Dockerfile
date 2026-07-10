@@ -3,6 +3,15 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_API_URL
+ARG VITE_APK_BUILDER_URL
+ARG VITE_DOWNLOADS_URL
+ARG VITE_PANEL_URL
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_APK_BUILDER_URL=$VITE_APK_BUILDER_URL \
+    VITE_DOWNLOADS_URL=$VITE_DOWNLOADS_URL \
+    VITE_PANEL_URL=$VITE_PANEL_URL
+
 # Copiar arquivos de dependência
 COPY package*.json ./
 
@@ -21,19 +30,7 @@ FROM nginx:alpine
 # Copiar arquivos buildados
 COPY --from=builder /app/dist_final /usr/share/nginx/html
 
-# Configuração Nginx para SPA (Single Page Application)
-RUN echo 'server { \
-    listen 80; \
-    gzip on; \
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript; \
-    gzip_min_length 1000; \
-    location / { \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    try_files $uri $uri/ /index.html; \
-    add_header Cache-Control "no-store, no-cache, must-revalidate"; \
-    } \
-    }' > /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

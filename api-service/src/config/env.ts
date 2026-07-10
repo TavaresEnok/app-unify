@@ -17,15 +17,10 @@ export const env = {
   sgpBaseUrl: (process.env.SGP_BASE_URL || "https://vibetelecom.sgp.net.br").replace(/\/$/, ""),
   sgpRejectUnauthorized: process.env.SGP_REJECT_UNAUTHORIZED !== "false",
   proxySgpUrl: (process.env.PROXY_SGP_INTERNAL_URL || "http://backend-proxy:3002").replace(/\/$/, ""),
-  apkScriptPath: process.env.APK_SCRIPT_PATH || "/home/app/projects/painel_provedores/admin-script/gerar_apk.py",
-  apkProjectRoot: process.env.APK_PROJECT_ROOT || "/home/app/projects/painel_provedores",
-  apkOutputDir: process.env.APK_OUTPUT_DIR || "/home/app/projects/painel_provedores/public_apks",
-  apkFlutterProject: process.env.APK_FLUTTER_PROJECT || "/home/app/projects/painel_provedores/app-flutter/unified",
   allowedOrigins: listEnv("ALLOWED_ORIGINS", [
-    "http://168.194.13.18:8031",
-    "http://168.194.13.18:8032",
     "http://localhost:5173",
     "http://localhost:8031",
+    "http://127.0.0.1:8031",
   ]),
 } as const;
 

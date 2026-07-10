@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            admin-painel/package-lock.json
+            functions/package-lock.json
+            api-service/package-lock.json
+            proxy-sgp/package-lock.json
+            services/apk-builder/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: npm ci
+      - run: npm ci --prefix admin-painel
+      - run: npm ci --prefix functions
+      - run: npm ci --prefix api-service
+      - run: npm ci --prefix proxy-sgp
+      - run: npm ci --prefix services/apk-builder
+      - run: flutter pub get
+        working-directory: app-flutter/unified
+      - run: flutter pub get
+        working-directory: app-flutter/admin_app
+      - run: npm run validate:web
+      - run: npm run validate:flutter
+      - run: flutter build apk --release --no-pub
+        working-directory: app-flutter/unified
+      - name: Package artifacts
+        run: |
+          tar -czf admin-painel.tar.gz -C admin-painel dist_final
+          tar -czf functions.tar.gz -C functions lib package.json package-lock.json
+          cp app-flutter/unified/build/app/outputs/flutter-apk/app-release.apk unify-app-release.apk
+          sha256sum admin-painel.tar.gz functions.tar.gz unify-app-release.apk > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: |
+            admin-painel.tar.gz
+            functions.tar.gz
+            unify-app-release.apk
+            SHA256SUMS
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" admin-painel.tar.gz functions.tar.gz unify-app-release.apk SHA256SUMS --generate-notes --verify-tag

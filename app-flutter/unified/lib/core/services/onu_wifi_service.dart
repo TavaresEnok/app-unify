@@ -180,11 +180,7 @@ class OnuWifiService {
   /// Busca dados da ONU (sinal, temperatura, etc)
   Future<OnuData> fetchOnuSignal() async {
     final url = '$_baseUrl/diagnostic/onu-signal';
-    debugPrint('[ONU-Service] ====== FETCH ONU SIGNAL ======');
-    debugPrint('[ONU-Service] API URL Base: $_baseUrl');
-    debugPrint('[ONU-Service] Full URL: $url');
-    debugPrint('[ONU-Service] CPF/CNPJ: $cpfCnpj');
-    debugPrint('[ONU-Service] SGP Params: $sgpParams');
+    if (kDebugMode) debugPrint('[ONU-Service] Iniciando consulta de sinal.');
 
     try {
       String? token;
@@ -249,7 +245,7 @@ class OnuWifiService {
   /// Lista redes WiFi do CPE/Roteador
   Future<List<WifiNetwork>> fetchWifiNetworks() async {
     final url = '$_baseUrl/cpe/wifi/list';
-    debugPrint('[WiFi-Service] Calling: $url');
+    if (kDebugMode) debugPrint('[WiFi-Service] Consultando redes.');
 
     try {
       String? token;
@@ -319,7 +315,7 @@ class OnuWifiService {
     required String password,
   }) async {
     final url = '$_baseUrl/cpe/wifi/update';
-    debugPrint('[WiFi-Service] Calling: $url');
+    if (kDebugMode) debugPrint('[WiFi-Service] Atualizando configuracao.');
 
     try {
       String? token;

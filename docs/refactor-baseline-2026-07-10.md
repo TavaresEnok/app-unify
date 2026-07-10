@@ -59,5 +59,5 @@ estruturais:
 - `npm run security:audit` retorna zero vulnerabilidades nos pacotes Node.
 - O scanner LAN descontinuado foi substituido por `network_tools` com adaptador
   testavel, preservando a contagem de dispositivos na rede local.
-- O deploy de Firebase Functions/regras deve seguir `docs/deploy-rollback.md`,
+- O deploy de Firebase Functions/regras deve seguir `docs/operations/deploy-rollback.md`,
   pois substitui gatilhos antigos por `handleFunctionRequest`.

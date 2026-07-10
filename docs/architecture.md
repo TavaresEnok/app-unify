@@ -36,7 +36,8 @@ proxy-sgp
 - `functions/src/handlers`: dominios de provedores, tickets, usuarios, SGP,
   clientes, backups, dashboards e notificacoes.
 - `api-service/src/routes`: fronteira HTTP.
-- `api-service/src/services`: Firebase Admin, SGP, proxy, APK e auditoria.
+- `api-service/src/services`: Firebase Admin, SGP, proxy e auditoria.
+- `services/apk-builder`: unico runtime local de geracao APK/AAB.
 - `app-flutter/unified/lib/core/models`: normalizacao de config remota no app
   movel canonico.
 

@@ -19,14 +19,19 @@ Branch: `refactor/base-architecture`
   raiz e submodulo recursivo removidos.
 - Regras Firestore/Storage endurecidas e testadas no emulador.
 - CI com Node 22, Java 21, Flutter, testes web/backend, e2e e Docker build.
-- Plano de deploy/rollback documentado.
+- APK Builder isolado em `services/apk-builder`, com download de logo restrito,
+  rate limit, healthcheck e apenas volumes operacionais montados.
+- URLs de API, builder e downloads centralizadas por ambiente e servidas pela
+  mesma origem do painel.
+- Plano de deploy/rollback, observabilidade e rotacao documentado.
 
 ## Validacoes finais
 
 - Web/admin: lint, unit tests, build e Playwright e2e passaram.
-- Functions: build e 38 testes passaram.
+- Functions: build e 46 testes passaram; cobertura minima bloqueia regressoes.
 - API service: 7 testes e build passaram.
-- Proxy SGP: contrato e `node --check` passaram.
+- Proxy SGP: 6 testes, contratos, readiness e `node --check` passaram.
+- APK Builder: 2 testes de politica de URL e build Docker passaram.
 - Firestore/Storage rules: 4 testes passaram no emulador.
 - Flutter unified e admin: analyze estrito sem issues e testes passaram.
 - Auditoria npm completa passou sem vulnerabilidades conhecidas.
@@ -36,11 +41,15 @@ Branch: `refactor/base-architecture`
   `scripts/` e sao validados por `npm run quality:shell`.
 - `npm run contracts:check`, `npm run security:secrets` e `git diff --check`
   passaram.
+- Os nove containers estao saudaveis; API, proxy e speed test executam sem
+  root, com filesystem somente leitura e `no-new-privileges`.
 
 ## Observacoes operacionais
 
 - Java 21 e necessario para o Firebase Emulator/CI.
-- O primeiro deploy de Firebase deve seguir `docs/deploy-rollback.md`, pois o
+- O primeiro deploy de Firebase deve seguir `docs/operations/deploy-rollback.md`, pois o
   gatilho novo `handleFunctionRequest` substitui handlers antigos.
+- Tokens SGP/OpenRouter e chaves administrativas removidos do codigo devem ser
+  revogados, pois continuam presentes no historico anterior do Git.
 - Antes de migrar dados em producao, rodar
   `node scripts/migrations/migrate-provider-config.mjs` sem `--apply`.

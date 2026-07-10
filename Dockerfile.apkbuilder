@@ -14,15 +14,19 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /home/app/projects/painel_provedores
 
 # Copiar apenas arquivos de dependência primeiro
-COPY package.json package-lock.json ./
+COPY services/apk-builder/package*.json ./services/apk-builder/
 
 # Instalar dependências do Node (no container)
 # Nota: Como montaremos o volume, o node_modules do host será usado se compatível,
 # mas rodamos npm install para garantir.
-RUN npm install --production
+RUN cd services/apk-builder && npm ci --omit=dev
+
+COPY services/apk-builder ./services/apk-builder
+COPY scripts/build ./scripts/build
+COPY app-flutter/unified ./app-flutter/unified
 
 # Expor porta do serviço
 EXPOSE 8035
 
 # Comando de entrada
-CMD ["node", "apk-builder-service.js"]
+CMD ["node", "services/apk-builder/index.js"]

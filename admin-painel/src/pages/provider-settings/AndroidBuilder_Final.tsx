@@ -10,6 +10,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebase/config';
 import { toast } from 'sonner';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import { publicDownloadUrl, runtimeConfig } from '@/shared/config/runtime';
 
 // FINAL-FINAL FIX - RENAMED FILE
 export default function AndroidBuilderPage() {
@@ -78,9 +79,7 @@ export default function AndroidBuilderPage() {
             }
             const token = await user.getIdToken();
 
-            // Call APK Builder service (runs on host, not in Docker)
-            const API_URL = 'http://168.194.13.18:8035';
-            const response = await fetch(`${API_URL}/generate-apk`, {
+            const response = await fetch(`${runtimeConfig.apkBuilderBaseUrl}/generate-apk`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -124,17 +123,17 @@ export default function AndroidBuilderPage() {
             icon={Smartphone}
         >
 
-            {window.location.protocol === 'https:' && (
+            {window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:') && (
                 <Alert variant="destructive" className="bg-amber-500/10 text-amber-600 border-amber-500/50 dark:text-amber-400">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Restrição de Segurança do Navegador</AlertTitle>
                     <AlertDescription>
                         Você está acessando pelo painel em Nuvem (HTTPS).<br />
-                        Por motivos de segurança, o navegador bloqueia a conexão com o gerador de APK local (HTTP).<br />
+                        O endereço configurado para o gerador usa HTTP e será bloqueado pelo navegador.<br />
                         <br />
                         <strong>Para gerar o APK, acesse o painel localmente:</strong><br />
-                        <a href="http://168.194.13.18:8031" target="_blank" className="font-mono underline font-bold">
-                            http://168.194.13.18:8031
+                        <a href={runtimeConfig.panelUrl} target="_blank" rel="noreferrer" className="font-mono underline font-bold">
+                            {runtimeConfig.panelUrl}
                         </a>
                         <br />
                         <span className="text-xs opacity-75">(Se o painel local estiver desatualizado, lembre-se de rodar "docker-compose build frontend" no servidor)</span>
@@ -330,7 +329,7 @@ export default function AndroidBuilderPage() {
                         <Button
                             variant="outline"
                             onClick={() => handleGenerateApk('apk')}
-                            disabled={loading || window.location.protocol === 'https:'}
+                            disabled={loading || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
                             className="w-full sm:w-auto"
                         >
                             {loading ? (
@@ -343,7 +342,7 @@ export default function AndroidBuilderPage() {
 
                         <Button
                             onClick={() => handleGenerateApk('aab')}
-                            disabled={loading || !providerData?.logoUrl || window.location.protocol === 'https:'}
+                            disabled={loading || !providerData?.logoUrl || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
                             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                         >
                             {loading ? (
@@ -369,7 +368,7 @@ export default function AndroidBuilderPage() {
                                 </div>
                                 <div className="mt-3 flex gap-2">
                                     <a
-                                        href={`http://168.194.13.18:8032${lastResult.downloadUrl}`}
+                                        href={publicDownloadUrl(lastResult.downloadUrl)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"

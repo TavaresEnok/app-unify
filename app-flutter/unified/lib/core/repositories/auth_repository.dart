@@ -44,8 +44,7 @@ class AuthRepository {
     };
 
     final url = '$apiUrl/check-cpf';
-    debugPrint('DEBUG: Enviando login para $url');
-    debugPrint('DEBUG: Body: ${jsonEncode(requestBody)}');
+    if (kDebugMode) debugPrint('[Auth] Iniciando autenticacao.');
 
     final response = await http
         .post(
@@ -59,17 +58,16 @@ class AuthRepository {
         .timeout(
       const Duration(seconds: 30),
       onTimeout: () {
-        debugPrint('DEBUG: TIMEOUT na requisição!');
+        if (kDebugMode) debugPrint('[Auth] Timeout na requisicao.');
         throw Exception('Timeout: Servidor demorou para responder');
       },
     );
 
-    debugPrint('DEBUG: Status code: ${response.statusCode}');
-    debugPrint('DEBUG: Response body: ${response.body}');
+    if (kDebugMode) debugPrint('[Auth] Status: ${response.statusCode}.');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      debugPrint('DEBUG: Login bem sucedido! Usuário: ${data['nome']}');
+      if (kDebugMode) debugPrint('[Auth] Login concluido.');
 
       if (data['customToken'] is String && data['customToken'].isNotEmpty) {
         await FirebaseAuth.instance.signInWithCustomToken(data['customToken']);
@@ -95,7 +93,7 @@ class AuthRepository {
             : int.tryParse(data['contratoId']?.toString() ?? ''),
       );
     } else {
-      debugPrint('DEBUG: Falha no login - código ${response.statusCode}');
+      if (kDebugMode) debugPrint('[Auth] Falha no login: ${response.statusCode}.');
       throw Exception(
           'Falha no login: ${response.statusCode} - ${response.body}');
     }

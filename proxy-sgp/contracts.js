@@ -13,6 +13,7 @@ const endpointContracts = [
   { method: 'POST', path: '/cpe/wifi/list', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/cpe/wifi/update', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'GET', path: '/health', owner: 'proxy-sgp', access: 'healthcheck', decision: 'keep' },
+  { method: 'GET', path: '/ready', owner: 'proxy-sgp', access: 'readiness', decision: 'keep' },
 ];
 
 module.exports = { endpointContracts };

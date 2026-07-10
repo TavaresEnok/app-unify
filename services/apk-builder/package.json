@@ -1,0 +1,17 @@
+{
+  "name": "@unify/apk-builder",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test *.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "firebase-admin": "^13.6.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

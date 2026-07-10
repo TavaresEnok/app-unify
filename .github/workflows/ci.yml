@@ -5,9 +5,17 @@ on:
     branches: [main, "refactor/**"]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   web-and-backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,6 +28,7 @@ jobs:
             functions/package-lock.json
             api-service/package-lock.json
             proxy-sgp/package-lock.json
+            services/apk-builder/package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,6 +38,7 @@ jobs:
       - run: npm ci --prefix functions
       - run: npm ci --prefix api-service
       - run: npm ci --prefix proxy-sgp
+      - run: npm ci --prefix services/apk-builder
       - run: npm run validate:web
       - run: npx playwright install --with-deps chromium
         working-directory: admin-painel
@@ -36,22 +46,9 @@ jobs:
         working-directory: admin-painel
       - run: npm run test:rules
 
-  flutter:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - run: flutter pub get
-        working-directory: app-flutter/unified
-      - run: flutter pub get
-        working-directory: app-flutter/admin_app
-      - run: npm run validate:flutter
-
   docker-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose build frontend api-service backend-proxy
+      - run: docker compose build frontend api-service backend-proxy speed-test

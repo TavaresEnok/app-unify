@@ -1,6 +1,6 @@
 # Caddyfile — Reverse Proxy para Painel Provedores
 # =================================================================
-# Para HTTPS automático: substitua 168.194.13.18 pelo seu domínio
+# Para HTTPS automatico, configure o dominio publico no bloco do site.
 # Exemplo: painel.seudominio.com.br
 # O Caddy vai gerar certificado SSL automaticamente via Let's Encrypt
 # =================================================================
@@ -15,7 +15,17 @@
 
     # API Service
     handle /api/* {
+        uri strip_prefix /api
         reverse_proxy api-service:9136
+    }
+
+    handle /apk-builder/* {
+        uri strip_prefix /apk-builder
+        reverse_proxy apk-builder:8035
+    }
+
+    handle /public_apks/* {
+        reverse_proxy landing-page:80
     }
 
     # Proxy SGP

@@ -5,6 +5,13 @@ on:
     paths:
       - "app-flutter/unified/**"
       - ".github/workflows/flutter-ci.yml"
+
+concurrency:
+  group: flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
   pull_request:
     paths:
       - "app-flutter/unified/**"
@@ -13,6 +20,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: app-flutter/unified

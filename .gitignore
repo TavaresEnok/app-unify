@@ -51,6 +51,7 @@ venv/
 
 # Build output (built in Docker/CI, never committed)
 api-service/dist/
+functions/lib/
 admin-painel/dist_final/
 admin-painel/test-results/
 admin-painel/playwright-report/

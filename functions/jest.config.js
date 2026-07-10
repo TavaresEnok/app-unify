@@ -12,4 +12,12 @@ module.exports = {
     "!src/**/*.test.ts",
   ],
   coverageDirectory: "coverage",
+  coverageThreshold: {
+    global: {
+      branches: 13,
+      functions: 22,
+      lines: 30,
+      statements: 30,
+    },
+  },
 };

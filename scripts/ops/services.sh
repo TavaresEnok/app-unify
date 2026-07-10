@@ -54,6 +54,12 @@ case "$action" in
     echo
     curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8030/health
     echo
+    curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8030/ready
+    echo
+    curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8035/health
+    echo
+    curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8033/health
+    echo
     ;;
   *)
     echo "Uso: $0 {start|stop|restart|rebuild|logs|status|health} [servico]" >&2

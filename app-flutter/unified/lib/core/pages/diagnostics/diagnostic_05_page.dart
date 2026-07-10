@@ -120,14 +120,14 @@ class _Diagnostic05PageState extends ConsumerState<Diagnostic05Page>
       final config = ref.read(configurationProvider).providerConfig;
       if (config != null) {
         debugPrint('[Diag05] ====== INITIALIZING SERVICES ======');
-        debugPrint('[Diag05] Config API URL: ${config.apiUrl}');
+        debugPrint('[Diag05] Configuracao carregada.');
         OnuWifiService? onuService;
         final authState = ref.read(authNotifierProvider);
         final user = authState.value;
-        debugPrint('[Diag05] User: ${user?.cpfCnpj ?? "NULL"}');
+        debugPrint('[Diag05] Usuario disponivel: ${user != null}.');
         if (user != null) {
           final integrations = config.config.integrations;
-          debugPrint('[Diag05] SGP Base URL: ${integrations.sgpBaseUrl}');
+          debugPrint('[Diag05] Integracao SGP configurada.');
           debugPrint(
               '[Diag05] API Token: ${integrations.apiToken.substring(0, 10)}...');
           debugPrint('[Diag05] App Name: ${integrations.appName}');

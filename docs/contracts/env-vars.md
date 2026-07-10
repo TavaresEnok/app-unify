@@ -6,7 +6,10 @@ Atualizado em 2026-07-10. Nao registrar valores reais neste arquivo.
 
 | Variavel | Uso |
 | --- | --- |
-| `VITE_API_URL` | URL publica do `api-service` usada no build Vite |
+| `VITE_API_URL` | Base do `api-service`; default `/api` na mesma origem |
+| `VITE_APK_BUILDER_URL` | Base do gerador; default `/apk-builder` na mesma origem |
+| `VITE_DOWNLOADS_URL` | Origem opcional dos downloads; vazia usa a mesma origem |
+| `VITE_PANEL_URL` | URL publica opcional do painel |
 
 ## API service
 
@@ -21,10 +24,6 @@ Atualizado em 2026-07-10. Nao registrar valores reais neste arquivo.
 | `SGP_BASE_URL` | nao | `https://vibetelecom.sgp.net.br` | Base SGP |
 | `SGP_REJECT_UNAUTHORIZED` | nao | `true` | TLS para SGP |
 | `PROXY_SGP_INTERNAL_URL` | nao | `http://backend-proxy:3002` | Proxy legado/cache |
-| `APK_SCRIPT_PATH` | nao | script local | Gerador APK |
-| `APK_PROJECT_ROOT` | nao | raiz do repo | CWD do gerador |
-| `APK_OUTPUT_DIR` | nao | `public_apks` | Saida |
-| `APK_FLUTTER_PROJECT` | nao | `app-flutter/unified` | Projeto alvo |
 
 ## Firebase Functions
 
@@ -60,6 +59,7 @@ Variaveis runtime:
 | `SGP_BASE_URL` | fallback | `https://vibetelecom.sgp.net.br` | Base SGP |
 | `SGP_TOKEN` | fallback | vazio | Token SGP |
 | `SGP_APP_NAME` | fallback | vazio | App SGP |
+| `ALLOWED_ORIGINS` | nao | origens locais | CORS separado por virgula |
 
 ## APK builder dedicado
 
@@ -72,6 +72,8 @@ Variaveis runtime:
 | `APK_PROJECT_ROOT` | Raiz do projeto |
 | `APK_OUTPUT_DIR` | Saida |
 | `APK_FLUTTER_PROJECT` | Projeto Flutter alvo |
+| `APK_LOGO_HOSTS` | Hosts HTTPS aceitos para download de logos |
+| `ALLOWED_ORIGINS` | Origens web permitidas no CORS |
 | `ANDROID_HOME`/`ANDROID_SDK_ROOT` | SDK Android |
 
 ## Regras

@@ -37,7 +37,6 @@ api-service/src/
 | POST | `/admin/tickets/:id/reply` | Firebase token | Adiciona resposta |
 | GET | `/admin/users` | superAdmin | Lista usuarios administrativos |
 | GET | `/admin/dashboard` | Firebase token | Indicadores globais ou do provedor |
-| POST | `/admin/generate-apk` | superAdmin | Gera APK/AAB |
 | POST | `/getClientData` | rate limit SGP | Consulta dados do cliente |
 | POST | `/getConsumptionData` | rate limit SGP | Consulta consumo |
 | POST | `/getInvoices` | rate limit SGP | Consulta faturas |

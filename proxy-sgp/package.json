@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node --test contracts.test.js"
+    "test": "node --test contracts.test.js lib/*.test.js"
   },
   "keywords": [],
   "author": "",
