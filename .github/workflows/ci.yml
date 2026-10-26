@@ -51,4 +51,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - run: docker compose build frontend api-service backend-proxy speed-test
+      # O compose exige os .env locais (não versionados); no CI usamos os exemplos.
+      - run: |
+          cp api-service/.env.example api-service/.env
+          cp proxy-sgp/.env.example proxy-sgp/.env
+          docker compose build frontend api-service backend-proxy speed-test
+        env:
+          POSTGRES_PASSWORD: ci-build-only
