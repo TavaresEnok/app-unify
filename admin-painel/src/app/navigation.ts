@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Server,
+  TriangleAlert,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,7 @@ export const PROVIDER_NAVIGATION: NavigationItem[] = [
   { to: "/provedor/personalizacao", label: "Personalização", icon: Brush },
   { to: "/provedor/tickets", label: "Suporte", icon: MessageSquare },
   { to: "/provedor/diagnosticos", label: "Diagnósticos", icon: Activity },
+  { to: "/provedor/instabilidades", label: "Instabilidades", icon: TriangleAlert },
 ];
 
 export interface SettingsNavigationItem {

@@ -3,21 +3,19 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, Loader2, Link, Server, AlertTriangle } from 'lucide-react';
+import { Save, Loader2, Link, Server, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function IntegrationsSettings() {
     const { config, setConfig, isSaving } = useSettings();
 
-    // API URL (CRITICAL - used by all apps!)
-    const [localApiUrl, setLocalApiUrl] = useState(config.apiUrl || '');
     // SGP Integration
     const [localApiToken, setLocalApiToken] = useState(config.integrations?.apiToken || '');
     const [localAppName, setLocalAppName] = useState(config.integrations?.appName || '');
+    const [showToken, setShowToken] = useState(false);
 
     useEffect(() => {
-        setLocalApiUrl(config.apiUrl || '');
         setLocalApiToken(config.integrations?.apiToken || '');
         setLocalAppName(config.integrations?.appName || '');
     }, [config]);
@@ -30,7 +28,6 @@ export default function IntegrationsSettings() {
 
         setConfig((prev) => ({
             ...prev,
-            apiUrl: localApiUrl.trim(),
             integrations: newIntegrations,
         }));
 
@@ -52,40 +49,31 @@ export default function IntegrationsSettings() {
                 </>
             )}
         >
-            <SettingsSection
-                title="URL do Servidor (API)"
-                description="Configuração crítica: todos os apps usam esta URL."
-                className="border-amber-200 bg-amber-50"
-                actions={<AlertTriangle className="h-4 w-4 text-amber-600" />}
-            >
-                    <div className="space-y-2">
-                        <Label htmlFor="apiUrl">URL da API do Servidor</Label>
-                        <Input
-                            id="apiUrl"
-                            placeholder="http://seu-servidor:3000"
-                            value={localApiUrl}
-                            onChange={(e) => setLocalApiUrl(e.target.value)}
-                            disabled={isSaving}
-                            className="font-mono"
-                        />
-                        <p className="text-sm text-muted-foreground">
-                            Se você mudar de servidor/IP, atualize aqui e todos os apps receberão
-                            automaticamente a nova URL sem precisar de atualização.
-                        </p>
-                    </div>
-            </SettingsSection>
-
             <SettingsSection title="Integração SGP" description="Configure o token e o nome do aplicativo para sincronizar dados do SGP.">
 
                     <div className="space-y-2">
                         <Label htmlFor="apiToken">Token da API do SGP</Label>
-                        <Input
-                            id="apiToken"
-                            placeholder="Insira o seu token de API do SGP"
-                            value={localApiToken}
-                            onChange={(e) => setLocalApiToken(e.target.value)}
-                            disabled={isSaving}
-                        />
+                        <div className="relative">
+                            <Input
+                                id="apiToken"
+                                type={showToken ? 'text' : 'password'}
+                                autoComplete="off"
+                                spellCheck={false}
+                                placeholder="Insira o seu token de API do SGP"
+                                value={localApiToken}
+                                onChange={(e) => setLocalApiToken(e.target.value)}
+                                disabled={isSaving}
+                                className="pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowToken((v) => !v)}
+                                className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
+                                aria-label={showToken ? 'Ocultar token' : 'Mostrar token'}
+                            >
+                                {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                        </div>
                         <p className="text-sm text-muted-foreground">Chave secreta fornecida pelo seu sistema SGP.</p>
                     </div>
 

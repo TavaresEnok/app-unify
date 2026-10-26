@@ -15,6 +15,7 @@ interface CompanyDetails {
     cnpj?: string;
     email?: string;
     telefone?: string;
+    systemUrl?: string;
 }
 
 export default function MyCompanyPage() {
@@ -99,31 +100,29 @@ export default function MyCompanyPage() {
             </Card>
 
             <div className="flex flex-col gap-3.5">
+                {/* Status derivado da configuração real do provedor. Não afirmamos
+                    conectividade ao vivo (o painel não faz health-check do SGP). */}
                 <Card className="p-[18px]">
                     <div className="mb-3 flex items-center justify-between">
                         <div className="text-[13.5px] font-semibold text-[#1A2233]">Integração SGP</div>
-                        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-emerald-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                            Conectado
-                        </span>
+                        {details.systemUrl ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-emerald-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                Configurada
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-[#98A1B1]">
+                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                Não configurada
+                            </span>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[12px]">
-                        <span className="text-[#98A1B1]">Última sincronização</span>
-                        <span className="text-right text-[#4A5364]">hoje às 14:48</span>
-                        <span className="text-[#98A1B1]">Ambiente</span>
-                        <span className="text-right text-[#4A5364]">Produção</span>
+                        <span className="text-[#98A1B1]">URL do sistema</span>
+                        <span className="truncate text-right text-[#4A5364]">
+                            {details.systemUrl || '—'}
+                        </span>
                     </div>
-                </Card>
-                <Card className="p-[18px]">
-                    <div className="mb-3 flex items-center justify-between">
-                        <div className="text-[13.5px] font-semibold text-[#1A2233]">Plano da plataforma</div>
-                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[11.5px] font-semibold text-primary">Enterprise</span>
-                    </div>
-                    <div className="mb-2 text-[12px] text-[#98A1B1]">Clientes sincronizados</div>
-                    <div className="mb-2 h-2 overflow-hidden rounded-full bg-[#EEF1F6]">
-                        <div className="h-full w-[48%] rounded-full bg-primary" />
-                    </div>
-                    <div className="text-[12px] text-[#687181]">Renovação em 01/09/2026</div>
                 </Card>
             </div>
         </div>

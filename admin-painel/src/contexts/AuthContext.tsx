@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onIdTokenChanged, User } from 'firebase/auth';
 import { auth } from '@/firebase/config';
 import { Loader2 } from 'lucide-react';
 
@@ -19,32 +19,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (currentUser) {
-                await currentUser.getIdToken(true);
-                const tokenResult = await currentUser.getIdTokenResult();
+        // onIdTokenChanged (em vez de onAuthStateChanged) também dispara quando o
+        // token é renovado, então mudanças de custom claims (ex.: revogação de
+        // superAdmin) refletem no cliente sem exigir novo login.
+        const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
+            try {
+                if (currentUser) {
+                    const tokenResult = await currentUser.getIdTokenResult();
+                    const claimedProviderId = typeof tokenResult.claims.providerId === 'string'
+                        ? tokenResult.claims.providerId
+                        : null;
 
-                setUser(currentUser);
-                if (tokenResult.claims.superAdmin) {
-                    setUserRole('superAdmin');
-                    setProviderId(null);
-                } else if (tokenResult.claims.providerId) {
-                    setUserRole('providerAdmin');
-                    setProviderId(tokenResult.claims.providerId as string);
+                    setUser(currentUser);
+                    if (tokenResult.claims.superAdmin === true) {
+                        setUserRole('superAdmin');
+                        setProviderId(null);
+                    } else if (claimedProviderId) {
+                        setUserRole('providerAdmin');
+                        setProviderId(claimedProviderId);
+                    } else {
+                        setUserRole(null);
+                        setProviderId(null);
+                    }
+
+                    if (import.meta.env.DEV) {
+                        console.debug('[AuthContext]', {
+                            role: tokenResult.claims.superAdmin === true ? 'superAdmin' : 'providerAdmin',
+                            providerId: claimedProviderId,
+                        });
+                    }
                 } else {
+                    setUser(null);
                     setUserRole(null);
                     setProviderId(null);
                 }
-                console.log('[AuthContext] User:', currentUser.email, 'Role:', tokenResult.claims.superAdmin ? 'super' : 'provider', 'ProviderID:', tokenResult.claims.providerId);
-            } else {
-                console.log('[AuthContext] No User');
+            } catch (error) {
+                console.error('[AuthContext] Falha ao validar a sessão.', error);
                 setUser(null);
                 setUserRole(null);
                 setProviderId(null);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         });
-        return () => unsubscribe();
+        // Força a renovação periódica do ID token para que privilégios revogados
+        // no servidor não persistam no cliente por até ~1h.
+        const refreshTimer = window.setInterval(() => {
+            auth.currentUser?.getIdToken(true).catch(() => undefined);
+        }, 15 * 60 * 1000);
+
+        return () => {
+            unsubscribe();
+            window.clearInterval(refreshTimer);
+        };
     }, []);
 
     if (loading) {

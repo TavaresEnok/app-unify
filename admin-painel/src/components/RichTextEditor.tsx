@@ -103,6 +103,10 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
                 openOnClick: false,
                 autolink: true,
                 defaultProtocol: 'https',
+                // Restringe os protocolos aceitos: impede que um href
+                // javascript:/data: seja salvo no HTML e renderizado depois pelo
+                // app Flutter.
+                protocols: ['http', 'https', 'mailto'],
             }),
         ],
         content: value,

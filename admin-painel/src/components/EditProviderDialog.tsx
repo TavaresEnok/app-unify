@@ -18,10 +18,8 @@ interface Provider {
 
 interface ProviderDetails {
     appName?: string;
-    apiToken?: string;
     systemUrl?: string;
     systemType?: string;
-    apiUrl?: string;  // URL do Proxy/API
     city?: string;
     state?: string;
     hasAndroidApp?: boolean;
@@ -85,20 +83,12 @@ export default function EditProviderDialog({ provider, onUpdate }: EditProviderD
                         <Input id="appName" value={details.appName || ''} onChange={(e) => handleDetailChange('appName', e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="apiToken">Token da API (SGP)</Label>
-                        <Input id="apiToken" value={details.apiToken || ''} onChange={(e) => handleDetailChange('apiToken', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
                         <Label htmlFor="systemUrl">URL do Sistema (SGP)</Label>
                         <Input id="systemUrl" value={details.systemUrl || ''} onChange={(e) => handleDetailChange('systemUrl', e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="systemType">Tipo de Sistema</Label>
                         <Input id="systemType" value={details.systemType || ''} onChange={(e) => handleDetailChange('systemType', e.target.value)} />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="apiUrl">URL do Proxy/API (usado pelo app)</Label>
-                        <Input id="apiUrl" placeholder="https://api.seudominio.com" value={details.apiUrl || ''} onChange={(e) => handleDetailChange('apiUrl', e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="city">Cidade</Label>

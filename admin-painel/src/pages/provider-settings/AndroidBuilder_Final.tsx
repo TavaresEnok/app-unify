@@ -15,6 +15,8 @@ import { getErrorMessage } from '@/shared/errors';
 
 interface BuildResult {
     success: boolean;
+    jobId?: string;
+    status?: 'preparing' | 'running' | 'succeeded' | 'failed';
     format?: 'apk' | 'aab';
     error?: string;
     downloadUrl?: string;
@@ -26,6 +28,62 @@ interface UploadResult {
     success: boolean;
     url?: string;
     error?: string;
+}
+
+async function parseBuildResponse(response: Response): Promise<BuildResult> {
+    const body = await response.text();
+
+    if (!body) {
+        return { success: response.ok };
+    }
+
+    try {
+        return JSON.parse(body) as BuildResult;
+    } catch {
+        const readableBody = body
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 240);
+
+        throw new Error(readableBody ? `HTTP ${response.status}: ${readableBody}` : `HTTP ${response.status}`);
+    }
+}
+
+const BUILD_POLL_INTERVAL_MS = 2_000;
+const BUILD_POLL_TIMEOUT_MS = 30 * 60 * 1_000;
+
+async function waitForBuild(jobId: string, token: string): Promise<BuildResult> {
+    const deadline = Date.now() + BUILD_POLL_TIMEOUT_MS;
+    let consecutiveNetworkErrors = 0;
+
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => window.setTimeout(resolve, BUILD_POLL_INTERVAL_MS));
+
+        let response: Response;
+        try {
+            response = await fetch(
+                `${runtimeConfig.apkBuilderBaseUrl}/jobs/${encodeURIComponent(jobId)}`,
+                { headers: { 'Authorization': `Bearer ${token}` } },
+            );
+            consecutiveNetworkErrors = 0;
+        } catch (error) {
+            consecutiveNetworkErrors += 1;
+            if (consecutiveNetworkErrors >= 5) throw error;
+            continue;
+        }
+
+        const result = await parseBuildResponse(response);
+        if (!response.ok) {
+            throw new Error(result.error || `HTTP ${response.status}`);
+        }
+        if (result.status === 'succeeded') return result;
+        if (result.status === 'failed') {
+            throw new Error(result.error || 'A geração do aplicativo falhou.');
+        }
+    }
+
+    throw new Error('A geração excedeu o tempo máximo de 30 minutos.');
 }
 
 // FINAL-FINAL FIX - RENAMED FILE
@@ -105,14 +163,21 @@ export default function AndroidBuilderPage() {
                     providerId,
                     appName,
                     logoUrl,
-                    format
+                    format,
+                    async: true,
                 })
             });
 
-            const result = await response.json();
+            let result = await parseBuildResponse(response);
 
-            if (!response.ok) {
+            if (!response.ok || !result.success) {
                 throw new Error(result.error || `HTTP ${response.status}`);
+            }
+            if (response.status === 202 && result.jobId) {
+                toast.info(`${format.toUpperCase()} em geração`, {
+                    description: 'O progresso continuará mesmo se a conexão for renovada.',
+                });
+                result = await waitForBuild(result.jobId, token);
             }
 
             setLastResult({ ...result, format });
@@ -212,8 +277,15 @@ export default function AndroidBuilderPage() {
                                                 const resizeImage = (file: File): Promise<Blob> => {
                                                     return new Promise((resolve, reject) => {
                                                         const img = new Image();
-                                                        img.src = URL.createObjectURL(file);
+                                                        const objectUrl = URL.createObjectURL(file);
+                                                        img.src = objectUrl;
+                                                        img.onerror = () => {
+                                                            URL.revokeObjectURL(objectUrl);
+                                                            reject(new Error("Falha ao carregar a imagem"));
+                                                        };
                                                         img.onload = () => {
+                                                            // Libera o object URL assim que a imagem é decodificada.
+                                                            URL.revokeObjectURL(objectUrl);
                                                             const canvas = document.createElement('canvas');
                                                             canvas.width = 512;
                                                             canvas.height = 512;

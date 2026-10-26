@@ -1,3 +1,5 @@
+import { resolvePublicApiBaseUrl } from './publicApi';
+
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 const envUrl = (value: string | undefined, fallback: string) =>
@@ -5,6 +7,10 @@ const envUrl = (value: string | undefined, fallback: string) =>
 
 export const runtimeConfig = Object.freeze({
   apiBaseUrl: envUrl(import.meta.env.VITE_API_URL, '/api'),
+  publicApiBaseUrl: resolvePublicApiBaseUrl(
+    import.meta.env.VITE_PUBLIC_API_URL,
+    typeof window === 'undefined' ? undefined : window.location,
+  ),
   apkBuilderBaseUrl: envUrl(import.meta.env.VITE_APK_BUILDER_URL, '/apk-builder'),
   downloadsBaseUrl: envUrl(import.meta.env.VITE_DOWNLOADS_URL, ''),
   panelUrl: envUrl(

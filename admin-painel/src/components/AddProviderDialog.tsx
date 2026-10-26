@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { getErrorMessage } from "@/shared/errors";
+import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";
+import { saveProviderSettings } from "@/shared/firebase/providerSettingsService";
 
 export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }) {
     const [name, setName] = useState('');
@@ -22,6 +24,7 @@ export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }
         const toastId = toast.loading("Enviando pedido para criar provedor...");
         try {
             await callFunction('CREATE_PROVIDER', { name, providerId });
+            await saveProviderSettings(providerId, DEFAULT_PROVIDER_CONFIG);
             toast.success("Provedor criado com sucesso!", { id: toastId });
             onUpdate();
             setIsOpen(false);
