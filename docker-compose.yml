@@ -91,6 +91,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
     volumes:
       - /home/app/.secrets/painel_provedores:/run/secrets:ro
     depends_on:
@@ -159,6 +160,8 @@ services:
       dockerfile: Dockerfile
     container_name: painel_speedtest
     restart: always
+    environment:
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
     ports:
       - "8033:3001"
     healthcheck:
@@ -195,6 +198,7 @@ services:
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
     volumes:
       # Service account montada de fora do repositório (não é commitada)
       - /home/app/.secrets/painel_provedores:/run/secrets:ro
@@ -235,6 +239,7 @@ services:
       - PYTHON_BIN=python3
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
       - APK_PROJECT_ROOT=/home/app/projects/painel_provedores
       - APK_SCRIPT_PATH=/home/app/projects/painel_provedores/scripts/build/generate-apk.py
       - APK_FLUTTER_PROJECT=/home/app/projects/painel_provedores/app-flutter/unified
