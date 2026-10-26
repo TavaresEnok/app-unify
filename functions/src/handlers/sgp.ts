@@ -47,10 +47,14 @@ async function credentials(providerId: string) {
   ]);
   if (!provider.exists) throw new AppError("not-found", "Provedor não encontrado.");
   const data = provider.data() || {};
-  const integrations = secret.data()?.integrations || data.integrations || {};
+  // O token do SGP vem EXCLUSIVAMENTE da subcoleção privada `secrets/sgp`. Nunca
+  // ler credenciais do documento público (allow read: if true) — evita expor o
+  // token via um simples get anônimo (A7). URL/app não são segredos e podem cair
+  // para a config pública.
+  const integrations = secret.data()?.integrations || {};
   const result = {
     url: integrations.sgpBaseUrl || data.details?.systemUrl || data.sgpBaseUrl,
-    token: integrations.apiToken || data.details?.apiToken || data.apiToken,
+    token: integrations.apiToken,
     app: integrations.appName || data.details?.appName || data.appName || "APP-PROVEDOR",
   };
   if (!result.url || !result.token) throw new AppError("invalid-argument", "Configurações do SGP incompletas.");

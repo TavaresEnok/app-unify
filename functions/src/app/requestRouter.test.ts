@@ -7,7 +7,7 @@ const warn = jest.fn();
 const error = jest.fn();
 
 jest.mock("./firebase", () => ({
-  db: { collection: () => ({ doc: () => ({ get: responseGet }) }) },
+  db: { collection: () => ({ doc: () => ({ get: responseGet, create: () => Promise.resolve() }) }) },
 }));
 jest.mock("./writeResponse", () => ({ writeFailure, writeSuccess }));
 jest.mock("./audit", () => ({ recordAudit }));
@@ -60,6 +60,22 @@ test("supports the legacy requester uid inside payload", async () => {
   });
   expect(handler).toHaveBeenCalledWith(expect.objectContaining({ requesterUid: "legacy-user" }));
   expect(writeSuccess).toHaveBeenCalledWith("request-1", "legacy-user", { total: 1 });
+});
+
+test("rejects requests whose top-level and payload requesterUid diverge", async () => {
+  const handler = jest.fn();
+  await createRequestRouter(registry(handler))("request-forged", {
+    type: "SET_SUPER_ADMIN_BY_EMAIL",
+    requesterUid: "victim-super-admin",
+    payload: { requesterUid: "attacker", email: "attacker@example.com" },
+  });
+  expect(handler).not.toHaveBeenCalled();
+  expect(writeFailure).toHaveBeenCalledWith(
+    "request-forged",
+    "victim-super-admin",
+    "Requisição inválida.",
+    "invalid-argument",
+  );
 });
 
 test("writes success and a redacted audit envelope", async () => {

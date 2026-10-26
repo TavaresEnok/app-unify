@@ -27,14 +27,20 @@ service cloud.firestore {
     }
 
     function isOwnFunctionRequest() {
-      return signedIn() && (
-        (request.resource.data.keys().hasAll(['requesterUid']) &&
-         request.resource.data.requesterUid == request.auth.uid) ||
-        (request.resource.data.keys().hasAll(['payload']) &&
-         request.resource.data.payload is map &&
-         request.resource.data.payload.keys().hasAll(['requesterUid']) &&
-         request.resource.data.payload.requesterUid == request.auth.uid)
-      );
+      // A identidade canônica é o requesterUid de topo, que DEVE ser o próprio
+      // usuário. Um requesterUid aninhado em payload (usado por alguns clientes)
+      // só é aceito se também for o próprio usuário — impedindo forjar a
+      // identidade de topo (ex.: um super admin) enquanto satisfaz a regra pelo
+      // campo do payload.
+      let data = request.resource.data;
+      return signedIn() &&
+        data.keys().hasAll(['requesterUid']) &&
+        data.requesterUid == request.auth.uid &&
+        (
+          !(data.payload is map) ||
+          !data.payload.keys().hasAny(['requesterUid']) ||
+          data.payload.requesterUid == request.auth.uid
+        );
     }
 
     function isOwnFunctionResponse() {
@@ -61,7 +67,11 @@ service cloud.firestore {
         'status',
         'lastUpdated'
       ]) && request.resource.data.providerId is string &&
-      request.resource.data.authUid == request.auth.uid;
+      request.resource.data.authUid == request.auth.uid &&
+      // O cliente não pode se auto-registrar em um provedor arbitrário: o
+      // providerId gravado DEVE ser o do claim do token (emitido no login pelo
+      // proxy-sgp após validação no SGP). Impede acesso cross-tenant (A1).
+      request.resource.data.providerId == request.auth.token.providerId;
     }
 
     function publicProviderDataValid() {
@@ -85,6 +95,13 @@ service cloud.firestore {
     match /provedores/{providerId}/diagnostic_results/{resultId} {
       allow read, update, delete: if canManageProvider(providerId);
       allow create: if canManageProvider(providerId) || isClientOfProvider(providerId);
+    }
+
+    // Avisos de instabilidade/manutenção — clientes do provedor podem LER (para o
+    // app avisar "já sabemos, equipe atuando"); só admins do provedor escrevem.
+    match /provedores/{providerId}/incidents/{incidentId} {
+      allow read: if canManageProvider(providerId) || isClientOfProvider(providerId);
+      allow write: if canManageProvider(providerId);
     }
 
     // Secrets do provedor — acesso RESTRITO apenas a admins do provedor
@@ -150,9 +167,15 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // Notificações — leitura por qualquer usuário autenticado; escrita apenas pelas Functions
+    // Notificações — admins do provedor/superAdmin leem tudo; um cliente só lê as
+    // notificações direcionadas ao próprio CPF ou os broadcasts do seu provedor
+    // (targetCpf == null). Impede um cliente enumerar CPFs (targetCpf) e UIDs de
+    // admin (sentBy) de terceiros (M2). Escrita apenas pelas Functions.
     match /notifications/{notificationId} {
-      allow read: if isSuperAdmin() || isProviderAdmin(resource.data.providerId) || isClientOfProvider(resource.data.providerId);
+      allow read: if isSuperAdmin()
+        || isProviderAdmin(resource.data.providerId)
+        || (signedIn() && resource.data.targetCpf == request.auth.uid)
+        || (signedIn() && resource.data.targetCpf == null && isClientOfProvider(resource.data.providerId));
       allow write: if false;
     }
 

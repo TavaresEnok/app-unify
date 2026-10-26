@@ -28,8 +28,9 @@ describe("application errors", () => {
   });
 
   it("normalizes Error and unknown values", () => {
-    expect(toAppError(new Error("falhou"))).toMatchObject({ code: "internal", message: "falhou" });
-    expect(toAppError(null)).toMatchObject({ code: "internal", message: "Falha interna inesperada." });
+    // Erros não-AppError são genéricos ao cliente (não vazam detalhe interno).
+    expect(toAppError(new Error("falhou"))).toMatchObject({ code: "internal", message: "Falha interna inesperada. Tente novamente." });
+    expect(toAppError(null)).toMatchObject({ code: "internal", message: "Falha interna inesperada. Tente novamente." });
   });
 });
 

@@ -60,6 +60,14 @@ test("function request creation is bound to the authenticated uid", async () => 
     requesterUid: "another-user",
     payload: {},
   }));
+  // Forja de identidade: requesterUid de topo aponta para uma vítima (ex.: um
+  // super admin) enquanto o payload satisfaz a regra pelo próprio uid. Deve
+  // falhar — o topo é a identidade canônica usada na autorização.
+  await assertFails(setDoc(doc(db, "function_requests", "forged"), {
+    type: "SET_SUPER_ADMIN_BY_EMAIL",
+    requesterUid: "victim-super-admin",
+    payload: { requesterUid: "requester", email: "attacker@example.com" },
+  }));
 });
 
 test("notifications and audits remain tenant scoped", async () => {

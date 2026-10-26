@@ -1,4 +1,5 @@
 import * as logger from "firebase-functions/logger";
+import { FieldValue } from "firebase-admin/firestore";
 import { assertFunctionRequest, isRecord, type FunctionRequest, type FunctionRequestType } from "../contracts";
 import { toAppError } from "./errors";
 import type { RequestHandler } from "./request";
@@ -16,8 +17,30 @@ export function createRequestRouter(registry: HandlerRegistry) {
       return;
     }
 
+    // Claim atômico contra dupla execução (TOCTOU): onDocumentCreated é
+    // at-least-once, então duas entregas concorrentes poderiam passar pelo
+    // check acima antes de qualquer resposta existir. `.create()` falha com
+    // ALREADY_EXISTS se outra invocação já reivindicou este requestId (M9).
+    try {
+      await db.collection("function_locks").doc(requestId).create({ claimedAt: FieldValue.serverTimestamp() });
+    } catch {
+      logger.info("Function request already claimed", { requestId });
+      return;
+    }
+
     let request: FunctionRequest;
     try {
+      // Defesa em profundidade contra forja de identidade: se ambos os campos
+      // requesterUid (topo e payload) existem e divergem, a requisição é
+      // rejeitada — nunca deixamos o campo aninhado sobrescrever o de topo
+      // usado na autorização. As regras do Firestore já impõem que ambos sejam
+      // o próprio usuário; isto protege caso as regras sejam contornadas.
+      if (isRecord(rawRequest) && isRecord(rawRequest.payload) &&
+        typeof rawRequest.requesterUid === "string" &&
+        typeof rawRequest.payload.requesterUid === "string" &&
+        rawRequest.requesterUid !== rawRequest.payload.requesterUid) {
+        throw new Error("requesterUid divergente entre topo e payload.");
+      }
       const normalized = isRecord(rawRequest) && isRecord(rawRequest.payload) &&
         typeof rawRequest.requesterUid !== "string" && typeof rawRequest.payload.requesterUid === "string"
         ? { ...rawRequest, requesterUid: rawRequest.payload.requesterUid }
@@ -68,6 +91,15 @@ export function createRequestRouter(registry: HandlerRegistry) {
       logger.info("Function request completed", { requestId, type: request.type, providerId });
     } catch (error) {
       const appError = toAppError(error);
+      // Detalhe real do erro fica apenas no servidor; ao cliente vai appError
+      // (genérico para falhas não-AppError).
+      if (!(error instanceof Error) || error.name !== "AppError") {
+        logger.error("Unhandled handler error", {
+          requestId,
+          type: request.type,
+          error: error instanceof Error ? (error.stack || error.message) : String(error),
+        });
+      }
       await writeFailure(requestId, request.requesterUid, appError.message, appError.code);
       await recordAudit({
         requestId,

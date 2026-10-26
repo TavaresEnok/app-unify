@@ -20,6 +20,11 @@ service firebase.storage {
       return request.resource.size < 5 * 1024 * 1024 &&
              request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
+
+    function validReportPdf() {
+      return request.resource.size < 5 * 1024 * 1024 &&
+             request.resource.contentType == 'application/pdf';
+    }
     
     // Regra para todos os ficheiros dentro da pasta de um provedor
     match /providers/{providerId}/{fileName} {
@@ -42,6 +47,17 @@ service firebase.storage {
       allow read: if canManageProvider(providerId) || isClientOfProvider(providerId);
       allow create, update: if (canManageProvider(providerId) || isClientOfProvider(providerId)) && validImage();
       allow delete: if canManageProvider(providerId) || isClientOfProvider(providerId);
+    }
+
+    // Relatórios de diagnóstico em PDF gerados pelo app do assinante.
+    // ATENÇÃO: o fluxo compartilha o downloadURL (com token) por WhatsApp, e
+    // esse tipo de URL é acessível a quem tiver o link, independentemente das
+    // regras de leitura abaixo. Por isso o relatório usa o documento do cliente
+    // mascarado. A escrita segue restrita ao próprio cliente/admin do provedor.
+    match /providers/{providerId}/diagnostic_reports/{fileName} {
+      allow read: if canManageProvider(providerId) || isClientOfProvider(providerId);
+      allow create: if (canManageProvider(providerId) || isClientOfProvider(providerId)) && validReportPdf();
+      allow update, delete: if canManageProvider(providerId);
     }
   }
 }

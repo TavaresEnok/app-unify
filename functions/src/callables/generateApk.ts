@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
+import { lookup } from "node:dns/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -7,10 +8,36 @@ import * as logger from "firebase-functions/logger";
 import { apkProjectRoot, apkScriptPath } from "../app/config";
 import { recordAudit } from "../app/audit";
 
-async function downloadLogo(url: string, target: string): Promise<void> {
+function isPrivateIpv4(ip: string): boolean {
+  const m = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return false;
+  const [a, b] = m.slice(1).map(Number);
+  return a === 10 || a === 127 || a === 0 ||
+    (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
+    (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+}
+
+async function assertPublicHttpsUrl(url: string): Promise<URL> {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:") throw new HttpsError("invalid-argument", "A logo deve usar HTTPS.");
-  const response = await fetch(parsed, { redirect: "follow" });
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost")) throw new HttpsError("invalid-argument", "URL da logo não permitida.");
+  const resolved = await lookup(host, { all: true }).catch(() => [] as { address: string }[]);
+  if (!resolved.length) throw new HttpsError("invalid-argument", "URL da logo não pôde ser resolvida.");
+  for (const { address } of resolved) {
+    if (isPrivateIpv4(address)) throw new HttpsError("invalid-argument", "URL da logo aponta para rede interna.");
+  }
+  return parsed;
+}
+
+async function downloadLogo(url: string, target: string): Promise<void> {
+  const parsed = await assertPublicHttpsUrl(url);
+  // redirect: "manual" — um redirecionamento para http://169.254.169.254 ou host
+  // interno NÃO é seguido (SSRF). Recusamos qualquer resposta de redirect.
+  const response = await fetch(parsed, { redirect: "manual" });
+  if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+    throw new HttpsError("invalid-argument", "Redirecionamentos não são permitidos para a logo.");
+  }
   if (!response.ok) throw new HttpsError("invalid-argument", "Não foi possível baixar a logo.");
   const buffer = Buffer.from(await response.arrayBuffer());
   if (!buffer.length || buffer.length > 5 * 1024 * 1024) throw new HttpsError("invalid-argument", "Logo inválida ou maior que 5 MB.");
@@ -29,6 +56,11 @@ export const generateApk = onCall({
   const format = request.data?.format === "aab" ? "aab" : "apk";
   if (!providerId || !appName || !logoUrl) throw new HttpsError("invalid-argument", "ProviderID, nome e logo são obrigatórios.");
   if (!/^[a-z0-9_-]+$/i.test(providerId)) throw new HttpsError("invalid-argument", "ProviderID inválido.");
+  // Impede injeção de argumento no gerador Python: um appName iniciando com "-"
+  // poderia ser interpretado como flag (ex.: --nome "--help").
+  if (appName.length > 100 || /^-/.test(appName) || /[\r\n\t\0]/.test(appName)) {
+    throw new HttpsError("invalid-argument", "Nome do aplicativo inválido.");
+  }
 
   const script = apkScriptPath.value();
   const root = apkProjectRoot.value();
@@ -63,7 +95,8 @@ export const generateApk = onCall({
     const message = error instanceof Error ? error.message : "Falha ao gerar aplicativo.";
     logger.error("APK generation failed", { providerId, requesterUid: request.auth.uid, error: message });
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", message);
+    // Não expõe stderr/detalhes internos do subprocesso ao cliente (M5/M6).
+    throw new HttpsError("internal", "Falha ao gerar o aplicativo. Consulte os logs do servidor.");
   } finally {
     await fs.unlink(logoPath).catch(() => undefined);
   }

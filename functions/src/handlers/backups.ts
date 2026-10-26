@@ -4,6 +4,28 @@ import { AppError } from "../app/errors";
 import { db } from "../app/firebase";
 import { requireProviderAccess } from "../app/permissions";
 
+// Remove qualquer campo sensível que possa existir na raiz de um backup antigo,
+// impedindo que um restore re-materialize segredos no documento público do
+// provedor (que tem leitura pública). Segredos são restaurados apenas na
+// subcoleção privada `secrets/sgp` (ver restoreProviderConfig).
+function sanitizePublicProviderData(providerData: Record<string, unknown>): Record<string, unknown> {
+  const clone: Record<string, unknown> = { ...providerData };
+  for (const key of ["integrations", "apiToken", "token", "password", "secret", "secrets"]) {
+    delete clone[key];
+  }
+  if (clone.details && typeof clone.details === "object") {
+    const details = { ...(clone.details as Record<string, unknown>) };
+    delete details.apiToken;
+    clone.details = details;
+  }
+  if (clone.config && typeof clone.config === "object") {
+    const config = { ...(clone.config as Record<string, unknown>) };
+    delete config.integrations;
+    clone.config = config;
+  }
+  return clone;
+}
+
 export const backupProviderConfig: RequestHandler<"BACKUP_PROVIDER_CONFIG"> = async ({ requestId, requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
   const providerRef = db.collection("provedores").doc(payload.providerId);
@@ -43,7 +65,10 @@ export const restoreProviderConfig: RequestHandler<"RESTORE_PROVIDER_CONFIG"> = 
     throw new AppError("invalid-argument", "Backup inválido.");
   }
   const batch = db.batch();
-  batch.set(providerRef, { ...data.providerData, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  batch.set(providerRef, {
+    ...sanitizePublicProviderData(data.providerData as Record<string, unknown>),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
   if (data.secrets && typeof data.secrets === "object") {
     batch.set(providerRef.collection("secrets").doc("sgp"), data.secrets, { merge: true });
   }
