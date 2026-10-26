@@ -1,7 +1,7 @@
 # Base fixada por digest (não a tag mutável :stable) para builds reproduzíveis e
 # para não herdar silenciosamente uma imagem alterada upstream.
 # Corresponde a ghcr.io/cirruslabs/flutter:stable em 2026-07-17.
-FROM ghcr.io/cirruslabs/flutter:stable@sha256:0a9de3b70b5b7b921a346eb2793e363dc22280849a4fd690d9dde99ce1c2b1b8
+FROM ghcr.io/cirruslabs/flutter:stable@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
 
 USER root
 
