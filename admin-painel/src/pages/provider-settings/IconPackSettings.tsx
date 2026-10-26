@@ -39,7 +39,7 @@ export default function IconPackSettings() {
     const currentPack = config.iconPack || 'material';
 
     const handlePackChange = useCallback((pack: string) => {
-        setConfig((prev: any) => ({
+        setConfig((prev) => ({
             ...prev,
             iconPack: pack,
         }));

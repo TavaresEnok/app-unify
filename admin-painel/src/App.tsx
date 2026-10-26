@@ -33,10 +33,13 @@ const OtherSettings = lazy(() => import("@/pages/provider-settings/OtherSettings
 const BackupSettings = lazy(() => import("@/pages/provider-settings/BackupSettings"));
 const IntegrationsSettings = lazy(() => import("@/pages/provider-settings/IntegrationsSettings"));
 const PersonalizedTextsSettings = lazy(() => import("@/pages/provider-settings/PersonalizedTextsSettings"));
+const TermsOfUseSettings = lazy(() => import("@/pages/provider-settings/TermsOfUseSettings"));
+const ForceUpdate = lazy(() => import("@/pages/provider-settings/ForceUpdate"));
 const ProviderDashboardPage = lazy(() => import("./pages/provider/ProviderDashboardPage"));
 const NotificationSenderPage = lazy(() => import("./pages/provider/NotificationSenderPage"));
 const ProviderClientsPage = lazy(() => import("./pages/provider/ProviderClientsPage"));
 const DiagnosticHistoryPage = lazy(() => import("./pages/provider/DiagnosticHistoryPage"));
+const IncidentsPage = lazy(() => import("./pages/provider/IncidentsPage"));
 const ClientDetailPage = lazy(() => import("./pages/provider/ClientDetailPage"));
 const AdminTicketsPage = lazy(() => import("./pages/AdminTicketsPage"));
 const ProviderTicketsPage = lazy(() => import("./pages/provider/ProviderTicketsPage"));
@@ -84,6 +87,8 @@ const ProviderSettingsRoutes = (
     <Route path="promotions" element={<PromotionsManager />} />
     <Route path="splash-login" element={<SplashLoginConfig />} />
     <Route path="texts" element={<PersonalizedTextsSettings />} />
+    <Route path="terms" element={<TermsOfUseSettings />} />
+    <Route path="force-update" element={<ForceUpdate />} />
     <Route path="app-build" element={<AndroidBuilderPage />} />
   </Route>
 );
@@ -98,12 +103,12 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<ProtectedRoute><PostLoginRedirect /></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-              <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="provedores" element={<ProvidersPage />} />
-              <Route path="utilizadores" element={<UsersPage />} />
-              <Route path="tickets" element={<AdminTicketsPage />} />
-              <Route path="tickets/:ticketId" element={<TicketDetailPage />} />
-              <Route path="provedores/:providerId" element={<ProviderDetailPage />}>
+              <Route path="dashboard" element={<ProtectedRoute requiredRole="superAdmin"><DashboardPage /></ProtectedRoute>} />
+              <Route path="provedores" element={<ProtectedRoute requiredRole="superAdmin"><ProvidersPage /></ProtectedRoute>} />
+              <Route path="utilizadores" element={<ProtectedRoute requiredRole="superAdmin"><UsersPage /></ProtectedRoute>} />
+              <Route path="tickets" element={<ProtectedRoute requiredRole="superAdmin"><AdminTicketsPage /></ProtectedRoute>} />
+              <Route path="tickets/:ticketId" element={<ProtectedRoute requiredRole="superAdmin"><TicketDetailPage /></ProtectedRoute>} />
+              <Route path="provedores/:providerId" element={<ProtectedRoute requiredRole="superAdmin"><ProviderDetailPage /></ProtectedRoute>}>
                 {ProviderSettingsRoutes}
               </Route>
               <Route path="provedor/dashboard" element={<ProviderDashboardPage />} />
@@ -113,6 +118,7 @@ export default function App() {
               <Route path="provedor/minha-empresa" element={<MyCompanyPage />} />
               <Route path="provedor/tickets" element={<ProviderTicketsPage />} />
               <Route path="provedor/diagnosticos" element={<DiagnosticHistoryPage />} />
+              <Route path="provedor/instabilidades" element={<IncidentsPage />} />
               <Route path="provedor/tickets/:ticketId" element={<TicketDetailPage />} />
               <Route path="provedor/personalizacao" element={<ProviderDetailPage />}>
                 {ProviderSettingsRoutes}

@@ -1,31 +1,101 @@
-import { useContext, useState } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useState } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Smartphone, Download, AlertTriangle, CheckCircle, Save } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebase/config';
 import { toast } from 'sonner';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import { publicDownloadUrl, runtimeConfig } from '@/shared/config/runtime';
+import { getErrorMessage } from '@/shared/errors';
+
+interface BuildResult {
+    success: boolean;
+    jobId?: string;
+    status?: 'preparing' | 'running' | 'succeeded' | 'failed';
+    format?: 'apk' | 'aab';
+    error?: string;
+    downloadUrl?: string;
+    versionName?: string;
+    versionCode?: string | number;
+}
+
+interface UploadResult {
+    success: boolean;
+    url?: string;
+    error?: string;
+}
+
+async function parseBuildResponse(response: Response): Promise<BuildResult> {
+    const body = await response.text();
+
+    if (!body) {
+        return { success: response.ok };
+    }
+
+    try {
+        return JSON.parse(body) as BuildResult;
+    } catch {
+        const readableBody = body
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 240);
+
+        throw new Error(readableBody ? `HTTP ${response.status}: ${readableBody}` : `HTTP ${response.status}`);
+    }
+}
+
+const BUILD_POLL_INTERVAL_MS = 2_000;
+const BUILD_POLL_TIMEOUT_MS = 30 * 60 * 1_000;
+
+async function waitForBuild(jobId: string, token: string): Promise<BuildResult> {
+    const deadline = Date.now() + BUILD_POLL_TIMEOUT_MS;
+    let consecutiveNetworkErrors = 0;
+
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => window.setTimeout(resolve, BUILD_POLL_INTERVAL_MS));
+
+        let response: Response;
+        try {
+            response = await fetch(
+                `${runtimeConfig.apkBuilderBaseUrl}/jobs/${encodeURIComponent(jobId)}`,
+                { headers: { 'Authorization': `Bearer ${token}` } },
+            );
+            consecutiveNetworkErrors = 0;
+        } catch (error) {
+            consecutiveNetworkErrors += 1;
+            if (consecutiveNetworkErrors >= 5) throw error;
+            continue;
+        }
+
+        const result = await parseBuildResponse(response);
+        if (!response.ok) {
+            throw new Error(result.error || `HTTP ${response.status}`);
+        }
+        if (result.status === 'succeeded') return result;
+        if (result.status === 'failed') {
+            throw new Error(result.error || 'A geração do aplicativo falhou.');
+        }
+    }
+
+    throw new Error('A geração excedeu o tempo máximo de 30 minutos.');
+}
 
 // FINAL-FINAL FIX - RENAMED FILE
 export default function AndroidBuilderPage() {
-    console.log(" >>> LOADED: AndroidBuilder_Final V7 - SAFETY CHECKS ENABLED <<<");
-    // FORCE UPDATE 7
     const { userRole, user } = useAuth();
-    const settings = useContext(SettingsContext);
+    const settings = useSettings();
+    const [loading, setLoading] = useState(false);
+    const [lastResult, setLastResult] = useState<BuildResult | null>(null);
 
     // --- SAFETY CHECK (CRITICAL) ---
     // Handle undefined context or missing provider data gracefully
-    const providerData = settings?.provider || null;
-
-    if (!settings) {
-        console.error("CRITICAL: SettingsContext is undefined in AppBuildSettings");
-        return <div className="p-8 text-destructive border border-destructive rounded-md bg-destructive/10">Erro Crítico: Contexto de Configurações não carregado. Recarregue a página.</div>;
-    }
+    const providerData = settings.provider;
 
     if (!providerData) {
         // If settings exists but provider is null, we are Loading or it failed.
@@ -34,9 +104,6 @@ export default function AndroidBuilderPage() {
         }
         return <div className="p-8 text-destructive">Erro: Dados do provedor não encontrados.</div>;
     }
-
-    const [loading, setLoading] = useState(false);
-    const [lastResult, setLastResult] = useState<any>(null);
 
     // 1. SECURITY CHECK: Only Super Admin can see this page
     if (userRole !== 'superAdmin') {
@@ -86,9 +153,7 @@ export default function AndroidBuilderPage() {
             }
             const token = await user.getIdToken();
 
-            // Call APK Builder service (runs on host, not in Docker)
-            const API_URL = 'http://168.194.13.18:8035';
-            const response = await fetch(`${API_URL}/generate-apk`, {
+            const response = await fetch(`${runtimeConfig.apkBuilderBaseUrl}/generate-apk`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -98,26 +163,33 @@ export default function AndroidBuilderPage() {
                     providerId,
                     appName,
                     logoUrl,
-                    format
+                    format,
+                    async: true,
                 })
             });
 
-            const result = await response.json();
+            let result = await parseBuildResponse(response);
 
-            if (!response.ok) {
+            if (!response.ok || !result.success) {
                 throw new Error(result.error || `HTTP ${response.status}`);
+            }
+            if (response.status === 202 && result.jobId) {
+                toast.info(`${format.toUpperCase()} em geração`, {
+                    description: 'O progresso continuará mesmo se a conexão for renovada.',
+                });
+                result = await waitForBuild(result.jobId, token);
             }
 
             setLastResult({ ...result, format });
             toast.success(`${format.toUpperCase()} Gerado com Sucesso!`, {
                 description: "O arquivo está disponível na pasta pública do servidor."
             });
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
             toast.error(`Erro ao gerar ${format.toUpperCase()}`, {
-                description: error.message
+                description: getErrorMessage(error)
             });
-            setLastResult({ success: false, error: error.message });
+            setLastResult({ success: false, error: getErrorMessage(error) });
         } finally {
             setLoading(false);
         }
@@ -132,17 +204,17 @@ export default function AndroidBuilderPage() {
             icon={Smartphone}
         >
 
-            {window.location.protocol === 'https:' && (
+            {window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:') && (
                 <Alert variant="destructive" className="bg-amber-500/10 text-amber-600 border-amber-500/50 dark:text-amber-400">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Restrição de Segurança do Navegador</AlertTitle>
                     <AlertDescription>
                         Você está acessando pelo painel em Nuvem (HTTPS).<br />
-                        Por motivos de segurança, o navegador bloqueia a conexão com o gerador de APK local (HTTP).<br />
+                        O endereço configurado para o gerador usa HTTP e será bloqueado pelo navegador.<br />
                         <br />
                         <strong>Para gerar o APK, acesse o painel localmente:</strong><br />
-                        <a href="http://168.194.13.18:8031" target="_blank" className="font-mono underline font-bold">
-                            http://168.194.13.18:8031
+                        <a href={runtimeConfig.panelUrl} target="_blank" rel="noreferrer" className="font-mono underline font-bold">
+                            {runtimeConfig.panelUrl}
                         </a>
                         <br />
                         <span className="text-xs opacity-75">(Se o painel local estiver desatualizado, lembre-se de rodar "docker-compose build frontend" no servidor)</span>
@@ -160,7 +232,7 @@ export default function AndroidBuilderPage() {
                                     value={settings.config?.details?.appName || settings.config?.name || ''}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        settings.setConfig((prev: any) => ({
+                                        settings.setConfig((prev) => ({
                                             ...prev,
                                             details: { ...(prev.details || {}), appName: val }
                                         }));
@@ -179,7 +251,7 @@ export default function AndroidBuilderPage() {
                                         value={settings.config?.details?.logoUrl || settings.config?.logoUrl || ''}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            settings.setConfig((prev: any) => ({
+                                            settings.setConfig((prev) => ({
                                                 ...prev,
                                                 details: { ...(prev.details || {}), logoUrl: val },
                                                 logoUrl: val // Sync root for backward compatibility
@@ -205,8 +277,15 @@ export default function AndroidBuilderPage() {
                                                 const resizeImage = (file: File): Promise<Blob> => {
                                                     return new Promise((resolve, reject) => {
                                                         const img = new Image();
-                                                        img.src = URL.createObjectURL(file);
+                                                        const objectUrl = URL.createObjectURL(file);
+                                                        img.src = objectUrl;
+                                                        img.onerror = () => {
+                                                            URL.revokeObjectURL(objectUrl);
+                                                            reject(new Error("Falha ao carregar a imagem"));
+                                                        };
                                                         img.onload = () => {
+                                                            // Libera o object URL assim que a imagem é decodificada.
+                                                            URL.revokeObjectURL(objectUrl);
                                                             const canvas = document.createElement('canvas');
                                                             canvas.width = 512;
                                                             canvas.height = 512;
@@ -255,10 +334,10 @@ export default function AndroidBuilderPage() {
                                                             providerId
                                                         });
 
-                                                        const data = result.data as any;
+                                                        const data = result.data as UploadResult;
                                                         if (data.success) {
                                                             // Update State
-                                                            settings.setConfig((prev: any) => ({
+                                                            settings.setConfig((prev) => ({
                                                                 ...prev,
                                                                 logoUrl: data.url,
                                                                 details: { ...(prev.details || {}), logoUrl: data.url }
@@ -268,9 +347,9 @@ export default function AndroidBuilderPage() {
                                                         } else {
                                                             throw new Error(data.error || 'Upload falhou');
                                                         }
-                                                    } catch (error: any) {
+                                                    } catch (error) {
                                                         console.error("Upload error:", error);
-                                                        toast.error(`Erro: ${error.message || error.code || 'Falha desconhecida'}`, {
+                                                        toast.error(`Erro: ${getErrorMessage(error, 'Falha desconhecida')}`, {
                                                             id: toastId,
                                                             duration: 5000
                                                         });
@@ -280,9 +359,9 @@ export default function AndroidBuilderPage() {
                                                     toast.error("Erro ao ler arquivo", { id: toastId });
                                                 };
 
-                                            } catch (error: any) {
+                                            } catch (error) {
                                                 console.error("Resize error:", error);
-                                                toast.error(`Erro ao processar imagem: ${error.message}`, { id: toastId });
+                                                toast.error(`Erro ao processar imagem: ${getErrorMessage(error)}`, { id: toastId });
                                             }
                                         }}
                                     />
@@ -307,7 +386,7 @@ export default function AndroidBuilderPage() {
                         <Button
                             variant="secondary"
                             size="sm"
-                            onClick={settings.saveConfig}
+                            onClick={() => void settings.saveConfig()}
                             disabled={settings.isSaving}
                         >
                             {settings.isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
@@ -338,7 +417,7 @@ export default function AndroidBuilderPage() {
                         <Button
                             variant="outline"
                             onClick={() => handleGenerateApk('apk')}
-                            disabled={loading || window.location.protocol === 'https:'}
+                            disabled={loading || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
                             className="w-full sm:w-auto"
                         >
                             {loading ? (
@@ -351,7 +430,7 @@ export default function AndroidBuilderPage() {
 
                         <Button
                             onClick={() => handleGenerateApk('aab')}
-                            disabled={loading || !providerData?.logoUrl || window.location.protocol === 'https:'}
+                            disabled={loading || !providerData?.logoUrl || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
                             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                         >
                             {loading ? (
@@ -377,7 +456,7 @@ export default function AndroidBuilderPage() {
                                 </div>
                                 <div className="mt-3 flex gap-2">
                                     <a
-                                        href={`http://168.194.13.18:8032${lastResult.downloadUrl}`}
+                                        href={publicDownloadUrl(lastResult.downloadUrl ?? '')}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"

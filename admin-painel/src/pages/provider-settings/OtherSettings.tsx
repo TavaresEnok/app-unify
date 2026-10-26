@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,7 @@ import { toast } from 'sonner';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function OtherSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     // Estados locais para campos de texto (exemplo: URL de política de privacidade, etc.)
     const [localPrivacyPolicyUrl, setLocalPrivacyPolicyUrl] = useState(config.other?.privacyPolicyUrl || '');

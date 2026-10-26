@@ -1,20 +1,12 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import {
-  Activity,
   Bell,
-  Brush,
-  Building2,
-  LayoutDashboard,
   LogOut,
   Menu,
-  MessageSquare,
   Search,
-  Server,
-  ShieldCheck,
-  Users,
 } from "lucide-react";
-import { signOut, getIdTokenResult } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -22,31 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-type NavItem = {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  badge?: string;
-  match?: string;
-};
-
-const superAdminNav: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/provedores", label: "Provedores", icon: Server },
-  { to: "/utilizadores", label: "Utilizadores", icon: Users },
-  { to: "/tickets", label: "Tickets", icon: MessageSquare },
-];
-
-const providerNav: NavItem[] = [
-  { to: "/provedor/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/provedor/clientes", label: "Clientes", icon: Users },
-  { to: "/provedor/notificacoes", label: "Notificações", icon: Bell },
-  { to: "/provedor/minha-empresa", label: "Minha empresa", icon: Building2 },
-  { to: "/provedor/personalizacao", label: "Personalização", icon: Brush },
-  { to: "/provedor/tickets", label: "Suporte", icon: MessageSquare },
-  { to: "/provedor/diagnosticos", label: "Diagnósticos", icon: Activity },
-];
+import { PROVIDER_NAVIGATION, SUPER_ADMIN_NAVIGATION, titleForPath, type NavigationItem } from "@/app/navigation";
 
 function Logo() {
   return (
@@ -70,28 +38,6 @@ function getDisplayName(email: string | null | undefined) {
   return email.split("@")[0].replace(/[._-]+/g, " ");
 }
 
-function titleForPath(pathname: string, isProvider: boolean) {
-  if (pathname.startsWith("/provedores/")) return "Configuração do provedor";
-  if (pathname.startsWith("/tickets/") || pathname.startsWith("/provedor/tickets/")) return "Ticket";
-  if (pathname.startsWith("/provedor/clientes/")) return "Cliente";
-
-  const titles: Record<string, string> = {
-    "/dashboard": "Dashboard",
-    "/provedores": "Provedores",
-    "/utilizadores": "Utilizadores",
-    "/tickets": "Tickets",
-    "/provedor/dashboard": "Dashboard",
-    "/provedor/clientes": "Clientes",
-    "/provedor/notificacoes": "Notificações",
-    "/provedor/minha-empresa": "Minha empresa",
-    "/provedor/personalizacao": "Personalização do app",
-    "/provedor/tickets": "Suporte",
-    "/provedor/diagnosticos": "Diagnósticos",
-  };
-
-  return titles[pathname] || (isProvider ? "Painel" : "Unify");
-}
-
 export default function MainLayout() {
   const { user, userRole } = useAuth();
   const location = useLocation();
@@ -99,7 +45,7 @@ export default function MainLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isProvider = userRole !== "superAdmin";
-  const navItems = isProvider ? providerNav : superAdminNav;
+  const navItems = isProvider ? PROVIDER_NAVIGATION : SUPER_ADMIN_NAVIGATION;
   const pageTitle = titleForPath(location.pathname, isProvider);
   const userInitials = getInitials(user?.email);
   const userName = getDisplayName(user?.email);
@@ -112,22 +58,7 @@ export default function MainLayout() {
     navigate("/login");
   };
 
-  const handleIdentityCheck = async () => {
-    if (!user) {
-      alert("Usuário não está logado.");
-      return;
-    }
-
-    console.log("--- INICIANDO TESTE DE IDENTIDADE ---");
-    const tokenResult = await getIdTokenResult(user, true);
-    console.log("Email do Usuário:", tokenResult.claims.email);
-    console.log("É Super Admin?", tokenResult.claims.superAdmin === true);
-    console.log("ID do Provedor:", tokenResult.claims.providerId || "Nenhum");
-    console.log("Todas as permissões (claims):", tokenResult.claims);
-    alert("Verifique o console (F12) para ver suas permissões.");
-  };
-
-  const isActive = (item: NavItem) => {
+  const isActive = (item: NavigationItem) => {
     const match = item.match || item.to;
     return location.pathname === match || location.pathname.startsWith(`${match}/`);
   };
@@ -192,15 +123,6 @@ export default function MainLayout() {
             <LogOut className="h-[15px] w-[15px]" />
           </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleIdentityCheck}
-          className="mt-3 h-8 w-full justify-start gap-2 text-[12px] text-[var(--sidebar-item)] hover:bg-white/10 hover:text-[var(--sidebar-title)]"
-        >
-          <ShieldCheck className="h-3.5 w-3.5" />
-          Testar identidade
-        </Button>
       </div>
     </div>
   );
@@ -255,7 +177,6 @@ export default function MainLayout() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleIdentityCheck}>Testar identidade</DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout}>Sair</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

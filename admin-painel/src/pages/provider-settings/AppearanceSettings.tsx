@@ -1,5 +1,5 @@
-import { useContext, useCallback, memo } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useCallback, useMemo, memo } from 'react';
+import { useSettings, type ProviderConfig } from '@/contexts/SettingsContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -253,10 +253,7 @@ function AppearancePreview({ config }: { config: any }) {
 }
 
 export default function AppearanceSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, saveConfig, isSaving } = context;
+    const { config, setConfig, saveConfig, isSaving } = useSettings();
 
     const updateLayoutThemes = useCallback((newConfig: any, layoutToUpdate: string, values: any) => {
         const currentStrings = newConfig.strings || {};
@@ -287,13 +284,13 @@ export default function AppearanceSettings() {
     }, []);
 
     const handleColorChange = useCallback((id: string, val: string) => {
-        setConfig((previous: any) => {
+        setConfig((previous) => {
             const updated = { ...previous, [id]: val };
             return updateLayoutThemes(updated, previous.layoutType || 'layout_06', updated);
         });
     }, [setConfig, updateLayoutThemes]);
 
-    const layoutDefaults: Record<string, Record<string, string>> = {
+    const layoutDefaults: Record<string, Record<string, string>> = useMemo(() => ({
         layout_01: {
             themeColor: '#673AB7',
             secondaryColor: '#9575CD',
@@ -366,11 +363,11 @@ export default function AppearanceSettings() {
             otherCardsColor: '#0F1225',
             otherCardsTextColor: '#FFFFFF',
         },
-    };
+    }), []);
 
     const handleLayoutChange = useCallback((newLayout: string) => {
-        setConfig((prev: any) => {
-            let nextConfig = updateLayoutThemes(prev, prev.layoutType || 'layout_01', prev);
+        setConfig((prev) => {
+            const nextConfig = updateLayoutThemes(prev, prev.layoutType || 'layout_01', prev);
             const layoutThemes = nextConfig.strings?.layoutThemes ? JSON.parse(nextConfig.strings.layoutThemes) : {};
             const savedTheme = layoutThemes[newLayout];
             const defaults = layoutDefaults[newLayout] || layoutDefaults.layout_01;
@@ -382,12 +379,12 @@ export default function AppearanceSettings() {
                 layoutType: newLayout
             };
         });
-    }, [setConfig, updateLayoutThemes]);
+    }, [layoutDefaults, setConfig, updateLayoutThemes]);
 
     const restoreLayoutDefaults = () => {
         const currentLayout = config.layoutType || 'layout_01';
         const defaults = layoutDefaults[currentLayout] || layoutDefaults.layout_01;
-        setConfig((prev: any) => updateLayoutThemes({ ...prev, ...defaults }, currentLayout, defaults));
+        setConfig((prev) => updateLayoutThemes({ ...prev, ...defaults }, currentLayout, defaults));
         toast.success('Cores padrão restauradas!');
     };
 
@@ -460,7 +457,7 @@ export default function AppearanceSettings() {
                                 <MonitorSmartphone className="h-4 w-4" />
                                 Estilo do diagnóstico
                             </Label>
-                            <Select value={config.diagnosticStyle || 'default'} onValueChange={(val) => setConfig((p: any) => ({ ...p, diagnosticStyle: val }))}>
+                            <Select value={config.diagnosticStyle || 'default'} onValueChange={(val) => setConfig((p) => ({ ...p, diagnosticStyle: val as ProviderConfig['diagnosticStyle'] }))}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Escolha o estilo do diagnóstico" />
                                 </SelectTrigger>
@@ -480,15 +477,15 @@ export default function AppearanceSettings() {
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="text-[12.5px] text-[#4A5364]">Cabeçalho com imagem</span>
-                                    <Switch checked={config.other?.useBackgroundImage || false} onCheckedChange={(checked) => setConfig((p: any) => ({ ...p, other: { ...(p.other || {}), useBackgroundImage: checked } }))} />
+                                    <Switch checked={config.other?.useBackgroundImage || false} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), useBackgroundImage: checked } }))} />
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="text-[12.5px] text-[#4A5364]">Mostrar serviço de TV</span>
-                                    <Switch checked={config.other?.showTvService ?? true} onCheckedChange={(checked) => setConfig((p: any) => ({ ...p, other: { ...(p.other || {}), showTvService: checked } }))} />
+                                    <Switch checked={config.other?.showTvService ?? true} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), showTvService: checked } }))} />
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="text-[12.5px] text-[#4A5364]">Mostrar serviço de Telefone</span>
-                                    <Switch checked={config.other?.showPhoneService ?? true} onCheckedChange={(checked) => setConfig((p: any) => ({ ...p, other: { ...(p.other || {}), showPhoneService: checked } }))} />
+                                    <Switch checked={config.other?.showPhoneService ?? true} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), showPhoneService: checked } }))} />
                                 </div>
                             </div>
                         </div>
@@ -520,7 +517,7 @@ export default function AppearanceSettings() {
 
                 <CardFooter className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                     <p className="text-[12px] text-[#98A1B1]">As alterações são aplicadas ao preview imediatamente e gravadas ao salvar.</p>
-                    <Button onClick={saveConfig} disabled={isSaving} className="gap-2">
+                    <Button onClick={() => void saveConfig()} disabled={isSaving} className="gap-2">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         {isSaving ? "Salvando..." : "Salvar alterações"}
                     </Button>

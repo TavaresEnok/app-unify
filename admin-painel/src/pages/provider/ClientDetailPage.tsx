@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, UserCircle, AlertTriangle, CreditCard, FileText, Router, Trash2 } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
+import { getErrorMessage } from '@/shared/errors';
 
 interface ClientData {
     id: string; // ID interno do SGP
@@ -39,7 +40,7 @@ export default function ClientDetailPage() {
         const fetchDetails = async () => {
             try {
                 // Chamamos o proxy para buscar do CACHE SQLite usando o ID INTERNO do SGP
-                const result = await callFunction('SGP_API_PROXY', {
+                const result: any = await callFunction('SGP_API_PROXY', {
                     providerId: providerId,
                     action: 'get_single', // Ação para buscar cliente único no cache (Proxy ROTA 3)
                     params: { 
@@ -65,8 +66,8 @@ export default function ClientDetailPage() {
                 } else {
                     toast.error("Cliente não encontrado no cache.");
                 }
-            } catch (error: any) {
-                toast.error(error.message || "Falha ao carregar detalhes do cliente do cache SGP.");
+            } catch (error) {
+                toast.error(getErrorMessage(error, "Falha ao carregar detalhes do cliente do cache SGP."));
             } finally {
                 setIsLoadingClient(false);
             }
@@ -100,7 +101,7 @@ export default function ClientDetailPage() {
             });
             
             navigate('/provedor/clientes');
-        } catch (error: any) {
+        } catch {
              // O toast de erro já é tratado no useApi
         }
     };

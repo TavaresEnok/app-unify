@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect, useCallback } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { useState, useEffect, useCallback } from 'react';
+import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,10 +15,7 @@ export interface TipItem {
 }
 
 export default function TipsSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     // Converte o array de tips para um estado local
     const [localTips, setLocalTips] = useState<TipItem[]>(() => {

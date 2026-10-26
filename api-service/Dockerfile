@@ -4,7 +4,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci --loglevel=error
 
 COPY . .
 RUN npm run build
@@ -14,10 +14,12 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --omit=dev
+COPY --chown=node:node package*.json ./
+RUN npm ci --omit=dev --loglevel=error
 
-COPY --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/dist ./dist
+
+USER node
 
 EXPOSE 9136
 

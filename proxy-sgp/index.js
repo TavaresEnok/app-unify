@@ -5,17 +5,51 @@ const axios = require('axios');
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 const Redis = require('ioredis');
+const { randomUUID } = require('crypto');
+const fs = require('fs');
+const { loadConfig } = require('./lib/config');
+const { maskCpfCnpj, secureLog } = require('./lib/secure-log');
+const { canIssueClientToken } = require('./lib/client-access');
+const { createRateLimiter } = require('./lib/rate-limiter');
+
+const config = loadConfig();
 
 // Initialize Firebase Admin (Uses ADC)
+const firebaseCredentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+if (firebaseCredentialsPath && !fs.existsSync(firebaseCredentialsPath)) {
+    throw new Error(`Firebase credentials file not found: ${firebaseCredentialsPath}`);
+}
 if (!admin.apps.length) {
-    admin.initializeApp();
+    admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT || undefined });
 }
 const firestoreDb = admin.firestore();
 
 const app = express();
 
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+app.use((req, res, next) => {
+    const requestId = req.get('x-request-id') || randomUUID();
+    const startedAt = Date.now();
+    req.requestId = requestId;
+    res.set('x-request-id', requestId);
+    res.on('finish', () => {
+        if (req.path === '/health') return;
+        console.log(JSON.stringify({
+            severity: res.statusCode >= 500 ? 'ERROR' : 'INFO',
+            message: 'request.completed',
+            requestId,
+            method: req.method,
+            path: req.path,
+            status: res.statusCode,
+            durationMs: Date.now() - startedAt,
+        }));
+    });
+    next();
+});
+
 // --- REDIS CONNECTION ---
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const REDIS_URL = config.redisUrl;
 let redis = null;
 let redisConnected = false;
 
@@ -39,82 +73,19 @@ try {
 }
 
 // --- RATE LIMITING (Redis-backed com fallback in-memory) ---
-const rateLimitStoreFallback = new Map();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minuto
-const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requisições por minuto
-
-async function rateLimiter(req, res, next) {
-    const clientId = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    const now = Date.now();
-
-    try {
-        if (redisConnected && redis) {
-            const key = `rl:${clientId}`;
-            const count = await redis.incr(key);
-            if (count === 1) {
-                await redis.pexpire(key, RATE_LIMIT_WINDOW_MS);
-            }
-            const ttl = await redis.pttl(key);
-
-            if (count > RATE_LIMIT_MAX_REQUESTS) {
-                const retryAfter = Math.ceil(ttl / 1000);
-                res.set('Retry-After', retryAfter.toString());
-                res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-                res.set('X-RateLimit-Remaining', '0');
-                return res.status(429).json({
-                    error: { message: 'Muitas requisições. Tente novamente em alguns segundos.', retryAfter }
-                });
-            }
-
-            res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-            res.set('X-RateLimit-Remaining', (RATE_LIMIT_MAX_REQUESTS - count).toString());
-            return next();
-        }
-    } catch (err) {
-        // Fallback silencioso para in-memory
-    }
-
-    // Fallback in-memory (mesmo comportamento anterior)
-    if (!rateLimitStoreFallback.has(clientId)) {
-        rateLimitStoreFallback.set(clientId, { count: 1, startTime: now });
-        return next();
-    }
-
-    const clientData = rateLimitStoreFallback.get(clientId);
-    if (now - clientData.startTime > RATE_LIMIT_WINDOW_MS) {
-        rateLimitStoreFallback.set(clientId, { count: 1, startTime: now });
-        return next();
-    }
-
-    clientData.count++;
-    if (clientData.count > RATE_LIMIT_MAX_REQUESTS) {
-        const retryAfter = Math.ceil((clientData.startTime + RATE_LIMIT_WINDOW_MS - now) / 1000);
-        res.set('Retry-After', retryAfter.toString());
-        res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-        res.set('X-RateLimit-Remaining', '0');
-        return res.status(429).json({
-            error: { message: 'Muitas requisições. Tente novamente em alguns segundos.', retryAfter }
-        });
-    }
-
-    res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-    res.set('X-RateLimit-Remaining', (RATE_LIMIT_MAX_REQUESTS - clientData.count).toString());
-    next();
-}
+// /health e /ready ficam isentos para o healthcheck nunca receber 429.
+const rateLimiter = createRateLimiter({
+    getRedis: () => (redisConnected ? redis : null),
+    windowMs: config.rateLimitWindowMs,
+    maxRequests: config.rateLimitMaxRequests,
+});
 
 // Limpa fallback in-memory a cada 5 minutos
-setInterval(() => {
-    const now = Date.now();
-    for (const [clientId, data] of rateLimitStoreFallback.entries()) {
-        if (now - data.startTime > RATE_LIMIT_WINDOW_MS * 5) {
-            rateLimitStoreFallback.delete(clientId);
-        }
-    }
-}, 5 * 60 * 1000);
+setInterval(rateLimiter.pruneFallback, 5 * 60 * 1000);
 
 // --- CACHE SYSTEM (Redis-backed com fallback in-memory) ---
 const cacheStoreFallback = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Minutes
+const CACHE_TTL_MS = config.cacheTtlMs;
 
 async function getFromCache(key) {
     try {
@@ -162,12 +133,7 @@ if (process.env.DEBUG_REQUESTS === 'true') {
 }
 
 // CORS — restringir origens permitidas
-const ALLOWED_ORIGINS = [
-    'http://168.194.13.18:8031',   // Admin Painel
-    'http://168.194.13.18:8034',   // API Service (proxy interno)
-    'http://localhost:5173',        // Dev local
-    'http://localhost:3002',        // Dev local
-];
+const ALLOWED_ORIGINS = config.allowedOrigins;
 app.use(cors({
     origin: (origin, callback) => {
         // Permitir requisições sem origin (mobile apps, curl, server-to-server)
@@ -181,16 +147,15 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(rateLimiter); // Aplica rate limiting a todas as rotas
 
-const PROXY_SECRET_KEY = process.env.PROXY_SECRET || process.env.PROXY_SECRET_KEY || '';
+const PROXY_SECRET_KEY = config.proxySecret;
 if (!PROXY_SECRET_KEY) {
-    console.warn('[WARN] PROXY_SECRET não definido: rotas administrativas (/sync-clients, /build-apk, etc.) retornarão 503.');
+    console.warn('[WARN] PROXY_SECRET não definido: rotas administrativas retornarão 503.');
 }
 // Mock de login só se explicitamente habilitado (nunca em produção sem intenção)
-const ENABLE_DEV_MOCK = process.env.ENABLE_DEV_CPF_MOCK === 'true';
-const DEV_CPF = ENABLE_DEV_MOCK ? (process.env.DEV_MOCK_CPF || '').replace(/\D/g, '') : '';
+const DEV_CPF = config.devCpf;
 // --------------------
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://sgp_user:sgp_password@localhost:5432/sgp_cache',
+    connectionString: config.databaseUrl,
 });
 
 pool.on('error', (err) => {
@@ -203,6 +168,8 @@ async function callSgpApi(params) {
     if (!url) {
         throw new Error('URL é obrigatória para chamar SGP');
     }
+    // Defesa em profundidade contra SSRF: valida o host antes de qualquer axios.
+    assertSafeSgpUrl(url);
 
     console.log(`[SGP-API] Chamando: ${url}`);
     secureLog(`[SGP-API] Params:`, rest);
@@ -261,7 +228,36 @@ async function callSgpApi(params) {
 // Mantém compatibilidade com código antigo que usa executePhp
 const executePhp = callSgpApi;
 
+// Bloqueia SSRF: rejeita esquemas não-http(s) e hosts internos (loopback,
+// faixas privadas, link-local/metadata, CGNAT). Chokepoint usado por todas as
+// chamadas ao SGP, cobrindo inclusive sgpBaseUrl vindo do corpo da requisição.
+function assertSafeSgpUrl(sgpBaseUrl) {
+    let parsed;
+    try {
+        parsed = new URL(sgpBaseUrl.trim());
+    } catch {
+        throw new Error('sgpBaseUrl inválida.');
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        throw new Error('sgpBaseUrl deve usar http(s).');
+    }
+    const host = parsed.hostname.toLowerCase();
+    const ipMatch = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (host === 'localhost' || host.endsWith('.localhost')) {
+        throw new Error('sgpBaseUrl aponta para host interno.');
+    }
+    if (ipMatch) {
+        const [a, b] = ipMatch.slice(1).map(Number);
+        const isPrivate = a === 10 || a === 127 || a === 0 ||
+            (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
+            (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+        if (isPrivate) throw new Error('sgpBaseUrl aponta para faixa de IP interna.');
+    }
+    return parsed;
+}
+
 function formatSgpUrl(sgpBaseUrl, path) {
+    assertSafeSgpUrl(sgpBaseUrl);
     let base = sgpBaseUrl.trim().replace(/\/$/, '');
     return `${base}${path}`;
 }
@@ -275,67 +271,20 @@ function parseSignalValue(value) {
     return isNaN(num) ? null : num;
 }
 
-const SENSITIVE_KEY_PATTERNS = ['senha', 'password', 'token', 'authorization', 'cpf', 'cnpj', 'apiToken', 'codigoPix', 'linha_digitavel'];
-
-function isSensitiveKey(key = '') {
-    const normalized = String(key).toLowerCase();
-    return SENSITIVE_KEY_PATTERNS.some((pattern) => normalized.includes(pattern.toLowerCase()));
-}
-
-function maskString(value) {
-    if (typeof value !== 'string') return value;
-    if (value.length <= 4) return '***';
-    return `${value.slice(0, 2)}***${value.slice(-2)}`;
-}
-
-function maskCpfCnpj(value) {
-    const digits = String(value || '').replace(/\D/g, '');
-    if (!digits) return 'N/A';
-    if (digits.length <= 4) return '***';
-    return `${digits.slice(0, 2)}***${digits.slice(-2)}`;
-}
-
-function sanitizeForLog(value, currentKey = '') {
-    if (value === null || value === undefined) return value;
-    if (Array.isArray(value)) return value.map((item) => sanitizeForLog(item, currentKey));
-
-    if (typeof value === 'object') {
-        const sanitized = {};
-        for (const [key, val] of Object.entries(value)) {
-            sanitized[key] = sanitizeForLog(val, key);
-        }
-        return sanitized;
-    }
-
-    if (isSensitiveKey(currentKey)) {
-        if (typeof value === 'string') return maskString(value);
-        if (typeof value === 'number') return -1;
-        return '***';
-    }
-
-    return value;
-}
-
-function secureLog(prefix, payload) {
-    if (payload === undefined) {
-        console.log(prefix);
-        return;
-    }
-    console.log(prefix, sanitizeForLog(payload));
-}
-
 // --- HELPER: credenciais SGP (NUNCA hardcodar tokens no repositório) ---
 async function ensureSgpCredentials(body) {
-    let sgpParams = { ...(body.sgpParams || {}) };
-    let sgpBaseUrl = body.sgpBaseUrl;
+    const sgpParams = {};
+    let sgpBaseUrl = '';
 
     if (!body.providerId && (body.cpfCnpj || body.cpf)) {
         try {
             const cpfCnpj = (body.cpfCnpj || body.cpf).replace(/[^0-9]/g, '');
-            const clienteDoc = await firestoreDb.collection('clientes').doc(cpfCnpj).get();
-            if (clienteDoc.exists) {
-                body.providerId = clienteDoc.data().providerId;
+            let clienteDoc = await firestoreDb.collection('clientes').doc(cpfCnpj).get();
+            if (!clienteDoc.exists) {
+                const matches = await firestoreDb.collection('clientes').where('cpfCnpj', '==', cpfCnpj).limit(1).get();
+                clienteDoc = matches.docs[0];
             }
+            if (clienteDoc?.exists) body.providerId = clienteDoc.data().providerId;
         } catch (error) {
             console.error("[SGP-API] Erro ao buscar providerId do cliente:", error.message);
         }
@@ -343,14 +292,21 @@ async function ensureSgpCredentials(body) {
 
     if (body.providerId) {
         try {
-            const secretDoc = await firestoreDb.collection('provedores').doc(body.providerId).collection('secrets').doc('sgp').get();
+            const providerRef = firestoreDb.collection('provedores').doc(body.providerId);
+            const [providerDoc, secretDoc] = await Promise.all([
+                providerRef.get(),
+                providerRef.collection('secrets').doc('sgp').get(),
+            ]);
             if (secretDoc.exists) {
                 const integrations = secretDoc.data().integrations;
                 if (integrations) {
-                    if (!sgpParams.token) sgpParams.token = integrations.apiToken;
-                    if (!sgpParams.app) sgpParams.app = integrations.appName;
+                    sgpParams.token = integrations.apiToken;
+                    sgpParams.app = integrations.appName;
+                    sgpBaseUrl = integrations.sgpBaseUrl || '';
                 }
             }
+            const provider = providerDoc.exists ? providerDoc.data() : {};
+            sgpBaseUrl = sgpBaseUrl || provider?.details?.systemUrl || provider?.sgpBaseUrl || '';
         } catch (error) {
             console.error("[SGP-API] Erro ao buscar secrets:", error.message);
         }
@@ -368,7 +324,7 @@ async function ensureSgpCredentials(body) {
 function requireSgpClientCredentials(sgpParams, res) {
     if (!sgpParams?.token || !sgpParams?.app) {
         res.status(503).json({
-            error: { message: 'Integração SGP incompleta: envie sgpParams no app ou defina SGP_TOKEN e SGP_APP_NAME no servidor.' },
+            error: { message: 'Integração SGP indisponível para este provedor.' },
         });
         return false;
     }
@@ -380,7 +336,12 @@ function assertProxySecret(secret, res) {
         res.status(503).json({ error: { message: 'Servidor não configurado (defina PROXY_SECRET).' } });
         return false;
     }
-    if (secret !== PROXY_SECRET_KEY) {
+    // Comparação em tempo constante — evita distinguir o segredo por timing.
+    const provided = typeof secret === 'string' ? Buffer.from(secret) : Buffer.alloc(0);
+    const expected = Buffer.from(PROXY_SECRET_KEY);
+    const matches = provided.length === expected.length &&
+        require('crypto').timingSafeEqual(provided, expected);
+    if (!matches) {
         res.status(403).json({ error: { message: 'Acesso não autorizado.' } });
         return false;
     }
@@ -402,6 +363,17 @@ async function verifyFirebaseToken(req, res, next) {
         if (reqCpf && decodedToken.uid !== reqCpf) {
             console.error(`[AUTH] Tentativa de acesso cruzado: UID(${decodedToken.uid}) tentou acessar CPF(${reqCpf})`);
             return res.status(403).json({ error: { message: 'Acesso negado: Tentativa de acessar dados de outro cliente.' } });
+        }
+
+        // Vínculo de tenant (A2): se o token carrega providerId, ele é a fonte da
+        // verdade — rejeita divergência e ignora qualquer providerId do corpo.
+        // Tokens legados sem o claim mantêm o comportamento anterior.
+        if (decodedToken.providerId) {
+            if (req.body.providerId && req.body.providerId !== decodedToken.providerId) {
+                console.error(`[AUTH] providerId do corpo (${req.body.providerId}) diverge do token (${decodedToken.providerId})`);
+                return res.status(403).json({ error: { message: 'Acesso negado: provedor não corresponde ao token.' } });
+            }
+            req.body.providerId = decodedToken.providerId;
         }
 
         req.user = decodedToken;
@@ -542,7 +514,7 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
         });
     } catch (error) {
         console.error(`[Consumo] Erro: ${error.message}`);
-        res.status(500).json({ error: { message: error.message } });
+        (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 // 2. Rotas Sincronização Clientes
@@ -647,7 +619,7 @@ app.post('/sync-clients', async (req, res) => {
         activeSyncs.delete(providerId);
         console.error(`[SYNC] Erro fatal: ${error.message}`);
         // Se ainda não respondeu (erro na pg 1), responde agora
-        if (!res.headersSent) res.status(500).json({ error: { message: error.message } });
+        if (!res.headersSent) (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 app.post('/get-cached-clients', async (req, res) => {
@@ -655,6 +627,10 @@ app.post('/get-cached-clients', async (req, res) => {
     const { limit = 25, offset = 0, searchTerm = '' } = req.body.params || {};
 
     if (!assertProxySecret(secret, res)) return;
+
+    if (typeof providerId !== 'string' || !providerId.trim()) {
+        return res.status(400).json({ error: { message: 'providerId é obrigatório.' } });
+    }
 
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
     console.log(`[CACHE] Buscando clientes para ${providerId}: limit=${limit}, offset=${offset}, search="${searchTerm}"`);
@@ -678,12 +654,16 @@ app.post('/get-cached-clients', async (req, res) => {
             return res.status(200).json({ clientes: [], paginacao: { total: 0, limit, offset } });
         }
         console.error(`[CACHE] Erro DB: ${err.message}`);
-        return res.status(500).json({ error: { message: err.message } });
+        (console.error("[proxy] erro DB:", err && err.message), res.status(500).json({ error: { message: "Erro interno." } }));
+        return;
     }
 });
 app.post('/get-single-client', async (req, res) => {
     const { secret, providerId, params } = req.body;
     if (!assertProxySecret(secret, res)) return;
+    if (typeof providerId !== 'string' || !providerId.trim()) {
+        return res.status(400).json({ error: { message: 'providerId é obrigatório.' } });
+    }
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
     
     try {
@@ -695,7 +675,8 @@ app.post('/get-single-client', async (req, res) => {
         return res.status(200).json(row);
     } catch (err) {
         console.error(`[CACHE] Erro DB Single: ${err.message}`);
-        return res.status(500).json({ error: { message: err.message } });
+        (console.error("[proxy] erro DB:", err && err.message), res.status(500).json({ error: { message: "Erro interno." } }));
+        return;
     }
 });
 // 3. Info Básica Cliente (Check-CPF) + Mock
@@ -756,6 +737,10 @@ app.post('/check-cpf', async (req, res) => {
         if (!clientResponse?.contratos?.length) return res.status(404).json({ error: { message: "Cliente não encontrado." } });
 
         let contrato = clientResponse.contratos[0];
+        const contractAccountStatus = contrato.contratoStatusDisplay
+            || contrato.contratoStatus
+            || contrato.status
+            || '';
         let valorAberto = parseFloat(contrato.contratoValorAberto || '0');
         let vencimento = contrato.cobVencimento;
 
@@ -874,45 +859,45 @@ app.post('/check-cpf', async (req, res) => {
 
         secureLog('[Check-CPF] Resposta enviada (sanitizada):', responseData);
 
-        // Gera custom token APENAS para clientes com status ativo
-        const activeStatuses = ['Online', 'Ativo', 'ativo'];
-        if (activeStatuses.includes(responseData.status)) {
+        // Segundo fator (C2): quando REQUIRE_LOGIN_SECOND_FACTOR=true, o login por
+        // CPF exige também a senha central do contrato antes de emitir o token —
+        // fechando a tomada de conta por CPF (semi-público). Desligado por padrão
+        // para não quebrar o app atual; a UI Flutter precisa enviar `senha`.
+        if (process.env.REQUIRE_LOGIN_SECOND_FACTOR === 'true') {
+            const provided = typeof req.body.senha === 'string' ? req.body.senha.trim() : '';
+            const contratoSenha = contrato.contratoCentralSenha || '';
+            if (!provided || !contratoSenha || provided !== String(contratoSenha)) {
+                console.warn('[Check-CPF] Segundo fator ausente/incorreto — token não emitido.');
+                return res.status(401).json({ error: { message: 'Credenciais inválidas.' } });
+            }
+        }
+
+        // O acesso ao app depende do contrato, não do estado momentâneo da conexão.
+        if (canIssueClientToken(contractAccountStatus)) {
             try {
-                const customToken = await admin.auth().createCustomToken(cpfCnpjUnformatted);
+                // Vincula o provedor ao token (A2): downstream a identidade do
+                // tenant vem do claim verificado, não do corpo da requisição.
+                const claims = req.body.providerId ? { providerId: req.body.providerId } : undefined;
+                const customToken = await admin.auth().createCustomToken(cpfCnpjUnformatted, claims);
                 responseData.customToken = customToken;
-                console.log('[Check-CPF] Custom Token gerado para cliente ativo.');
+                console.log('[Check-CPF] Custom Token gerado para contrato elegível.');
             } catch (tokenError) {
                 console.error('[Check-CPF] Falha ao gerar Custom Token do Firebase:', tokenError.message);
             }
         } else {
-            console.log(`[Check-CPF] Token NÃO gerado — cliente com status "${responseData.status}".`);
-            // Retorna os dados sem token — o app pode mostrar informações mas não permitir login
+            console.log('[Check-CPF] Token não gerado para contrato encerrado ou inativo.');
         }
 
         res.status(200).json(responseData);
-    } catch (error) { res.status(500).json({ error: { message: error.message } }); }
-});
-app.post('/get-client-data-for-login', async (req, res) => {
-    // Mesma lógica do check-cpf mas com faturas
-    const { cpfCnpj, sgpParams, sgpBaseUrl } = req.body;
-    const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
-    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
-        return res.status(200).json({
-            data: {
-                cpfCnpj: DEV_CPF, userName: "Dev Teste", userPlan: "Fibra Mock",
-                userStatus: "Ativo", billValue: "R$ 99,90", billDueDate: "Vence em 10/12"
-            }
-        });
-    }
-    // ... Implementação padrão (omitida para brevidade pois check-cpf é o principal) ...
-    // Se precisar do código completo desta rota, avise.
-    res.status(501).json({ error: "Rota em manutenção. Use Check-CPF." });
+    } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } })); }
 });
 // 4. Rotas de Hardware // 3. Rotas Diagnóstico / ONU
 app.post('/diagnostic/onu-signal', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, true); });
 app.post('/diagnostic/onu-signal-base', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, false); });
 async function handleOnuRequest(req, res, useFilters) {
-    const { cpfCnpj, senha: senhaInput, contrato, sgpParams, sgpBaseUrl } = req.body;
+    const { cpfCnpj, senha: senhaInput, contrato } = req.body;
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
         return res.status(200).json({
@@ -925,7 +910,7 @@ async function handleOnuRequest(req, res, useFilters) {
             mock: true
         });
     }
-    if (!cpfCnpjUnformatted || !sgpParams || !sgpBaseUrl) return res.status(400).json({ error: { message: "Dados incompletos." } });
+    if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos (CPF)." } });
     try {
         let senha = senhaInput;
         let contratoResolvido = contrato;
@@ -979,29 +964,25 @@ async function handleOnuRequest(req, res, useFilters) {
             lastUpdate: onu.info_date || null,
         };
         res.status(200).json({ data: formattedData });
-    } catch (error) { res.status(500).json({ error: { message: error.message } }); }
+    } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } })); }
 }
 // 4. Rota Analyze
+// 4. Rota Analyze
+// ATENÇÃO: retorna análise PLACEHOLDER fixa (não há motor de diagnóstico real).
+// Mantida por compatibilidade com apps antigos (contracts.js "keep-temporarily").
+// Não exibir como diagnóstico real sem implementar a análise de fato.
 app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
-    // Recebe os dados do diagnóstico
-    const { cpfCnpj, data } = req.body;
-    // Mock Analysis - Estrutura exata esperada pelo App (com wrapper data)
-    const mockAnalysis = {
+    res.status(200).json({
         data: {
             problem: "Sinal óptico abaixo do ideal (-25dBm)",
-            category: "FIBER_ISSUE", // DiagnosticCategory.FIBER_ISSUE
+            category: "FIBER_ISSUE",
             confidence: 0.95,
             solution: "Verificar integridade do cabo de fibra e conexões.",
             estimatedTime: "24h",
-            priority: 1, // High
+            priority: 1,
             timestamp: new Date().toISOString()
         }
-    };
-    // Developer Backdoor
-    if (DEV_CPF && cpfCnpj && cpfCnpj.replace(/[^0-9]/g, '') === DEV_CPF) {
-        return res.status(200).json(mockAnalysis);
-    }
-    res.status(200).json(mockAnalysis);
+    });
 });
 // 5. Rotas CPE Manager (Wi-Fi)
 app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
@@ -1045,7 +1026,7 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         console.error(`[WIFI-LIST] CRITICAL ERROR:`, error.message);
-        res.status(500).json({ error: { message: error.message } });
+        (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
@@ -1077,11 +1058,28 @@ app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         console.error(`[WIFI-UPDATE] ERROR:`, error.message);
-        res.status(500).json({ error: { message: error.message } });
+        (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 
 // 6. ROTA DE FATURAS (APP FLUTTER) - ADICIONADA
+app.post('/get-client-data-for-login', async (req, res) => {
+    // Mantida por compatibilidade com apps antigos em campo (contracts.js:
+    // decision "keep-temporarily"). Não implementada: responde 501 sem tocar no
+    // SGP — os campos sgpParams/sgpBaseUrl do corpo são deliberadamente
+    // ignorados para não abrir superfície de SSRF/injeção de credencial.
+    const { cpfCnpj } = req.body;
+    const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
+    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
+        return res.status(200).json({
+            data: {
+                cpfCnpj: DEV_CPF, userName: "Dev Teste", userPlan: "Fibra Mock",
+                userStatus: "Ativo", billValue: "R$ 99,90", billDueDate: "Vence em 10/12"
+            }
+        });
+    }
+    res.status(501).json({ error: "Rota em manutenção. Use Check-CPF." });
+});
 app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj } = req.body;
     const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
@@ -1089,16 +1087,17 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
 
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
 
+    if (!cpfCnpjUnformatted) {
+        return res.status(400).json({ error: { message: "cpfCnpj obrigatório." } });
+    }
+
     // CACHE CHECK
-    const cacheKey = `invoices_${cpfCnpjUnformatted}`;
-    const cachedData = getFromCache(cacheKey);
+    const providerCacheKey = String(req.body.providerId || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '');
+    const cacheKey = `invoices_${providerCacheKey}_${cpfCnpjUnformatted}`;
+    const cachedData = await getFromCache(cacheKey);
     if (cachedData) {
         console.log(`[Faturas] Hit Cache para ${maskCpfCnpj(cpfCnpjUnformatted)}`);
         return res.status(200).json(cachedData);
-    }
-
-    if (!cpfCnpjUnformatted) {
-        return res.status(400).json({ error: { message: "cpfCnpj obrigatório." } });
     }
     console.log(`[Faturas] Buscando faturas para: ${maskCpfCnpj(cpfCnpjUnformatted)} no SGP: ${sgpBaseUrl}`);
 
@@ -1154,12 +1153,12 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
         console.log(`[Faturas] Total de faturas formatadas: ${formattedInvoices.length}`);
 
         const responseData = { data: formattedInvoices };
-        setInCache(cacheKey, responseData);
+        await setInCache(cacheKey, responseData);
 
         res.status(200).json(responseData);
     } catch (error) {
         console.error("Erro geral na rota /get-invoices:", error.message);
-        res.status(500).json({ error: { message: error.message || "Erro interno ao buscar faturas." } });
+        (console.error("[proxy] erro faturas:", error && error.message), res.status(500).json({ error: { message: "Erro interno ao buscar faturas." } }));
     }
 });
 
@@ -1197,118 +1196,7 @@ app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
         res.status(200).json({ success: true, message: promessaResponse?.msg || "Desbloqueio realizado com sucesso!" });
     } catch (error) {
         console.error("Erro na rota /unlock-trust:", error.message);
-        res.status(500).json({ error: { message: error.message || "Erro interno ao processar desbloqueio." } });
-    }
-});
-
-// 8. ROTA DE BUILD DE APK (ADMIN PANEL) - MELHORADA
-app.post('/build-apk', async (req, res) => {
-    const { secret, architecture = 'arm64-v8a', providerId = 'default' } = req.body;
-
-    if (!assertProxySecret(secret, res)) return;
-
-    console.log(`[Build-APK] Iniciando build para ${architecture}...`);
-
-    try {
-        const { exec } = require('child_process');
-        const { promisify } = require('util');
-        const execAsync = promisify(exec);
-
-        // Executar script de build com timeout estendido
-        const buildScript = '/home/app/projects/painel_provedores/build-apk.sh';
-        const command = `bash ${buildScript} ${providerId} ${architecture}`;
-
-        console.log(`[Build-APK] Executando: ${command}`);
-        console.log(`[Build-APK] Timeout: 10 minutos (600s)`);
-
-        let buildResult;
-        try {
-            buildResult = await execAsync(command, {
-                cwd: '/home/app/painel-provedores-projeto',
-                timeout: 600000, // 10 minutos timeout
-                maxBuffer: 10 * 1024 * 1024 // 10MB buffer para logs grandes
-            });
-        } catch (buildError) {
-            console.error(`[Build-APK] Erro no build:`, buildError.message);
-            console.error(`[Build-APK] Stderr:`, buildError.stderr);
-            console.error(`[Build-APK] Stdout:`, buildError.stdout);
-
-            // Se erro for de timeout, informar ao usuário
-            if (buildError.killed || buildError.signal === 'SIGTERM') {
-                return res.status(504).json({
-                    error: {
-                        message: 'Build excedeu tempo limite de 10 minutos. Tente novamente ou use APK pré-compilado.',
-                        timeout: true
-                    }
-                });
-            }
-
-            // Outros erros de build
-            return res.status(500).json({
-                error: {
-                    message: `Erro ao compilar: ${buildError.message}`,
-                    details: buildError.stderr || buildError.stdout
-                }
-            });
-        }
-
-        const { stdout, stderr } = buildResult;
-
-        if (stderr) {
-            console.log(`[Build-APK] Stderr (warnings):`, stderr.substring(0, 500));
-        }
-
-        console.log(`[Build-APK] Build concluído! Output:`, stdout.substring(stdout.length - 500));
-
-        // Determinar nome do APK gerado
-        const apkMap = {
-            'arm64-v8a': 'app-arm64-v8a.apk',
-            'armeabi-v7a': 'app-armeabi-v7a.apk',
-            'all': 'app-release.apk',
-            'universal': 'app-release.apk'
-        };
-
-        const apkFileName = apkMap[architecture] || 'app-release.apk';
-        const timestamp = new Date().getTime();
-
-        // Verificar se APK foi realmente gerado
-        const fs = require('fs');
-        const apkPath = `/home/app/painel-provedores-projeto/admin-painel/public/${apkFileName}`;
-
-        if (!fs.existsSync(apkPath)) {
-            console.error(`[Build-APK] APK não encontrado em ${apkPath}`);
-            return res.status(500).json({
-                error: {
-                    message: 'APK não foi gerado. Verifique logs do Flutter.',
-                    apkPath
-                }
-            });
-        }
-
-        // Obter informações do APK gerado
-        const stats = fs.statSync(apkPath);
-        const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
-
-        // URL do APK com timestamp para evitar cache
-        const apkUrl = `/${apkFileName}?t=${timestamp}`;
-
-        console.log(`[Build-APK] ✅ Sucesso! APK: ${apkUrl}, Tamanho: ${sizeInMB}MB`);
-
-        res.status(200).json({
-            success: true,
-            apkUrl,
-            architecture,
-            timestamp: new Date().toISOString(),
-            size: `${sizeInMB} MB`
-        });
-
-    } catch (error) {
-        console.error(`[Build-APK] Erro crítico não tratado:`, error?.message || 'erro desconhecido');
-        res.status(500).json({
-            error: {
-                message: `Erro inesperado ao processar build de APK.`
-            }
-        });
+        (console.error("[proxy] erro desbloqueio:", error && error.message), res.status(500).json({ error: { message: "Erro interno ao processar desbloqueio." } }));
     }
 });
 
@@ -1317,7 +1205,17 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 3002;
+app.get('/ready', async (req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        if (redisConnected && redis) await redis.ping();
+        res.status(200).json({ status: 'ready', postgres: 'ok', redis: redisConnected ? 'ok' : 'degraded' });
+    } catch (error) {
+        res.status(503).json({ status: 'not-ready', postgres: 'error', redis: redisConnected ? 'ok' : 'degraded' });
+    }
+});
+
+const PORT = config.port;
 // Iniciar Cron Jobs
 require('./cron-jobs')(app, { admin, firestoreDb, ensureSgpCredentials, callSgpApi });
 

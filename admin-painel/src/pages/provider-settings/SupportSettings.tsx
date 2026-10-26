@@ -1,8 +1,8 @@
-import { useContext, useState, useEffect, useCallback } from 'react';
-import { SettingsContext, ProviderConfig } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Phone, Mail, MapPin, Trash2, MessageCircle } from 'lucide-react';
+import { Phone, Mail, MapPin, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import AddEditContactDialog from '@/components/dialogs/AddEditContactDialog';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
@@ -28,10 +28,7 @@ const getIcon = (type: 'phone' | 'email' | 'address' | 'whatsapp') => {
 };
 
 export default function SupportSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     const [localContacts, setLocalContacts] = useState<SupportContact[]>(config.supportContacts || []);
 

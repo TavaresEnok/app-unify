@@ -2,11 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Instalar dependências necessárias para speed test
-RUN npm init -y && npm install express cors
+COPY --chown=node:node server.js ./
 
-# Copiar código fonte
-COPY server.js ./
+USER node
 
 # Expor porta 3001 (conforme server.js)
 EXPOSE 3001

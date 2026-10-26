@@ -274,7 +274,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ElevatedButton(
             onPressed: () async {
               await apiService.setBaseUrl(controller.text.trim());
-              if (mounted) Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
             },
             child: const Text('Salvar'),
           ),

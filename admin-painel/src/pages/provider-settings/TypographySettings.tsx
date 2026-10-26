@@ -1,5 +1,5 @@
-import { useContext, useCallback, memo } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useCallback, memo } from 'react';
+import { useSettings, type ProviderConfig } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -62,10 +62,7 @@ const TypographyRow = memo(({ label, icon: Icon, value, options, onChange }: Typ
 TypographyRow.displayName = 'TypographyRow';
 
 export default function TypographySettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, saveConfig, isSaving } = context;
+    const { config, setConfig, saveConfig, isSaving } = useSettings();
 
     // Valores atuais ou defaults
     const typography = config.typography || {
@@ -75,13 +72,17 @@ export default function TypographySettings() {
         fontWeight: 'medium',
     };
 
-    const updateTypography = useCallback((key: string, value: string) => {
-        setConfig((prev: any) => ({
+    const updateTypography = useCallback((key: keyof NonNullable<ProviderConfig['typography']>, value: string) => {
+        setConfig((prev) => ({
             ...prev,
             typography: {
+                fontFamily: 'Inter',
+                titleSize: 'medium',
+                bodySize: 'medium',
+                fontWeight: 'medium',
                 ...prev.typography,
                 [key]: value,
-            },
+            } as NonNullable<ProviderConfig['typography']>,
         }));
     }, [setConfig]);
 
@@ -93,7 +94,7 @@ export default function TypographySettings() {
             footer={(
                 <>
                     <SettingsFooterNote>As fontes serão aplicadas no próximo build do aplicativo.</SettingsFooterNote>
-                    <Button onClick={saveConfig} disabled={isSaving} className="gap-2">
+                    <Button onClick={() => void saveConfig()} disabled={isSaving} className="gap-2">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         {isSaving ? "Salvando..." : "Salvar alterações"}
                     </Button>

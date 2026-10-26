@@ -382,7 +382,7 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
 
                         if (context.mounted) {
                           Navigator.pop(context);
-                          ref.refresh(providersListProvider); // Refresh list
+                          ref.invalidate(providersListProvider);
                         }
                       } catch (e) {
                         if (context.mounted) {

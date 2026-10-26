@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Sparkles, LogIn, Save } from 'lucide-react';
+import { Sparkles, Save } from 'lucide-react';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
 export default function SplashLoginConfig() {
@@ -33,8 +33,9 @@ export default function SplashLoginConfig() {
   });
 
   const handleSave = async () => {
-    setConfig({ ...config, splash, login });
-    await saveConfig();
+    const nextConfig = { ...config, splash, login };
+    setConfig(nextConfig);
+    await saveConfig(nextConfig);
     toast.success('Configurações salvas!');
   };
 

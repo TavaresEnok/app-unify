@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect } from 'react';
-import { SettingsContext } from '@/contexts/SettingsContext';
+import { useState, useEffect } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -21,10 +21,7 @@ const imageFields: ImageConfig[] = [
 ];
 
 export default function ImagesIconsSettings() {
-    const context = useContext(SettingsContext);
-    if (!context) return null;
-
-    const { config, setConfig, isSaving } = context;
+    const { config, setConfig, isSaving } = useSettings();
 
     // Estado local para gerenciar as URLs
     const [localUrls, setLocalUrls] = useState<Record<string, string>>(() => {
@@ -59,7 +56,7 @@ export default function ImagesIconsSettings() {
 
         // Atualiza o contexto global
         // CORRIGIDO: Tipagem do prev para resolver TS7006
-        setConfig((prev: any) => ({ ...prev, [key]: url }));
+        setConfig((prev) => ({ ...prev, [key]: url }));
         toast.success(`${imageFields.find(f => f.key === key)?.label} atualizada. Clique em 'Salvar Alterações' no topo.`);
     };
 

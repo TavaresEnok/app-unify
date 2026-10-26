@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { db } from '@/firebase/config';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,7 +11,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Send, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// Import de useEffect removido - TS6133
 
 // Tipos de Filtro (MOCK, na realidade deveriam vir de uma API de lista de planos/status)
 const statusOptions = [
@@ -36,12 +37,37 @@ export default function NotificationSenderPage() {
     const { callFunction, loading } = useApi();
     const { providerId, user } = useAuth();
 
-    const history = [
-        { title: 'Fatura disponível', meta: 'Todos os clientes · envio recente', date: 'Hoje' },
-        { title: 'Manutenção programada', meta: 'Clientes ativos · abertura acompanhada', date: 'Ontem' },
-        { title: 'Promoção de upgrade', meta: 'Segmento por plano · campanha salva', date: '28/06' },
-    ];
-    
+    // Histórico real da coleção `notifications` (antes era uma lista fixa
+    // fabricada, que aparentava ser estado real para o operador).
+    const [history, setHistory] = useState<{ id: string; title: string; meta: string; date: string }[]>([]);
+
+    useEffect(() => {
+        if (!providerId) return;
+        const notificationsQuery = query(
+            collection(db, 'notifications'),
+            where('providerId', '==', providerId),
+            orderBy('createdAt', 'desc'),
+            limit(10),
+        );
+        return onSnapshot(notificationsQuery, (snapshot) => {
+            setHistory(snapshot.docs.map((entry) => {
+                const data = entry.data();
+                const createdAt = data.createdAt?.toDate?.();
+                const audience = data.targetCpf ? 'Cliente específico' : 'Todos os clientes';
+                const delivered = typeof data.successCount === 'number'
+                    ? ` · ${data.successCount} entrega(s)`
+                    : '';
+                return {
+                    id: entry.id,
+                    title: typeof data.title === 'string' ? data.title : 'Notificação',
+                    meta: `${audience}${delivered}`,
+                    date: createdAt ? createdAt.toLocaleDateString('pt-BR') : '—',
+                };
+            }));
+        }, () => setHistory([]));
+    }, [providerId]);
+
+
     const handleSendNotification = async () => {
         if (!user) {
             toast.error("Erro de Autenticação", { description: "Usuário não autenticado." });
@@ -68,7 +94,7 @@ export default function NotificationSenderPage() {
             setStatusFilter('all');
             setPlanFilter('all');
             
-        } catch (error) {
+        } catch {
             // O hook useApi já trata os erros com toast.
         }
     };
@@ -144,8 +170,11 @@ export default function NotificationSenderPage() {
                     <CardTitle>Histórico de envios</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
+                    {history.length === 0 && (
+                        <div className="px-[18px] py-[13px] text-[12px] text-[#98A1B1]">Nenhum envio registrado ainda.</div>
+                    )}
                     {history.map(item => (
-                        <div key={`${item.title}-${item.date}`} className="border-b border-[#F2F4F7] px-[18px] py-[13px] last:border-b-0">
+                        <div key={item.id} className="border-b border-[#F2F4F7] px-[18px] py-[13px] last:border-b-0">
                             <div className="flex items-baseline justify-between gap-3">
                                 <span className="truncate text-[13px] font-semibold text-[#1A2233]">{item.title}</span>
                                 <span className="shrink-0 text-[11.5px] text-[#98A1B1]">{item.date}</span>

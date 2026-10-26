@@ -4,6 +4,20 @@ module.exports = {
   testEnvironment: "node",
   roots: ["<rootDir>/src"],
   testMatch: ["**/*.test.ts"],
-  collectCoverageFrom: ["src/utils.ts", "src/index.ts"],
+  collectCoverageFrom: [
+    "src/app/**/*.ts",
+    "src/contracts/index.ts",
+    "src/handlers/**/*.ts",
+    "src/utils.ts",
+    "!src/**/*.test.ts",
+  ],
   coverageDirectory: "coverage",
+  coverageThreshold: {
+    global: {
+      branches: 20,
+      functions: 34,
+      lines: 40,
+      statements: 39,
+    },
+  },
 };

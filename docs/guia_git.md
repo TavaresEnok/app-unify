@@ -1,80 +1,31 @@
-# 📚 Guia Git - Projeto App Unify
+# Guia Git
 
-## 🔑 Autenticação SSH
+O sistema e um monorepo. O app movel canonico fica em
+`app-flutter/unified` e e versionado junto com os demais servicos.
 
-O repositório usa **chave SSH** para autenticação (sem senha).
+## Fluxo normal
 
-**Localização da chave:**
-```
-~/.ssh/github_unify
-```
+Execute na raiz do projeto:
 
----
-
-## 📁 Diretório do Projeto
-
-Sempre execute os comandos Git dentro deste diretório:
-```bash
-cd /home/app/painel-provedores-projeto/app-flutter/unified
-```
-
----
-
-## 🚀 Comandos Básicos
-
-### Ver status
 ```bash
 git status
+git add -A
+git commit -m "tipo: descricao da alteracao"
+git push
 ```
 
-### Adicionar arquivos
-```bash
-git add -A                    # Adiciona tudo
-git add nome_do_arquivo.dart  # Adiciona arquivo específico
-```
-
-### Criar commit
-```bash
-git commit -m "tipo: descrição da alteração"
-```
-
-**Tipos de commit:**
-- `feat:` → Nova funcionalidade
-- `fix:` → Correção de bug
-- `docs:` → Documentação
-- `chore:` → Manutenção/limpeza
-
-### Push para GitHub
-```bash
-GIT_SSH_COMMAND="ssh -i ~/.ssh/github_unify -o StrictHostKeyChecking=no" git push origin main
-```
-
----
-
-## ⚡ Comando Completo (Copie e Cole)
+Comandos Flutter podem ser executados pela validacao central:
 
 ```bash
-cd /home/app/painel-provedores-projeto/app-flutter/unified && \
-git add -A && \
-git commit -m "feat: Sua mensagem aqui" && \
-GIT_SSH_COMMAND="ssh -i ~/.ssh/github_unify -o StrictHostKeyChecking=no" git push origin main
+npm run validate:flutter
 ```
 
----
+## Convencao de commits
 
-## ⚠️ Importante
+- `feat:` nova funcionalidade.
+- `fix:` correcao de comportamento.
+- `refactor:` alteracao estrutural sem nova funcionalidade.
+- `docs:` documentacao.
+- `chore:` manutencao, dependencias ou infraestrutura.
 
-| Item | Valor |
-|------|-------|
-| Branch | `main` (não master) |
-| Autenticação | SSH via `~/.ssh/github_unify` |
-| Repositório | `github.com:TavaresEnok/app-unify.git` |
-
----
-
-## 🔍 Verificar Histórico
-
-```bash
-git log --oneline -5    # Últimos 5 commits
-git branch -vv          # Ver branch atual
-```
+Use `git branch -vv` antes do push para confirmar a branch e o remoto atuais.

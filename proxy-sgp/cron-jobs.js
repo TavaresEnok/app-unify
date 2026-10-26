@@ -1,5 +1,15 @@
 const cron = require('node-cron');
 const express = require('express');
+const crypto = require('crypto');
+
+// Comparação em tempo constante que não vaza se o segredo está (des)configurado.
+function secretMatches(provided) {
+    const expected = process.env.PROXY_SECRET || process.env.PROXY_SECRET_KEY;
+    if (!expected || typeof provided !== 'string' || provided.length === 0) return false;
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 module.exports = function(app, { admin, firestoreDb, ensureSgpCredentials, callSgpApi }) {
     // Roda todos os dias às 09:00 (hora do servidor)
@@ -47,12 +57,20 @@ module.exports = function(app, { admin, firestoreDb, ensureSgpCredentials, callS
                     url: urlTitulos,
                     app: sgpParams.app,
                     token: sgpParams.token,
-                    cpfcnpj: cpfCnpj
+                    cpfcnpj: cpfCnpj,
+                    status: 'abertos'
                 });
 
                 if (responseSgp && responseSgp.titulos && Array.isArray(responseSgp.titulos)) {
-                    // Verifica se existe alguma fatura aberta que vence amanhã
-                    const faturasAmanha = responseSgp.titulos.filter(t => t.vencimento === amanhaISO && t.situacao === 'ABERTO');
+                    // Verifica se existe alguma fatura aberta que vence amanhã.
+                    // O SGP usa o campo `dataVencimento` (parseável por Date); o
+                    // filtro antigo usava `t.vencimento`/`t.situacao` (campos
+                    // inexistentes), então nunca disparava.
+                    const faturasAmanha = responseSgp.titulos.filter(t => {
+                        if (!t.dataVencimento) return false;
+                        const d = new Date(t.dataVencimento);
+                        return !isNaN(d.getTime()) && d.toISOString().split('T')[0] === amanhaISO;
+                    });
 
                     if (faturasAmanha.length > 0) {
                         const valorFormatado = parseFloat(faturasAmanha[0].valor || 0).toFixed(2).replace('.', ',');
@@ -101,8 +119,12 @@ module.exports = function(app, { admin, firestoreDb, ensureSgpCredentials, callS
     // Endpoint opcional para testar manualmente via requisição secreta (somente dev/admin)
     const router = express.Router();
     router.post('/trigger-cron', (req, res) => {
-        const { secret } = req.body;
-        if (secret !== process.env.PROXY_SECRET_KEY && secret !== process.env.PROXY_SECRET) {
+        // Fail-closed: se o segredo não está configurado, o endpoint fica
+        // indisponível em vez de aceitar qualquer requisição (fail-open).
+        if (!process.env.PROXY_SECRET && !process.env.PROXY_SECRET_KEY) {
+            return res.status(503).json({ error: 'Endpoint indisponível: segredo não configurado.' });
+        }
+        if (!secretMatches(req.body?.secret)) {
             return res.status(403).json({ error: 'Acesso negado.' });
         }
         

@@ -69,7 +69,7 @@ export default function LoginPage() {
             setFailedAttempts(0);
             toast.success('Login bem-sucedido! A redirecionar...');
             // A navegação será tratada pelo useEffect e pelo PostLoginRedirect
-        } catch (error: any) {
+        } catch (error) {
             const newAttempts = failedAttempts + 1;
             setFailedAttempts(newAttempts);
 
