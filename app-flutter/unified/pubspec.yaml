@@ -39,7 +39,7 @@ dependencies:
   pdf: ^3.11.0
   path_provider: ^2.1.3
   permission_handler: ^11.3.1
-  local_auth: ^2.1.6
+  local_auth: ^3.0.2
   
   # ARMAZENAMENTO SEGURO E LOCAL
   shared_preferences: ^2.5.3
