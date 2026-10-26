@@ -1,6 +1,7 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { URLSearchParams } from "node:url";
 import { env } from "../config/env";
+import { verifyToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { sgpLimiter } from "../middlewares/rateLimits";
 import {
@@ -12,16 +13,40 @@ import {
 
 export const subscriberRouter = Router();
 subscriberRouter.use(sgpLimiter);
+// Todas as rotas de assinante exigem autenticação (verifyToken por rota — o
+// router é montado na raiz, então middleware de router-level rodaria também em
+// rotas não correspondentes como /health e 404). Sem isto, qualquer anônimo
+// poderia colher PII e instrumentos de pagamento (linha digitável/PIX) e até
+// disparar promessas de pagamento informando um CPF arbitrário no corpo.
 
-function cpfFrom(body: any): string {
-  const cpf = typeof body?.cpfCnpj === "string" ? body.cpfCnpj.trim() : "";
+// O uid do token de assinante é o CPF/CNPJ (somente dígitos). Admins
+// (superAdmin/providerAdmin) podem consultar qualquer CPF do seu escopo; um
+// assinante só pode acessar o próprio CPF.
+function cpfFrom(req: Request): string {
+  const cpf = typeof req.body?.cpfCnpj === "string" ? req.body.cpfCnpj.trim() : "";
   if (!cpf) throw new ApiError(400, "CPF/CNPJ é obrigatório.", "invalid-argument");
+  const isAdmin = req.user?.superAdmin === true || typeof req.user?.providerId === "string";
+  if (!isAdmin && req.user?.uid !== cpf.replace(/\D/g, "")) {
+    throw new ApiError(403, "Você só pode acessar os seus próprios dados.", "permission-denied");
+  }
   return cpf;
 }
 
-subscriberRouter.post("/getClientData", asyncRoute(async (req, res) => {
+// Loga o detalhe do erro upstream no servidor e devolve uma mensagem genérica —
+// sem vazar texto/estruturas internas do SGP para o cliente (M5).
+function upstreamError(req: Request, message: string, error: unknown): ApiError {
+  console.warn(JSON.stringify({
+    severity: "WARNING",
+    message,
+    correlationId: req.correlationId,
+    error: externalErrorMessage(error, "SGP indisponível"),
+  }));
+  return new ApiError(502, message, "upstream-error");
+}
+
+subscriberRouter.post("/getClientData", verifyToken, asyncRoute(async (req, res) => {
   requireSgpCredentials();
-  const cpfCnpj = cpfFrom(req.body);
+  const cpfCnpj = cpfFrom(req);
   const session = createSgpSession();
   try {
     const { contrato, contratoId, senhaCentral } = await resolveContractCredentials(session, cpfCnpj);
@@ -53,17 +78,17 @@ subscriberRouter.post("/getClientData", asyncRoute(async (req, res) => {
     } });
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError(502, `Erro ao buscar dados do cliente: ${externalErrorMessage(error, "SGP indisponível")}`, "upstream-error");
+    throw upstreamError(req, "Erro ao buscar dados do cliente.", error);
   }
 }));
 
-subscriberRouter.post("/getConsumptionData", asyncRoute(async (req, res) => {
+subscriberRouter.post("/getConsumptionData", verifyToken, asyncRoute(async (req, res) => {
   requireSgpCredentials();
-  const cpfCnpj = cpfFrom(req.body);
+  const cpfCnpj = cpfFrom(req);
   const session = createSgpSession();
   try {
     const { contratoId, senhaCentral } = await resolveContractCredentials(session, cpfCnpj);
-    const senha = typeof req.body?.senha === "string" && req.body.senha ? req.body.senha : senhaCentral;
+    const senha = senhaCentral;
     if (!senha) throw new ApiError(503, "Credencial do contrato indisponível para consulta de consumo.", "service-unavailable");
     const now = new Date();
     const form = new URLSearchParams({
@@ -85,13 +110,13 @@ subscriberRouter.post("/getConsumptionData", asyncRoute(async (req, res) => {
     } });
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError(502, `Erro ao buscar consumo: ${externalErrorMessage(error, "SGP indisponível")}`, "upstream-error");
+    throw upstreamError(req, "Erro ao buscar consumo.", error);
   }
 }));
 
-subscriberRouter.post("/getInvoices", asyncRoute(async (req, res) => {
+subscriberRouter.post("/getInvoices", verifyToken, asyncRoute(async (req, res) => {
   requireSgpCredentials();
-  const cpfCnpj = cpfFrom(req.body);
+  const cpfCnpj = cpfFrom(req);
   const session = createSgpSession();
   const payload = { token: env.sgpToken, app: env.sgpAppName, cpfcnpj: cpfCnpj };
   try {
@@ -113,13 +138,13 @@ subscriberRouter.post("/getInvoices", asyncRoute(async (req, res) => {
     const paids = Array.isArray(paid.data?.titulos) ? paid.data.titulos.map((item: any) => format(item, true)) : [];
     res.json({ data: [...opens, ...paids] });
   } catch (error) {
-    throw new ApiError(502, `Erro ao buscar faturas: ${externalErrorMessage(error, "SGP indisponível")}`, "upstream-error");
+    throw upstreamError(req, "Erro ao buscar faturas.", error);
   }
 }));
 
-subscriberRouter.post("/makePaymentPromise", asyncRoute(async (req, res) => {
+subscriberRouter.post("/makePaymentPromise", verifyToken, asyncRoute(async (req, res) => {
   requireSgpCredentials();
-  const cpfCnpj = cpfFrom(req.body);
+  const cpfCnpj = cpfFrom(req);
   const session = createSgpSession();
   try {
     const { contratoId } = await resolveContractCredentials(session, cpfCnpj);
@@ -130,6 +155,6 @@ subscriberRouter.post("/makePaymentPromise", asyncRoute(async (req, res) => {
     res.json({ success: true, message: response.data?.msg || "Promessa de pagamento realizada com sucesso!" });
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError(502, `Erro ao realizar promessa: ${externalErrorMessage(error, "SGP indisponível")}`, "upstream-error");
+    throw upstreamError(req, "Erro ao realizar promessa.", error);
   }
 }));

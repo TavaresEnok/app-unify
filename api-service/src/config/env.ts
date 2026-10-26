@@ -15,7 +15,12 @@ export const env = {
   sgpToken: process.env.SGP_TOKEN || "",
   sgpAppName: process.env.SGP_APP_NAME || "",
   sgpBaseUrl: (process.env.SGP_BASE_URL || "https://vibetelecom.sgp.net.br").replace(/\/$/, ""),
-  sgpRejectUnauthorized: process.env.SGP_REJECT_UNAUTHORIZED !== "false",
+  // Desabilitar a verificação de TLS permite MITM no tráfego SGP (que carrega o
+  // sgpToken). Só é honrado fora de produção — em produção a verificação é
+  // sempre obrigatória, independentemente da env.
+  sgpRejectUnauthorized: (process.env.NODE_ENV === "production")
+    ? true
+    : process.env.SGP_REJECT_UNAUTHORIZED !== "false",
   proxySgpUrl: (process.env.PROXY_SGP_INTERNAL_URL || "http://backend-proxy:3002").replace(/\/$/, ""),
   allowedOrigins: listEnv("ALLOWED_ORIGINS", [
     "http://localhost:5173",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidTracerouteTarget, normalizeMaxHops, parseTracerouteOutput } from "./traceroute";
+import { isValidTracerouteTarget, normalizeMaxHops, parseTracerouteOutput, resolveSafeTracerouteTarget } from "./traceroute";
 
 describe("traceroute validation", () => {
   it("accepts public addresses and hostnames", () => {
@@ -10,8 +10,17 @@ describe("traceroute validation", () => {
   it("blocks private networks and command options", () => {
     expect(isValidTracerouteTarget("127.0.0.1")).toBe(false);
     expect(isValidTracerouteTarget("192.168.1.1")).toBe(false);
+    expect(isValidTracerouteTarget("169.254.169.254")).toBe(false); // metadata
+    expect(isValidTracerouteTarget("100.64.0.1")).toBe(false); // CGNAT
     expect(isValidTracerouteTarget("-T")).toBe(false);
     expect(isValidTracerouteTarget("8.8.8.8;id")).toBe(false);
+  });
+
+  it("resolveSafeTracerouteTarget pins public literals and rejects private literals", async () => {
+    await expect(resolveSafeTracerouteTarget("8.8.8.8")).resolves.toBe("8.8.8.8");
+    // Um literal privado não passa nem pela validação sintática, mas garantimos
+    // que a resolução também rejeita destinos que resolvem para faixa interna.
+    await expect(resolveSafeTracerouteTarget("localhost")).rejects.toThrow();
   });
 
   it("normalizes hop limits", () => {
