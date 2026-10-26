@@ -5,60 +5,70 @@
 # O Caddy vai gerar certificado SSL automaticamente via Let's Encrypt
 # =================================================================
 
-# Enquanto não tiver domínio, usar HTTP no IP direto
-:8080 {
-    # Admin Painel (frontend)
-    handle /painel/* {
-        uri strip_prefix /painel
-        reverse_proxy frontend:80
-    }
+# Endereço do site configurável por env (M4): defina SITE_ADDRESS com o seu
+# domínio (ex.: painel.seudominio.com.br) para que o Caddy provisione TLS
+# automaticamente via Let's Encrypt e sirva em HTTPS. Sem a variável, cai para
+# HTTP em :8080 (apenas para acesso direto por IP / desenvolvimento).
+{$SITE_ADDRESS::8080} {
+	redir /painel /painel/ 308
 
-    # API Service
-    handle /api/* {
-        uri strip_prefix /api
-        reverse_proxy api-service:9136
-    }
+	# Admin Painel (frontend)
+	handle /painel/* {
+		uri strip_prefix /painel
+		reverse_proxy frontend:80
+	}
 
-    handle /apk-builder/* {
-        uri strip_prefix /apk-builder
-        reverse_proxy apk-builder:8035
-    }
+	handle /assets/* {
+		reverse_proxy frontend:80
+	}
 
-    handle /public_apks/* {
-        reverse_proxy landing-page:80
-    }
+	# API Service
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api-service:9136
+	}
 
-    # Proxy SGP
-    handle /sgp/* {
-        uri strip_prefix /sgp
-        reverse_proxy backend-proxy:3002
-    }
+	handle /apk-builder/* {
+		uri strip_prefix /apk-builder
+		reverse_proxy apk-builder:8035
+	}
 
-    # Speed Test
-    handle /speedtest/* {
-        uri strip_prefix /speedtest
-        reverse_proxy speed-test:3001
-    }
+	handle /public_apks/* {
+		reverse_proxy landing-page:80
+	}
 
-    # Landing page como default
-    handle {
-        reverse_proxy landing-page:80
-    }
+	# Proxy SGP
+	handle /sgp/* {
+		uri strip_prefix /sgp
+		reverse_proxy backend-proxy:3002
+	}
 
-    # Headers de segurança
-    header {
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        -Server
-    }
+	# Speed Test
+	handle /speedtest/* {
+		uri strip_prefix /speedtest
+		reverse_proxy speed-test:3001
+	}
 
-    # Logs
-    log {
-        output stdout
-        format console
-    }
+	# Landing page como default
+	handle {
+		reverse_proxy landing-page:80
+	}
+
+	# Headers de segurança
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Logs
+	log {
+		output stdout
+		format console
+	}
 }
 
 # =================================================================

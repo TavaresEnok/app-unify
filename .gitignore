@@ -136,3 +136,17 @@ codigos antigos/
 # Artefatos Android grandes (não versionar — usar public_apks no servidor ou CI)
 *.apk
 *.aab
+
+# Chaves / segredos — nunca versionar (defesa em profundidade, L1)
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+key.properties
+*-service-account*.json
+serviceAccount*.json
+service-account*.json
+
+# Dump de análise gerado
+flutter_analyze.txt

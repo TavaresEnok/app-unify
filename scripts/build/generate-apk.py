@@ -139,14 +139,19 @@ def main():
             content = f.read()
         
         # Regex to replace 'const String providerId = '...';'
+        provider_pattern = r"const String providerId = '[^']+';"
+        if not re.search(provider_pattern, content):
+            print("ERRO: Campo providerId não encontrado em lib/main.dart")
+            sys.exit(1)
+
         new_content = re.sub(
-            r"const String providerId = '[^']+';",
+            provider_pattern,
             lambda _: f"const String providerId = '{args.id}';",
             content
         )
         
         if content == new_content:
-            print("AVISO: ID do provedor não encontrado ou não alterado em main.dart")
+            print(f"Provider ID já configurado como: {args.id}")
         
         with open(main_dart_path, 'w') as f:
             f.write(new_content)
