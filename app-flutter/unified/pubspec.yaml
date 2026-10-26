@@ -74,7 +74,7 @@ dev_dependencies:
   flutter_native_splash: ^2.4.7
   flutter_launcher_icons: ^0.14.4
   build_runner: ^2.4.6
-  mockito: ^5.4.4
+  mockito: ^5.8.1
 
   battery_plus_platform_interface: any
   connectivity_plus_platform_interface: any
