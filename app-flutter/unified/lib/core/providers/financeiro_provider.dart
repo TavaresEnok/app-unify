@@ -20,12 +20,7 @@ final financeiroServiceProvider =
   return FinanceiroService(
     apiUrl: '${config.apiUrl}/get-invoices',
     cpfCnpjUnformatted: usuario.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
-    senha: usuario.senha,
-    sgpParams: {
-      'token': config.config.integrations.apiToken,
-      'app': config.config.integrations.appName,
-      'sgpBaseUrl': config.config.integrations.sgpBaseUrl,
-    },
+    providerId: config.id,
   );
 });
 
@@ -33,15 +28,9 @@ final financeiroServiceProvider =
 final financeiroViewModelProvider =
     ChangeNotifierProvider.autoDispose<FinanceiroProvider>((ref) {
   final service = ref.watch(financeiroServiceProvider);
-  // Se o serviço não estiver pronto (ex: sem login), retorna provider vazio ou lida com erro
-  // Como estamos dentro do AuthGate, o usuário deve existir.
-  if (service == null) {
-    // Fallback seguro ou lance erro se preferir
-    // Em dev, isso pode acontecer se hot reload perder estado de auth.
-    throw Exception(
-        'Serviço Financeiro não pôde ser inicializado (Login/Config ausente)');
-  }
-
+  // Se o serviço não estiver pronto (ex.: corrida de auth/config ou hot reload
+  // perdendo o estado), o provider é criado em estado de erro em vez de lançar
+  // dentro do builder — a UI mostra a mensagem e permite tentar de novo.
   final provider = FinanceiroProvider(service);
   // Auto-fetch ao criar
   provider.fetchHistory();
@@ -51,7 +40,10 @@ final financeiroViewModelProvider =
 enum FinanceiroState { idle, loading, success, error }
 
 class FinanceiroProvider with ChangeNotifier {
-  final FinanceiroService _financeiroService;
+  /// Nulo quando o serviço não pôde ser construído (login/config ausente).
+  /// Nesse caso o provider entra em estado de erro em vez de lançar durante a
+  /// construção — lançar no builder vira erro não tratado na árvore de widgets.
+  final FinanceiroService? _financeiroService;
 
   FinanceiroState _state = FinanceiroState.idle;
   List<Fatura> _invoices = [];
@@ -74,11 +66,20 @@ class FinanceiroProvider with ChangeNotifier {
 
   /// Carrega as faturas do servidor
   Future<void> fetchHistory() async {
+    final service = _financeiroService;
+    if (service == null) {
+      _errorMessage =
+          'Não foi possível carregar suas faturas. Entre novamente e tente de novo.';
+      _state = FinanceiroState.error;
+      notifyListeners();
+      return;
+    }
+
     _state = FinanceiroState.loading;
     notifyListeners();
 
     try {
-      final rawInvoices = await _financeiroService.fetchInvoices();
+      final rawInvoices = await service.fetchInvoices();
       _invoices = rawInvoices.map((json) => Fatura.fromJson(json)).toList();
 
       // Ordena as faturas da mais recente para a mais antiga
@@ -114,12 +115,22 @@ class FinanceiroProvider with ChangeNotifier {
 
   /// Solicita desbloqueio de confiança
   Future<void> solicitarDesbloqueio(BuildContext context) async {
+    final service = _financeiroService;
+    if (service == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Sessão indisponível. Entre novamente e tente de novo.')),
+      );
+      return;
+    }
+
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Solicitando desbloqueio... Aguarde.')),
       );
 
-      await _financeiroService.solicitarDesbloqueioConfianca();
+      await service.solicitarDesbloqueioConfianca();
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();

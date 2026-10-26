@@ -48,11 +48,7 @@ void main() {
       themeColor: '#000000',
       logoUrl: '',
       loginQuote: '',
-      integrations: SgpIntegration(
-        apiToken: 'token',
-        appName: 'Test',
-        sgpBaseUrl: 'http://sgp.test',
-      ),
+      integrations: SgpIntegration(),
       faq: [],
       tips: [],
       supportContacts: [],

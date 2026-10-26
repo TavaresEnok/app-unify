@@ -11,7 +11,18 @@ import '../models/usuario.dart';
 import '../models/provider_config.dart';
 
 class AuthRepository {
-  final _secureStorage = const FlutterSecureStorage();
+  // Opções endurecidas: no Android usa EncryptedSharedPreferences (em vez do
+  // backend legado) e no iOS restringe o acesso ao item a este dispositivo e
+  // somente após o primeiro desbloqueio.
+  final _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
+  final http.Client _client;
+
+  AuthRepository({http.Client? client}) : _client = client ?? http.Client();
 
   // Keys
   static const _bioCpfKey = 'bio_cpf';
@@ -19,12 +30,13 @@ class AuthRepository {
 
   Future<Usuario?> loadUserFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
-    final senha = await _secureStorage.read(key: 'userSenha');
 
-    if (prefs.containsKey('userCpfCnpj') && senha != null) {
+    // A sessão persiste via Firebase Auth; usamos a presença do CPF como marcador
+    // de auto-login. A senha não é mais armazenada (M11).
+    if (prefs.containsKey('userCpfCnpj')) {
       return Usuario(
         cpfCnpj: prefs.getString('userCpfCnpj')!,
-        senha: senha,
+        senha: '',
         nome: prefs.getString('userName')!,
         plano: prefs.getString('userPlan')!,
         status: prefs.getString('userStatus')!,
@@ -46,7 +58,7 @@ class AuthRepository {
     final url = '$apiUrl/check-cpf';
     if (kDebugMode) debugPrint('[Auth] Iniciando autenticacao.');
 
-    final response = await http
+    final response = await _client
         .post(
       Uri.parse(url),
       headers: {
@@ -66,12 +78,20 @@ class AuthRepository {
     if (kDebugMode) debugPrint('[Auth] Status: ${response.statusCode}.');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Resposta inválida do servidor. Tente novamente.');
+      }
+      final data = decoded;
       if (kDebugMode) debugPrint('[Auth] Login concluido.');
 
-      if (data['customToken'] is String && data['customToken'].isNotEmpty) {
-        await FirebaseAuth.instance.signInWithCustomToken(data['customToken']);
+      final customToken = data['customToken'];
+      if (customToken is! String || customToken.isEmpty) {
+        throw Exception(
+          'Acesso indisponível para este contrato. Verifique o status com o provedor.',
+        );
       }
+      await FirebaseAuth.instance.signInWithCustomToken(customToken);
 
       // Return User object directly from API data
       // Note: We still need to call 'saveUserLocally' effectively,
@@ -93,16 +113,43 @@ class AuthRepository {
             : int.tryParse(data['contratoId']?.toString() ?? ''),
       );
     } else {
-      if (kDebugMode) debugPrint('[Auth] Falha no login: ${response.statusCode}.');
-      throw Exception(
-          'Falha no login: ${response.statusCode} - ${response.body}');
+      if (kDebugMode) {
+        debugPrint('[Auth] Falha no login: ${response.statusCode}.');
+      }
+      throw Exception(_loginErrorMessage(response));
     }
+  }
+
+  String _loginErrorMessage(http.Response response) {
+    if (response.statusCode == 404) {
+      return 'CPF/CNPJ não encontrado. Confira os dados informados.';
+    }
+    if (response.statusCode == 429) {
+      return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+    }
+    if (response.statusCode >= 500) {
+      return 'Serviço temporariamente indisponível. Tente novamente em instantes.';
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      final message = decoded is Map<String, dynamic>
+          ? decoded['error'] is Map<String, dynamic>
+              ? decoded['error']['message']
+              : decoded['message']
+          : null;
+      if (message is String && message.isNotEmpty) return message;
+    } catch (_) {}
+
+    return 'Não foi possível entrar. Confira os dados e tente novamente.';
   }
 
   Future<void> saveUserLocally(Usuario usuario, String providerId) async {
     final prefs = await SharedPreferences.getInstance();
 
-    await _secureStorage.write(key: 'userSenha', value: usuario.senha);
+    // NÃO persistimos a senha central do SGP (M11): o login é mantido pela
+    // sessão do Firebase, e a senha não é usada em nenhum fluxo. Guardá-la em
+    // repouso seria pura superfície de ataque.
 
     await prefs.setString('userCpfCnpj', usuario.cpfCnpj);
     await prefs.setString('userName', usuario.nome);
@@ -118,8 +165,6 @@ class AuthRepository {
       await prefs.setInt('userContratoId', usuario.contratoId!);
     }
 
-    // Biometry persistence
-    await saveCredentialsForBiometry(usuario.cpfCnpj, usuario.senha);
     await _saveDeviceToken(usuario.cpfCnpj, providerId);
   }
 

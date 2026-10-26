@@ -12,7 +12,7 @@ import '../../services/onu_wifi_service.dart';
 import '../../models/diagnostico_state.dart' as real_state;
 import '../../providers/providers.dart';
 import '../../widgets/troubleshooter_card.dart';
-import '../../utils/pdf_generator_service.dart';
+import '../../widgets/diagnostic_report_sheet.dart';
 import '../../utils/diagnostic_utils.dart';
 import '../../controllers/wifi_management_controller.dart';
 import '../../widgets/diagnostics/diagnostic_theme.dart';
@@ -75,18 +75,11 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
       if (config != null) {
         OnuWifiService? onuService;
         if (user != null) {
-          final integrations = config.config.integrations;
-          Map<String, String> sgpParams = {
-            'sgpBaseUrl': integrations.sgpBaseUrl,
-            'token': integrations.apiToken,
-            'appName': integrations.appName,
-          };
           onuService = OnuWifiService(
             apiUrl: config.apiUrl,
             cpfCnpj: user.cpfCnpj,
-            senha: user.senha,
             contrato: user.contratoId?.toString(),
-            sgpParams: sgpParams,
+            providerId: config.id,
           );
           _onuWifiService = onuService;
           // Initialize WiFi Controller
@@ -396,7 +389,7 @@ class _DiagnosticPageState extends ConsumerState<DiagnosticPage> {
       onRetry: _start,
       onSharePdf:
           _lastRealState != null && !_s.isRunning && _s.downloadSpeed > 0
-              ? () => PdfGeneratorService().stopAndSharePdf(_lastRealState!)
+              ? () => showDiagnosticReportSheet(context, ref, _lastRealState!)
               : null,
       wifiController: _wifiController,
       realState: _lastRealState,

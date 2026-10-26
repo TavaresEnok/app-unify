@@ -28,6 +28,33 @@ class ProviderConfig {
     this.theme,
   });
 
+  /// Valida o esquema da apiUrl (A8). Rejeita esquemas não-http(s) (evita
+  /// file:/javascript: vindos de config). Em release, bloqueia HTTP em claro
+  /// para hosts não-loopback quando ENFORCE_HTTPS=true — assim, após habilitar o
+  /// TLS no proxy reverso, token/CPF/senha nunca trafegam em texto puro.
+  static String _validateApiUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      throw FormatException('apiUrl inválida (esquema não suportado): $url');
+    }
+    final host = uri.host;
+    final isLoopback =
+        host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
+    if (uri.scheme == 'http' && !isLoopback) {
+      const enforceHttps =
+          bool.fromEnvironment('ENFORCE_HTTPS', defaultValue: false);
+      if (enforceHttps) {
+        return uri.replace(scheme: 'https').toString();
+      }
+      if (kReleaseMode) {
+        debugPrint(
+            '[SECURITY] apiUrl usa HTTP em claro em release: $host. '
+            'Habilite TLS e ENFORCE_HTTPS.');
+      }
+    }
+    return url;
+  }
+
   factory ProviderConfig.fromJson(
     Map<String, dynamic> json,
     String providerId,
@@ -70,6 +97,7 @@ class ProviderConfig {
         defaultValue: 'http://10.0.2.2:8034',
       );
     }
+    effectiveApiUrl = _validateApiUrl(effectiveApiUrl);
 
     final integrationsMap = (json['integrations'] ??
             legacyConfig['integrations']) as Map<String, dynamic>? ??
@@ -350,38 +378,16 @@ class MenuConfig {
 
 @immutable
 class SgpIntegration {
-  final String apiToken;
-  final String appName;
-  final String sgpBaseUrl;
-
-  const SgpIntegration({
-    required this.apiToken,
-    required this.appName,
-    required this.sgpBaseUrl,
-  });
+  const SgpIntegration();
 
   factory SgpIntegration.fromJson(
-    Map<String, dynamic> json, [
-    String fallbackUrl = '',
+    Map<String, dynamic> _, [
+    String __ = '',
   ]) {
-    final rawUrl = json['sgpBaseUrl'] as String?;
-    final finalUrl =
-        (rawUrl != null && rawUrl.isNotEmpty) ? rawUrl : fallbackUrl;
-
-    return SgpIntegration(
-      apiToken: (json['apiToken'] as String? ?? '').isNotEmpty
-          ? json['apiToken']
-          : '4b6aae35-219a-4580-8c5c-dfb4efdbfae3', // Hardcoded fallback
-      appName: (json['appName'] as String? ?? '').isNotEmpty
-          ? json['appName']
-          : 'APP-PROVEDOR', // Hardcoded fallback
-      sgpBaseUrl: finalUrl,
-    );
+    return const SgpIntegration();
   }
 
-  Map<String, dynamic> toJson() {
-    return {'apiToken': apiToken, 'appName': appName, 'sgpBaseUrl': sgpBaseUrl};
-  }
+  Map<String, dynamic> toJson() => const {};
 }
 
 @immutable

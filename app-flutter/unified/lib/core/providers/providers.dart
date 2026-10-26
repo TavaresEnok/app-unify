@@ -12,6 +12,7 @@ import '../models/usuario.dart';
 import 'configuration_provider.dart';
 import 'theme_provider.dart';
 import '../models/theme_config.dart';
+import '../theme/layout_tokens.dart';
 
 // --- Services & Config ---
 
@@ -19,6 +20,13 @@ import '../models/theme_config.dart';
 final configurationProvider =
     ChangeNotifierProvider<ConfigurationProvider>((ref) {
   return ConfigurationProvider();
+});
+
+/// Tokens de design resolvidos do layout do provedor. Fonte única de aparência
+/// para telas novas: `ref.watch(layoutTokensProvider)`.
+final layoutTokensProvider = Provider<LayoutTokens>((ref) {
+  final layoutType = ref.watch(configurationProvider).providerConfig?.layoutType;
+  return LayoutTokens.of(layoutType);
 });
 
 // --- REPOSITORIES ---

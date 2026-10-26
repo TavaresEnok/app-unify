@@ -138,12 +138,26 @@ class DiagnosticoService {
     _streamController.add(_currentState);
   }
 
-  void _updateTestState(String key, TestStatus status, dynamic result) {
+  /// [metrics] carrega os valores JÁ TIPADOS da medição (ex.: latência, jitter,
+  /// perda). O campo `result` continua sendo o texto/mapa de exibição usado
+  /// pelas telas; `metrics` existe para que relatório, laudo e persistência não
+  /// precisem reparsear string formatada.
+  void _updateTestState(
+    String key,
+    TestStatus status,
+    dynamic result, {
+    Map<String, dynamic>? metrics,
+  }) {
     if (_streamController.isClosed) return;
     final newResults = Map<String, Map<String, dynamic>>.from(
       _currentState.testResultsDisplay,
     );
-    newResults[key] = {...?newResults[key], 'status': status, 'result': result};
+    newResults[key] = {
+      ...?newResults[key],
+      'status': status,
+      'result': result,
+      if (metrics != null) 'metrics': metrics,
+    };
     if (key == 'wifiInfo' && status == TestStatus.success) {
       String? gatewayIp;
       if (result is String) {
@@ -344,6 +358,13 @@ class DiagnosticoService {
               key,
               TestStatus.error,
               'Host inacessível\nPerda: 100%',
+              metrics: {
+                'host': host,
+                'reachable': false,
+                'lossPercent': 100.0,
+                'packetsSent': count,
+                'packetsReceived': 0,
+              },
             );
           } else {
             int avgLatency =
@@ -356,10 +377,22 @@ class DiagnosticoService {
               }
               jitter = totalDiff / (latencies.length - 1);
             }
+            final sorted = [...latencies]..sort();
             _updateTestState(
               key,
               TestStatus.success,
               'Latência: ${avgLatency}ms\nJitter: ${jitter.toStringAsFixed(1)}ms\nPerda: ${lossPercentage.toStringAsFixed(0)}%',
+              metrics: {
+                'host': host,
+                'reachable': true,
+                'latencyMs': avgLatency.toDouble(),
+                'jitterMs': double.parse(jitter.toStringAsFixed(1)),
+                'lossPercent': double.parse(lossPercentage.toStringAsFixed(0)),
+                'minMs': sorted.first.toDouble(),
+                'maxMs': sorted.last.toDouble(),
+                'packetsSent': count,
+                'packetsReceived': packetsReceived,
+              },
             );
           }
           completer.complete();
@@ -1253,6 +1286,61 @@ class DiagnosticoService {
     } catch (e) {
       if (_currentState.isTesting) {
         _updateStatus("Ocorreu um erro inesperado durante o diagnóstico.");
+      }
+    } finally {
+      if (_currentState.isTesting) {
+        _currentState = _currentState.copyWith(isTesting: false);
+        _streamController.add(_currentState);
+      }
+    }
+  }
+
+  /// Verificação RÁPIDA (~10-15s) para o momento "minha internet está ruim".
+  ///
+  /// Roda só o subconjunto que decide o veredito — sinal da fibra (ONU), ping ao
+  /// roteador e ping externo (+ Wi-Fi quando disponível). Deixa de fora o que é
+  /// lento/pesado: varredura de LAN, traceroute e os dois testes de velocidade.
+  /// O objetivo é entregar um diagnóstico acionável em segundos, não um laudo
+  /// completo — este continua disponível via [runAllTests].
+  Future<void> runQuickCheck() async {
+    if (_currentState.isTesting) return;
+    _currentState = DiagnosticoState.initial().copyWith(
+      isTesting: true,
+      geralStatusMessage: "Verificação rápida...",
+    );
+    _streamController.add(_currentState);
+
+    try {
+      await runDeviceInfoTest();
+      if (!_currentState.isTesting) return;
+
+      if (onuService != null) {
+        _updateStatus("Verificando sinal da fibra...");
+        await runOnuTest();
+        if (!_currentState.isTesting) return;
+      }
+
+      if (_isWifiConnected && await _requestLocationPermission()) {
+        if (!_currentState.isTesting) return;
+        _updateStatus("Verificando o Wi-Fi...");
+        await runWifiTest();
+        if (_currentState.testResultsDisplay['wifiInfo']?['status'] ==
+            TestStatus.success) {
+          _updateStatus("Testando o roteador...");
+          await runPingGatewayTest();
+          if (!_currentState.isTesting) return;
+        }
+      }
+
+      _updateStatus("Testando o acesso à internet...");
+      // Poucos pacotes: rápido o bastante para o veredito, sem prender o usuário.
+      await runPingTest('8.8.8.8', 'pingGoogle', count: 4);
+      if (!_currentState.isTesting) return;
+
+      _updateStatus("Verificação concluída.");
+    } catch (e) {
+      if (_currentState.isTesting) {
+        _updateStatus("Ocorreu um erro na verificação rápida.");
       }
     } finally {
       if (_currentState.isTesting) {

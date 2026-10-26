@@ -150,17 +150,15 @@ class WifiNetwork {
 class OnuWifiService {
   final String apiUrl;
   final String cpfCnpj;
-  final String? senha;
   final String? contrato;
-  final Map<String, String> sgpParams;
+  final String providerId;
   final http.Client client;
 
   OnuWifiService({
     required this.apiUrl,
     required this.cpfCnpj,
-    this.senha,
     this.contrato,
-    required this.sgpParams,
+    required this.providerId,
     http.Client? client,
   }) : client = client ?? http.Client();
 
@@ -196,10 +194,8 @@ class OnuWifiService {
             },
             body: json.encode({
               'cpfCnpj': cpfCnpj,
-              'senha': senha,
               'contrato': contrato,
-              'sgpParams': sgpParams,
-              'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+              'providerId': providerId,
             }),
           )
           .timeout(const Duration(seconds: 15));
@@ -261,10 +257,8 @@ class OnuWifiService {
             },
             body: json.encode({
               'cpfCnpj': cpfCnpj,
-              'senha': senha,
               'contrato': contrato,
-              'sgpParams': sgpParams,
-              'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+              'providerId': providerId,
             }),
           )
           .timeout(const Duration(seconds: 15));
@@ -331,13 +325,11 @@ class OnuWifiService {
             },
             body: json.encode({
               'cpfCnpj': cpfCnpj,
-              'senha': senha,
               'contrato': contrato,
               'wifiId': wifiId,
               'ssid': ssid,
               'password': password,
-              'sgpParams': sgpParams,
-              'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+              'providerId': providerId,
             }),
           )
           .timeout(const Duration(seconds: 30));

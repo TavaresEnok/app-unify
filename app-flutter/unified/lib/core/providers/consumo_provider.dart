@@ -89,13 +89,8 @@ final consumoViewModelProvider =
   // Create service instance
   final service = ConsumoService(
     apiUrl: '$baseApiUrl/get-consumption-data',
-    sgpParams: {
-      'token': configConfig.integrations.apiToken,
-      'app': configConfig.integrations.appName,
-      'sgpBaseUrl': configConfig.integrations.sgpBaseUrl,
-    },
+    providerId: providerConfig.id,
     cpfCnpj: usuario.cpfCnpj,
-    senha: usuario.senha,
   );
 
   return ConsumoViewModel(service);

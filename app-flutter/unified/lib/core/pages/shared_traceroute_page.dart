@@ -1,7 +1,9 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import '../../core/providers/providers.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/dashboard_card.dart';
@@ -43,6 +45,13 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     super.dispose();
   }
 
+  /// Executa o traceroute NO SERVIDOR.
+  ///
+  /// A implementação anterior chamava `Process.run('ping', ...)` no aparelho:
+  /// isso não funciona no iOS (sem acesso a binários) e é pouco confiável no
+  /// Android moderno. O backend já expõe `/diagnostic/traceroute` com validação
+  /// de destino (bloqueia faixas internas) — usamos a mesma rota do diagnóstico
+  /// completo, garantindo resultado consistente entre as duas telas.
   Future<void> _startTraceRoute() async {
     final target = _ipController.text.trim();
     if (target.isEmpty) {
@@ -52,108 +61,100 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
       return;
     }
 
+    final config = ref.read(configurationProvider).providerConfig;
+    if (config == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Configuração indisponível. Tente novamente.')),
+      );
+      return;
+    }
+
     setState(() {
       _isRunning = true;
       _hops.clear();
-      _currentStatus = "Iniciando Rota (Max 10 saltos)...";
+      _currentStatus = "Rastreando rota até $target...";
     });
 
     FocusScope.of(context).unfocus();
 
-    for (int ttl = 1; ttl <= 10; ttl++) {
-      if (!_isRunning) break;
+    try {
+      final apiUri = Uri.parse(config.apiUrl);
+      final baseUrl = '${apiUri.scheme}://${apiUri.host}:${apiUri.port}';
+      String? token;
+      try {
+        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      } catch (_) {}
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/diagnostic/traceroute'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+            body: json.encode({'target': target, 'maxHops': 15}),
+          )
+          .timeout(const Duration(seconds: 40));
+
+      if (!mounted) return;
+
+      if (response.statusCode != 200) {
+        setState(() {
+          _isRunning = false;
+          _currentStatus = response.statusCode == 400
+              ? 'Destino inválido ou não permitido.'
+              : 'Não foi possível rastrear a rota agora.';
+        });
+        return;
+      }
+
+      final data = json.decode(response.body);
+      final hopsData = data['data']?['hops'] as List<dynamic>? ?? const [];
 
       setState(() {
-        _currentStatus = "Testando Salto $ttl...";
-      });
-
-      try {
-        final result = await _pingWithTtl(target, ttl);
-
-        setState(() {
-          _hops.add(result);
-        });
-
-        // Auto-scroll to bottom
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent +
-                80, // estimated item height
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
+        for (final hop in hopsData) {
+          final ip = (hop['ip'] ?? '*').toString();
+          _hops.add(TraceHop(
+            hop: hop['hop'] is int ? hop['hop'] as int : _hops.length + 1,
+            ip: ip,
+            time: (hop['time'] ?? '*').toString(),
+            status: ip == '*' ? 'Sem resposta' : 'Salto',
+          ));
+        }
+        if (_hops.isNotEmpty) {
+          _hops.last = TraceHop(
+            hop: _hops.last.hop,
+            ip: _hops.last.ip,
+            time: _hops.last.time,
+            status: 'Alcançado',
           );
         }
+        _isRunning = false;
+        _currentStatus = _hops.isEmpty
+            ? 'Nenhum salto retornado.'
+            : 'Rota concluída em ${_hops.length} salto(s).';
+      });
 
-        if (result.status == "Alcançado") {
-          setState(() => _currentStatus = "Destino alcançado!");
-          break;
-        }
-      } catch (e) {
-        setState(() {
-          _hops.add(TraceHop(hop: ttl, ip: "*", time: "*", status: "Erro: $e"));
-        });
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _isRunning = false;
+        _currentStatus = 'O rastreamento demorou demais e foi interrompido.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isRunning = false;
+        _currentStatus = 'Falha ao rastrear a rota. Verifique sua conexão.';
+      });
     }
-
-    setState(() {
-      _isRunning = false;
-      if (_currentStatus.startsWith("Testando")) {
-        _currentStatus = "Finalizado (Limite de 10 saltos).";
-      }
-    });
-  }
-
-  Future<TraceHop> _pingWithTtl(String target, int ttl) async {
-    final stopwatch = Stopwatch()..start();
-    ProcessResult? result;
-    try {
-      result = await Process.run(
-          'ping', ['-c', '1', '-t', '$ttl', '-W', '2', target]);
-    } catch (e) {
-      stopwatch.stop();
-      return TraceHop(
-          hop: ttl, ip: "Erro", time: "", status: "Falha ao executar");
-    }
-    stopwatch.stop();
-
-    final output = result.stdout.toString();
-    // print("DEBUG: TTL $ttl Output: $output"); // Uncomment for debugging
-
-    String ip = "*";
-    String time = "${stopwatch.elapsedMilliseconds} ms";
-    // Default time is wall-clock time (RTT approx)
-
-    String status = "Sem Resposta";
-
-    if (output.contains("Time to live exceeded") ||
-        output.contains("exceeded")) {
-      // checking for "exceeded" covers generic case
-      status = "Salto $ttl"; // Cleaner status
-      final match = RegExp(r"From\s+([0-9\.]+)(?::| )").firstMatch(output);
-      if (match != null) {
-        ip = match.group(1) ?? "*";
-      }
-    } else if (output.contains("bytes from")) {
-      status = "Alcançado";
-      final matchIp = RegExp(r"from\s+([0-9\.]+)(?::| )").firstMatch(output);
-      if (matchIp != null) ip = matchIp.group(1) ?? target;
-
-      // Try to parse exact ping time, fallback to stopwatch
-      final matchTime = RegExp(r"time=([0-9\.]+)").firstMatch(output);
-      if (matchTime != null) {
-        time = "${matchTime.group(1)} ms";
-      }
-    } else if (output.contains("100% packet loss")) {
-      time = "*";
-      status = "Esgotado";
-    }
-
-    if (ip == "*" && status == "Sem Resposta") {
-      status = "Tempo Esgotado";
-      time = "*";
-    }
-
-    return TraceHop(hop: ttl, ip: ip, time: time, status: status);
   }
 
   @override

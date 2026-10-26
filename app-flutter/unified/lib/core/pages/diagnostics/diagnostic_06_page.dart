@@ -13,7 +13,7 @@ import '../../services/onu_wifi_service.dart';
 import '../../models/diagnostico_state.dart' as real_state;
 import '../../providers/providers.dart';
 import '../../widgets/troubleshooter_card.dart';
-import '../../utils/pdf_generator_service.dart';
+import '../../widgets/diagnostic_report_sheet.dart';
 import '../../controllers/wifi_management_controller.dart';
 
 // UX Enhancements - Sprint 1-3
@@ -89,18 +89,11 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
         final authState = ref.read(authNotifierProvider);
         final user = authState.value;
         if (user != null) {
-          final integrations = config.config.integrations;
-          Map<String, String> sgpParams = {
-            'sgpBaseUrl': integrations.sgpBaseUrl,
-            'token': integrations.apiToken,
-            'appName': integrations.appName,
-          };
           onuService = OnuWifiService(
             apiUrl: config.apiUrl,
             cpfCnpj: user.cpfCnpj,
-            senha: user.senha,
             contrato: user.contratoId?.toString(),
-            sgpParams: sgpParams,
+            providerId: config.id,
           );
           _onuWifiService = onuService;
           _wifiController = WifiManagementController(_onuWifiService);
@@ -1521,6 +1514,6 @@ class _Diagnostic06PageState extends ConsumerState<Diagnostic06Page>
 
   void _sharePdf() {
     if (_lastRealState == null) return;
-    PdfGeneratorService().stopAndSharePdf(_lastRealState!);
+    showDiagnosticReportSheet(context, ref, _lastRealState!);
   }
 }

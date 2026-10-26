@@ -8,6 +8,7 @@ import '../../core/providers/providers.dart';
 import '../../core/models/provider_config.dart';
 import '../../core/utils/shared_theme_helper.dart';
 import '../../layout_selector.dart';
+import '../widgets/quick_diagnostic_launcher.dart';
 
 class SuportePage extends ConsumerWidget {
   const SuportePage({super.key});
@@ -45,6 +46,26 @@ class SuportePage extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          // Ação primária do momento "minha internet está ruim": verificação
+          // rápida (~15s) que já entrega o veredito e as ações (auto-resolução
+          // ou envio ao suporte com laudo).
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.wifi_find),
+              label: const Text('Está ruim agora? Verificar conexão'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themePrimary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => runQuickDiagnostic(context, ref),
+            ),
+          ),
+          const SizedBox(height: 16),
           _buildConnectionStatusCard(context, usuario.status, isLayout03,
               isDarkLayout: isDarkLayout,
               themePrimary: themePrimary,

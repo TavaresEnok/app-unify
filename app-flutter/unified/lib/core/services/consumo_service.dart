@@ -8,15 +8,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ConsumoService {
   final String apiUrl;
-  final Map<String, dynamic> sgpParams;
+  final String providerId;
   final String cpfCnpj;
-  final String senha;
 
   ConsumoService({
     required this.apiUrl,
-    required this.sgpParams,
+    required this.providerId,
     required this.cpfCnpj,
-    required this.senha,
   });
 
   /// Busca os dados de consumo na API
@@ -25,15 +23,13 @@ class ConsumoService {
   Future<Map<String, dynamic>> fetchConsumptionData(
       {int? month, int? year}) async {
     try {
-      if (cpfCnpj.isEmpty || senha.isEmpty) {
-        throw Exception("CPF/CNPJ ou Senha não podem ser vazios.");
+      if (cpfCnpj.isEmpty) {
+        throw Exception("O CPF/CNPJ está vazio.");
       }
 
       final requestBody = {
         'cpfCnpj': cpfCnpj,
-        'senha': senha,
-        'sgpParams': sgpParams,
-        'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+        'providerId': providerId,
         if (month != null) 'mes': month,
         if (year != null) 'ano': year,
       };

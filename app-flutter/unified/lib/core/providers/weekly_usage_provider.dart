@@ -161,8 +161,8 @@ class WeeklyUsageNotifier extends StateNotifier<WeeklyUsageState> {
   /// Converte dados mensais da API em listas de uso e rótulos para o gráfico
   (List<double>, List<String>) _mapMonthlyData(
       Map<String, dynamic> monthlyData, int month, int year) {
-    final details =
-        (monthlyData['details'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
+    final details = (monthlyData['details'] as List<dynamic>?)
+        ?.cast<Map<String, dynamic>>();
 
     if (details == null || details.isEmpty) {
       // Fallback: usa o total mensal distribuído igualmente
@@ -247,13 +247,8 @@ final weeklyUsageProvider =
 
   final service = ConsumoService(
     apiUrl: '$baseApiUrl/get-consumption-data',
-    sgpParams: {
-      'token': configConfig.integrations.apiToken,
-      'app': configConfig.integrations.appName,
-      'sgpBaseUrl': configConfig.integrations.sgpBaseUrl,
-    },
+    providerId: providerConfig.id,
     cpfCnpj: usuario.cpfCnpj,
-    senha: usuario.senha,
   );
 
   return WeeklyUsageNotifier(service);

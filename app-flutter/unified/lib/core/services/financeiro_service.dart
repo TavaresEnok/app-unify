@@ -9,14 +9,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 class FinanceiroService {
   final String apiUrl;
   final String cpfCnpjUnformatted;
-  final String? senha;
-  final Map<String, dynamic> sgpParams;
+  final String providerId;
 
   FinanceiroService({
     required this.apiUrl,
     required this.cpfCnpjUnformatted,
-    this.senha,
-    required this.sgpParams,
+    required this.providerId,
   });
 
   /// Busca as faturas do cliente
@@ -28,9 +26,7 @@ class FinanceiroService {
 
       final requestBody = {
         'cpfCnpj': cpfCnpjUnformatted,
-        'senha': senha,
-        'sgpParams': sgpParams,
-        'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+        'providerId': providerId,
       };
 
       final response = await http
@@ -69,9 +65,7 @@ class FinanceiroService {
 
       final requestBody = {
         'cpfCnpj': cpfCnpjUnformatted,
-        'senha': senha,
-        'sgpParams': sgpParams,
-        'sgpBaseUrl': sgpParams['sgpBaseUrl'],
+        'providerId': providerId,
       };
 
       final response = await http

@@ -69,9 +69,13 @@ class NotificationService with ChangeNotifier {
           .where('createdAt', isGreaterThanOrEqualTo: sevenDaysAgo)
           .get();
 
+      // Apenas broadcasts do provedor (targetCpf == null). Notificações
+      // direcionadas a outros CPFs não são legíveis por este cliente (regras
+      // do Firestore), então filtramos aqui para não estourar permission-denied.
       final providerQuery = await FirebaseFirestore.instance
           .collection('notifications')
           .where('providerId', isEqualTo: providerId)
+          .where('targetCpf', isEqualTo: null)
           .limit(50)
           .get();
 
@@ -82,6 +86,7 @@ class NotificationService with ChangeNotifier {
         final fallbackQuery = await FirebaseFirestore.instance
             .collection('notifications')
             .where('providerId', isEqualTo: 'vibe')
+            .where('targetCpf', isEqualTo: null)
             .limit(50)
             .get();
         fallbackDocs = fallbackQuery.docs;

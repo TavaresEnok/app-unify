@@ -614,10 +614,13 @@ class MockOnuWifiService extends _i1.Mock implements _i3.OnuWifiService {
       ) as String);
 
   @override
-  Map<String, String> get sgpParams => (super.noSuchMethod(
-        Invocation.getter(#sgpParams),
-        returnValue: <String, String>{},
-      ) as Map<String, String>);
+  String get providerId => (super.noSuchMethod(
+        Invocation.getter(#providerId),
+        returnValue: _i7.dummyValue<String>(
+          this,
+          Invocation.getter(#providerId),
+        ),
+      ) as String);
 
   @override
   _i2.Client get client => (super.noSuchMethod(

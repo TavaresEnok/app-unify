@@ -1,5 +1,4 @@
 // Layout 02 - Financeiro Page (VERSÃO CLEAN)
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +6,6 @@ import '../../layouts/layout_04/widgets/skeleton_financeiro_page.dart';
 import '../../layouts/layout_04/widgets/error_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:http/http.dart' as http;
 
 import '../../core/models/fatura.dart';
 import '../../core/providers/financeiro_provider.dart';
@@ -541,7 +539,7 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _executeTrustUnlock(context, fatura, ref);
+              _executeTrustUnlock(context, ref);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple,
@@ -554,14 +552,9 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     );
   }
 
-  Future<void> _executeTrustUnlock(
-      BuildContext context, Fatura fatura, WidgetRef ref) async {
-    final config = ref.read(configurationProvider);
-    final authState = ref.read(authNotifierProvider);
-    final providerConfig = config.providerConfig;
-    final usuario = authState.value;
-
-    if (providerConfig == null || usuario == null) {
+  Future<void> _executeTrustUnlock(BuildContext context, WidgetRef ref) async {
+    final service = ref.read(financeiroServiceProvider);
+    if (service == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Erro: Configuração não encontrada'),
@@ -591,43 +584,24 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     );
 
     try {
-      final response = await http.post(
-        Uri.parse('${providerConfig.apiUrl}/unlock-trust'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'cpfCnpj': usuario.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
-          'senha': usuario.senha,
-          'faturaId': fatura.numero,
-          'sgpParams': {
-            'token': providerConfig.config.integrations.apiToken,
-            'app': providerConfig.config.integrations.appName,
-            'sgpBaseUrl': providerConfig.config.integrations.sgpBaseUrl,
-          },
-        }),
-      );
+      await service.solicitarDesbloqueioConfianca();
 
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Expanded(child: Text('Internet liberada por 24 horas!')),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 4),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Internet liberada por 24 horas!')),
+            ],
           ),
-        );
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error']?['message'] ?? 'Erro ao liberar');
-      }
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
+        ),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();

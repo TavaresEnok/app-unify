@@ -17,7 +17,7 @@ void main() {
     service = OnuWifiService(
       apiUrl: 'http://test.api',
       cpfCnpj: '12345678900',
-      sgpParams: {'sgpBaseUrl': 'http://sgp', 'token': 'abc', 'appName': 'app'},
+      providerId: 'test-provider',
       client: mockClient,
     );
   });

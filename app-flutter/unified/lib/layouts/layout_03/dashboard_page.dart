@@ -94,6 +94,12 @@ class _DashboardPageState extends State<DashboardPage> {
       'route': 'invoices'
     },
     {
+      'label': 'Meu Wi-Fi',
+      'icon': Icons.wifi_rounded,
+      'color': Layout03Theme.iconBlue,
+      'route': 'wifi'
+    },
+    {
       'label': 'Suporte',
       'icon': Icons.headset_mic_rounded,
       'color': Layout03Theme.iconFog,

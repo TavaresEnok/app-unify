@@ -11,15 +11,11 @@ import 'layouts/layout_05/dashboard_page.dart' as l05;
 import 'layouts/layout_06/dashboard_page.dart' as l06;
 
 // Imports dos Logins (diferentes por layout)
-import 'layouts/layout_02/login_page.dart' as l02_login;
-import 'layouts/layout_03/login_page.dart' as l03_login;
-import 'layouts/layout_04/login_page.dart' as l04_login;
-import 'layouts/layout_05/login_page.dart' as l05_login;
-import 'layouts/layout_06/login_page.dart' as l06_login;
 
 // ============================================
 // PÁGINAS COMPARTILHADAS (idênticas entre layouts)
 // ============================================
+import 'core/pages/unified_login_page.dart';
 import 'core/pages/shared_financeiro_page.dart' as shared_fin;
 import 'core/pages/shared_suporte_page.dart' as shared_sup;
 import 'core/pages/shared_diagnostico_page.dart' as shared_diag;
@@ -170,21 +166,9 @@ class LayoutSelector {
   /// Retorna o widget de Login correto para o layout especificado
   static Widget getLoginPage(
       {required String layoutType, Map<String, dynamic>? arguments}) {
-    switch (LayoutRegistry.normalize(layoutType)) {
-      case 'layout_02':
-        return const l02_login.LoginPage();
-      case 'layout_03':
-        return const l03_login.LoginPage();
-      case 'layout_04':
-        return const l04_login.LoginPage();
-      case 'layout_05':
-        return const l05_login.LoginPage();
-      case 'layout_06':
-        return const l06_login.LoginPage();
-
-      default:
-        return const l02_login.LoginPage();
-    }
+    // Login unificado: a aparência vem dos tokens do layout (LayoutTokens),
+    // não de uma tela por layout.
+    return const UnifiedLoginPage();
   }
 
   /// Retorna o widget de Financeiro (Faturas) - COMPARTILHADO entre layouts

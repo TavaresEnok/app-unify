@@ -11,7 +11,7 @@ import '../../core/models/diagnostico_state.dart';
 import '../../core/widgets/dashboard_card.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/troubleshooter_card.dart';
-import '../../core/utils/pdf_generator_service.dart';
+import '../../core/widgets/diagnostic_report_sheet.dart';
 
 class DiagnosticoPage extends ConsumerStatefulWidget {
   const DiagnosticoPage({super.key});
@@ -21,7 +21,6 @@ class DiagnosticoPage extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
-
   /// Extrai com segurança um String do campo 'result' de um teste.
   /// wifiInfo e batteryInfo salvam Maps; este helper evita type cast exceptions.
   static String? _safeResultString(dynamic result) {
@@ -68,13 +67,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
         _onuWifiService = OnuWifiService(
           apiUrl: providerConfig.apiUrl,
           cpfCnpj: usuario.cpfCnpj,
-          senha: usuario.senha,
           contrato: usuario.contratoId?.toString(),
-          sgpParams: {
-            'token': providerConfig.config.integrations.apiToken,
-            'app': providerConfig.config.integrations.appName,
-            'sgpBaseUrl': providerConfig.config.integrations.sgpBaseUrl,
-          },
+          providerId: providerConfig.id,
         );
       }
       _serviceInitialized = true;
@@ -150,8 +144,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   icon: const Icon(Icons.share),
                   tooltip: 'Compartilhar PDF',
                   onPressed: () {
-                    final pdfService = PdfGeneratorService();
-                    pdfService.stopAndSharePdf(state);
+                    showDiagnosticReportSheet(context, ref, state);
                   },
                 ),
             ],
@@ -317,8 +310,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     final cloudflareStatus =
         state.testResultsDisplay['pingCloudflare']?['status'] as TestStatus? ??
             TestStatus.pending;
-    final cloudflareResult =
-        _safeResultString(state.testResultsDisplay['pingCloudflare']?['result']);
+    final cloudflareResult = _safeResultString(
+        state.testResultsDisplay['pingCloudflare']?['result']);
 
     return _buildAdaptiveCard(
         isLayout05: isLayout05,

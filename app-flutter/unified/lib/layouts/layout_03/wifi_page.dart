@@ -42,30 +42,12 @@ class _WifiPageState extends ConsumerState<WifiPage> {
     }
 
     try {
-      // Check if TR069/SGP integration is configured
-      final sgpBaseUrl = config.config.integrations.sgpBaseUrl;
-      if (sgpBaseUrl.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _errorMessage =
-                'Gerenciamento WiFi não disponível.\n\nO seu provedor não possui integração TR069 configurada para gerenciamento remoto do roteador.';
-            _isLoading = false;
-          });
-        }
-        return;
-      }
-
       // Constructing the real service
       _wifiService = OnuWifiService(
         apiUrl: config.apiUrl,
         cpfCnpj: user.cpfCnpj,
-        senha: user.senha,
         contrato: user.contratoId?.toString(),
-        sgpParams: {
-          'token': config.config.integrations.apiToken,
-          'app': config.config.integrations.appName,
-          'sgpBaseUrl': sgpBaseUrl,
-        },
+        providerId: config.id,
       );
 
       await _fetchNetworks();
