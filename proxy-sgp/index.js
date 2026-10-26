@@ -6,15 +6,21 @@ const { Pool } = require('pg');
 const admin = require('firebase-admin');
 const Redis = require('ioredis');
 const { randomUUID } = require('crypto');
+const fs = require('fs');
 const { loadConfig } = require('./lib/config');
 const { maskCpfCnpj, secureLog } = require('./lib/secure-log');
+const { canIssueClientToken } = require('./lib/client-access');
 const { createRateLimiter } = require('./lib/rate-limiter');
 
 const config = loadConfig();
 
 // Initialize Firebase Admin (Uses ADC)
+const firebaseCredentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+if (firebaseCredentialsPath && !fs.existsSync(firebaseCredentialsPath)) {
+    throw new Error(`Firebase credentials file not found: ${firebaseCredentialsPath}`);
+}
 if (!admin.apps.length) {
-    admin.initializeApp();
+    admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT || undefined });
 }
 const firestoreDb = admin.firestore();
 
@@ -162,6 +168,8 @@ async function callSgpApi(params) {
     if (!url) {
         throw new Error('URL é obrigatória para chamar SGP');
     }
+    // Defesa em profundidade contra SSRF: valida o host antes de qualquer axios.
+    assertSafeSgpUrl(url);
 
     console.log(`[SGP-API] Chamando: ${url}`);
     secureLog(`[SGP-API] Params:`, rest);
@@ -220,7 +228,36 @@ async function callSgpApi(params) {
 // Mantém compatibilidade com código antigo que usa executePhp
 const executePhp = callSgpApi;
 
+// Bloqueia SSRF: rejeita esquemas não-http(s) e hosts internos (loopback,
+// faixas privadas, link-local/metadata, CGNAT). Chokepoint usado por todas as
+// chamadas ao SGP, cobrindo inclusive sgpBaseUrl vindo do corpo da requisição.
+function assertSafeSgpUrl(sgpBaseUrl) {
+    let parsed;
+    try {
+        parsed = new URL(sgpBaseUrl.trim());
+    } catch {
+        throw new Error('sgpBaseUrl inválida.');
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        throw new Error('sgpBaseUrl deve usar http(s).');
+    }
+    const host = parsed.hostname.toLowerCase();
+    const ipMatch = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (host === 'localhost' || host.endsWith('.localhost')) {
+        throw new Error('sgpBaseUrl aponta para host interno.');
+    }
+    if (ipMatch) {
+        const [a, b] = ipMatch.slice(1).map(Number);
+        const isPrivate = a === 10 || a === 127 || a === 0 ||
+            (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
+            (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+        if (isPrivate) throw new Error('sgpBaseUrl aponta para faixa de IP interna.');
+    }
+    return parsed;
+}
+
 function formatSgpUrl(sgpBaseUrl, path) {
+    assertSafeSgpUrl(sgpBaseUrl);
     let base = sgpBaseUrl.trim().replace(/\/$/, '');
     return `${base}${path}`;
 }
@@ -287,7 +324,7 @@ async function ensureSgpCredentials(body) {
 function requireSgpClientCredentials(sgpParams, res) {
     if (!sgpParams?.token || !sgpParams?.app) {
         res.status(503).json({
-            error: { message: 'Integração SGP incompleta: envie sgpParams no app ou defina SGP_TOKEN e SGP_APP_NAME no servidor.' },
+            error: { message: 'Integração SGP indisponível para este provedor.' },
         });
         return false;
     }
@@ -299,7 +336,12 @@ function assertProxySecret(secret, res) {
         res.status(503).json({ error: { message: 'Servidor não configurado (defina PROXY_SECRET).' } });
         return false;
     }
-    if (secret !== PROXY_SECRET_KEY) {
+    // Comparação em tempo constante — evita distinguir o segredo por timing.
+    const provided = typeof secret === 'string' ? Buffer.from(secret) : Buffer.alloc(0);
+    const expected = Buffer.from(PROXY_SECRET_KEY);
+    const matches = provided.length === expected.length &&
+        require('crypto').timingSafeEqual(provided, expected);
+    if (!matches) {
         res.status(403).json({ error: { message: 'Acesso não autorizado.' } });
         return false;
     }
@@ -321,6 +363,17 @@ async function verifyFirebaseToken(req, res, next) {
         if (reqCpf && decodedToken.uid !== reqCpf) {
             console.error(`[AUTH] Tentativa de acesso cruzado: UID(${decodedToken.uid}) tentou acessar CPF(${reqCpf})`);
             return res.status(403).json({ error: { message: 'Acesso negado: Tentativa de acessar dados de outro cliente.' } });
+        }
+
+        // Vínculo de tenant (A2): se o token carrega providerId, ele é a fonte da
+        // verdade — rejeita divergência e ignora qualquer providerId do corpo.
+        // Tokens legados sem o claim mantêm o comportamento anterior.
+        if (decodedToken.providerId) {
+            if (req.body.providerId && req.body.providerId !== decodedToken.providerId) {
+                console.error(`[AUTH] providerId do corpo (${req.body.providerId}) diverge do token (${decodedToken.providerId})`);
+                return res.status(403).json({ error: { message: 'Acesso negado: provedor não corresponde ao token.' } });
+            }
+            req.body.providerId = decodedToken.providerId;
         }
 
         req.user = decodedToken;
@@ -461,7 +514,7 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
         });
     } catch (error) {
         console.error(`[Consumo] Erro: ${error.message}`);
-        res.status(500).json({ error: { message: error.message } });
+        (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 // 2. Rotas Sincronização Clientes
@@ -566,7 +619,7 @@ app.post('/sync-clients', async (req, res) => {
         activeSyncs.delete(providerId);
         console.error(`[SYNC] Erro fatal: ${error.message}`);
         // Se ainda não respondeu (erro na pg 1), responde agora
-        if (!res.headersSent) res.status(500).json({ error: { message: error.message } });
+        if (!res.headersSent) (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 app.post('/get-cached-clients', async (req, res) => {
@@ -574,6 +627,10 @@ app.post('/get-cached-clients', async (req, res) => {
     const { limit = 25, offset = 0, searchTerm = '' } = req.body.params || {};
 
     if (!assertProxySecret(secret, res)) return;
+
+    if (typeof providerId !== 'string' || !providerId.trim()) {
+        return res.status(400).json({ error: { message: 'providerId é obrigatório.' } });
+    }
 
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
     console.log(`[CACHE] Buscando clientes para ${providerId}: limit=${limit}, offset=${offset}, search="${searchTerm}"`);
@@ -597,12 +654,16 @@ app.post('/get-cached-clients', async (req, res) => {
             return res.status(200).json({ clientes: [], paginacao: { total: 0, limit, offset } });
         }
         console.error(`[CACHE] Erro DB: ${err.message}`);
-        return res.status(500).json({ error: { message: err.message } });
+        (console.error("[proxy] erro DB:", err && err.message), res.status(500).json({ error: { message: "Erro interno." } }));
+        return;
     }
 });
 app.post('/get-single-client', async (req, res) => {
     const { secret, providerId, params } = req.body;
     if (!assertProxySecret(secret, res)) return;
+    if (typeof providerId !== 'string' || !providerId.trim()) {
+        return res.status(400).json({ error: { message: 'providerId é obrigatório.' } });
+    }
     const tableName = `clients_${providerId.replace(/[^a-zA-Z0-9_]/g, '')}`;
     
     try {
@@ -614,7 +675,8 @@ app.post('/get-single-client', async (req, res) => {
         return res.status(200).json(row);
     } catch (err) {
         console.error(`[CACHE] Erro DB Single: ${err.message}`);
-        return res.status(500).json({ error: { message: err.message } });
+        (console.error("[proxy] erro DB:", err && err.message), res.status(500).json({ error: { message: "Erro interno." } }));
+        return;
     }
 });
 // 3. Info Básica Cliente (Check-CPF) + Mock
@@ -675,6 +737,10 @@ app.post('/check-cpf', async (req, res) => {
         if (!clientResponse?.contratos?.length) return res.status(404).json({ error: { message: "Cliente não encontrado." } });
 
         let contrato = clientResponse.contratos[0];
+        const contractAccountStatus = contrato.contratoStatusDisplay
+            || contrato.contratoStatus
+            || contrato.status
+            || '';
         let valorAberto = parseFloat(contrato.contratoValorAberto || '0');
         let vencimento = contrato.cobVencimento;
 
@@ -793,45 +859,45 @@ app.post('/check-cpf', async (req, res) => {
 
         secureLog('[Check-CPF] Resposta enviada (sanitizada):', responseData);
 
-        // Gera custom token APENAS para clientes com status ativo
-        const activeStatuses = ['Online', 'Ativo', 'ativo'];
-        if (activeStatuses.includes(responseData.status)) {
+        // Segundo fator (C2): quando REQUIRE_LOGIN_SECOND_FACTOR=true, o login por
+        // CPF exige também a senha central do contrato antes de emitir o token —
+        // fechando a tomada de conta por CPF (semi-público). Desligado por padrão
+        // para não quebrar o app atual; a UI Flutter precisa enviar `senha`.
+        if (process.env.REQUIRE_LOGIN_SECOND_FACTOR === 'true') {
+            const provided = typeof req.body.senha === 'string' ? req.body.senha.trim() : '';
+            const contratoSenha = contrato.contratoCentralSenha || '';
+            if (!provided || !contratoSenha || provided !== String(contratoSenha)) {
+                console.warn('[Check-CPF] Segundo fator ausente/incorreto — token não emitido.');
+                return res.status(401).json({ error: { message: 'Credenciais inválidas.' } });
+            }
+        }
+
+        // O acesso ao app depende do contrato, não do estado momentâneo da conexão.
+        if (canIssueClientToken(contractAccountStatus)) {
             try {
-                const customToken = await admin.auth().createCustomToken(cpfCnpjUnformatted);
+                // Vincula o provedor ao token (A2): downstream a identidade do
+                // tenant vem do claim verificado, não do corpo da requisição.
+                const claims = req.body.providerId ? { providerId: req.body.providerId } : undefined;
+                const customToken = await admin.auth().createCustomToken(cpfCnpjUnformatted, claims);
                 responseData.customToken = customToken;
-                console.log('[Check-CPF] Custom Token gerado para cliente ativo.');
+                console.log('[Check-CPF] Custom Token gerado para contrato elegível.');
             } catch (tokenError) {
                 console.error('[Check-CPF] Falha ao gerar Custom Token do Firebase:', tokenError.message);
             }
         } else {
-            console.log(`[Check-CPF] Token NÃO gerado — cliente com status "${responseData.status}".`);
-            // Retorna os dados sem token — o app pode mostrar informações mas não permitir login
+            console.log('[Check-CPF] Token não gerado para contrato encerrado ou inativo.');
         }
 
         res.status(200).json(responseData);
-    } catch (error) { res.status(500).json({ error: { message: error.message } }); }
-});
-app.post('/get-client-data-for-login', async (req, res) => {
-    // Mesma lógica do check-cpf mas com faturas
-    const { cpfCnpj, sgpParams, sgpBaseUrl } = req.body;
-    const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
-    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
-        return res.status(200).json({
-            data: {
-                cpfCnpj: DEV_CPF, userName: "Dev Teste", userPlan: "Fibra Mock",
-                userStatus: "Ativo", billValue: "R$ 99,90", billDueDate: "Vence em 10/12"
-            }
-        });
-    }
-    // ... Implementação padrão (omitida para brevidade pois check-cpf é o principal) ...
-    // Se precisar do código completo desta rota, avise.
-    res.status(501).json({ error: "Rota em manutenção. Use Check-CPF." });
+    } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } })); }
 });
 // 4. Rotas de Hardware // 3. Rotas Diagnóstico / ONU
 app.post('/diagnostic/onu-signal', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, true); });
 app.post('/diagnostic/onu-signal-base', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, false); });
 async function handleOnuRequest(req, res, useFilters) {
-    const { cpfCnpj, senha: senhaInput, contrato, sgpParams, sgpBaseUrl } = req.body;
+    const { cpfCnpj, senha: senhaInput, contrato } = req.body;
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
+    if (!requireSgpClientCredentials(sgpParams, res)) return;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
         return res.status(200).json({
@@ -844,7 +910,7 @@ async function handleOnuRequest(req, res, useFilters) {
             mock: true
         });
     }
-    if (!cpfCnpjUnformatted || !sgpParams || !sgpBaseUrl) return res.status(400).json({ error: { message: "Dados incompletos." } });
+    if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos (CPF)." } });
     try {
         let senha = senhaInput;
         let contratoResolvido = contrato;
@@ -898,29 +964,25 @@ async function handleOnuRequest(req, res, useFilters) {
             lastUpdate: onu.info_date || null,
         };
         res.status(200).json({ data: formattedData });
-    } catch (error) { res.status(500).json({ error: { message: error.message } }); }
+    } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } })); }
 }
 // 4. Rota Analyze
+// 4. Rota Analyze
+// ATENÇÃO: retorna análise PLACEHOLDER fixa (não há motor de diagnóstico real).
+// Mantida por compatibilidade com apps antigos (contracts.js "keep-temporarily").
+// Não exibir como diagnóstico real sem implementar a análise de fato.
 app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
-    // Recebe os dados do diagnóstico
-    const { cpfCnpj, data } = req.body;
-    // Mock Analysis - Estrutura exata esperada pelo App (com wrapper data)
-    const mockAnalysis = {
+    res.status(200).json({
         data: {
             problem: "Sinal óptico abaixo do ideal (-25dBm)",
-            category: "FIBER_ISSUE", // DiagnosticCategory.FIBER_ISSUE
+            category: "FIBER_ISSUE",
             confidence: 0.95,
             solution: "Verificar integridade do cabo de fibra e conexões.",
             estimatedTime: "24h",
-            priority: 1, // High
+            priority: 1,
             timestamp: new Date().toISOString()
         }
-    };
-    // Developer Backdoor
-    if (DEV_CPF && cpfCnpj && cpfCnpj.replace(/[^0-9]/g, '') === DEV_CPF) {
-        return res.status(200).json(mockAnalysis);
-    }
-    res.status(200).json(mockAnalysis);
+    });
 });
 // 5. Rotas CPE Manager (Wi-Fi)
 app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
@@ -964,7 +1026,7 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         console.error(`[WIFI-LIST] CRITICAL ERROR:`, error.message);
-        res.status(500).json({ error: { message: error.message } });
+        (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
@@ -996,11 +1058,28 @@ app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         console.error(`[WIFI-UPDATE] ERROR:`, error.message);
-        res.status(500).json({ error: { message: error.message } });
+        (console.error("[proxy] erro interno:", error && error.message), res.status(500).json({ error: { message: "Erro interno." } }));
     }
 });
 
 // 6. ROTA DE FATURAS (APP FLUTTER) - ADICIONADA
+app.post('/get-client-data-for-login', async (req, res) => {
+    // Mantida por compatibilidade com apps antigos em campo (contracts.js:
+    // decision "keep-temporarily"). Não implementada: responde 501 sem tocar no
+    // SGP — os campos sgpParams/sgpBaseUrl do corpo são deliberadamente
+    // ignorados para não abrir superfície de SSRF/injeção de credencial.
+    const { cpfCnpj } = req.body;
+    const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
+    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
+        return res.status(200).json({
+            data: {
+                cpfCnpj: DEV_CPF, userName: "Dev Teste", userPlan: "Fibra Mock",
+                userStatus: "Ativo", billValue: "R$ 99,90", billDueDate: "Vence em 10/12"
+            }
+        });
+    }
+    res.status(501).json({ error: "Rota em manutenção. Use Check-CPF." });
+});
 app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj } = req.body;
     const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
@@ -1008,16 +1087,17 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
 
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
 
+    if (!cpfCnpjUnformatted) {
+        return res.status(400).json({ error: { message: "cpfCnpj obrigatório." } });
+    }
+
     // CACHE CHECK
-    const cacheKey = `invoices_${cpfCnpjUnformatted}`;
-    const cachedData = getFromCache(cacheKey);
+    const providerCacheKey = String(req.body.providerId || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '');
+    const cacheKey = `invoices_${providerCacheKey}_${cpfCnpjUnformatted}`;
+    const cachedData = await getFromCache(cacheKey);
     if (cachedData) {
         console.log(`[Faturas] Hit Cache para ${maskCpfCnpj(cpfCnpjUnformatted)}`);
         return res.status(200).json(cachedData);
-    }
-
-    if (!cpfCnpjUnformatted) {
-        return res.status(400).json({ error: { message: "cpfCnpj obrigatório." } });
     }
     console.log(`[Faturas] Buscando faturas para: ${maskCpfCnpj(cpfCnpjUnformatted)} no SGP: ${sgpBaseUrl}`);
 
@@ -1073,12 +1153,12 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
         console.log(`[Faturas] Total de faturas formatadas: ${formattedInvoices.length}`);
 
         const responseData = { data: formattedInvoices };
-        setInCache(cacheKey, responseData);
+        await setInCache(cacheKey, responseData);
 
         res.status(200).json(responseData);
     } catch (error) {
         console.error("Erro geral na rota /get-invoices:", error.message);
-        res.status(500).json({ error: { message: error.message || "Erro interno ao buscar faturas." } });
+        (console.error("[proxy] erro faturas:", error && error.message), res.status(500).json({ error: { message: "Erro interno ao buscar faturas." } }));
     }
 });
 
@@ -1116,7 +1196,7 @@ app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
         res.status(200).json({ success: true, message: promessaResponse?.msg || "Desbloqueio realizado com sucesso!" });
     } catch (error) {
         console.error("Erro na rota /unlock-trust:", error.message);
-        res.status(500).json({ error: { message: error.message || "Erro interno ao processar desbloqueio." } });
+        (console.error("[proxy] erro desbloqueio:", error && error.message), res.status(500).json({ error: { message: "Erro interno ao processar desbloqueio." } }));
     }
 });
 

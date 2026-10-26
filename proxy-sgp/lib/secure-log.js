@@ -1,6 +1,13 @@
 const SENSITIVE_KEY_PATTERNS = [
-    'senha', 'password', 'token', 'authorization', 'cpf', 'cnpj',
-    'apiToken', 'codigoPix', 'linha_digitavel',
+    // Credenciais / segredos
+    'senha', 'password', 'token', 'authorization', 'apitoken',
+    // Instrumentos de pagamento
+    'pix', 'linha_digitavel', 'linhadigitavel', 'codigopix', 'boleto',
+    // Identificadores pessoais
+    'cpf', 'cnpj', 'login',
+    // PII retornada pelo SGP (nome, endereço, GPS, contato, nascimento, rede)
+    'razaosocial', 'nome', 'endereco', 'telefone', 'email', 'nasc',
+    'mac', 'wifi', 'ssid',
 ];
 
 function isSensitiveKey(key = '') {
