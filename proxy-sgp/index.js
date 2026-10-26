@@ -8,6 +8,7 @@ const Redis = require('ioredis');
 const { randomUUID } = require('crypto');
 const { loadConfig } = require('./lib/config');
 const { maskCpfCnpj, secureLog } = require('./lib/secure-log');
+const { createRateLimiter } = require('./lib/rate-limiter');
 
 const config = loadConfig();
 
@@ -66,78 +67,15 @@ try {
 }
 
 // --- RATE LIMITING (Redis-backed com fallback in-memory) ---
-const rateLimitStoreFallback = new Map();
-const RATE_LIMIT_WINDOW_MS = config.rateLimitWindowMs;
-const RATE_LIMIT_MAX_REQUESTS = config.rateLimitMaxRequests;
-
-async function rateLimiter(req, res, next) {
-    const clientId = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    const now = Date.now();
-
-    try {
-        if (redisConnected && redis) {
-            const key = `rl:${clientId}`;
-            const count = await redis.incr(key);
-            if (count === 1) {
-                await redis.pexpire(key, RATE_LIMIT_WINDOW_MS);
-            }
-            const ttl = await redis.pttl(key);
-
-            if (count > RATE_LIMIT_MAX_REQUESTS) {
-                const retryAfter = Math.ceil(ttl / 1000);
-                res.set('Retry-After', retryAfter.toString());
-                res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-                res.set('X-RateLimit-Remaining', '0');
-                return res.status(429).json({
-                    error: { message: 'Muitas requisições. Tente novamente em alguns segundos.', retryAfter }
-                });
-            }
-
-            res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-            res.set('X-RateLimit-Remaining', (RATE_LIMIT_MAX_REQUESTS - count).toString());
-            return next();
-        }
-    } catch (err) {
-        // Fallback silencioso para in-memory
-    }
-
-    // Fallback in-memory (mesmo comportamento anterior)
-    if (!rateLimitStoreFallback.has(clientId)) {
-        rateLimitStoreFallback.set(clientId, { count: 1, startTime: now });
-        return next();
-    }
-
-    const clientData = rateLimitStoreFallback.get(clientId);
-    if (now - clientData.startTime > RATE_LIMIT_WINDOW_MS) {
-        rateLimitStoreFallback.set(clientId, { count: 1, startTime: now });
-        return next();
-    }
-
-    clientData.count++;
-    if (clientData.count > RATE_LIMIT_MAX_REQUESTS) {
-        const retryAfter = Math.ceil((clientData.startTime + RATE_LIMIT_WINDOW_MS - now) / 1000);
-        res.set('Retry-After', retryAfter.toString());
-        res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-        res.set('X-RateLimit-Remaining', '0');
-        return res.status(429).json({
-            error: { message: 'Muitas requisições. Tente novamente em alguns segundos.', retryAfter }
-        });
-    }
-
-    res.set('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS.toString());
-    res.set('X-RateLimit-Remaining', (RATE_LIMIT_MAX_REQUESTS - clientData.count).toString());
-    next();
-}
+// /health e /ready ficam isentos para o healthcheck nunca receber 429.
+const rateLimiter = createRateLimiter({
+    getRedis: () => (redisConnected ? redis : null),
+    windowMs: config.rateLimitWindowMs,
+    maxRequests: config.rateLimitMaxRequests,
+});
 
 // Limpa fallback in-memory a cada 5 minutos
-setInterval(() => {
-    const now = Date.now();
-    for (const [clientId, data] of rateLimitStoreFallback.entries()) {
-        if (now - data.startTime > RATE_LIMIT_WINDOW_MS * 5) {
-            rateLimitStoreFallback.delete(clientId);
-        }
-    }
-}, 5 * 60 * 1000);
+setInterval(rateLimiter.pruneFallback, 5 * 60 * 1000);
 
 // --- CACHE SYSTEM (Redis-backed com fallback in-memory) ---
 const cacheStoreFallback = new Map();
