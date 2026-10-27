@@ -5,6 +5,20 @@
 # O Caddy vai gerar certificado SSL automaticamente via Let's Encrypt
 # =================================================================
 
+# O Caddy central do servidor (/home/app/infra/caddy) fica na frente deste e
+# termina o HTTPS de appisp.com.br. Ele chega pela rede privada do Docker, então
+# confiamos no X-Forwarded-For vindo de faixas privadas e repassamos aos
+# serviços só o IP real do cliente (eles usam `trust proxy 1` no rate limit).
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+(cliente_real) {
+	header_up X-Forwarded-For {client_ip}
+}
+
 # Endereço do site configurável por env (M4): defina SITE_ADDRESS com o seu
 # domínio (ex.: painel.seudominio.com.br) para que o Caddy provisione TLS
 # automaticamente via Let's Encrypt e sirva em HTTPS. Sem a variável, cai para
@@ -15,43 +29,59 @@
 	# Admin Painel (frontend)
 	handle /painel/* {
 		uri strip_prefix /painel
-		reverse_proxy frontend:80
+		reverse_proxy frontend:80 {
+			import cliente_real
+		}
 	}
 
 	handle /assets/* {
-		reverse_proxy frontend:80
+		reverse_proxy frontend:80 {
+			import cliente_real
+		}
 	}
 
 	# API Service
 	handle /api/* {
 		uri strip_prefix /api
-		reverse_proxy api-service:9136
+		reverse_proxy api-service:9136 {
+			import cliente_real
+		}
 	}
 
 	handle /apk-builder/* {
 		uri strip_prefix /apk-builder
-		reverse_proxy apk-builder:8035
+		reverse_proxy apk-builder:8035 {
+			import cliente_real
+		}
 	}
 
 	handle /public_apks/* {
-		reverse_proxy landing-page:80
+		reverse_proxy landing-page:80 {
+			import cliente_real
+		}
 	}
 
 	# Proxy SGP
 	handle /sgp/* {
 		uri strip_prefix /sgp
-		reverse_proxy backend-proxy:3002
+		reverse_proxy backend-proxy:3002 {
+			import cliente_real
+		}
 	}
 
 	# Speed Test
 	handle /speedtest/* {
 		uri strip_prefix /speedtest
-		reverse_proxy speed-test:3001
+		reverse_proxy speed-test:3001 {
+			import cliente_real
+		}
 	}
 
 	# Landing page como default
 	handle {
-		reverse_proxy landing-page:80
+		reverse_proxy landing-page:80 {
+			import cliente_real
+		}
 	}
 
 	# Headers de segurança
