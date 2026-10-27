@@ -37,10 +37,10 @@ api-service/src/
 | POST | `/admin/tickets/:id/reply` | Firebase token | Adiciona resposta |
 | GET | `/admin/users` | superAdmin | Lista usuarios administrativos |
 | GET | `/admin/dashboard` | Firebase token | Indicadores globais ou do provedor |
-| POST | `/getClientData` | rate limit SGP | Consulta dados do cliente |
-| POST | `/getConsumptionData` | rate limit SGP | Consulta consumo |
-| POST | `/getInvoices` | rate limit SGP | Consulta faturas |
-| POST | `/makePaymentPromise` | rate limit SGP | Promessa/desbloqueio |
+| POST | `/getClientData` | Firebase token + rate limit SGP | Dados do contrato `contratoId` (ou do primeiro), `totalAberto` e lista `contratos` |
+| POST | `/getConsumptionData` | Firebase token + rate limit SGP | Consumo somado de todos os contratos (ou de `contratoId`), com `contratos` por item |
+| POST | `/getInvoices` | Firebase token + rate limit SGP | Faturas de todos os contratos (ou de `contratoId`) |
+| POST | `/makePaymentPromise` | Firebase token + rate limit SGP | Promessa em `contratoId` ou em todos os contratos com débito; `resultados` por contrato |
 | POST | `/diagnostic/onu-signal` | Firebase token | Fachada para ONU no proxy SGP |
 | POST | `/diagnostic/traceroute` | Firebase token | Traceroute validado no servidor |
 | POST | `/check-cpf` | publica com rate limit | Login CPF via proxy SGP |
@@ -77,3 +77,10 @@ O proxy continua na porta interna `http://backend-proxy:3002` e publica atual
 - `api-service/src/app.test.ts`
 - `api-service/src/validators/traceroute.test.ts`
 - `proxy-sgp/contracts.test.js`
+
+### Rotas de assinante do api-service (`/getClientData`, `/getConsumptionData`, `/getInvoices`, `/makePaymentPromise`)
+
+- Corpo: `cpfCnpj` (obrigatório), `contratoId` (opcional) e, só para superAdmin, `providerId`.
+- O SGP consultado é o do provedor dono do CPF: claim `providerId` do token do assinante, ou `clientes/{cpf}.providerId`. As credenciais vêm de `provedores/{id}/secrets/sgp`. Se o provedor existe mas não tem integração, a resposta é 503 (sem cair no SGP global do `.env`). O `.env` só é usado para assinantes legados sem provedor identificado.
+- providerAdmin só acessa CPFs do próprio provedor; assinante só o próprio CPF.
+- A URL do SGP é validada contra SSRF com resolução de DNS (IPv4 e IPv6).

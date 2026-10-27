@@ -32,6 +32,6 @@ export const env = {
 export function environmentWarnings(): string[] {
   const warnings: string[] = [];
   if (!env.firebaseApiKey) warnings.push("FIREBASE_API_KEY ausente; login REST ficará indisponível.");
-  if (!env.sgpToken || !env.sgpAppName) warnings.push("Credenciais SGP ausentes; endpoints SGP ficarão indisponíveis.");
+  if (!env.sgpToken || !env.sgpAppName) warnings.push("Credenciais SGP globais ausentes; só assinantes com provedor identificado acessarão o SGP.");
   return warnings;
 }

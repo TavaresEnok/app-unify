@@ -14,7 +14,7 @@ function cpfDigits(body: unknown): string {
  * Resolve o provedor dono de um CPF a partir da coleção `clientes` (id do
  * documento = CPF apenas dígitos, com fallback por campo `cpfCnpj`).
  */
-async function providerOfCpf(digits: string): Promise<string | undefined> {
+export async function providerOfCpf(digits: string): Promise<string | undefined> {
   const direct = await firestore.collection("clientes").doc(digits).get();
   if (direct.exists) {
     const providerId = direct.data()?.providerId;
