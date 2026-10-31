@@ -449,6 +449,21 @@ Dependência externa aberta não recebe status de correção. E8 exige registro 
 
 **Aceite G3:** alteração e restauração com campos excluídos corretamente; duas edições concorrentes sem sobrescrita silenciosa; interrupção após commit e antes da projeção recuperada; versões antigas não sobrescrevem novas; token/build negados por interface e chamadas forjadas; versões mobile suportadas verificadas; observação por pelo menos sete dias incluindo backup diário. A fase 8 é o piloto integrado posterior, não a primeira validação do novo desenho.
 
+### Registro do lote 1 F0/F1 (31/10/2026)
+
+**Escopo:** baseline rastreável e inventário mínimo de configuração/segredos/backups/builds para C4, C11, E3 e E9, mais registro do backlog e da ordem de implantação/rollback. Documentação apenas: [inventário](operations/rearchitecture-f0-f1-inventory-2026-10-31.md). Baseline vinculado: `aeef740` (alterações locais anteriores preservadas, **não** é correção nova) e `608af5f` (manifesto observado de implantação, **não** é homologação nem prova de equivalência). Responsável técnico nominal desta continuação: `executor-codex-task-17baa3af4fe4-f0-baseline` (identificado no `summary` do `.paseo-result.json`; revisão independente posterior pelo controlador); coordenação: gerente do chat; E8: administrador externo do SGP. Rascunho anterior preservado e complementado por conferência estática das fontes; nenhum código de produto alterado.
+
+**Testes:** `git diff --check` (único teste obrigatório; resultado no fim desta seção). Testes de regras não executados: Java 17 do host é incompatível com o CLI (exige Java 21); é necessário ambiente isolado Java 21. Nenhum teste de aplicação foi executado porque nenhum código mudou.
+
+| Item | Código | Testado | Implantado | Distribuído |
+| --- | --- | --- | --- | --- |
+| Inventário C4/C11/E3/E9 (arquivo/rota/efeito/autorização) | documentado | `git diff --check` | não | não |
+| Correções C4/C11/E3/E9 | não implementadas | não | não | não |
+
+**Estado das fases:** F0 e G0 permanecem **incompletos** (faltam inventário de dados por tenant, IAM real, versões mobile/`admin_app` e custo). F1 não iniciou correções neste lote; as caixas das fases abaixo não foram marcadas. Principais lacunas e continuações constam no inventário (seções 4 e 5). Nenhuma implantação, push ou alteração de serviço/segredo foi feita.
+
+**Resultado real da validação documental (31/10/2026):** `git diff --check` — aprovado, exit 0, uma rodada essencial ao fim do bloco. Leitura estática conferiu fachadas do `Caddyfile`, API/consumidor `admin_app`, permissões RPC, backups, callables, regras e consumidores de configuração/anexos do `unified`; não é teste funcional de autorização. Manifestos de baseline reutilizados, sem nova coleta operacional. Backlog nominal, dependências e riscos no inventário, seção 5; sequência de implantação/rollback na seção 7 inclui atualização dos clientes antes de restringir regras, sem preservar acesso indevido a segredos.
+
 ### Fase 0 — Inventário, contratos e linha de base
 
 **Dependência:** nenhuma. **Prioridade:** imediata.
@@ -849,6 +864,25 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 - Memória observada em uma amostra: aproximadamente 4,2 GiB disponíveis e 2,4 GiB de swap em uso. É uma amostra de servidor compartilhado, não reserva disponível para novos serviços.
 - [Carga sintética](operations/capacity-report.json): proteção sob sobrecarga produz 503; não certificar 100 mil usuários simultâneos nem esconder rejeições no cálculo de capacidade.
 - [Medição de login](operations/login-followup-2026-10-30.json): amostras antes/depois com contas temporárias, sem distribuição suficiente para SLO. Não substituir percentis por uma amostra favorável.
+
+### 15.5.1. Lote 1 F0/F1 — baseline e inventário (31/10/2026)
+
+- **Baseline:** `aeef740` preserva as alterações anteriores ao lote (sobre `69bc581`); `608af5f` registra o manifesto observado de implantação/host. Nenhum dos dois é commit de correção dos achados, e nenhum prova produção homologada. O campo “commit de correção” das matrizes 15.3/15.4 continua **não identificado**.
+- **Inventário:** [rearchitecture-f0-f1-inventory-2026-10-31.md](operations/rearchitecture-f0-f1-inventory-2026-10-31.md) mapeia, por arquivo/rota, escritores, consumidores, efeitos e autorização atual de C4, C11, E3 e E9 em HTTP `/api`, `/sgp`, RPC, callables, Firestore/Storage, UI web, `unified`, `admin_app` (consumidor estático de `POST /admin/providers`, incluindo `details.apiToken/systemUrl`), `uploadProviderLogo`, builder e backups; autorizações e efeitos observados no código separados das lacunas de distribuição/IAM. Distingue dados atuais (código do baseline) de históricos (hashes de 30/10, log antigo de regras).
+- **Situação por achado após o lote:**
+
+| ID | Código | Testado | Implantado | Distribuído | Situação |
+| --- | --- | --- | --- | --- | --- |
+| C4 | inventariado; aberto | não | não | não | aberto; entrada/saída aninhada no POST/GET de provedores; auditoria já redige recursivamente por nomes de chave, mas exige cobertura e schema |
+| C11 | inventariado; aberto | não | não | não | aberto; restore por merge e backup misto acessível ao provedor |
+| E3 | inventariado; aberto | não | não | não | aberto; provedor ainda lê/grava `secrets`, `backups`, aciona RPC de integração/SGP |
+| E9 | parcialmente inventariado | não | não | não | aberto; `admin_app` mapeado estaticamente, mas versões em campo, mobile e escopo de anexos pendentes |
+| E8 | — | — | — | — | aberto (externo): rotação do token SGP pelo administrador do SGP |
+
+- **Ambiente:** Java 17 incompatível com o CLI de regras (exige Java 21); é necessário ambiente isolado Java 21. Nenhum teste de regras novo.
+- **Resultado deste contrato:** inventário documental conferido pelo executor `executor-codex-task-17baa3af4fe4-f0-baseline`; `git diff --check` aprovado (exit 0, uma rodada). Não equivale aos testes históricos da seção 15.2 nem aos testes de aceitação de C4/C11/E3/E9. Fontes adicionais verificáveis: `Caddyfile` (prefixos independentes), `unified/lib/core/providers/configuration_provider.dart` sob `app-flutter` (Firestore/cache), `diagnostic_report_service.dart` (URL compartilhável e tentativa de atualizar histórico) e `admin_app` (serialização sem ID e status 201 incompatível); detalhes e backlog no inventário. Sem implantação/distribuição; revisão independente ainda cabe ao controlador.
+- **Ordem de implantação e rollback** (planejada, sem implantação neste lote): API/schemas → painel separado → Functions → regras por último; rollback **sem** reverter regras/Functions restritivas ao baseline (que reabriria `secrets`/backups ao provedor, contra a seção 10): bloqueio temporário ou correção para frente, e retorno apenas de API/painel a artefatos identificados e validados; os artefatos de regras/Functions de retorno não constam do manifesto `608af5f` e permanecem pendentes de identificação. Preservar token privado, personalização, backup misto privado e compatibilidade (inventário, seção 7).
+- **Não encerrados:** G0/F0 (dados, IAM, mobile e custo pendentes) e nenhum achado C1–C16/E1–E9 foi fechado neste lote; achados abrangentes só parcialmente cobertos (por exemplo C5, C6, C12, C13, E2, E4–E7) permanecem abertos.
 
 ### 15.6. Regra de encerramento e passagem de fase
 
