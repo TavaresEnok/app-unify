@@ -427,6 +427,22 @@ Testar SGP de 50 ms, 500 ms e 2 s, indisponível, dados inconsistentes e respost
 
 ## 9. Fases de execução
 
+Atualização F1/E9 anexos privados (31/10/2026): executor nominal
+`executor-codex-task-04a9bc62a88b-f1-private-attachments`, sobre `804762d` com
+`858be72`. Backend Express, painel e Rules locais; contrato em
+[private-attachments](contracts/private-attachments.md), evidência/gates no
+[recibo](operations/rearchitecture-f1-private-attachments-2026-10-31.md) e §15.12.
+PASS de servidor `858be72` informado pelo controlador, assim como RPC/estados/
+build/config/SGP anteriores; histórico abaixo preservado. Revisão independente
+deste lote pendente. Não autoriza SDK/mobile/etapa A ou publicação. E9/C1/E4/G0/G1
+seguem parciais; E8 externo intocado.
+
+Retorno de revisão F1-PRIVATE-R1/R2: leitura Firestore de diagnóstico permanece
+negada ao assinante, sem confiar owner/schema/data legados; leitura administrativa
+preservada. Commit de upload exige pending sem geração ou retry committed com
+mesma geração válida. Correções e regressões locais no recibo/§15.12, sujeitas a
+nova revisão independente; emuladores/compatibilidade continuam gates.
+
 Atualização C1/E4 de servidor em 31/10/2026: executor nominal
 `executor-codex-task-283c3ce00d51-f1-server-access`, implementação local sem commit.
 Critérios e matriz por transporte no [recibo de servidor](operations/rearchitecture-f1-server-access-2026-10-31.md).
@@ -1030,7 +1046,7 @@ Cada encerramento ainda exige manifesto de implantação e aceite integral.
 | E6 / P1 | Backup não equivale a PITR/recuperação integral; `archive_mode=off` na inspeção | F2 implanta WAL externo e ensaia baixo volume; F8 recuperação integral. RPO de 5 min ainda não comprovado |
 | E7 / P1 | Perda total de Redis e retorno do banco no tempo | F2/F8 testam agenda futura, cancelamentos, reconstrução, quarentena de efeitos externos, revogações posteriores ao ponto restaurado e reabertura controlada |
 | E8 / P0 | Token SGP anteriormente público ainda não rotacionado no upstream | Depende do administrador do SGP fornecer substituto; equipe SaaS cadastra/valida. Preservar valor privado operacional e nunca considerar remoção da cópia pública como rotação |
-| E9 / P1 | Caminhos públicos e identidade além da fachada principal | F0 mapeia `/api`, `/sgp`, callables, Firestore/Storage e `admin_app`; F1 cobre autorização sem depender de um único gateway. Auditoria de anexos inclui escopo por assinante/ticket, não apenas por tenant |
+| E9 / P1 | **Parcial, aberto:** caminhos públicos e identidade além da fachada; anexos privados v2 locais, §15.12 | Express autoriza por ticket/result/owner/tenant; painel sem URL permanente nova, Rules fecham acesso genérico de assinantes. SDK/mobile, Rules emuladas, revisão, IAM, objetos/tokens antigos, implantação e distribuição seguem gates; não basta tenant |
 
 ### 15.5. Evidências operacionais e lacunas
 
@@ -1424,3 +1440,39 @@ publicação coordenada. Rollback não pode reabrir sessão/papel antigo, CPF se
 senha, token/build de provedor, replay de lock ou fallback SGP.
 E9/compatibilidade/regressões/IAM/orçamento/backup/manifestos são próximos lotes.
 C1/E4/G0/G1 e E8 abertos/parciais, etapa A não concluída. Sem deploy/distribuição.
+
+### 15.12. F1/E9 — anexos e relatórios privados v2 (31/10/2026)
+
+Executor `executor-codex-task-04a9bc62a88b-f1-private-attachments`; base `804762d`
+inclui servidor `858be72`, mantendo `b5ab897`/`2ac2bc8`/`447ca7a`/`4804287`/
+`1ec8591`. Controlador informou PASS/revisão/integração dessas entregas; recibos
+antigos com FAIL/pendências não são apagados. Revisão deste novo diff é fase
+independente posterior, não realizada pelo executor.
+
+Contrato [privado](contracts/private-attachments.md) e
+[recibo](operations/rearchitecture-f1-private-attachments-2026-10-31.md) registram
+fontes unified/admin_app/web/backend, autorização atual por recurso e autoria,
+prefixo privado v2, metadados backend-only, geração/checksum, retry estável e
+falha parcial fechada. Nenhuma transação Storage/Firestore é prometida. Diagnóstico
+legado não ganha confiança por flag do body: exige schema v2 e createTime canônico
+após gate de Rules verificadas. Medidas SDK são declaradas, não prova de laudo.
+Após FAIL independente F1-PRIVATE-R1/R2, leitura SDK de diagnóstico por assinante
+fica negada inclusive com owner/providerId/schemaVersion/createdAt coincidentes;
+admin do tenant/SaaS preservados. Reserva e commit rejeitam estados desconhecidos
+e combinações state/generation inválidas; alteração durante I/O não cria mensagem
+nem associação de relatório. Nova revisão independente obrigatória.
+
+Web cria ticket antes de enviar arquivo, preserva ID/arquivo no retry e usa
+fetchBearer/blobURL local com cleanup. Relatórios desconhecidos/links antigos
+não são abertos automaticamente; Rules não revogam downloadTokens distribuídos.
+Procedimento seco de inventário/classificação/backup/revogação, responsável e
+retensão de órfãos constam do contrato; nenhuma operação real executada.
+
+Checks e builds estão no recibo. Fixtures Rules incluem R1/envelope, proprietário/
+terceiro/cross-tenant e wildcards; Java ausente no PATH, emuladores reais pendentes.
+Java21/demo 10/10 anteriores são evidência histórica externa do gerente, não teste
+novo. SDK/mobile/admin_app não alterados: compatibilidade/atualização/distribuição
+é gate explícito antes de publicar backend/Rules que bloqueiam uploads legados.
+Revogação residual SDK E4 continua independente. E9/C1/E4/G0/G1 parciais até
+revisão/jornadas/Rules/IAM/objetos antigos/implantação/distribuição. Sem deploy,
+migração, corte RPC real, rotação SGP ou encerramento E8/etapa A.

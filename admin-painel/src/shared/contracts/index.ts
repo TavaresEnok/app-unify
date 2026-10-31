@@ -211,9 +211,8 @@ export interface FunctionRequestPayloadMap {
     providerId: string;
     providerName?: string;
     userEmail?: string | null;
-    imageUrl?: string | null;
   };
-  REPLY_TO_TICKET: { ticketId: string; message: string; imageUrl?: string | null };
+  REPLY_TO_TICKET: { ticketId: string; message: string };
   UPDATE_TICKET_STATUS: { ticketId: string; status: TicketStatus };
   DELETE_TICKET: { ticketId: string };
   LIST_ADMIN_USERS: Record<string, never>;

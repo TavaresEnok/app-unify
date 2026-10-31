@@ -9,6 +9,7 @@ import { Loader2, ArrowLeft, Send } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import { subscribeTicket } from '@/features/tickets/ticketService';
 import { useApi } from '@/hooks/useApi';
+import PrivateAttachment from '@/components/PrivateAttachment';
 // Import de { Skeleton } removido - TS6133
 
 interface Message {
@@ -16,6 +17,7 @@ interface Message {
     senderEmail: string;
     message?: string;
     imageUrl?: string;
+    attachmentId?: string;
     timestamp: { seconds: number; nanoseconds: number };
 }
 
@@ -36,7 +38,7 @@ const formatTimestamp = (timestamp: { seconds: number; nanoseconds: number }) =>
 export default function TicketDetailPage() {
     const { ticketId } = useParams<{ ticketId: string }>();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, providerId } = useAuth();
     const { callFunction } = useApi();
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -45,13 +47,16 @@ export default function TicketDetailPage() {
     const [isSending, setIsSending] = useState(false);
 
     useEffect(() => {
-        if (!ticketId) return;
-        return subscribeTicket(ticketId, {
-            onTicket: (value) => { setTicket(value as Ticket | null); setLoading(false); },
-            onMessages: (value) => setMessages(value as Message[]),
+        setTicket(null); setMessages([]); setLoading(true);
+        if (!ticketId || !user) return;
+        let alive = true;
+        const stop = subscribeTicket(ticketId, {
+            onTicket: (value) => { if (alive) { setTicket(value as Ticket | null); setLoading(false); } },
+            onMessages: (value) => { if (alive) setMessages(value as Message[]); },
             onError: (error) => { console.error("Erro ao carregar ticket", error); toast.error("Erro ao carregar ticket."); setLoading(false); },
         });
-    }, [ticketId]);
+        return () => { alive = false; stop(); };
+    }, [ticketId, user, providerId]);
 
 
     // 2. Reply Logic
@@ -144,12 +149,8 @@ export default function TicketDetailPage() {
                                                 <span className="font-mono text-[11px] text-[#98A1B1]">{formatTimestamp(msg.timestamp)}</span>
                                             </div>
                                             {msg.message && <p className="whitespace-pre-wrap text-[13px] leading-6 text-[#4A5364]">{msg.message}</p>}
-                                            {msg.imageUrl && (
-                                                <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block">
-                                                    <img src={msg.imageUrl} alt="Anexo" className="max-h-80 max-w-full rounded-lg border border-[#EEF0F4] object-contain" />
-                                                    <span className="mt-1 block text-[12px] font-semibold text-primary">Ver imagem</span>
-                                                </a>
-                                            )}
+                                            {msg.attachmentId && ticketId && <PrivateAttachment key={`${user?.uid}/${providerId}/${ticketId}/${msg.attachmentId}`} resource={{ ticketId }} attachmentId={msg.attachmentId} />}
+                                            {msg.imageUrl && <p>Anexo legado: requer classificação e remediação.</p>}
                                         </div>
                                     </div>
                                 ))

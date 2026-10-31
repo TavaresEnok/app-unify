@@ -58,8 +58,7 @@ service cloud.firestore {
       return signedIn() && (
         isSuperAdmin() ||
         isProviderAdmin(providerId) ||
-        request.auth.uid == createdByUid ||
-        (isClientOfProvider(providerId) && request.auth.token.get('cpfCnpj', '') == createdByUid)
+        (isClientOfProvider(providerId) && request.auth.uid == createdByUid)
       );
     }
 
@@ -135,8 +134,30 @@ service cloud.firestore {
     }
 
     match /provedores/{providerId}/diagnostic_results/{resultId} {
-      allow read, update, delete: if canManageProvider(providerId);
-      allow create: if canManageProvider(providerId) || isClientOfProvider(providerId);
+      // Legacy clients could forge owner/schema/timestamps. Direct subscriber
+      // reads remain denied; private file access uses backend provenance checks.
+      allow read: if canManageProvider(providerId);
+      allow delete: if canManageProvider(providerId);
+      allow update: if false;
+      allow create: if (canManageProvider(providerId) || isClientOfProvider(providerId)) &&
+        request.resource.data.keys().hasOnly(['schemaVersion', 'providerId', 'createdByUid', 'createdAt', 'contractId', 'planName', 'severity', 'headline', 'needsProviderSupport', 'findings', 'measurements']) &&
+        request.resource.data.keys().hasAll(['schemaVersion', 'providerId', 'createdByUid', 'createdAt']) &&
+        request.resource.data.schemaVersion == 2 &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.providerId == providerId &&
+        (isSuperAdmin() || request.resource.data.providerId == request.auth.token.get('providerId', '')) &&
+        request.resource.data.createdAt == request.time &&
+        (!('contractId' in request.resource.data) || request.resource.data.contractId is int) &&
+        (!('planName' in request.resource.data) || (request.resource.data.planName is string && request.resource.data.planName.size() <= 256)) &&
+        (!('headline' in request.resource.data) || (request.resource.data.headline is string && request.resource.data.headline.size() <= 2048)) &&
+        (!('severity' in request.resource.data) || request.resource.data.severity in ['ok', 'attention', 'critical']) &&
+        (!('needsProviderSupport' in request.resource.data) || request.resource.data.needsProviderSupport is bool) &&
+        (!('findings' in request.resource.data) || (request.resource.data.findings is list && request.resource.data.findings.size() <= 100)) &&
+        (!('measurements' in request.resource.data) || request.resource.data.measurements is map);
+    }
+
+    match /{root}/{providerId}/diagnostic_results/{resultId}/private_attachments/{attachmentId} {
+      allow read, write: if false;
     }
 
     // Avisos de instabilidade/manutenção — clientes do provedor podem LER (para o
@@ -153,7 +174,7 @@ service cloud.firestore {
 
     // Wildcard para documentos em subcoleções genéricas do provedor.
     match /provedores/{providerId}/{collection}/{document=**} {
-      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups"]);
+      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups", "diagnostic_results", "private_attachments"]);
     }
 
     // Coleção legacy — mantida por retrocompatibilidade
@@ -163,7 +184,7 @@ service cloud.firestore {
     }
 
     match /providers/{providerId}/{collection}/{document=**} {
-      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups"]);
+      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups", "diagnostic_results", "private_attachments"]);
     }
 
     // Clientes: leitura restrita ao admin do provedor, superAdmin, ou ao próprio cliente
