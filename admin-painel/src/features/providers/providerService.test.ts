@@ -1,0 +1,34 @@
+import { afterEach, expect, it, vi } from "vitest";
+vi.mock("@/firebase/config", () => ({ auth: { currentUser: { getIdToken: async () => "identity-synthetic" } } }));
+import { getProvider, subscribeProvider } from "./providerService";
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+it("uses HTTP projection and removes private legacy fields before UI consumption", async () => {
+  vi.stubGlobal("window", { location: { protocol: "https:", hostname: "panel.test", origin: "https://panel.test", port: "" } });
+  const fetcher = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: [{ id: "a", name: "A", details: { systemUrl: "private", apiToken: "private" }, integrations: { appName: "private" } }] })));
+  vi.stubGlobal("fetch", fetcher);
+  const data = await getProvider("a");
+  expect(data).toMatchObject({ id: "a", name: "A" });
+  expect(JSON.stringify(data)).not.toContain("private");
+  expect(fetcher.mock.calls[0][0]).toContain("/admin/providers");
+  expect(await getProvider("b")).toBeNull();
+});
+it("unchanged polls and unrelated tenant updates do not overwrite unsaved customization", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("window", { location: { protocol: "https:", hostname: "panel.test", origin: "https://panel.test", port: "" } });
+  const providers = [{ id: "a", themeColor: "#abc" }, { id: "b", themeColor: "#123" }];
+  vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: providers }))));
+  const emit = vi.fn();
+  const stop = subscribeProvider("a", emit);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(emit).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(15_000);
+  providers[1].themeColor = "#456";
+  await vi.advanceTimersByTimeAsync(15_000);
+  expect(emit).toHaveBeenCalledTimes(1);
+  providers[0].themeColor = "#def";
+  await vi.advanceTimersByTimeAsync(15_000);
+  expect(emit).toHaveBeenCalledTimes(2);
+  stop();
+  await vi.advanceTimersByTimeAsync(15_000);
+  expect(emit).toHaveBeenCalledTimes(2);
+});

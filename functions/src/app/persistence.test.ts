@@ -44,6 +44,17 @@ test("recordAudit recursively redacts credentials", async () => {
   }));
 });
 
+test("configuration audit records only metadata, never raw personalization", async () => {
+  for (const type of ["UPDATE_PROVIDER_CONFIG", "UPDATE_PROVIDER_DETAILS"]) {
+    await recordAudit({ requestId: "r", type, requesterUid: "admin", outcome: "success",
+      payload: { config: { faq: [{ question: "synthetic-private-disguised-as-text" }] }, details: { systemUrl: "synthetic-private" } } });
+  }
+  for (const [entry] of add.mock.calls) {
+    expect(entry.payload).toEqual({ configurationChanged: true });
+    expect(JSON.stringify(entry)).not.toContain("synthetic-private");
+  }
+});
+
 test("writeSuccess persists a response with expiration", async () => {
   await writeSuccess("request-1", "user-1", { ok: true });
   expect(set).toHaveBeenCalledWith(expect.objectContaining({

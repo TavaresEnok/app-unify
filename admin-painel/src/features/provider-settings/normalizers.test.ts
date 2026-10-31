@@ -24,12 +24,16 @@ describe("provider config normalizers", () => {
     expect(config.strings?.home_tab_title).toBe("Atual");
   });
 
-  it("keeps integrations in the restricted payload", () => {
-    const payload = toFirestoreProviderConfig({
+  it("rejects integration in personalization and ignores legacy private inputs", () => {
+    expect(() => toFirestoreProviderConfig({
       ...DEFAULT_PROVIDER_CONFIG,
       integrations: { apiToken: "secret", appName: "Unify" },
-    });
-    expect(payload.publicConfig.integrations).toBeUndefined();
-    expect(payload.secrets).toEqual({ integrations: { apiToken: "secret", appName: "Unify" } });
+    })).toThrow();
+    const normalized = fromFirestoreProviderConfig(
+      { themeColor: "#123", integrations: { apiToken: "legacy" } },
+      { integrations: { apiToken: "stored-private" } },
+    );
+    expect(normalized.integrations).toBeUndefined();
+    expect(toFirestoreProviderConfig(normalized).secrets).toBeNull();
   });
 });

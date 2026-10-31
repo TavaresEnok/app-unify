@@ -76,28 +76,55 @@ service cloud.firestore {
       request.resource.data.providerId == request.auth.token.get('providerId', '');
     }
 
-    function hasNoCredentials(data) {
-      return !data.keys().hasAny(['integrations', 'apiToken', 'api_token', 'token', 'password', 'senha', 'secret']);
+    function optionalPublicString(data, key) {
+      return !(key in data) || data[key] is string;
     }
 
-    function publicProviderDataValid() {
-      return hasNoCredentials(request.resource.data) &&
-        (!request.resource.data.keys().hasAny(['details']) ||
-         !(request.resource.data.details is map) || hasNoCredentials(request.resource.data.details)) &&
-        (!request.resource.data.keys().hasAny(['config']) ||
-         !(request.resource.data.config is map) ||
-         hasNoCredentials(request.resource.data.config));
+    function publicProviderReadable(data) {
+      // A blacklist at a few levels cannot prove a legacy map/array is safe.
+      // Only this flat, typed branding projection is directly readable. Rich
+      // configuration is served by the recursively sanitized HTTP backend.
+      // Compatibility of legacy mobile readers is a mandatory release gate.
+      return data.keys().hasOnly([
+          'id', 'name', 'active', 'layoutType', 'themeColor', 'secondaryColor',
+          'backgroundColor', 'textColor', 'logoUrl', 'iconUrl', 'loginQuote',
+          'applicationId', 'packageName', 'versionName', 'versionCode',
+          'apkUrl', 'appUrl', 'createdAt', 'updatedAt', 'createdByRequestId'
+        ])
+        && optionalPublicString(data, 'id')
+        && optionalPublicString(data, 'name')
+        && optionalPublicString(data, 'layoutType')
+        && optionalPublicString(data, 'themeColor')
+        && optionalPublicString(data, 'secondaryColor')
+        && optionalPublicString(data, 'backgroundColor')
+        && optionalPublicString(data, 'textColor')
+        && optionalPublicString(data, 'logoUrl')
+        && optionalPublicString(data, 'iconUrl')
+        && optionalPublicString(data, 'loginQuote')
+        && optionalPublicString(data, 'applicationId')
+        && optionalPublicString(data, 'packageName')
+        && optionalPublicString(data, 'versionName')
+        && optionalPublicString(data, 'apkUrl')
+        && optionalPublicString(data, 'appUrl')
+        && optionalPublicString(data, 'createdByRequestId')
+        && (!('active' in data) || data.active is bool)
+        && (!('versionCode' in data) || data.versionCode is int)
+        && (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt is string)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp || data.updatedAt is string);
     }
 
+    // All config writes use backend schemas. Firebase Rules cannot recursively
+    // validate arbitrary nested maps/arrays; never accept client bypasses.
+    // Personalization remains available through UPDATE_PROVIDER_CONFIG RPC.
     // Configurações do provedor — leitura pública necessária para o app carregar
     // tema/logo antes do login do assinante. Escrita restrita a admins.
     match /provedores/{providerId} {
-      allow read: if true;
-      allow write: if canManageProvider(providerId) && publicProviderDataValid();
+      allow read: if publicProviderReadable(resource.data);
+      allow write: if false;
     }
 
     match /provedores/{providerId}/backups/{backupId} {
-      allow read, write: if canManageProvider(providerId);
+      allow read, write: if false;
     }
 
     match /provedores/{providerId}/diagnostic_results/{resultId} {
@@ -112,25 +139,24 @@ service cloud.firestore {
       allow write: if canManageProvider(providerId);
     }
 
-    // Secrets do provedor — acesso RESTRITO apenas a admins do provedor
-    // IMPORTANTE: esta regra deve vir ANTES da wildcard {document=**}
+    // Secrets e backups são backend-only, inclusive nas wildcards coincidentes.
     match /provedores/{providerId}/secrets/{secretId} {
-      allow read, write: if canManageProvider(providerId);
+      allow read, write: if false;
     }
 
     // Wildcard para documentos em subcoleções genéricas do provedor.
     match /provedores/{providerId}/{collection}/{document=**} {
-      allow read, write: if canManageProvider(providerId);
+      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups"]);
     }
 
     // Coleção legacy — mantida por retrocompatibilidade
     match /providers/{providerId} {
-      allow read: if true;
-      allow write: if canManageProvider(providerId);
+      allow read: if publicProviderReadable(resource.data);
+      allow write: if false;
     }
 
     match /providers/{providerId}/{collection}/{document=**} {
-      allow read, write: if canManageProvider(providerId);
+      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups"]);
     }
 
     // Clientes: leitura restrita ao admin do provedor, superAdmin, ou ao próprio cliente

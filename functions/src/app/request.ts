@@ -3,6 +3,13 @@ import type {
   FunctionRequestPayloadMap,
   FunctionRequestType,
 } from "../contracts";
+import { AppError } from "./errors";
+
+export function requirePayloadFields(payload: object, allowed: string[]): void {
+  if (Object.keys(payload).some(key => !allowed.includes(key))) {
+    throw new AppError("invalid-argument", "Campo de configuração não permitido.");
+  }
+}
 
 export interface RequestContext<T extends FunctionRequestType = FunctionRequestType> {
   requestId: string;

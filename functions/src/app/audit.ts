@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "./firebase";
 
-const REDACTED_KEYS = new Set(["password", "senha", "token", "apitoken", "authorization", "secret", "privatekey", "credential"]);
+const REDACTED_KEYS = new Set(["password", "senha", "token", "apitoken", "authorization", "secret", "privatekey", "credential", "integrations", "secrets", "sgpbaseurl", "systemurl", "appname", "secretref", "secretversion"]);
 
 function isSensitiveKey(key: string): boolean {
   const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -28,7 +28,7 @@ export async function recordAudit(entry: {
 }): Promise<void> {
   await db.collection("audit_logs").add({
     ...entry,
-    payload: redact(entry.payload),
+    payload: /PROVIDER_CONFIG|PROVIDER_DETAILS/.test(entry.type) ? { configurationChanged: true } : redact(entry.payload),
     createdAt: FieldValue.serverTimestamp(),
   });
 }

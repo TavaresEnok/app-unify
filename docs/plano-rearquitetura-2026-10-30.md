@@ -464,6 +464,66 @@ Dependência externa aberta não recebe status de correção. E8 exige registro 
 
 **Resultado real da validação documental (31/10/2026):** `git diff --check` — aprovado, exit 0, uma rodada essencial ao fim do bloco. Leitura estática conferiu fachadas do `Caddyfile`, API/consumidor `admin_app`, permissões RPC, backups, callables, regras e consumidores de configuração/anexos do `unified`; não é teste funcional de autorização. Manifestos de baseline reutilizados, sem nova coleta operacional. Backlog nominal, dependências e riscos no inventário, seção 5; sequência de implantação/rollback na seção 7 inclui atualização dos clientes antes de restringir regras, sem preservar acesso indevido a segredos.
 
+### Continuação F1 — fronteira de configuração (31/10/2026 UTC)
+
+O bloqueio de admissão registrado no lote anterior é histórico. Este executor
+implementou o lote delimitado C4/C11/E3 na worktree autorizada, preservando
+`aeef740` e `608af5f` como ancestrais de HEAD. **Código implementado, testes
+unitários aprovados, não implantado e não distribuído**; revisão independente
+continua a cargo do controlador. Nenhum commit/deploy foi feito.
+
+- [x] Schemas com allowlist aninhada em HTTP e RPC; rejeição de campos
+  desconhecidos/sensíveis, respostas legadas sanitizadas e auditoria sem payload.
+- [x] Personalização por RPC sem secrets; painel consome projeção HTTP sanitizada.
+  Integração tem formulário vazio de substituição e endpoint exclusivo SaaS com
+  revalidação de usuário/revogação e autenticação recente.
+- [x] Backup novo somente de personalização; restore transacional sanitizado
+  remove campos posteriores e preserva identidade Android, integração e acesso.
+  Backups antigos são backend-only; nenhum restore recupera token/URL/app.
+- [x] Regras escritas bloqueiam configuração direta e secrets/backups nas
+  wildcards atuais/legadas; Storage limita branding legado e mantém public_assets.
+- [ ] Executar regras reais em emulador e validar compatibilidade de documentos
+  legados/assets/mobile antes de implantação. Java indisponível nesta sessão.
+- [ ] Revisar/integrar pelo controlador; concluir builds, SSRF, revogação e demais
+  achados F1 em lotes seguintes. G0/G1 e E3 inteiro permanecem abertos.
+
+**Recuperação de validação na raiz (31/10/2026 UTC):** adicionado
+`vitest.config.mts` na raiz, importando integralmente a configuração existente
+de Functions e definindo `root` por `new URL('./functions/', import.meta.url)`.
+`npm --prefix functions exec` não muda o cwd; a ausência dessa entrada causava
+coleta indevida do monorepo, inclusive benchmark Redis, E2E e UI. Nenhum teste,
+allowlist, mock ou threshold foi removido/relaxado; API/UI mantêm seus comandos
+e configurações próprios. Bloco funcional e recibos herdados preservados.
+Uma rodada dos cinco comandos obrigatórios, todos **a partir da raiz** e exit 0:
+API 48/48 (8 arquivos), Functions 82/82 (11 arquivos), painel 19/19 (9 arquivos),
+contratos sincronizados e scan de segredos aprovado (793 arquivos). Os resultados
+anteriores com cwd `functions/` são históricos e não comprovavam a chamada real
+do controlador; a nova rodada valida essa chamada literal sem flags adicionais.
+Além das regressões herdadas de envelopes RPC, metadados de backups e URL interna,
+esta execução rejeita IDs de backup com caminhos, snapshots inválidos (inclusive
+arrays) e versões desconhecidas antes de remover personalização; testa também
+substituição privada negada com conta revogada/desativada, papel removido e
+autenticação antiga, preservando o segredo sintético atual.
+Regras diretas agora aceitam somente projeção plana de branding com tipos
+explícitos: documentos ricos com mapas/listas, mesmo legítimos, exigem backend
+sanitizado. Essa restrição demanda compatibilidade mobile antes de publicar.
+As falhas iniciais de PATH/fixtures e o limite do emulador estão registrados no
+[relatório com comandos e resultados reais](operations/rearchitecture-f1-config-boundary-2026-10-31.md)
+e na seção 15.8. Essas evidências não liberam deploy/piloto nem substituem regras
+reais ou jornadas mobile. Não houve acesso a produção/valores de credenciais;
+token privado operacional intocado.
+
+**Correção após revisão R1/R2 (31/10/2026 UTC):** preservado o bloco F1 e
+acrescentada validação explícita do JSON legado `strings.layoutThemes`
+(seis layouts, doze campos de cor, sem JSON arbitrário). Normalizador,
+backup e restore passam a resolver os mapas sanitizados de raiz/`config`
+recursivamente, com precedência por campo e arrays substituídos.
+Regressões novas exercitam os handlers reais de aparência até o RPC e
+backups novos/antigos com mapas divididos, remoção exata e segredo sintético
+intocado. Resultados da rodada desta correção constam da seção 15.8.2.
+**Código local; não implantado, não distribuído**; revisão independente
+pendente. Não encerra C4/C11/E3 nem concede G0/G1.
+
 ### Fase 0 — Inventário, contratos e linha de base
 
 #### Acompanhamento do primeiro lote — 31/10/2026 UTC
@@ -837,14 +897,14 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 | C1 / P0 | Papel de assinante confundido com administrador: causa específica corrigida por papel explícito. Revogação uniforme ainda pendente | Testes negativos na API, helpers de identidade e permissões; regras não reexecutadas nesta revisão | API, proxy, regras e permissões da Function comparados | F1: todos os papéis/tenants negados ou permitidos em HTTP, fila, Firestore e Storage; incluir tokens antigos e novo limite SaaS/provedor |
 | C2 / P0 | Login por CPF: senha exigida no backend e enviada pelo Flutter atual | Helper testa senha vazia/incorreta e identidade; falta jornada completa por versão de cliente | Código do proxy conferido; adoção do APK não comprovada | F1: CPF sem senha falha; senha correta funciona; contrato encerrado e SGP indisponível tratados; refresh de perfil não reabre login inseguro |
 | C3 / P0 | Colisão de tabelas: cache atual usa `(provider_id, client_id)` | Inspeção de schema/queries; falta teste específico dos IDs conflitantes e reconciliação histórica | Código de proxy/worker conferido | F1/F5: `isp-a` e `ispa` com mesmo ID externo ficam isolados; dados antigos sem mistura e exceções documentadas |
-| C4 / P0 | Entrada aninhada de credenciais no documento público: **aberto** | POST de provedores filtra só parte dos campos; testes de regras não protegem Admin SDK | Rota problemática igual à implantada | F1: schemas de entrada/saída, consulta anônima sem segredo sintético, credenciais somente SaaS/backend; cobrir backups e auditoria |
+| C4 / P0 | Contenção local implementada: schemas explícitos HTTP/RPC, saída legada sanitizada e auditoria sem payload; **não encerrado** | Regressões API/Functions/UI aprovadas (15.8); regras escritas sem emulador nesta sessão | Não implantado; produção não revalidada neste lote | F1: revisão, regras reais, projeções legadas/consulta anônima e compatibilidade antes de encerrar |
 | C5 / P0 | Destinos SGP/SSRF: **aberto**; políticas de proxy e API diferentes | Inspeção confirma lacunas; testes existentes da API não cobrem toda a conexão/redirect | Proxy problemático conferido; não houve exploração de rede | F1: IPv4/IPv6/DNS/redirect controlados; conexão usa endereço validado; tenant não pode alterar URL ou injetar destino/token |
 | C6 / P0 | Fallback global: bloqueado para tenant identificado; modo sem tenant ainda existe | Teste da API para integração incompleta; falta equivalente de todos os caminhos do proxy | Código de resolução no proxy conferido | F1: segredo global fictício nunca sai em requisição de tenant sem segredo; modo global inventariado e isolado/desativado |
 | C7 / P1 | Conclusão de sync: job/status corrigem anúncio prematuro; dual-write e publicação parcial continuam | Inspeção do polling/worker; testes de offset/repetição; faltam falhas entre bancos e publicação por geração | Worker/handler conferidos; painel distribuído não revalidado por hash nesta revisão | F1: sucesso só terminal e erro explícito. F5: geração publicada após reconciliação, retomada sem mistura; testar 250 e 5.000 clientes |
 | C8 / P1 | Lock sem lease e qualquer erro tratado como duplicidade: **aberto** | Inspeção de `requestRouter`; falta teste de interrupção antes/depois do efeito | Arquivo compilado da Function conferido | F1: posse expira, erro transitório não some; reexecução segura ou estado desconhecido com reconciliação |
 | C9 / P1 | Falha de faturas como vazio: exceção agora retorna erro; validação de payload precisa de cobertura | Inspeção de `Promise.all` e resposta de erro; falta teste dedicado uma/duas falhas | Proxy conferido | F1: vazio legítimo, erro total, resposta parcial/ inválida distinguíveis; não cachear erro como sucesso |
 | C10 / P1 | Notificações de outro provedor: fallback removido no Flutter atual | Inspeção de queries restritas ao próprio tenant; falta E2E com dois provedores | Código-fonte apenas nesta revisão; APK/adoção pendentes | F1/F6: app de A nunca consulta B; próprios resultados funcionam; versão legada tem destino documentado |
-| C11 / P1 | Restore de configuração por merge: **aberto** | Inspeção de `restoreProviderConfig` | Arquivo compilado da Function conferido | F1/F4: restaurar exatamente campos personalizáveis; excluir campos novos; backup de personalização não contém nem altera token, URL SGP, identidade Android ou acesso |
+| C11 / P1 | Contenção local implementada: backup só de personalização e restore exato transacional; **não encerrado** | Backup antigo misto, remoção de campos novos e integração/native/acesso preservados testados com dados sintéticos (15.8) | Não implantado/não distribuído | F1/F4: revisão, regras reais e jornada de recuperação antes de encerrar; credenciais nunca vêm do backup de personalização |
 | C12 / P1 | Colisão de applicationId/artefatos: **aberto** | Normalização conflita e saída depende do nome comercial | Builder e script conferidos | F1: impedir novo conflito/sobrescrita. F7: applicationId persistido e único, artefato por tenant/versão/build; preservar pacotes e assinaturas existentes |
 | C13 / P1 | Símbolos de ofuscação temporários: **aberto** | Script gera símbolos temporários e copia somente APK/AAB | Script conferido; sem prova de retenção externa | F1: preservar antes da limpeza. F7: recuperar símbolos por build e simbolizar falha de teste; acesso privado |
 | C14 / P2 | Formulário comercial confirma envio inexistente: **aberto** | Handler espera e mostra sucesso sem envio | `script.js` da landing conferido | F1: remover falso sucesso; usar contato explícito ou destino persistente. Testar recebimento controlado, falha e preservação dos campos |
@@ -857,7 +917,7 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 | --- | --- | --- |
 | E1 / P1 | Indicadores, tendências, badges e `/diagnostic/analyze` com resultados predeterminados | F0 inventaria consumidores; F1 usa N/D/indisponível ou medida real. Rota 501 deve comunicar indisponibilidade e ter destino no inventário |
 | E2 / P0 | Builder com credencial administrativa e acesso a assinatura no mesmo ambiente de execução | F1 remove acesso indevido; F7 separa executor/assinatura/publicação; teste de negação a banco, segredos e administração |
-| E3 / P0 | Nova política de produto: token e geração exclusivos do SaaS; legado ainda concede acesso a secrets/backups ao provedor | F1 aplica matriz em UI, API, callables, RPC, regras, IAM e caminhos alternativos; testar também restauração de backups antigos contendo segredo |
+| E3 / P0 | **Parcial, aberto:** configuração/integração/backups contidos localmente; builds/callables/builder/IAM e caminhos restantes pendentes | Lote 15.8: API/Functions/UI testados, regras escritas sem emulador; não implantado/distribuído. Próximos lotes cobrem geração e restante da matriz; não declarar E3 inteiro resolvido |
 | E4 / P1 | Permissões/sessões divergentes entre API, Functions e SDKs diretos | F1 controla revogação do legado; F3 valida cada etapa antes de mover autoridade; nenhum sucesso de suspensão enquanto acesso residual não estiver bloqueado |
 | E5 / P1 | Falta de vínculo commit → testes → artefatos implantados | F0 registra baseline e manifestos; CI fixa ferramentas, Java/Node e imagens; revisão do código sem publicar segredos |
 | E6 / P1 | Backup não equivale a PITR/recuperação integral; `archive_mode=off` na inspeção | F2 implanta WAL externo e ensaia baixo volume; F8 recuperação integral. RPO de 5 min ainda não comprovado |
@@ -932,3 +992,174 @@ Detalhes: [entrega e inventário](operations/rearchitecture-first-batch-2026-10-
 **Responsáveis:** coordenação do gerente `e4e7beb1-03af-4207-a183-664af14df188`; implementação/revisão ainda aguardam admissão nominal no job `17baa3af4fe4`; emissão/revogação SGP depende de administrador externo, com cadastro pela equipe SaaS.
 
 **Bloqueio:** três recusas de admissão `policy_changed` antes de criar executor, attempt=0; fila preservada. Houve também amostra de pressão de memória alta. Não classificar o erro de admissão como quota esgotada sem prova. Não houve recover repetido, reinício de daemon, alteração de outros projetos ou contorno da divisão de papéis. Próxima ação: controlador admitir executor sob política consistente; continuar os mesmos contratos de inventário e C4/C11/E3, com testes agrupados e revisão independente. Nenhum deploy é liberado por este registro.
+
+### 15.8. Continuação F1 — configuração/segredos/backups (31/10/2026 UTC)
+
+**Estado:** implementação local concluída, testes unitários aprovados,
+**não implantado, não distribuído**. Sem commit por contrato; controlador fará
+revisão independente e integração. Baselines `aeef740` e `608af5f` preservados
+e verificados como ancestrais de HEAD. O registro anterior de falta de executor
+é histórico, sem apagar suas evidências.
+
+| Escopo | Código | Testado | Implantado | Distribuído |
+| --- | --- | --- | --- | --- |
+| C4 HTTP/RPC entrada/saída/auditoria | implementado | API/Functions/UI sintéticos aprovados | não | não |
+| C11 backup/restore de personalização | implementado | antigo misto, remoção exata, isolamento e segredo privado sintético intocado | não | não |
+| E3 configuração/integração UI/backend | implementado parcialmente | provedor negado e substituição SaaS sem leitura do valor | não | não |
+| Regras Firestore/Storage atuais/legadas | escritas | **emulador pendente: Java não disponível** | não | não |
+| E3 builds/IAM/caminhos restantes | fora deste lote | pendente | não | não |
+
+Schema canônico em `shared/runtime/providerConfig.ts`, espelhado por pacote com
+regressão de igualdade. Configuração pública/personalização rejeita objetos,
+arrays, campos desconhecidos e credenciais fora da allowlist; saídas legadas
+são sanitizadas. O painel consulta HTTP sanitizado a cada 15 s e grava
+personalização via RPC. O provedor não recebe formulário de integração.
+SaaS substitui token/URL/app completos em fluxo privado, sem GET do valor, com
+revogação/usuário atual e autenticação recente verificados. Ponte Firestore
+privada preservada; Secret Manager e validação upstream versionada não iniciados.
+
+Novo backup contém somente schema de personalização. Restore extrai somente
+campos permitidos de backup antigo/novo, remove campos atuais ausentes na versão
+da raiz e de `config`, preserva integração operacional, identidade Android e
+acesso em transação. Nenhum restore lê/grava documento privado nem importa
+token/URL/app do backup, inclusive para SaaS. Auditoria de configuração contém
+metadados, sem payload bruto. Regras coincidentes atuais/legadas não liberam
+secrets/backups; escritas diretas de configuração ficam no backend. Documentos
+públicos mistos legados falham fechados na leitura direta.
+
+**Comandos e resultados finais** (Node v24.22.1 disponível, PATH local ajustado;
+Vitest 4.1.12):
+
+| Comando | Status | Resultado |
+| --- | --- | --- |
+| `npm --prefix api-service test` | aprovado | 48/48, 8 arquivos |
+| `npm --prefix functions exec -- vitest run` (cwd `functions/`) | aprovado | 82/82, 11 arquivos |
+| `npm --prefix admin-painel run test` | aprovado | 19/19, 9 arquivos |
+| `node scripts/check-contracts.mjs` | aprovado | contratos sincronizados, executado nesta retomada |
+| `node scripts/check-secrets.mjs` | aprovado | 792 arquivos no scan desta retomada |
+| TypeScript `--noEmit`, API/Functions/painel | aprovado | sem erros; API `tsconfig.json`, Functions `tsconfig.json`, painel `tsconfig.app.json` |
+| `git diff --check` | aprovado | sem erros |
+| Regras reais | **pendente** | `java -version`: command not found; 10 casos escritos, sem aceite de emulador |
+
+**Histórico da tentativa anterior:** os cinco primeiros checks falharam antes dos testes por Node ausente no PATH.
+O comando Functions literal descobriu testes do monorepo e foi interrompido
+(exit 130); a primeira tentativa de delimitar config falhou por path duplicado.
+A execução final com flags acima é a evidência válida de Functions. Falhas dos
+novos mocks (ID de snapshot, parêntese e Response reutilizada) foram corrigidas;
+as expectativas legadas sobre secrets/URL foram atualizadas para a política nova,
+sem remover verificações. Checks repetidos somente após falhas ou mudanças
+relevantes; os contratos aprovados foram reutilizados.
+
+**Execução atual (continuação da tentativa herdada):** cinco checks obrigatórios
+executados uma vez após o bloco funcional, todos exit 0: API 48/48, Functions
+82/82 e painel 19/19; contratos sincronizados e scan de 792 arquivos aprovado.
+Restore agora rejeita arrays/snapshots inválidos, schemaVersion desconhecida e
+IDs de backup com caminhos antes de qualquer escrita destrutiva. Regressões
+comprovam ausência de efeitos no restore inválido e preservação do segredo
+sintético quando substituição SaaS falha por revogação, desativação, perda de
+papel ou autenticação antiga. Nenhuma nova aprovação de TypeScript ou emulador
+é atribuída a esta execução; os resultados TypeScript acima são herdados.
+O contexto recebido registrava também falha do comando Functions na raiz ao
+descobrir testes alheios ao pacote (incluindo benchmark dependente de Redis).
+A aprovação anterior com cwd `functions/` delimitava a suíte, mas não validava
+a chamada real do controlador na raiz; ver recuperação abaixo.
+Removido `apiUrl` da saída pública; envelopes RPC rejeitam campos extras;
+metadados legados de backup devolvem somente tipos explícitos. Regras de leitura
+usam allowlist plana tipada e negam mapas/listas legados, pois blacklist em
+alguns níveis não comprova ausência de segredo profundo. Painel continua
+personalizando pela projeção HTTP/RPC; leitores diretos mobile precisam de
+compatibilização antes de deploy. Nenhum dado real foi lido ou alterado.
+
+**Gates pendentes:** revisão independente; emulador de regras; classificação e
+sanitização controlada de projeções antigas sem perder destino operacional;
+compatibilidade mobile/`admin_app`, assets legados e leitores antes autorizados
+pela wildcard; implantação e validação pós-release. Não executar migrador geral
+antigo automaticamente. O bloqueio da leitura direta de documentos mistos pode
+impedir branding nos apps legados até o tratamento seguro desses documentos;
+painel atualizado usa a projeção HTTP sanitizada.
+
+**Nenhum encerramento integral:** C4/C11 aguardam gates; E3/E9 são parciais.
+Builds/E2, C5/SSRF completo, revogação uniforme/E4, rotação upstream/E8,
+candidato-teste-ativação, recuperação integral e distribuição seguem pendentes.
+G0/G1 não concedidos. Nenhuma credencial real ou serviço de host foi acessado ou
+alterado. Detalhes e limites no
+[relatório de entrega](operations/rearchitecture-f1-config-boundary-2026-10-31.md).
+
+#### 15.8.1. Recuperação da chamada de validação na raiz
+
+Em 31/10/2026 UTC, o bloco funcional herdado foi preservado e acrescentou-se
+somente a entrada raiz `vitest.config.mts` para compatibilidade da chamada
+legada. Ela importa `functions/vitest.config.mts` integralmente (incluindo
+include, cobertura, exclusões, workers e thresholds), sem copiar suas listas,
+e fixa o root absoluto de Functions com `fileURLToPath`/`import.meta.url`.
+Não depende do cwd nem exige alterações nos comandos de API/UI. A causa foi
+`npm --prefix functions exec` manter o cwd do chamador; mudar manualmente para
+Functions não era evidência equivalente à execução contratada pelo controlador.
+Os recibos anteriores acima são históricos; a rodada abaixo é a evidência nova.
+
+Ambiente: Node v24.22.1 no PATH local já existente; Vitest 4.1.12.
+Todos os comandos partiram da raiz da worktree autorizada, uma vez cada:
+
+| Comando | Status | Resultado observado |
+| --- | --- | --- |
+| `npm --prefix api-service test` | exit 0 | 48/48 testes, 8 arquivos |
+| `npm --prefix functions exec -- vitest run` | exit 0 | root Functions; 82/82 testes, 11 arquivos; sem benchmark Redis/E2E/UI |
+| `npm --prefix admin-painel run test` | exit 0 | 19/19 testes, 9 arquivos |
+| `node scripts/check-contracts.mjs` | exit 0 | contratos sincronizados |
+| `node scripts/check-secrets.mjs` | exit 0 | scan aprovado, 793 arquivos |
+
+Nenhum mock/teste desativado, serviço iniciado ou regra homologada nesta
+recuperação. TypeScript anterior não foi reexecutado. Código/testes locais
+aprovados no escopo; **não implantado, não distribuído**. Revisão independente
+encaminhada ao controlador; emulador Firestore/Storage, compatibilidade legada,
+builds/E2, SSRF/C5, revogação/E4, rotação/E8 e produção continuam pendentes.
+G0/G1 não concedidos; C4/C11/E3/E9 não recebem encerramento integral.
+
+#### 15.8.2. Correção dos achados de revisão R1/R2
+
+A revisão independente anterior reprovou a implementação por rejeitar o payload
+real da tela de aparência e perder mapas parcialmente divididos entre raiz e
+`config` legado. Os recibos anteriores permanecem históricos; não cobriam esses
+dois casos. Correção local sem commit, preservando o bloco funcional e os
+baselines `aeef740`/`608af5f` (ancestralidade novamente verificada).
+
+- R1: schema canônico e três cópias validam `strings.layoutThemes` como texto
+  JSON com layouts `layout_01` a `layout_06` e doze campos de cor explícitos.
+  Entrada rejeita JSON inválido, layouts/campos desconhecidos, credenciais
+  aninhadas e tipos incorretos; saída legada sanitiza o conteúdo decodificado.
+  Regressão da tela chama handlers reais de cor, troca de layout e restauração
+  de cores, salva pelo serviço/serializador real até o RPC e verifica os temas.
+- R2: ambos os namespaces passam pela allowlist antes da combinação recursiva;
+  raiz prevalece por campo, arrays substituem integralmente. Normalizador,
+  backup e restore usam a mesma resolução sem defaults no snapshot. Regressões
+  de handler para provedor/SaaS cobrem backup novo e restore antigo misto,
+  strings/typography/menu/features divididos, conflitos, arrays vazios, remoção
+  de campos posteriores e preservação de integração, identidade e permissões.
+  Documento privado sintético permanece intocado, sem leitura pelos handlers.
+
+Uma rodada essencial após o bloco corretivo, Node v24.22.1 no PATH local
+existente, Vitest 4.1.12; **todos os comandos na raiz da worktree**:
+
+| Comando | Status | Resultado |
+| --- | --- | --- |
+| `npm --prefix api-service test` | exit 0 | 48/48, 8 arquivos |
+| `npm --prefix functions exec -- vitest run` | exit 0 | 87/87, 11 arquivos; root Functions, sem Redis/E2E/UI |
+| `npm --prefix admin-painel run test` | exit 0 | 20/20, 10 arquivos |
+| `node scripts/check-contracts.mjs` | exit 0 | contratos sincronizados |
+| `node scripts/check-secrets.mjs` | exit 0 | 794 arquivos, scan aprovado |
+| `git diff --check` | exit 0 | sem erros |
+
+A entrada Vitest raiz continua importando integralmente a configuração Functions
+com root absoluto; nenhuma configuração/allowlist/threshold de testes alterada.
+As execuções históricas com cwd `functions/` não equivalem à chamada real do
+controlador; esta rodada usa a chamada literal da raiz. Nenhum teste desativado,
+mock enfraquecido ou serviço iniciado. TypeScript anterior não reexecutado.
+
+**Estado: código corrigido e testes locais aprovados; não implantado, não
+distribuído.** Implementação encaminhada ao controlador para nova revisão
+independente, ainda pendente. Emulador Firestore/Storage **não executado**:
+regras reais continuam gate antes de implantação. C4/C11 aguardam aceite e
+demais gates; E3/E9 são parciais. Builds/E2, SSRF/C5, revogação uniforme/E4,
+rotação upstream/E8, compatibilidade mobile/legados, produção e recuperação
+integral seguem pendentes; G0/G1 não concedidos. Nenhuma credencial real,
+produção ou serviço de host acessado/alterado; token operacional intocado.

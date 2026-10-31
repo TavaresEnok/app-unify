@@ -1,6 +1,6 @@
 import { firestore, serverTimestamp } from "./firebaseAdmin";
 
-const SENSITIVE_KEYS = new Set(["password", "senha", "token", "apitoken", "authorization", "secret", "privatekey", "credential"]);
+const SENSITIVE_KEYS = new Set(["password", "senha", "token", "apitoken", "authorization", "secret", "privatekey", "credential", "integrations", "secrets", "sgpbaseurl", "systemurl", "appname", "secretref", "secretversion"]);
 
 function isSensitiveKey(key: string): boolean {
   const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -26,7 +26,7 @@ export async function recordAdminAudit(entry: {
   try {
     await firestore.collection("audit_logs").add({
       ...entry,
-      payload: redact(entry.payload),
+      payload: /PROVIDER/.test(entry.type) ? { configurationChanged: true } : redact(entry.payload),
       source: "api-service",
       outcome: "success",
       createdAt: serverTimestamp(),
