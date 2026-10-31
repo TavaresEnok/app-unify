@@ -35,8 +35,21 @@ Somente `POST /admin/providers/:providerId/integration` substitui conjuntamente
 verificado com revogação e autenticação de até cinco minutos. O formulário começa
 vazio e a resposta contém apenas sucesso. Firestore privado continua como ponte.
 Não há GET de token, migração para Secret Manager nem transmissão de credencial
-ao SGP neste fluxo. HTTPS é validado sintaticamente; DNS/conexão/redirect/SSRF e
-teste candidato/ativação versionada continuam pendentes.
+ao SGP neste fluxo. O cadastro aplica a política canônica de destino/DNS antes
+de persistir. A saída API/proxy/worker resolve todos os endereços, nega faixas
+internas/especiais e fixa a conexão no IP aprovado, mantendo Host/SNI e TLS
+verificado. Redirects e proxies por ambiente não são usados. O ciclo completo
+de candidato/teste/ativação versionada em Secret Manager continua futuro.
+
+URL, token e app operacionais são lidos conjuntamente de
+`provedores/{tenant}/secrets/sgp.integrations`. Campos públicos `details.systemUrl`,
+`sgpBaseUrl` e app não têm autoridade de destino, mesmo quando existe token
+privado. Integração incompleta e tenant ausente falham fechados; CPF compartilhado
+não identifica tenant. As variáveis globais legadas ficam preservadas, sem modo
+global de chamadas de usuários. Não foi demonstrada necessidade de exceção de
+rede privada, portanto nenhuma foi criada. Configurações legadas incompletas
+precisam de reconciliação operacional pelo SaaS antes de publicar; este lote
+não consulta nem migra documentos reais e backups não alteram integração.
 
 Backups novos têm `schemaVersion: 1` e somente personalização sanitizada.
 Raiz e `config` legado são sanitizados separadamente e seus mapas permitidos
