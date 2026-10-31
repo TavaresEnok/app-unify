@@ -3,16 +3,18 @@ import { test, expect, beforeEach, afterEach, vi } from "vitest";
 // Optimistic transactional store: isolated staged writes, read versions checked
 // at commit, atomic publication, callback reentry on contention, no writes on failure.
 const mem = vi.hoisted(() => {
-  const rows = new Map<string, { data: any; revision: number }>();
+  const rows = new Map<string, { data: any; revision: number; created: number }>();
   let revision = 0;
   const controls = { conflicts: 0, callbacks: 0, failGet: "", failSet: "", failAdd: "",
-    failCommit: null as null | ((writes: any[]) => boolean), loseAck: false };
+    failCommit: null as null | ((writes: any[]) => boolean), loseAck: false, missingCreateTime: false };
   const value = (v: any): any => v && typeof v.toMillis === "function" ? v.toMillis() : v;
-  const put = (path: string, data: any) => rows.set(path, { data, revision: ++revision });
+  const put = (path: string, data: any, created = rows.get(path)?.created ?? Date.now()) =>
+    rows.set(path, { data, revision: ++revision, created });
   const snap = (path: string) => {
     if (controls.failGet === path) { controls.failGet = ""; throw new Error("synthetic unavailable"); }
     const row = rows.get(path);
     return { id: path.split("/").at(-1), ref: doc(path), exists: !!row, data: () => row?.data,
+      createTime: row && !controls.missingCreateTime ? { toMillis: () => row.created } : undefined,
       updateTime: row ? { seconds: 0, nanoseconds: row.revision } : undefined };
   };
   const doc = (path: string): any => ({
@@ -117,11 +119,13 @@ import { claimRequest, startRequest, finishRequest, renewRequest, heartbeat, LEA
 import { REQUEST_POLICIES, replayPolicy } from "./requestPolicy";
 import { FUNCTION_REQUEST_TYPES, type FunctionRequest } from "../contracts";
 import { AppError } from "./errors";
+import { requireRequester } from "./permissions";
 import { handlers } from "../handlers";
 import { recoverFunctionRequests, cleanupFunctionDocuments, handleFunctionRequest } from "../index";
 
-const read = { type: "GET_DASHBOARD_DATA", requesterUid: "user-1", payload: {} };
-const push = { type: "SEND_PUSH_NOTIFICATION", requesterUid: "user-1",
+const session = { authTime: 1793448000, issuedAt: 1793448000, role: "", providerId: "", superAdmin: true };
+const read = { type: "GET_DASHBOARD_DATA", requesterUid: "user-1", payload: {}, session };
+const push = { type: "SEND_PUSH_NOTIFICATION", requesterUid: "user-1", session,
   payload: { providerId: "tenant-a", title: "private-title", body: "private-body", targetAll: true } };
 const source = (id = "r", request: any = read) => mem.put("function_requests/" + id, { ...request, createdAt: Timestamp.now() });
 const lock = (id = "r") => mem.get("function_locks/" + id);
@@ -133,14 +137,116 @@ const cleanup = async () => (cleanupFunctionDocuments as any)();
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-31T12:00:00Z"));
+  vi.stubEnv("RPC_SESSION_RULES_ACTIVE_AFTER", "2026-10-31T11:58:00.000Z");
   mem.rows.clear();
-  Object.assign(mem.controls, { conflicts: 0, callbacks: 0, failGet: "", failSet: "", failAdd: "", failCommit: null, loseAck: false });
+  Object.assign(mem.controls, { conflicts: 0, callbacks: 0, failGet: "", failSet: "", failAdd: "", failCommit: null, loseAck: false, missingCreateTime: false });
   vi.clearAllMocks();
   mem.getUser.mockResolvedValue({ uid: "user-1", customClaims: { superAdmin: true } });
   mem.send.mockResolvedValue({ messageId: "synthetic" });
   mem.audit.mockResolvedValue(undefined);
 });
-afterEach(() => { expect(vi.getTimerCount()).toBe(0); vi.useRealTimers(); });
+afterEach(() => { expect(vi.getTimerCount()).toBe(0); vi.useRealTimers(); vi.unstubAllEnvs(); });
+
+test.each(['trigger', 'scheduled', 'claimed', 'running'])("pre-Rules forged session cannot execute via %s", async mode => {
+  const forged = { ...push, session: { ...session, authTime: session.authTime - 30, issuedAt: session.issuedAt - 30 } };
+  source('r', forged);
+  if (mode === 'claimed' || mode === 'running') {
+    const lease = (await claimRequest('r', forged))!;
+    if (mode === 'running') await startRequest(lease);
+    vi.advanceTimersByTime(LEASE_MS + 1);
+  }
+  // Canonical server creation precedes the strict Rules. Updating client fields
+  // or the snapshot updateTime cannot turn it into a post-cutover source.
+  mem.put('function_requests/r', { ...forged, createdAt: Timestamp.now() }, Date.now() - 300_000);
+  mem.getUser.mockResolvedValue({ uid: 'user-1', customClaims: { superAdmin: true },
+    tokensValidAfterTime: new Date((session.authTime - 60) * 1000).toISOString() });
+  if (mode === 'trigger') await createRequestRouter(handlers)('r', forged);
+  else await scheduled();
+  expect(mem.send).not.toHaveBeenCalled();
+  expect(mem.getUser).not.toHaveBeenCalled();
+  expect(lock().state).toBe(['claimed', 'running'].includes(mode) ? 'unknown' : 'completed');
+  expect(response().code).toBe(['claimed', 'running'].includes(mode) ? 'conflict' : 'unauthenticated');
+  await scheduled();
+  expect(mem.send).not.toHaveBeenCalled();
+});
+
+test.each(['', 'invalid', '2026-11-01T00:00:00.000Z', '2026-10-31T12:00:00.000Z'])("missing/invalid/future/equal cutover %s fails closed", async cutoff => {
+  source('r', push);
+  vi.stubEnv('RPC_SESSION_RULES_ACTIVE_AFTER', cutoff);
+  await createRequestRouter(handlers)('r', push);
+  expect(mem.send).not.toHaveBeenCalled();
+  expect(response().code).toBe('unauthenticated');
+});
+
+test.each(['missing', 'future'])("canonical creation timestamp %s cannot prove provenance", async mode => {
+  source('r', push);
+  if (mode === 'missing') mem.controls.missingCreateTime = true;
+  else mem.put('function_requests/r', { ...push, createdAt: Timestamp.now() }, Date.now() + 1);
+  await createRequestRouter(handlers)('r', push);
+  expect(mem.send).not.toHaveBeenCalled();
+  expect(response().code).toBe('unauthenticated');
+});
+
+test('real push handler authority outage on second lookup stays authorization-unavailable without replay', async () => {
+  source('r', push);
+  mem.getUser.mockResolvedValueOnce({ uid: 'user-1', customClaims: { superAdmin: true } })
+    .mockRejectedValueOnce(Error('private authority outage'));
+  await createRequestRouter(handlers)('r', push);
+  expect(mem.getUser).toHaveBeenCalledTimes(2);
+  expect(mem.send).not.toHaveBeenCalled();
+  expect(mem.get('notifications/auto-1')).toBeUndefined();
+  expect(response()).toMatchObject({ code: 'authorization-unavailable' });
+  expect(response().reconciliationRequired).not.toBe(true);
+  expect(lock().state).toBe('completed');
+  await scheduled();
+  expect(mem.getUser).toHaveBeenCalledTimes(2);
+});
+
+test('later authority outage after a possible effect remains unknown and never replays', async () => {
+  source('r', push);
+  mem.getUser.mockResolvedValueOnce({ uid: 'user-1', customClaims: { superAdmin: true } })
+    .mockResolvedValueOnce({ uid: 'user-1', customClaims: { superAdmin: true } })
+    .mockRejectedValueOnce(Error('private authority outage'));
+  const handler = vi.fn(async () => {
+    await requireRequester('user-1');
+    await mem.send({ topic: 'synthetic' });
+    await requireRequester('user-1');
+  });
+  await createRequestRouter(registry(handler))('r', push);
+  expect(response()).toMatchObject({ code: 'conflict', reconciliationRequired: true });
+  expect(lock().state).toBe('unknown');
+  await scheduled();
+  expect(mem.send).toHaveBeenCalledTimes(1);
+});
+
+test.each(['missing', 'future', 'revoked-queued', 'old-session-new-token', 'scope-changed', 'outage'])("session gate denies %s before effect", async mode => {
+  const request = { ...push, session: mode === 'missing' ? undefined : { ...session } };
+  if (mode === 'future') request.session!.issuedAt = Math.floor(Date.now() / 1000) + 600;
+  if (mode === 'old-session-new-token') {
+    vi.advanceTimersByTime(2000);
+    request.session!.issuedAt = Math.floor(Date.now() / 1000);
+    // A refreshed token issued after revocation cannot rehabilitate an older auth_time.
+    expect(request.session!.issuedAt).toBeGreaterThan(session.authTime + 1);
+  }
+  source('r', request);
+  if (mode === 'revoked-queued') {
+    const lease = (await claimRequest('r', request))!;
+    expect(lease).toBeDefined(); vi.advanceTimersByTime(LEASE_MS + 1);
+  }
+  if (['revoked-queued', 'old-session-new-token'].includes(mode)) mem.getUser.mockResolvedValue({ uid: 'user-1', tokensValidAfterTime: new Date((session.authTime + 1) * 1000).toISOString(), customClaims: { superAdmin: true } });
+  if (mode === 'scope-changed') mem.getUser.mockResolvedValue({ uid: 'user-1', customClaims: { role: 'providerAdmin', providerId: 'b' } });
+  if (mode === 'outage') mem.getUser.mockRejectedValue(Error('private authority failure'));
+  await createRequestRouter(handlers)('r', request);
+  expect(mem.send).not.toHaveBeenCalled();
+  expect(response().code).toBe(mode === 'outage' ? 'authorization-unavailable' : mode === 'scope-changed' ? 'permission-denied' : 'unauthenticated');
+  expect(lock().state).toBe('completed');
+});
+
+test('canonical session cannot be replaced by delivery metadata', async () => {
+  source();
+  await expect(createRequestRouter(handlers)('r', { ...read, session: { ...session, authTime: session.authTime + 1 } })).rejects.toBeInstanceOf(RetryableRpcError);
+  expect(mem.send).not.toHaveBeenCalled(); expect(response()).toBeUndefined();
+});
 
 test("every real command is explicitly classified; unknown is denied; SGP sync is never replayable", () => {
   expect(Object.keys(REQUEST_POLICIES).sort()).toEqual([...FUNCTION_REQUEST_TYPES].sort());
@@ -217,13 +323,13 @@ test("unknown/anonymous input denied; divergent legacy identity cannot reach any
   expect(response("forged")).toMatchObject({ code: "invalid-argument", requesterUid: "victim-super-admin" });
 });
 
-test("legacy UID remains canonical and is stripped from domain payload", async () => {
+test("legacy UID without trusted session is denied without invoking a handler", async () => {
   const request = { type: read.type, payload: { requesterUid: "legacy-user" } };
   source("r", request);
   const handler = vi.fn().mockResolvedValue({ total: 1 });
   await createRequestRouter(registry(handler))("r", request);
-  expect(handler).toHaveBeenCalledWith({ requestId: "r", type: read.type, requesterUid: "legacy-user", payload: {} });
-  expect(response()).toMatchObject({ requesterUid: "legacy-user", result: { total: 1 } });
+  expect(handler).not.toHaveBeenCalled();
+  expect(response()).toMatchObject({ requesterUid: "legacy-user", code: "unauthenticated" });
 });
 
 test("persisted request binds command, requester and private payload; forged delivery cannot bind ID", async () => {
@@ -361,7 +467,7 @@ test("old handler still alive cannot overwrite a read reclaimed by a new owner",
 });
 
 test.each(["removed-role", "disabled-account", "forged-tenant"])("real handler revalidates %s on expired read recovery", async scenario => {
-  const request = { type: "GET_CLIENT_DETAILS", requesterUid: "user-1", payload: {
+  const request = { type: "GET_CLIENT_DETAILS", requesterUid: "user-1", session, payload: {
     providerId: scenario === "forged-tenant" ? "tenant-b" : "tenant-a", clientId: "c" },
     role: "superAdmin", tenant: "tenant-b" };
   source("r", request);
@@ -383,7 +489,9 @@ test("real mutation with revoked role after pre-start crash never sends FCM", as
   mem.getUser.mockResolvedValue({ uid: "user-1", customClaims: {} });
   await scheduled();
   expect(mem.send).not.toHaveBeenCalled();
-  expect(response().reconciliationRequired).toBe(true); // conservative invocation boundary
+  // Session rejection happens before the handler boundary; no effect is uncertain.
+  expect(response().code).toBe("permission-denied");
+  expect(lock().state).toBe("completed");
 });
 
 test("real schedule recovers no-claim crash, expired read and legacy lock, and leaves live lease alone", async () => {
@@ -469,7 +577,7 @@ test("read failures remain retryable; AppError denial persists; audit failure ca
 });
 
 test("private payload, credentials, result and dynamic errors never enter lock, audit or RPC logs", async () => {
-  const request = { type: "CREATE_ADMIN_USER", requesterUid: "user-1",
+  const request = { type: "CREATE_ADMIN_USER", requesterUid: "user-1", session,
     payload: { email: "private@example.invalid", password: "private-password", role: "superAdmin" } };
   source("r", request);
   await createRequestRouter(registry(vi.fn().mockResolvedValue({ privateResult: "private-result" })))("r", request);

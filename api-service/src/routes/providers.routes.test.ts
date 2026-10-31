@@ -13,7 +13,7 @@ function collection(path: string): any { return { doc: (id: string) => ref(path 
 vi.mock("../services/firebaseAdmin", () => ({ firestore: { collection }, serverTimestamp: () => "now", firebaseAuth: {
  verifyIdToken: async (token: string, revoked?: boolean) => {
   state.verified.push(revoked);
-  if (revoked && state.access === "revoked") throw new Error("revoked");
+  if (revoked && state.access === "revoked") throw Object.assign(new Error("revoked"), { code: "auth/id-token-revoked" });
   return { ...claims(token), ...(state.access === "stale" ? { auth_time: Math.floor(Date.now()/1000) - 600 } : {}) };
  },
  getUser: async (uid: string) => ({ disabled: state.access === "disabled", customClaims: state.access === "demoted" ? {} : claims(uid) }),
@@ -85,7 +85,7 @@ it.each(["revoked", "disabled", "demoted", "stale"])("preserves private credenti
  state.docs.set("provedores/a/secrets/sgp", structuredClone(original));
  state.access = access;
  const result = await post("saas", "/a/integration", { apiToken: "synthetic-new", sgpBaseUrl: "https://new.test", appName: "new" });
- expect(result.status).toBe(403);
+ expect(result.status).toBe(["revoked", "disabled"].includes(access) ? 401 : 403);
  expect(state.docs.get("provedores/a/secrets/sgp")).toEqual(original);
  expect(state.audits).toEqual([]);
  expect(JSON.stringify(result.body)).not.toContain("synthetic");

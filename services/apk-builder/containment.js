@@ -44,14 +44,24 @@ function verifyOutput(dir, expected) {
     return path.join(dir, artifact);
 }
 async function authorize(endpoint, bearer, binding, fetcher = fetch) {
-    if (!endpoint || !bearer?.startsWith('Bearer ')) throw Error('build-authorization-denied');
-    const url = new URL(endpoint);
-    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw Error('build-authority-unconfigured');
-    const response = await fetcher(url, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
-        headers: { Authorization: bearer, 'Content-Type': 'application/json' }, body: JSON.stringify(binding) });
-    if (!response.ok) throw Error('build-authorization-denied');
-    const result = await response.json();
-    if (result.authorized !== true || !result.uid || Object.keys(binding).some(k => result[k] !== binding[k])) throw Error('build-authorization-denied');
+    if (typeof bearer !== 'string' || !bearer.startsWith('Bearer ')) throw Error('build-authorization-denied');
+    let response, result;
+    try {
+        const url = new URL(endpoint);
+        if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw Error();
+        response = await fetcher(url, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
+            headers: { Authorization: bearer, 'Content-Type': 'application/json' }, body: JSON.stringify(binding) });
+        if (response.status === 401 || response.status === 403) throw Error('build-authorization-denied');
+        if (!response.ok) throw Error();
+        result = await response.json();
+    } catch (error) {
+        if (response?.status === 401 || response?.status === 403) throw Error('build-authorization-denied');
+        throw Object.assign(Error('authorization-unavailable'), { code: 'authorization-unavailable', status: 503 });
+    }
+    if (!result || typeof result.authorized !== 'boolean' || (result.authorized && (typeof result.uid !== 'string' || !result.uid))) {
+        throw Object.assign(Error('authorization-unavailable'), { code: 'authorization-unavailable', status: 503 });
+    }
+    if (result.authorized !== true || Object.keys(binding).some(k => result[k] !== binding[k])) throw Error('build-authorization-denied');
     return result.uid;
 }
 module.exports = { identity, childEnvironment, verifyOutput, authorize, digest };

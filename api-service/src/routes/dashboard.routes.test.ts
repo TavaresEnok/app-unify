@@ -45,7 +45,7 @@ it('isolates provider data even after another provider is cached', async () => {
 it('rejects disabled/revoked accounts despite old tokens and cached dashboard data', async () => {
   await request(app).get('/dashboard/panel').set(auth('root')).expect(200);
   mocks.users.set('root', { disabled: true, customClaims: { superAdmin: true } });
-  await request(app).get('/dashboard/panel').set(auth('root')).expect(403);
+  await request(app).get('/dashboard/panel').set(auth('root')).expect(401);
   mocks.users.set('root', { disabled: false, customClaims: { role: 'subscriber' } });
   await request(app).get('/dashboard/panel').set(auth('root')).expect(403);
   expect(mocks.global).toHaveBeenCalledTimes(1);

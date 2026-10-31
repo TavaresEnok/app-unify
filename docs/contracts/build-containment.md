@@ -2,7 +2,14 @@
 
 `POST /generate-apk` mantém providerId/appName/logoUrl/format e `async: true`;
 202 retorna jobId/status. `GET /jobs/:id` mantém preparing/running/succeeded/failed,
-404 para ausente/expirado e erro estável de autorização 403. Falha/interrupção
+404 para ausente/expirado e erro estável de autorização 403. Indisponibilidade da
+autoridade retorna 503 com `{ success: false, error: 'authorization-unavailable' }`,
+sem estado do job. Isso vale para solicitação, consulta e cancelamento e para
+revalidações anteriores ao download, spawn e publicação. Timeout, transporte,
+configuração inválida e resposta ilegível/incompleta da autoridade também são
+indisponibilidade fail-closed; não representam revogação. Respostas 401/403 da
+autoridade, binding divergente e outro dono continuam negados com 403.
+Falha/interrupção
 nunca retorna downloadUrl novo. Logs, símbolos e caminhos internos não integram
 as respostas. `POST /jobs/:id/cancel` exige SaaS atual e dono do job, retorna
 terminal failed ou 409 se o efeito já terminou; não desfaz release anterior.
@@ -10,6 +17,13 @@ terminal failed ou 409 se o efeito já terminou; não desfaz release anterior.
 O callable generateApk mantém o nome exportado, encaminha apenas os campos do
 contrato ao builder estático, retorna jobId/status para polling HTTP e falha
 fechado sem configuração. Não executa Python nem assina/publica na Function.
+Na cadeia autoridade → builder HTTP → callable, 503 é `unavailable` com mensagem
+`authorization-unavailable`, nunca `permission-denied`. Se a solicitação já foi
+aceita com 202, indisponibilidade na publicação termina o job com erro seguro
+`authorization-unavailable`, sem downloadUrl novo. Não há repetição automática;
+consulta indisponível preserva os dados anteriores como não atualizados e o
+cancelamento indisponível não altera o estado. Requer nova ação explícita após
+recuperação, mantendo todas as verificações atuais.
 
 `POST /api/internal/builds/authorize` é a fronteira Firebase na API existente.
 Verifica bearer real com revogação, getUser/disabled/customClaims.superAdmin

@@ -4,11 +4,11 @@ import { createApp } from "./app";
 
 vi.mock('./services/firebaseAdmin', () => ({
   firestore: {}, serverTimestamp: () => null,
-  firebaseAuth: { verifyIdToken: async (token: string) => {
+  firebaseAuth: { getUser: async (uid: string) => ({ uid, customClaims: uid === 'root' ? { superAdmin: true } : { role: uid === 'provider' ? 'providerAdmin' : 'subscriber', providerId: 'one' } }), verifyIdToken: async (token: string) => {
     if (token === 'test-root') return { uid: 'root', superAdmin: true };
     if (token === 'test-provider') return { uid: 'provider', role: 'providerAdmin', providerId: 'one' };
     if (token === 'test-sub') return { uid: 'subscriber', role: 'subscriber', providerId: 'one' };
-    throw Error('Invalid test token');
+    throw Object.assign(Error('Invalid test token'), { code: 'auth/invalid-id-token' });
   } },
 }));
 

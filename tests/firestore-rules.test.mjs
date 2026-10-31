@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { deleteObject, getBytes, ref, uploadBytes } from "firebase/storage";
 
 let environment;
@@ -52,13 +52,21 @@ test("provider public config is readable but secrets are restricted", async () =
 });
 
 test("function request creation is bound to the authenticated uid", async () => {
-  const db = environment.authenticatedContext("requester", { role: "providerAdmin", providerId: "alpha" }).firestore();
+  const db = environment.authenticatedContext("requester", { role: "providerAdmin", providerId: "alpha", auth_time: 100, iat: 101 }).firestore();
   await assertSucceeds(setDoc(doc(db, "function_requests", "valid"), {
     type: "GET_DASHBOARD_DATA",
     requesterUid: "requester",
     payload: {},
+    createdAt: serverTimestamp(), session: { authTime: 100, issuedAt: 101, role: 'providerAdmin', providerId: 'alpha', superAdmin: false },
   }));
+  const valid = { type: 'GET_DASHBOARD_DATA', requesterUid: 'requester', payload: {}, createdAt: serverTimestamp(), session: { authTime: 100, issuedAt: 101, role: 'providerAdmin', providerId: 'alpha', superAdmin: false } };
+  for (const [index, session] of [undefined, { ...valid.session, authTime: 102 }, { ...valid.session, issuedAt: 102 }, { ...valid.session, providerId: 'beta' }, { ...valid.session, superAdmin: true }].entries()) {
+    const { session: omitted, ...base } = valid;
+    await assertFails(setDoc(doc(db, 'function_requests', 'session-forged-' + index), { ...base, ...(session ? { session } : {}) }));
+  }
+  await assertFails(setDoc(doc(db, 'function_requests', 'forged-created'), { ...valid, createdAt: new Date(0) }));
   await assertFails(setDoc(doc(db, "function_requests", "spoofed"), {
+    ...valid,
     type: "GET_DASHBOARD_DATA",
     requesterUid: "another-user",
     payload: {},
@@ -67,6 +75,7 @@ test("function request creation is bound to the authenticated uid", async () => 
   // super admin) enquanto o payload satisfaz a regra pelo próprio uid. Deve
   // falhar — o topo é a identidade canônica usada na autorização.
   await assertFails(setDoc(doc(db, "function_requests", "forged"), {
+    ...valid,
     type: "SET_SUPER_ADMIN_BY_EMAIL",
     requesterUid: "victim-super-admin",
     payload: { requesterUid: "requester", email: "attacker@example.com" },
@@ -115,14 +124,14 @@ test("subscriber and legacy tenant claims cannot grant administration", async ()
 
 
 test("subscriber cannot submit administrative queue work", async () => {
-  const db = environment.authenticatedContext("subscriber", { role: "subscriber", providerId: "alpha", cpfCnpj: "12345678901" }).firestore();
-  await assertFails(setDoc(doc(db, "function_requests", "subscriber-admin"), { type: "UPDATE_PROVIDER_CONFIG", requesterUid: "subscriber", payload: { providerId: "alpha" } }));
-  await assertSucceeds(setDoc(doc(db, "function_requests", "subscriber-ticket"), { type: "CREATE_TICKET", requesterUid: "subscriber", payload: { providerId: "alpha" } }));
+  const db = environment.authenticatedContext("subscriber", { role: "subscriber", providerId: "alpha", cpfCnpj: "12345678901", auth_time: 100, iat: 101 }).firestore();
+  await assertFails(setDoc(doc(db, "function_requests", "subscriber-admin"), { type: "UPDATE_PROVIDER_CONFIG", requesterUid: "subscriber", payload: { providerId: "alpha" }, createdAt: serverTimestamp(), session: { authTime: 100, issuedAt: 101, role: 'subscriber', providerId: 'alpha', superAdmin: false } }));
+  await assertSucceeds(setDoc(doc(db, "function_requests", "subscriber-ticket"), { type: "CREATE_TICKET", requesterUid: "subscriber", payload: { providerId: "alpha" }, createdAt: serverTimestamp(), session: { authTime: 100, issuedAt: 101, role: 'subscriber', providerId: 'alpha', superAdmin: false } }));
 });
 
 test("config direct writes and all overlapping legacy secret/backup paths are closed", async () => {
   const users = [
-    { role: "providerAdmin", providerId: "alpha" },
+    { role: "providerAdmin", providerId: "alpha", auth_time: 100, iat: 101 },
     { role: "providerAdmin", providerId: "beta" },
     { role: "subscriber", providerId: "alpha" },
     { providerId: "alpha" },
@@ -143,6 +152,7 @@ test("config direct writes and all overlapping legacy secret/backup paths are cl
   const provider = environment.authenticatedContext("actor", users[0]).firestore();
   await assertSucceeds(setDoc(doc(provider, "function_requests", "personalization"), {
     requesterUid: "actor", type: "UPDATE_PROVIDER_CONFIG", payload: { providerId: "alpha", config: { themeColor: "#fff" } },
+    createdAt: serverTimestamp(), session: { authTime: 100, issuedAt: 101, role: 'providerAdmin', providerId: 'alpha', superAdmin: false },
   }));
   const saas = environment.authenticatedContext("saas", { superAdmin: true }).firestore();
   await assertFails(getDoc(doc(saas, "provedores/alpha/secrets/sgp")));

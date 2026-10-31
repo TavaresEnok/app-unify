@@ -6,6 +6,17 @@ import { normalizeRequest } from "./request";
 import { replayPolicy, type ReplayPolicy } from "./requestPolicy";
 import { failureResponse } from "./writeResponse";
 
+// Deployment gate, set only after the session-binding Rules have been verified
+// active. Never infer this boundary from client data or the source updateTime.
+function hasSessionProvenance(source: FirebaseFirestore.DocumentSnapshot, now: number): boolean {
+  const configured = process.env.RPC_SESSION_RULES_ACTIVE_AFTER;
+  const cutoff = configured && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(configured)
+    ? Date.parse(configured) : NaN;
+  const created = source.createTime?.toMillis();
+  return Number.isFinite(cutoff) && new Date(cutoff).toISOString() === configured && cutoff > 0 && cutoff <= now &&
+    typeof created === "number" && Number.isFinite(created) && created > cutoff && created <= now;
+}
+
 export const LEASE_MS = 120_000;
 export const UNKNOWN_MESSAGE = "Resultado desconhecido. Não reenvie esta operação. Contate o suporte SaaS com o identificador da requisição para reconciliação.";
 export class LeaseLost extends Error {
@@ -53,6 +64,20 @@ export async function claimRequest(id: string, delivery: unknown, now = Date.now
     if (lock && Number(lock.leaseUntil) > now) return null;
     if (!source.exists) {
       if (lock) unknown(transaction, id, lock);
+      return null;
+    }
+    if (!hasSessionProvenance(source, now)) {
+      // A pre-cutover document may contain entirely forged session fields.
+      // Preserve any previous execution uncertainty; never replay it on recovery.
+      if (lock) unknown(transaction, id, lock);
+      else {
+        const raw = source.data();
+        transaction.set(ref.lock, { state: "completed", reason: "unproven-session-origin" });
+        if (isRecord(raw) && typeof raw.requesterUid === "string") {
+          transaction.set(ref.response, failureResponse(raw.requesterUid,
+            "Origem da sessão não comprovada. Atualize o cliente e autentique novamente.", "unauthenticated"));
+        }
+      }
       return null;
     }
     let request: FunctionRequest;

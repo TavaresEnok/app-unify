@@ -22,7 +22,7 @@ export async function forwardGenerateApk(request: any) {
       headers: { Authorization: bearer, "Content-Type": "application/json" },
       body: JSON.stringify({ providerId, appName, logoUrl, format, async: true }),
     });
-    if (!response.ok) throw new HttpsError(response.status === 403 || response.status === 401 ? "permission-denied" : "failed-precondition", "Geração não autorizada ou indisponível.");
+    if (!response.ok) throw new HttpsError(response.status === 503 ? "unavailable" : response.status === 403 || response.status === 401 ? "permission-denied" : "failed-precondition", response.status === 503 ? "authorization-unavailable" : "Geração não autorizada ou indisponível.");
     const result = await response.json();
     return { success: result.success, jobId: result.jobId, status: result.status };
   } catch (error) {

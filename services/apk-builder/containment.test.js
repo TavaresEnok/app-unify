@@ -9,62 +9,12 @@ const { createApp } = require('./index');
 const { identity, childEnvironment, digest } = require('./containment');
 const { BuildJobStore } = require('./job-store');
 
-const row = { providerId: 'isp-a', appName: 'Synthetic ISP', applicationId: 'br.com.existing.unchanged',
-    signingCertificateSha256: 'a'.repeat(64), inventoryReviewed: true };
-function registry(file, rows = [row]) { fs.writeFileSync(file, JSON.stringify({ schema: 1, reviewed: true, identities: rows })); }
-
-async function fixture(t, { dedicatedStore = false } = {}) {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'build-containment-'));
-    const state = { access: 'saas', downloads: 0, spawns: 0, checks: [], revokeAt: '', code: 0 };
-    const config = { APK_PROJECT_ROOT: dir, APK_PRIVATE_DIR: path.join(dir, 'private'), APK_OUTPUT_DIR: path.join(dir, 'public'),
-        APK_IDENTITY_REGISTRY: path.join(dir, 'identities.json'), APK_AUTHORIZATION_URL: 'https://authority.test/authorize' };
-    if (dedicatedStore) Object.assign(config, {
-        APK_OUTPUT_DIR: path.join(dir, 'release-store', 'public'),
-        APK_PUBLICATION_DIR: path.join(dir, 'release-store', 'private'), APK_PUBLIC_URL_PREFIX: '/public_apks/f1',
-    });
-    registry(config.APK_IDENTITY_REGISTRY);
-    const jobs = new BuildJobStore(undefined, path.join(dir, 'jobs.json'));
-    const authority = async (_url, options) => {
-        const binding = JSON.parse(options.body); state.checks.push(binding);
-        if (binding.purpose === state.revokeAt) state.access = 'revoked';
-        const allowed = options.headers.Authorization === 'Bearer saas' && state.access === 'saas';
-        if (state.access === 'outage') throw Error('outage');
-        return { ok: allowed, json: async () => ({ authorized: allowed, uid: 'saas-user', ...binding }) };
-    };
-    const app = createApp({ config, jobs, disableRateLimit: true, fetch: authority,
-        copyArtifact: (...args) => state.copyArtifact ? state.copyArtifact(...args) : fs.copyFileSync(...args),
-        publishLink: (...args) => state.publishLink ? state.publishLink(...args) : fs.linkSync(...args),
-        logos: { download: async (_url, file) => { state.downloads++; fs.writeFileSync(file, 'synthetic logo'); if (state.revokeAfterLogo) state.access = 'revoked'; } },
-        spawn: (_cmd, args, options) => {
-            state.spawns++; state.env = options.env; state.args = args;
-            const child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough(); child.kill = () => { setImmediate(() => child.emit('close', 1)); };
-            const arg = key => args[args.indexOf(key) + 1];
-            setImmediate(() => {
-                const staging = arg('--output'); fs.mkdirSync(staging, { recursive: true });
-                const artifact = path.join(staging, 'artifact.apk'); fs.writeFileSync(artifact, 'synthetic binary');
-                fs.writeFileSync(path.join(staging, 'manifest.json'), JSON.stringify({
-                    providerId: arg('--id'), applicationId: arg('--package'), versionCode: arg('--version-code'),
-                    buildId: arg('--build-id'), format: 'apk', files: [{ path: 'artifact.apk', sha256: state.corrupt ? 'bad' : digest(artifact) }],
-                }));
-                child.stdout.end('synthetic private log'); child.stderr.end();
-                if (!state.defer) child.emit('close', state.code);
-            });
-            return child;
-        } });
-    const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
-    const base = `http://127.0.0.1:${server.address().port}`;
-    t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); fs.rmSync(dir, { recursive: true, force: true }); });
-    const post = async (token = 'saas', extra = {}) => fetch(base + '/generate-apk', { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ providerId: 'isp-a', appName: row.appName, logoUrl: 'https://logo.test/a', ...extra }) });
-    return { dir, state, config, jobs, base, post };
-}
-
+const { fixture, row, registry } = require('./authorization-propagation.test');
 test('HTTP denies non SaaS, tenant B, old role/disabled/revoked/stale/outage before all effects', async t => {
     const f = await fixture(t);
     for (const role of ['subscriber', 'provider', 'tenant-b', 'old-claim', 'disabled', 'revoked', 'stale', 'outage']) {
         f.state.access = role;
-        assert.equal((await f.post(role)).status, 403);
+        assert.equal((await f.post(role)).status, role === 'outage' ? 503 : 403);
     }
     assert.equal(f.state.spawns, 0); assert.equal(f.state.downloads, 0);
     assert.equal(fs.existsSync(f.config.APK_PRIVATE_DIR), false);

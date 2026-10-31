@@ -4,6 +4,8 @@ import { AppError } from "./errors";
 import { toRequestContext, type RequestHandler } from "./request";
 import { failureResponse, successResponse } from "./writeResponse";
 import { recordAudit } from "./audit";
+import { requireSession } from "./permissions";
+import { failedBeforeEffect, withAuthorizationPrelude } from "./authorizationPrelude";
 import { claimRequest, finishRequest, heartbeat, LeaseLost, startRequest, UNKNOWN_MESSAGE } from "./requestLease";
 
 export type HandlerRegistry = { [T in FunctionRequestType]: RequestHandler<T> };
@@ -25,13 +27,16 @@ export function createRequestRouter(registry: HandlerRegistry, now: () => number
     let response: Record<string, unknown>;
     let uncertain = false;
     let outcome: "success" | "failure" = "success";
+    let authorized = false;
     try {
+      await requireSession(request.requesterUid, request.session);
+      authorized = true;
       // Real handlers re-read current Auth/domain records before any effect.
-      const result = await handler(toRequestContext(requestId, request));
+      const result = await withAuthorizationPrelude(() => handler(toRequestContext(requestId, request)));
       response = successResponse(request.requesterUid, result);
     } catch (error) {
       outcome = "failure";
-      uncertain = lease.policy === "uncertain-effect";
+      uncertain = authorized && lease.policy === "uncertain-effect" && !failedBeforeEffect(error);
       if (uncertain) {
         response = failureResponse(request.requesterUid, UNKNOWN_MESSAGE, "conflict", true);
       } else if (error instanceof AppError) {

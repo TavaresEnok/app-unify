@@ -270,6 +270,7 @@ export interface FunctionRequest<T extends FunctionRequestType = FunctionRequest
   requesterUid: string;
   payload: FunctionRequestPayloadMap[T];
   createdAt?: unknown;
+  session?: { authTime: number; issuedAt: number; role: string; providerId: string; superAdmin: boolean };
 }
 
 export interface FunctionResponse<T extends FunctionRequestType = FunctionRequestType> {
@@ -281,6 +282,7 @@ export interface FunctionResponse<T extends FunctionRequestType = FunctionReques
 }
 
 export type ErrorCode =
+  | "authorization-unavailable"
   | "unauthenticated"
   | "permission-denied"
   | "invalid-argument"

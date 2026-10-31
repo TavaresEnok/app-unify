@@ -33,7 +33,14 @@ service cloud.firestore {
       return signedIn() &&
         (isSuperAdmin() || request.auth.token.get('role', '') == 'providerAdmin' ||
          (request.auth.token.get('role', '') == 'subscriber' && data.type in ['CREATE_TICKET', 'REPLY_TO_TICKET'])) &&
-        data.keys().hasAll(['requesterUid']) &&
+        data.keys().hasAll(['requesterUid', 'session', 'createdAt']) &&
+        data.createdAt == request.time &&
+        data.session.keys().hasOnly(['authTime', 'issuedAt', 'role', 'providerId', 'superAdmin']) &&
+        data.session.authTime == request.auth.token.auth_time &&
+        data.session.issuedAt == request.auth.token.iat &&
+        data.session.role == request.auth.token.get('role', '') &&
+        data.session.providerId == request.auth.token.get('providerId', '') &&
+        data.session.superAdmin == request.auth.token.get('superAdmin', false) &&
         data.requesterUid == request.auth.uid &&
         (
           !(data.payload is map) ||

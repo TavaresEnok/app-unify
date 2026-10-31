@@ -42,7 +42,7 @@ describe("application errors", () => {
 describe("permission checks", () => {
   it("requires an authenticated requester", async () => {
     await expect(requireRequester("")).rejects.toMatchObject({ code: "unauthenticated" });
-    getUser.mockRejectedValueOnce(new Error("missing"));
+    getUser.mockRejectedValueOnce(Object.assign(new Error("missing"), { code: "auth/user-not-found" }));
     await expect(requireRequester("missing")).rejects.toMatchObject({ code: "unauthenticated" });
   });
 

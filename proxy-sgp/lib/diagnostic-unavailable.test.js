@@ -21,10 +21,10 @@ test('real HTTP analyze keeps auth/tenant checks and returns stable 501 without 
                 if (name === 'firebase-admin') return {
                     apps: [{}],
                     firestore: () => ({ collection() { firestoreEffects++; throw new Error('No Firestore allowed'); } }),
-                    auth: () => ({ verifyIdToken: async token => {
-                        if (token === 'invalid') throw new Error('synthetic invalid identity');
+                    auth: () => ({ getUser: async uid => ({ uid, customClaims: uid === 'synthetic-saas' ? { superAdmin: true } : { role: 'subscriber', providerId: uid.slice('synthetic-user:'.length), cpfCnpj: '12345678901' } }), verifyIdToken: async token => {
+                        if (token === 'invalid') throw Object.assign(new Error('synthetic invalid identity'), { code: 'auth/invalid-id-token' });
                         if (token === 'saas') return { uid: 'synthetic-saas', superAdmin: true };
-                        return { uid: 'synthetic-user', role: 'subscriber', providerId: token, cpfCnpj: '12345678901' };
+                        return { uid: 'synthetic-user:' + token, role: 'subscriber', providerId: token, cpfCnpj: '12345678901' };
                     } }),
                 };
                 if (name === 'ioredis') return FakeRedis;

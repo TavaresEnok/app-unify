@@ -62,7 +62,7 @@ vi.mock("../app/firebase", () => ({
   auth: {
     getUser: async (uid: string) => {
       const user = users.get(uid);
-      if (!user) throw new Error("not found");
+      if (!user) throw Object.assign(new Error("not found"), { code: "auth/user-not-found" });
       return user;
     },
   },
