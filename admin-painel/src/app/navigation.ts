@@ -54,7 +54,7 @@ export const SETTINGS_NAVIGATION: SettingsNavigationItem[] = [
   { name: "Notificações", path: "notifications" },
   { name: "Promoções", path: "promotions" },
   { name: "Módulos", path: "features" },
-  { name: "Integrações", path: "integrations" },
+  { name: "Integrações", path: "integrations", superAdminOnly: true },
   { name: "Contato & Suporte", path: "support" },
   { name: "Carrossel", path: "carousel" },
   { name: "Redes Sociais", path: "social" },

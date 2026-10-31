@@ -1,99 +1,45 @@
-import { useState, useEffect } from 'react';
-import { useSettings } from '@/contexts/SettingsContext';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Save, Loader2, Link, Server, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
-import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
+import { auth } from "@/firebase/config";
+import { resolvePublicApiBaseUrl } from "@/shared/config/publicApi";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export default function IntegrationsSettings() {
-    const { config, setConfig, isSaving } = useSettings();
-
-    // SGP Integration
-    const [localApiToken, setLocalApiToken] = useState(config.integrations?.apiToken || '');
-    const [localAppName, setLocalAppName] = useState(config.integrations?.appName || '');
-    const [showToken, setShowToken] = useState(false);
-
-    useEffect(() => {
-        setLocalApiToken(config.integrations?.apiToken || '');
-        setLocalAppName(config.integrations?.appName || '');
-    }, [config]);
-
-    const handleSaveIntegration = () => {
-        const newIntegrations = {
-            apiToken: localApiToken.trim(),
-            appName: localAppName.trim(),
-        };
-
-        setConfig((prev) => ({
-            ...prev,
-            integrations: newIntegrations,
-        }));
-
-        toast.info("Configurações atualizadas. Clique em 'Salvar Alterações' para confirmar.");
-    };
-
-    return (
-        <SettingsPage
-            title="Integrações"
-            description="Configure as conexões usadas pelo aplicativo e pelo SGP."
-            icon={Server}
-            footer={(
-                <>
-                    <SettingsFooterNote>As integrações entram em vigor após aplicar e salvar as alterações gerais.</SettingsFooterNote>
-                    <Button onClick={handleSaveIntegration} disabled={isSaving} className="gap-2">
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Aplicar configurações
-                    </Button>
-                </>
-            )}
-        >
-            <SettingsSection title="Integração SGP" description="Configure o token e o nome do aplicativo para sincronizar dados do SGP.">
-
-                    <div className="space-y-2">
-                        <Label htmlFor="apiToken">Token da API do SGP</Label>
-                        <div className="relative">
-                            <Input
-                                id="apiToken"
-                                type={showToken ? 'text' : 'password'}
-                                autoComplete="off"
-                                spellCheck={false}
-                                placeholder="Insira o seu token de API do SGP"
-                                value={localApiToken}
-                                onChange={(e) => setLocalApiToken(e.target.value)}
-                                disabled={isSaving}
-                                className="pr-10"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowToken((v) => !v)}
-                                className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
-                                aria-label={showToken ? 'Ocultar token' : 'Mostrar token'}
-                            >
-                                {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Chave secreta fornecida pelo seu sistema SGP.</p>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="appName">Nome do Aplicativo (App Name)</Label>
-                        <Input
-                            id="appName"
-                            placeholder="Ex: VIBE_TELECOM"
-                            value={localAppName}
-                            onChange={(e) => setLocalAppName(e.target.value)}
-                            disabled={isSaving}
-                        />
-                        <p className="text-sm text-muted-foreground">Nome da sua aplicação cadastrada no SGP.</p>
-                    </div>
-
-                    <div className="flex items-center border-t border-[#EEF0F4] pt-4 text-sm text-muted-foreground">
-                        <Link className="h-4 w-4 mr-2" />
-                        As integrações entrarão em vigor após salvar as alterações no painel.
-                    </div>
-            </SettingsSection>
-        </SettingsPage>
-    );
+  const { userRole } = useAuth();
+  const { providerId } = useSettings();
+  const [apiToken, setToken] = useState("");
+  const [sgpBaseUrl, setUrl] = useState("");
+  const [appName, setApp] = useState("");
+  const [saving, setSaving] = useState(false);
+  if (userRole !== "superAdmin") return <p>Integração administrada pela equipe SaaS.</p>;
+  const replace = async () => {
+    setSaving(true);
+    try {
+      if (!auth.currentUser) throw new Error("Sessão necessária.");
+      const base = resolvePublicApiBaseUrl(import.meta.env.VITE_API_URL, window.location);
+      const response = await fetch(`${base}/admin/providers/${encodeURIComponent(providerId)}/integration`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await auth.currentUser.getIdToken(true)}` },
+        body: JSON.stringify({ apiToken, sgpBaseUrl, appName }),
+      });
+      if (!response.ok) throw new Error("Não foi possível substituir a integração.");
+      setToken(""); setUrl(""); setApp("");
+      toast.success("Integração substituída.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao substituir."); }
+    finally { setSaving(false); }
+  };
+  return <section className="space-y-4">
+    <h1>Substituir integração SGP</h1>
+    <p>Informe todos os novos valores. O token armazenado não é exibido.</p>
+    <Label htmlFor="replacement-token">Novo token</Label>
+    <Input id="replacement-token" type="password" autoComplete="off" value={apiToken} onChange={e => setToken(e.target.value)} />
+    <Label htmlFor="replacement-url">URL SGP</Label>
+    <Input id="replacement-url" value={sgpBaseUrl} onChange={e => setUrl(e.target.value)} />
+    <Label htmlFor="replacement-app">App de integração</Label>
+    <Input id="replacement-app" value={appName} onChange={e => setApp(e.target.value)} />
+    <Button disabled={saving || !apiToken || !sgpBaseUrl || !appName} onClick={replace}>Substituir integração</Button>
+  </section>;
 }

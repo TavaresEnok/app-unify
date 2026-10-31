@@ -30,11 +30,11 @@ service firebase.storage {
     match /providers/{providerId}/{fileName} {
 
       // Qualquer pessoa pode ler as imagens (necessário para o app Flutter)
-      allow read: if true;
+      allow read: if fileName.matches('(logo|icon|banner|background)(_[0-9]+)?[.](png|jpg|jpeg|webp)');
 
       // Apenas Super Admins ou o Admin do provedor correto podem escrever (upload, update, delete)
-      allow create, update: if canManageProvider(providerId) && validImage();
-      allow delete: if canManageProvider(providerId);
+      allow create, update: if canManageProvider(providerId) && validImage() && fileName.matches('(logo|icon|banner|background)(_[0-9]+)?[.](png|jpg|jpeg|webp)');
+      allow delete: if canManageProvider(providerId) && fileName.matches('(logo|icon|banner|background)(_[0-9]+)?[.](png|jpg|jpeg|webp)');
     }
 
     match /providers/{providerId}/public_assets/{allPaths=**} {

@@ -42,7 +42,7 @@ test("provider public config is readable but secrets are restricted", async () =
   await assertSucceeds(getDoc(doc(anonymous, "provedores", "alpha")));
   await assertFails(getDoc(doc(anonymous, "provedores", "alpha", "secrets", "sgp")));
   const admin = environment.authenticatedContext("admin-alpha", { providerId: "alpha", role: "providerAdmin" }).firestore();
-  await assertSucceeds(getDoc(doc(admin, "provedores", "alpha", "secrets", "sgp")));
+  await assertFails(getDoc(doc(admin, "provedores", "alpha", "secrets", "sgp")));
   await assertFails(setDoc(doc(admin, "provedores", "alpha"), {
     integrations: { apiToken: "must-not-be-public" },
   }, { merge: true }));
@@ -118,4 +118,79 @@ test("subscriber cannot submit administrative queue work", async () => {
   const db = environment.authenticatedContext("subscriber", { role: "subscriber", providerId: "alpha", cpfCnpj: "12345678901" }).firestore();
   await assertFails(setDoc(doc(db, "function_requests", "subscriber-admin"), { type: "UPDATE_PROVIDER_CONFIG", requesterUid: "subscriber", payload: { providerId: "alpha" } }));
   await assertSucceeds(setDoc(doc(db, "function_requests", "subscriber-ticket"), { type: "CREATE_TICKET", requesterUid: "subscriber", payload: { providerId: "alpha" } }));
+});
+
+test("config direct writes and all overlapping legacy secret/backup paths are closed", async () => {
+  const users = [
+    { role: "providerAdmin", providerId: "alpha" },
+    { role: "providerAdmin", providerId: "beta" },
+    { role: "subscriber", providerId: "alpha" },
+    { providerId: "alpha" },
+  ];
+  for (const claims of users) {
+    const db = environment.authenticatedContext("actor", claims).firestore();
+    for (const root of ["provedores", "providers"]) {
+      for (const path of ["secrets/sgp", "secrets/sgp/versions/v1", "backups/old", "backups/old/data/mixed"]) {
+        await assertFails(getDoc(doc(db, root + "/alpha/" + path)));
+        await assertFails(setDoc(doc(db, root + "/alpha/" + path), { token: "synthetic" }));
+      }
+      for (const data of [{ themeColor: "#fff" }, { active: false }, { applicationId: "br.forbidden" },
+        { config: { faq: [{ question: "Q", token: "synthetic" }] } }]) {
+        await assertFails(setDoc(doc(db, root, "alpha"), data, { merge: true }));
+      }
+    }
+  }
+  const provider = environment.authenticatedContext("actor", users[0]).firestore();
+  await assertSucceeds(setDoc(doc(provider, "function_requests", "personalization"), {
+    requesterUid: "actor", type: "UPDATE_PROVIDER_CONFIG", payload: { providerId: "alpha", config: { themeColor: "#fff" } },
+  }));
+  const saas = environment.authenticatedContext("saas", { superAdmin: true }).firestore();
+  await assertFails(getDoc(doc(saas, "provedores/alpha/secrets/sgp")));
+  await assertFails(setDoc(doc(saas, "providers/alpha"), { config: { token: "synthetic" } }));
+});
+
+test("mixed legacy public documents fail closed instead of returning integration fields", async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    for (const root of ["provedores", "providers"])
+      await setDoc(doc(context.firestore(), root, "mixed"), { themeColor: "#fff", details: { systemUrl: "https://private.test", appName: "private-app" } });
+  });
+  for (const context of [environment.unauthenticatedContext(), environment.authenticatedContext("admin", { role: "providerAdmin", providerId: "mixed" })])
+    for (const root of ["provedores", "providers"])
+      await assertFails(getDoc(doc(context.firestore(), root, "mixed")));
+});
+
+test("legacy nested or unknown public fields fail closed at every depth", async () => {
+  const mixed = [
+    { faq: [{ question: "Q", apiToken: "synthetic" }] },
+    { themeColor: { token: "synthetic" } },
+    { config: { menuConfig: { items: { invoices: { secretReference: "synthetic" } } } } },
+    { apiUrl: "https://internal.invalid" },
+    { unknown: { nested: { password: "synthetic" } } },
+  ];
+  for (const root of ["provedores", "providers"]) {
+    for (const [index, data] of mixed.entries()) {
+      const path = root + "/mixed-" + index;
+      await environment.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), path), data));
+      for (const context of [
+        environment.unauthenticatedContext(),
+        environment.authenticatedContext("owner", { role: "providerAdmin", providerId: "mixed-" + index }),
+      ]) await assertFails(getDoc(doc(context.firestore(), path)));
+    }
+  }
+});
+
+test("storage denies mixed legacy backups/secrets while branding remains usable", async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    for (const path of ["providers/alpha/backups/old.json", "providers/alpha/secrets/sgp.json", "provedores/alpha/backups/old.json", "providers/alpha/backup.json"])
+      await uploadBytes(ref(context.storage(), path), new Uint8Array([1]), { contentType: "application/json" });
+  });
+  for (const claims of [{ role: "providerAdmin", providerId: "alpha" }, { role: "providerAdmin", providerId: "beta" }, { role: "subscriber", providerId: "alpha" }]) {
+    const storage = environment.authenticatedContext("actor", claims).storage();
+    for (const path of ["providers/alpha/backups/old.json", "providers/alpha/secrets/sgp.json", "provedores/alpha/backups/old.json", "providers/alpha/backup.json"]) {
+      await assertFails(getBytes(ref(storage, path)));
+      await assertFails(uploadBytes(ref(storage, path), new Uint8Array([1]), { contentType: "image/png" }));
+    }
+  }
+  const own = environment.authenticatedContext("admin", { role: "providerAdmin", providerId: "alpha" }).storage();
+  await assertSucceeds(uploadBytes(ref(own, "providers/alpha/public_assets/branding.png"), new Uint8Array([1]), { contentType: "image/png" }));
 });
