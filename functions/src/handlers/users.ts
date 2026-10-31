@@ -13,15 +13,13 @@ function validatePassword(password: string): void {
 
 export const listAdminUsers: RequestHandler<"LIST_ADMIN_USERS"> = async ({ requesterUid }) => {
   await requireSuperAdmin(requesterUid);
-  const result = await auth.listUsers(1000);
-  return result.users
-    .filter((user) => user.customClaims?.superAdmin || user.customClaims?.providerId)
-    .map((user) => ({
-      uid: user.uid,
-      email: user.email,
-      superAdmin: user.customClaims?.superAdmin === true,
-      providerId: typeof user.customClaims?.providerId === "string" ? user.customClaims.providerId : undefined,
-    }));
+  const result = await db.collection("users").where("role", "in", ["superAdmin", "providerAdmin"]).limit(100).get();
+  return result.docs.map((doc) => ({
+    uid: doc.id,
+    email: String(doc.data().email || ""),
+    superAdmin: doc.data().superAdmin === true,
+    ...(typeof doc.data().providerId === "string" ? { providerId: doc.data().providerId } : {}),
+  }));
 };
 
 export const createAdminUser: RequestHandler<"CREATE_ADMIN_USER"> = async ({ requestId, requesterUid, payload }) => {

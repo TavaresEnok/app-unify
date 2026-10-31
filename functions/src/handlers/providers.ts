@@ -4,6 +4,7 @@ import { AppError } from "../app/errors";
 import { auth, db } from "../app/firebase";
 import { requireProviderAccess, requireSuperAdmin } from "../app/permissions";
 import { isValidNewProviderId } from "../utils";
+import { publicProviderData } from "../app/publicProviderData";
 
 const DEFAULT_PROVIDER_CONFIG = {
   layoutType: "layout_06",
@@ -56,9 +57,9 @@ export const createProvider: RequestHandler<"CREATE_PROVIDER"> = async ({ reques
 export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = async ({ requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
   const config = asRecord(payload.config);
-  const publicConfig = { ...config };
+  const publicConfig = publicProviderData(config);
   delete publicConfig.config;
-  const integrations = asRecord(publicConfig.integrations);
+  const integrations = asRecord(config.integrations);
   delete publicConfig.integrations;
 
   const providerRef = db.collection("provedores").doc(payload.providerId);
@@ -80,7 +81,7 @@ export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = as
 export const updateProviderDetails: RequestHandler<"UPDATE_PROVIDER_DETAILS"> = async ({ requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
   const details = asRecord(payload.details);
-  const publicDetails = { ...details };
+  const publicDetails = publicProviderData(details);
   delete publicDetails.apiToken;
   delete publicDetails.token;
   delete publicDetails.password;

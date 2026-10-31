@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { verifyToken } from "../middlewares/auth";
+import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore, serverTimestamp } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
 
 export const ticketsRouter = Router();
-ticketsRouter.use(verifyToken);
+ticketsRouter.use(verifyToken, verifyAdmin);
 
 async function requireTicket(req: Express.Request, ticketId: string) {
   const ticket = await firestore.collection("tickets").doc(ticketId).get();

@@ -23,3 +23,21 @@ test('expires completed jobs after the configured retention period', () => {
 
     assert.equal(store.get('job-1'), null);
 });
+
+test('preserves history and reports interrupted builds after restart', () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'unify-build-jobs-'));
+    try {
+        const file = path.join(directory, 'jobs.json');
+        const first = new BuildJobStore(undefined, file);
+        first.create('completed', { ownerUid: 'admin', providerId: 'alpha' });
+        first.update('completed', { status: 'succeeded', completedAt: Date.now() });
+        first.create('interrupted', { providerId: 'beta' });
+        const restored = new BuildJobStore(undefined, file);
+        assert.equal(restored.get('completed').status, 'succeeded');
+        assert.equal(restored.get('interrupted').status, 'failed');
+        assert.match(restored.get('interrupted').error, /reinício/);
+    } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});

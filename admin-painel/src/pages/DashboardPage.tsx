@@ -8,6 +8,7 @@ import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import StatsCard from '@/components/StatsCard';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { reportPanelReady } from '@/shared/api/panelTiming';
 
 interface ChartData { name: string; clientes: number; }
 interface RecentTicket {
@@ -26,6 +27,8 @@ export default function DashboardPage() {
     const [chartData, setChartData] = useState<ChartData[]>([]);
     const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => { if (!loading && user) reportPanelReady(user); }, [loading, user]);
 
     useEffect(() => {
         if (userRole !== 'superAdmin' || !user) {

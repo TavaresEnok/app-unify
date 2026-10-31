@@ -45,6 +45,9 @@ export default function ProviderClientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalClients, setTotalClients] = useState(0);
+    const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined]);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
+    const [syncJobId, setSyncJobId] = useState<string | null>(null);
 
     const debouncedSearchTerm = useDebounce(searchTerm, 300); // Aguarda 300ms após o usuário parar de digitar
     const pageCount = Math.ceil(totalClients / ITEMS_PER_PAGE);
@@ -60,7 +63,7 @@ export default function ProviderClientsPage() {
             setLoading(true);
         }
 
-        const offset = (page - 1) * ITEMS_PER_PAGE;
+
         try {
             const result = await callFunction('SGP_API_PROXY', {
                 providerId,
@@ -72,26 +75,51 @@ export default function ProviderClientsPage() {
                         omitir_titulos: 1
                 } : {
                         limit: ITEMS_PER_PAGE,
-                        offset: offset,
+                        ...(pageCursors[page - 1] ? { cursor: pageCursors[page - 1] } : {}),
                         searchTerm: search
                 },
             });
 
             if (isSyncAction) {
-                toast.success("Sincronização concluída!", { description: `${result.count || 0} clientes foram salvos.` });
-                setSearchTerm('');
-                setCurrentPage(1);
+                setSyncJobId(String(result.jobId));
+                toast.info("Sincronização em andamento. Você pode acompanhar nesta página.");
             } else {
                 setClients((result.clientes || []) as unknown as SgpClient[]);
                 setTotalClients(result.paginacao?.total || 0);
+                setNextCursor(result.paginacao?.nextCursor || null);
             }
         } catch (error) {
             console.error("Falha na operação de clientes", error);
+            if (isSyncAction) setIsSyncing(false);
         } finally {
             setLoading(false);
-            setIsSyncing(false);
+            if (!isSyncAction) setIsSyncing(false);
         }
-    }, [providerId, user, callFunction]);
+    }, [providerId, user, callFunction, pageCursors]);
+
+    useEffect(() => {
+        if (!syncJobId || !providerId) return;
+        let stopped = false;
+        let timer: ReturnType<typeof setTimeout>;
+        const poll = async () => {
+            try {
+                const result = await callFunction('SGP_API_PROXY', { providerId, action: 'status', params: { jobId: syncJobId } }, { silent: true });
+                if (stopped) return;
+                if (result.status === 'completed' || result.status === 'failed') {
+                    setSyncJobId(null);
+                    setIsSyncing(false);
+                    setPageCursors([undefined]);
+                    setCurrentPage(1);
+                    if (result.status === 'completed') toast.success('Sincronização concluída.');
+                    else toast.error('A sincronização falhou. Tente novamente.');
+                    return;
+                }
+            } catch { /* Uma interrupção de rede não cancela o trabalho no servidor. */ }
+            if (!stopped) timer = setTimeout(poll, 5000);
+        };
+        void poll();
+        return () => { stopped = true; clearTimeout(timer); };
+    }, [syncJobId, providerId, callFunction]);
 
     // Efeito para buscar os clientes do cache ao carregar ou mudar de página/busca
     useEffect(() => {
@@ -103,6 +131,8 @@ export default function ProviderClientsPage() {
     // Handler para o input de busca
     const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(event.target.value);
+        setPageCursors([undefined]);
+        setNextCursor(null);
         setCurrentPage(1); // Volta para a primeira página sempre que uma nova busca é feita
     };
 
@@ -193,7 +223,7 @@ export default function ProviderClientsPage() {
                     </span>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || loading}>Anterior</Button>
-                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount || loading}>Próxima</Button>
+                        <Button variant="outline" size="sm" onClick={() => { if (nextCursor) { setPageCursors(values => [...values.slice(0, currentPage), nextCursor]); setCurrentPage(p => p + 1); } }} disabled={!nextCursor || loading}>Próxima</Button>
                     </div>
                 </div>
             )}

@@ -41,15 +41,18 @@ test("provider public config is readable but secrets are restricted", async () =
   const anonymous = environment.unauthenticatedContext().firestore();
   await assertSucceeds(getDoc(doc(anonymous, "provedores", "alpha")));
   await assertFails(getDoc(doc(anonymous, "provedores", "alpha", "secrets", "sgp")));
-  const admin = environment.authenticatedContext("admin-alpha", { providerId: "alpha" }).firestore();
+  const admin = environment.authenticatedContext("admin-alpha", { providerId: "alpha", role: "providerAdmin" }).firestore();
   await assertSucceeds(getDoc(doc(admin, "provedores", "alpha", "secrets", "sgp")));
   await assertFails(setDoc(doc(admin, "provedores", "alpha"), {
     integrations: { apiToken: "must-not-be-public" },
   }, { merge: true }));
+  for (const data of [{ details: { apiToken: "private" } }, { config: { password: "private" } }, { token: "private" }]) {
+    await assertFails(setDoc(doc(admin, "provedores", "alpha"), data, { merge: true }));
+  }
 });
 
 test("function request creation is bound to the authenticated uid", async () => {
-  const db = environment.authenticatedContext("requester").firestore();
+  const db = environment.authenticatedContext("requester", { role: "providerAdmin", providerId: "alpha" }).firestore();
   await assertSucceeds(setDoc(doc(db, "function_requests", "valid"), {
     type: "GET_DASHBOARD_DATA",
     requesterUid: "requester",
@@ -71,7 +74,7 @@ test("function request creation is bound to the authenticated uid", async () => 
 });
 
 test("notifications and audits remain tenant scoped", async () => {
-  const alpha = environment.authenticatedContext("admin-alpha", { providerId: "alpha" }).firestore();
+  const alpha = environment.authenticatedContext("admin-alpha", { providerId: "alpha", role: "providerAdmin" }).firestore();
   await assertSucceeds(getDoc(doc(alpha, "notifications", "alpha-notification")));
   await assertFails(getDoc(doc(alpha, "notifications", "beta-notification")));
   await assertFails(getDoc(doc(alpha, "audit_logs", "entry")));
@@ -83,7 +86,7 @@ test("notifications and audits remain tenant scoped", async () => {
 test("storage keeps public assets readable and ticket attachments private", async () => {
   const anonymous = environment.unauthenticatedContext().storage();
   await assertSucceeds(getBytes(ref(anonymous, "providers/alpha/logo.png")));
-  const client = environment.authenticatedContext("client-alpha").storage();
+  const client = environment.authenticatedContext("client-alpha", { role: "subscriber", providerId: "alpha", cpfCnpj: "12345678901" }).storage();
   await assertSucceeds(uploadBytes(
     ref(client, "providers/alpha/ticket_attachments/evidence.png"),
     new Uint8Array([1, 2, 3]),
@@ -95,6 +98,24 @@ test("storage keeps public assets readable and ticket attachments private", asyn
     new Uint8Array([1, 2, 3]),
     { contentType: "image/png" },
   ));
-  const admin = environment.authenticatedContext("admin-alpha", { providerId: "alpha" }).storage();
+  const admin = environment.authenticatedContext("admin-alpha", { providerId: "alpha", role: "providerAdmin" }).storage();
   await assertSucceeds(deleteObject(ref(admin, "providers/alpha/logo.png")));
+});
+
+
+test("subscriber and legacy tenant claims cannot grant administration", async () => {
+  for (const claims of [{ providerId: "alpha" }, { providerId: "alpha", role: "subscriber", cpfCnpj: "12345678901" }]) {
+    const db = environment.authenticatedContext("subscriber", claims).firestore();
+    await assertFails(getDoc(doc(db, "provedores", "alpha", "secrets", "sgp")));
+    await assertFails(setDoc(doc(db, "provedores", "alpha"), { name: "forged" }, { merge: true }));
+    await assertFails(getDoc(doc(db, "clientes", "client-alpha")));
+    await assertFails(setDoc(doc(db, "provedores", "alpha", "incidents", "forged"), { active: true }));
+  }
+});
+
+
+test("subscriber cannot submit administrative queue work", async () => {
+  const db = environment.authenticatedContext("subscriber", { role: "subscriber", providerId: "alpha", cpfCnpj: "12345678901" }).firestore();
+  await assertFails(setDoc(doc(db, "function_requests", "subscriber-admin"), { type: "UPDATE_PROVIDER_CONFIG", requesterUid: "subscriber", payload: { providerId: "alpha" } }));
+  await assertSucceeds(setDoc(doc(db, "function_requests", "subscriber-ticket"), { type: "CREATE_TICKET", requesterUid: "subscriber", payload: { providerId: "alpha" } }));
 });

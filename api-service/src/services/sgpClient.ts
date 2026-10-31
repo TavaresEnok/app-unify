@@ -1,3 +1,5 @@
+import { redis, cacheRedis } from "./redis";
+import { createUpstream, readTtl } from "./upstream-runtime";
 import axios, { type AxiosInstance } from "axios";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
@@ -80,7 +82,7 @@ export async function assertSafeSgpBaseUrl(baseUrl: string): Promise<string> {
  * fallback para o .env — isso mandaria o CPF de um provedor ao SGP de outro.
  * Sem provedor (assinante legado fora de `clientes`), usa o SGP global.
  */
-export async function resolveSgpCredentials(providerId?: string): Promise<SgpCredentials> {
+async function loadSgpCredentials(providerId?: string): Promise<SgpCredentials> {
   if (!providerId) {
     if (!env.sgpToken || !env.sgpAppName) throw new ApiError(503, "Credenciais do SGP não configuradas no servidor.", "service-unavailable");
     return { baseUrl: await assertSafeSgpBaseUrl(env.sgpBaseUrl), token: env.sgpToken, app: env.sgpAppName };
@@ -104,12 +106,42 @@ export async function resolveSgpCredentials(providerId?: string): Promise<SgpCre
   return { baseUrl: await assertSafeSgpBaseUrl(baseUrl), token, app, providerId };
 }
 
-export function createSgpSession(): AxiosInstance {
-  return axios.create({
+const credentialCache = new Map<string, { expires: number; value: Promise<SgpCredentials> }>();
+export async function resolveSgpCredentials(providerId?: string): Promise<SgpCredentials> {
+  if (!providerId || process.env.NODE_ENV === "test") return loadSgpCredentials(providerId);
+  const cached = credentialCache.get(providerId);
+  if (cached && cached.expires > Date.now()) return cached.value;
+  if (credentialCache.size >= 128) credentialCache.delete(credentialCache.keys().next().value!);
+  const value = loadSgpCredentials(providerId);
+  credentialCache.set(providerId, { value, expires: Date.now() + 15000 });
+  try { return await value; } catch (error) { credentialCache.delete(providerId); throw error; }
+}
+
+const sgpAgent = new https.Agent({ rejectUnauthorized: env.sgpRejectUnauthorized, keepAlive: true, maxSockets: 16, maxTotalSockets: 128, maxFreeSockets: 8 });
+const upstream = createUpstream({ getRedis: () => redis, getCacheRedis: () => cacheRedis });
+
+export function createSgpSession(providerId = "legacy"): AxiosInstance {
+  const session = axios.create({
     timeout: 30_000,
-    httpsAgent: new https.Agent({ rejectUnauthorized: env.sgpRejectUnauthorized }),
+    maxContentLength: 8 * 1024 * 1024,
+    maxBodyLength: 1024 * 1024,
+    httpsAgent: sgpAgent,
     headers: { "User-Agent": "Unify-API/1.0", "Content-Type": "application/json" },
   });
+  const post = session.post.bind(session);
+  if (process.env.NODE_ENV !== "test") {
+    session.post = async (url, body, config) => {
+      try {
+        const data = await upstream.execute({ providerId, url: String(url), body, ttl: readTtl(String(url)), mutate: /liberacaopromessa|wifi\/update/.test(String(url)) },
+          async () => (await post(url, body, config)).data);
+        return { data, status: 200, statusText: "OK", headers: {}, config: {} } as never;
+      } catch (error) {
+        if ((error as { status?: number }).status === 503) throw new ApiError(503, "SGP ocupado ou indisponível. Tente novamente.", "unavailable");
+        throw error;
+      }
+    };
+  }
+  return session;
 }
 
 /** Todos os contratos do CPF/CNPJ no SGP do provedor, já normalizados. */

@@ -30,6 +30,7 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     method: req.method,
     path: req.path,
   }));
+  if (apiError.status === 503) res.setHeader("Retry-After", "3");
   res.status(apiError.status).json({
     error: { message: apiError.message, code: apiError.code, correlationId: req.correlationId },
   });

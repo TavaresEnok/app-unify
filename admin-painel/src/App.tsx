@@ -7,13 +7,14 @@ import MainLayout from "@/components/MainLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ProviderSettingsLayout from "@/components/ProviderSettingsLayout";
 import { Loader2 } from 'lucide-react';
+import { loadGlobalDashboardPage, loadProviderDashboardPage } from '@/app/dashboardPreload';
 
 // Lazy Imports for Performance
 const DashboardBuilder = lazy(() => import('./pages/provider-settings/DashboardBuilder'));
 const NotificationsManager = lazy(() => import('./pages/provider-settings/NotificationsManager'));
 const PromotionsManager = lazy(() => import('./pages/provider-settings/PromotionsManager'));
 const SplashLoginConfig = lazy(() => import('./pages/provider-settings/SplashLoginConfig'));
-const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const DashboardPage = lazy(loadGlobalDashboardPage);
 const ProvidersPage = lazy(() => import("@/pages/ProvidersPage"));
 const ProviderDetailPage = lazy(() => import("@/pages/ProviderDetailPage"));
 const UsersPage = lazy(() => import("@/pages/UsersPage"));
@@ -35,7 +36,7 @@ const IntegrationsSettings = lazy(() => import("@/pages/provider-settings/Integr
 const PersonalizedTextsSettings = lazy(() => import("@/pages/provider-settings/PersonalizedTextsSettings"));
 const TermsOfUseSettings = lazy(() => import("@/pages/provider-settings/TermsOfUseSettings"));
 const ForceUpdate = lazy(() => import("@/pages/provider-settings/ForceUpdate"));
-const ProviderDashboardPage = lazy(() => import("./pages/provider/ProviderDashboardPage"));
+const ProviderDashboardPage = lazy(loadProviderDashboardPage);
 const NotificationSenderPage = lazy(() => import("./pages/provider/NotificationSenderPage"));
 const ProviderClientsPage = lazy(() => import("./pages/provider/ProviderClientsPage"));
 const DiagnosticHistoryPage = lazy(() => import("./pages/provider/DiagnosticHistoryPage"));

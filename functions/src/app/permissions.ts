@@ -5,7 +5,9 @@ import { AppError } from "./errors";
 export async function requireRequester(requesterUid: string): Promise<UserRecord> {
   if (!requesterUid) throw new AppError("unauthenticated", "RequesterUID é obrigatório.");
   try {
-    return await auth.getUser(requesterUid);
+    const user = await auth.getUser(requesterUid);
+    if (user.disabled) throw new Error("disabled");
+    return user;
   } catch {
     throw new AppError("unauthenticated", "Utilizador não encontrado.");
   }
@@ -33,7 +35,7 @@ export async function requireProviderAccess(
   providerId: string,
 ): Promise<UserRecord> {
   const user = await requireRequester(requesterUid);
-  if (!isSuperAdmin(user) && requesterProviderId(user) !== providerId) {
+  if (!isSuperAdmin(user) && (user.customClaims?.role !== "providerAdmin" || requesterProviderId(user) !== providerId)) {
     throw new AppError("permission-denied", "Permissão negada para este provedor.");
   }
   return user;

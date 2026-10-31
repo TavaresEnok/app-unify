@@ -66,7 +66,9 @@ class NotificationService with ChangeNotifier {
       final cpfQuery = await FirebaseFirestore.instance
           .collection('notifications')
           .where('targetCpf', isEqualTo: user.cpfCnpj)
+          .where('providerId', isEqualTo: providerId)
           .where('createdAt', isGreaterThanOrEqualTo: sevenDaysAgo)
+          .limit(50)
           .get();
 
       // Apenas broadcasts do provedor (targetCpf == null). Notificações
@@ -79,31 +81,14 @@ class NotificationService with ChangeNotifier {
           .limit(50)
           .get();
 
-      // Fallback Query: Also fetch 'vibe' if providerId is different
-      // This ensures we catch notifications sent via Admin Panel if it uses 'vibe' hardcoded
-      var fallbackDocs = <QueryDocumentSnapshot>[];
-      if (providerId != 'vibe') {
-        final fallbackQuery = await FirebaseFirestore.instance
-            .collection('notifications')
-            .where('providerId', isEqualTo: 'vibe')
-            .where('targetCpf', isEqualTo: null)
-            .limit(50)
-            .get();
-        fallbackDocs = fallbackQuery.docs;
-      }
-
-      final allDocs = [
-        ...cpfQuery.docs,
-        ...providerQuery.docs,
-        ...fallbackDocs
-      ];
+      final allDocs = [...cpfQuery.docs, ...providerQuery.docs];
       // Deduplicate by ID
       final uniqueDocs = {for (var d in allDocs) d.id: d}.values;
 
       bool changed = false;
 
       for (var doc in uniqueDocs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final String nId = doc.id;
         final timestamp = (data['createdAt'] as Timestamp?)?.toDate();
 

@@ -142,3 +142,7 @@ Leitura restrita a superAdmin.
 - Storage: `storage.rules`
 - Indices: `firestore.indexes.json`
 - Testes: `tests/firestore-rules.test.mjs`
+
+## Identidades explícitas (2026-10-29)
+
+Novos assinantes usam UID `subscriber:{providerId}:{cpf}` e claims `role=subscriber`, `providerId`, `cpfCnpj`. `clientes/{uid}` é o perfil autenticado; o documento antigo por CPF do mesmo provedor é migrado com backup no primeiro login com senha. Administradores exigem `role=providerAdmin`; permissões administrativas não são inferidas apenas do vínculo de provedor.

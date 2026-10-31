@@ -14,14 +14,19 @@ function cpfDigits(body: unknown): string {
  * Resolve o provedor dono de um CPF a partir da coleção `clientes` (id do
  * documento = CPF apenas dígitos, com fallback por campo `cpfCnpj`).
  */
-export async function providerOfCpf(digits: string): Promise<string | undefined> {
+export async function providerOfCpf(digits: string, expectedProvider?: string): Promise<string | undefined> {
   const direct = await firestore.collection("clientes").doc(digits).get();
   if (direct.exists) {
     const providerId = direct.data()?.providerId;
-    return typeof providerId === "string" ? providerId : undefined;
+    if (typeof providerId === "string" && (!expectedProvider || providerId === expectedProvider)) return providerId;
   }
-  const matches = await firestore.collection("clientes")
-    .where("cpfCnpj", "==", digits).limit(1).get();
+  let query: FirebaseFirestore.Query = firestore.collection("clientes").where("cpfCnpj", "==", digits);
+  if (expectedProvider) query = query.where("providerId", "==", expectedProvider);
+  const matches = await query.limit(1).get();
+  if (!matches.docs.length && expectedProvider) {
+    const cached = await firestore.collection("provedores").doc(expectedProvider).collection("clientes").doc(digits).get();
+    if (cached.exists) return expectedProvider;
+  }
   const providerId = matches.docs[0]?.data()?.providerId;
   return typeof providerId === "string" ? providerId : undefined;
 }
@@ -43,14 +48,14 @@ export async function assertCpfInTenant(req: Request): Promise<void> {
   if (!digits) throw new ApiError(400, "CPF/CNPJ é obrigatório.", "invalid-argument");
 
   // Assinante acessando o próprio contrato — vínculo já vem do token.
-  if (req.user?.uid === digits) return;
+  if (req.user?.role === "subscriber" && req.user.cpfCnpj === digits && typeof req.user.providerId === "string") return;
 
   const callerProvider = req.user?.providerId;
-  if (typeof callerProvider !== "string") {
+  if (req.user?.role !== "providerAdmin" || typeof callerProvider !== "string") {
     throw new ApiError(403, "Você só pode acessar os seus próprios dados.", "permission-denied");
   }
 
-  const owner = await providerOfCpf(digits);
+  const owner = await providerOfCpf(digits, callerProvider);
   if (!owner || owner !== callerProvider) {
     throw new ApiError(403, "Este cliente não pertence ao seu provedor.", "permission-denied");
   }

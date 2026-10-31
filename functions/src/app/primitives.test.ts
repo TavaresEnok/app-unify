@@ -1,6 +1,11 @@
-const getUser = jest.fn();
+import { describe, it, test, expect, beforeEach, vi } from "vitest";
+const { getUser } = vi.hoisted(() => {
+const getUser = vi.fn();
+return { getUser };
+});
 
-jest.mock("./firebase", () => ({
+
+vi.mock("./firebase", () => ({
   auth: { getUser },
 }));
 
@@ -50,7 +55,7 @@ describe("permission checks", () => {
   it("reads claims without coercing invalid provider identifiers", () => {
     expect(isSuperAdmin(user({ superAdmin: true }))).toBe(true);
     expect(isSuperAdmin(user({ superAdmin: "true" }))).toBe(false);
-    expect(requesterProviderId(user({ providerId: "provider-1" }))).toBe("provider-1");
+    expect(requesterProviderId(user({ role: "providerAdmin", providerId: "provider-1" }))).toBe("provider-1");
     expect(requesterProviderId(user({ providerId: 123 }))).toBeUndefined();
   });
 
@@ -63,9 +68,9 @@ describe("permission checks", () => {
   });
 
   it("allows only the matching provider or a super admin", async () => {
-    getUser.mockResolvedValueOnce(user({ providerId: "provider-1" }));
+    getUser.mockResolvedValueOnce(user({ role: "providerAdmin", providerId: "provider-1" }));
     await expect(requireProviderAccess("user-1", "provider-1")).resolves.toBeDefined();
-    getUser.mockResolvedValueOnce(user({ providerId: "provider-2" }));
+    getUser.mockResolvedValueOnce(user({ role: "providerAdmin", providerId: "provider-2" }));
     await expect(requireProviderAccess("user-1", "provider-1")).rejects.toMatchObject({ code: "permission-denied" });
     getUser.mockResolvedValueOnce(user({ superAdmin: true }));
     await expect(requireProviderAccess("user-1", "provider-1")).resolves.toBeDefined();

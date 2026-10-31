@@ -8,11 +8,11 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return signedIn() && request.auth.token.superAdmin == true;
+      return signedIn() && request.auth.token.get('superAdmin', false) == true;
     }
 
     function isProviderAdmin(providerId) {
-      return signedIn() && request.auth.token.providerId == providerId;
+      return signedIn() && request.auth.token.get('role', '') == 'providerAdmin' && request.auth.token.get('providerId', '') == providerId;
     }
 
     function canManageProvider(providerId) {
@@ -20,10 +20,7 @@ service cloud.firestore {
     }
 
     function isClientOfProvider(providerId) {
-      return signedIn() && (
-        request.auth.token.providerId == providerId ||
-        get(/databases/$(database)/documents/clientes/$(request.auth.uid)).data.providerId == providerId
-      );
+      return signedIn() && request.auth.token.get('role', '') == 'subscriber' && request.auth.token.get('providerId', '') == providerId;
     }
 
     function isOwnFunctionRequest() {
@@ -34,6 +31,8 @@ service cloud.firestore {
       // campo do payload.
       let data = request.resource.data;
       return signedIn() &&
+        (isSuperAdmin() || request.auth.token.get('role', '') == 'providerAdmin' ||
+         (request.auth.token.get('role', '') == 'subscriber' && data.type in ['CREATE_TICKET', 'REPLY_TO_TICKET'])) &&
         data.keys().hasAll(['requesterUid']) &&
         data.requesterUid == request.auth.uid &&
         (
@@ -52,7 +51,8 @@ service cloud.firestore {
       return signedIn() && (
         isSuperAdmin() ||
         isProviderAdmin(providerId) ||
-        request.auth.uid == createdByUid
+        request.auth.uid == createdByUid ||
+        (isClientOfProvider(providerId) && request.auth.token.get('cpfCnpj', '') == createdByUid)
       );
     }
 
@@ -68,17 +68,25 @@ service cloud.firestore {
         'lastUpdated'
       ]) && request.resource.data.providerId is string &&
       request.resource.data.authUid == request.auth.uid &&
+      request.auth.token.get('role', '') == 'subscriber' &&
+      request.resource.data.cpfCnpj == request.auth.token.get('cpfCnpj', '') &&
       // O cliente não pode se auto-registrar em um provedor arbitrário: o
       // providerId gravado DEVE ser o do claim do token (emitido no login pelo
       // proxy-sgp após validação no SGP). Impede acesso cross-tenant (A1).
-      request.resource.data.providerId == request.auth.token.providerId;
+      request.resource.data.providerId == request.auth.token.get('providerId', '');
+    }
+
+    function hasNoCredentials(data) {
+      return !data.keys().hasAny(['integrations', 'apiToken', 'api_token', 'token', 'password', 'senha', 'secret']);
     }
 
     function publicProviderDataValid() {
-      return !request.resource.data.keys().hasAny(['integrations']) &&
+      return hasNoCredentials(request.resource.data) &&
+        (!request.resource.data.keys().hasAny(['details']) ||
+         !(request.resource.data.details is map) || hasNoCredentials(request.resource.data.details)) &&
         (!request.resource.data.keys().hasAny(['config']) ||
          !(request.resource.data.config is map) ||
-         !request.resource.data.config.keys().hasAny(['integrations']));
+         hasNoCredentials(request.resource.data.config));
     }
 
     // Configurações do provedor — leitura pública necessária para o app carregar
@@ -127,7 +135,7 @@ service cloud.firestore {
 
     // Clientes: leitura restrita ao admin do provedor, superAdmin, ou ao próprio cliente
     match /clientes/{clientId} {
-      allow read: if isSuperAdmin() || (signedIn() && resource.data.providerId == request.auth.token.providerId) || (signedIn() && request.auth.uid == clientId);
+      allow read: if isSuperAdmin() || isProviderAdmin(resource.data.providerId) || (signedIn() && request.auth.uid == clientId);
       allow create: if signedIn() && (
         isSuperAdmin() ||
         isProviderAdmin(request.resource.data.providerId) ||
@@ -174,7 +182,7 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read: if isSuperAdmin()
         || isProviderAdmin(resource.data.providerId)
-        || (signedIn() && resource.data.targetCpf == request.auth.uid)
+        || (signedIn() && request.auth.token.get('role', '') == 'subscriber' && resource.data.providerId == request.auth.token.get('providerId', '') && resource.data.targetCpf == request.auth.token.get('cpfCnpj', ''))
         || (signedIn() && resource.data.targetCpf == null && isClientOfProvider(resource.data.providerId));
       allow write: if false;
     }

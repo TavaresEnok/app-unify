@@ -14,18 +14,13 @@ function docRef(path: string): any {
   };
 }
 
-function collectionRef(path: string): any {
+function collectionRef(path: string, filters: Array<[string, unknown]> = []): any {
   return {
     doc: (id: string) => docRef(`${path}/${id}`),
-    where: (field: string, _op: string, value: unknown) => ({
-      limit: () => ({
-        get: async () => ({
-          docs: [...docs.entries()]
-            .filter(([key, data]) => key.startsWith(`${path}/`) && data[field] === value)
-            .map(([, data]) => ({ exists: true, data: () => data })),
-        }),
-      }),
-    }),
+    where: (field: string, _op: string, value: unknown) => collectionRef(path, [...filters, [field, value]]),
+    limit: () => ({ get: async () => ({ docs: [...docs.entries()]
+      .filter(([key, data]) => key.startsWith(`${path}/`) && filters.every(([field, value]) => data[field] === value))
+      .map(([, data]) => ({ exists: true, data: () => data })) }) }),
   };
 }
 
@@ -76,8 +71,8 @@ beforeEach(() => {
   docs.set("provedores/p1/secrets/sgp", { integrations: { apiToken: "tok-p1", appName: "app-p1" } });
   docs.set("provedores/p2", {});
   docs.set("provedores/p2/secrets/sgp", { integrations: { apiToken: "tok-p2", appName: "app-p2", sgpBaseUrl: "https://p2.sgp.net.br" } });
-  docs.set(`clientes/${CPF}`, { providerId: "p2" });
-  tokens.set("sub", { uid: CPF });
+  docs.set(`clientes/${CPF}`, { providerId: "p2", cpfCnpj: CPF });
+  tokens.set("sub", { uid: `subscriber:p2:${CPF}`, role: "subscriber", cpfCnpj: CPF, providerId: "p2" });
   sgpResponses = {
     "/ws/ura/consultacliente/": () => ({ contratos: [contrato(1, 0), contrato(2, 99.9)] }),
   };
@@ -102,7 +97,7 @@ describe("credenciais SGP por provedor", () => {
   });
 
   it("prefere o providerId do token do assinante", async () => {
-    tokens.set("sub", { uid: CPF, providerId: "p1" });
+    tokens.set("sub", { uid: `subscriber:p1:${CPF}`, role: "subscriber", cpfCnpj: CPF, providerId: "p1" });
     await request(app).post("/getClientData").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(200);
     expect(calls[0].url).toBe("https://p1.sgp.net.br/ws/ura/consultacliente/");
     expect(calls[0].body.token).toBe("tok-p1");
@@ -116,8 +111,8 @@ describe("credenciais SGP por provedor", () => {
   });
 
   it("bloqueia admin de outro provedor e libera o do provedor dono", async () => {
-    tokens.set("adm-p1", { uid: "a1", providerId: "p1" });
-    tokens.set("adm-p2", { uid: "a2", providerId: "p2" });
+    tokens.set("adm-p1", { uid: "a1", providerId: "p1", role: "providerAdmin" });
+    tokens.set("adm-p2", { uid: "a2", providerId: "p2", role: "providerAdmin" });
     await request(app).post("/getClientData").set(asSubscriber("adm-p1")).send({ cpfCnpj: CPF }).expect(403);
     await request(app).post("/getClientData").set(asSubscriber("adm-p2")).send({ cpfCnpj: CPF }).expect(200);
     expect(calls[0].body.token).toBe("tok-p2");
@@ -206,5 +201,19 @@ describe("assertSafeSgpBaseUrl", () => {
 
   it("aceita host público e remove a barra final", async () => {
     await expect(assertSafeSgpBaseUrl("https://p1.sgp.net.br/")).resolves.toBe("https://p1.sgp.net.br");
+  });
+});
+
+
+describe("explicit authorization roles", () => {
+  it("rejects a legacy token with only providerId", async () => {
+    tokens.set("legacy", { uid: "legacy", providerId: "p2" });
+    await request(app).post("/getClientData").set(asSubscriber("legacy")).send({ cpfCnpj: CPF }).expect(403);
+    expect(calls).toHaveLength(0);
+  });
+  it("rejects a subscriber requesting a peer in the same tenant", async () => {
+    docs.set("clientes/peer", { providerId: "p2", cpfCnpj: "99999999999" });
+    await request(app).post("/getClientData").set(asSubscriber()).send({ cpfCnpj: "99999999999" }).expect(403);
+    expect(calls).toHaveLength(0);
   });
 });

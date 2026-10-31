@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Timestamp } from "firebase/firestore";
+import { timestampDate, type TimestampValue } from '@/shared/api/timestamp';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Send, Smartphone, Star, TrendingUp, Users } from "lucide-react";
 import { ProviderDashboardSkeleton } from '@/components/ProviderDashboardSkeleton';
@@ -11,12 +11,13 @@ import StatsCard from '@/components/StatsCard';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { reportPanelReady } from '@/shared/api/panelTiming';
 
 interface RecentTicket {
     id: string;
     subject: string;
     status: 'Aberto' | 'Em Andamento' | 'Fechado';
-    updatedAt?: Timestamp;
+    updatedAt?: TimestampValue;
 }
 
 export default function ProviderDashboardPage() {
@@ -26,6 +27,8 @@ export default function ProviderDashboardPage() {
     const [stats, setStats] = useState({ totalClients: 0, openTicketsCount: 0 });
     const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => { if (!loading && user) reportPanelReady(user); }, [loading, user]);
 
     const fetchDashboardData = useCallback(async () => {
         if (!providerId || !user) {
@@ -127,7 +130,7 @@ export default function ProviderDashboardPage() {
                                     <span className="truncate text-[13px] font-semibold text-[#1A2233]">{ticket.subject}</span>
                                     <StatusBadge status={ticket.status} className="justify-self-end" />
                                     <span className="col-span-2 font-mono text-[11.5px] text-[#98A1B1]">
-                                        {ticket.updatedAt ? format(ticket.updatedAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}
+                                        {timestampDate(ticket.updatedAt) ? format(timestampDate(ticket.updatedAt)!, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}
                                     </span>
                                 </button>
                             ))

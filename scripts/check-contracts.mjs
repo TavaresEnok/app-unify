@@ -15,6 +15,16 @@ for (const target of targets) {
   if (contents !== expected) stale.push(target);
 }
 
+const runtime = await readFile(resolve("shared/runtime/upstream.js"), "utf8");
+for (const target of ["proxy-sgp/lib/upstream.js", "api-service/src/services/upstream-runtime.js"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== runtime) stale.push(target);
+}
+
+const dashboard = await readFile(resolve("shared/runtime/dashboard.ts"), "utf8");
+for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/services/dashboardData.ts"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== dashboard) stale.push(target);
+}
+
 if (stale.length) {
   console.error(`Contratos desatualizados: ${stale.join(", ")}. Execute npm run contracts:sync.`);
   process.exit(1);

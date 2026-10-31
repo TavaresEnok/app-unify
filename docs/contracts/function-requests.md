@@ -94,3 +94,11 @@ Todos os tipos usados pelo painel/app possuem handler registrado em
 - `functions/src/contracts.test.ts` valida nomes e payloads.
 - `functions/src/handlers.test.ts` garante que todos os tipos possuem handler.
 - `admin-painel/src/shared/api/functionRequests.ts` aplica timeout e cleanup de listener.
+
+## Atualização de capacidade (2026-10-29)
+
+- `LIST_PROVIDER_CLIENTS`: aceita `limit` (máximo 50), `cursor` e `search`; retorna `{items,total,nextCursor}`.
+- `SGP_API_PROXY/get`: usa `params.cursor`; `paginacao.nextCursor` substitui o avanço por offset no painel.
+- `SGP_API_PROXY/sync`: agenda e retorna `jobId`; `action=status` com `params.jobId` consulta progresso, `completed` ou `failed`.
+- Administradores exigem `role=providerAdmin`; `providerId` isolado não concede administração.
+- Respostas acima de 700 KB são rejeitadas antes da gravação. Requisições, respostas e locks antigos têm limpeza agendada.

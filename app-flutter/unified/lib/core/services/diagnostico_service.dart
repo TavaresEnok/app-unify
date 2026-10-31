@@ -841,14 +841,14 @@ class DiagnosticoService {
     if (!_currentState.isTesting) return;
     String? customUrl = providerConfig.config.other?.speedTestUrl;
 
-    // Default: Infer local server from API URL (same host, port 3001)
+    // Usa HTTPS e o proxy do domínio; o servidor pode ser movido sem novo APK.
     String defaultSpeedTestUrl =
         'https://librespeed.org'; // Fallback of fallback
     try {
       final apiUri = Uri.parse(providerConfig.apiUrl);
       if (apiUri.host.isNotEmpty) {
-        // Assume SpeedTest is adjacent on port 8033 (migrated from 3001)
-        defaultSpeedTestUrl = 'http://${apiUri.host}:8033';
+        // Caminho público estável, independente da porta interna.
+        defaultSpeedTestUrl = '${apiUri.scheme}://${apiUri.authority}/speedtest';
       }
     } catch (_) {
       // Ignore parse error, stick to librespeed
@@ -868,6 +868,16 @@ class DiagnosticoService {
       "Iniciando teste (Servidor Próprio)...",
     );
 
+    String serverLimitNote = '';
+    try {
+      final base = Uri.parse(customUrl);
+      final capabilitiesUrl = base.replace(path: '${base.path.replaceAll(RegExp(r"/+$"), "")}/capabilities', query: '');
+      final response = await client.get(capabilitiesUrl).timeout(const Duration(seconds: 3));
+      final capabilities = jsonDecode(response.body);
+      if (capabilities is Map && capabilities['maxMbps'] is num) {
+        serverLimitNote = '\nServidor compartilhado: até ${capabilities["maxMbps"]} Mbps. O resultado não comprova a velocidade total do plano.';
+      }
+    } catch (_) { /* Servidores externos podem não publicar capacidades. */ }
     final completer = Completer<void>();
     _downloadHistoryCounter = 0;
     _uploadHistoryCounter = 0;
@@ -973,7 +983,7 @@ class DiagnosticoService {
           _updateTestState(
             'speedTestCustom',
             TestStatus.success,
-            "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps\nPing: ${latencia.toStringAsFixed(0)} ms",
+            "Download: ${downloadMbps.toStringAsFixed(1)} Mbps\nUpload: ${uploadMbps.toStringAsFixed(1)} Mbps\nPing: ${latencia.toStringAsFixed(0)} ms$serverLimitNote",
           );
 
           _currentState = _currentState.copyWith(

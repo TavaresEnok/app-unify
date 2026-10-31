@@ -1,4 +1,5 @@
 const endpointContracts = [
+  { method: 'POST', path: '/sync-status', owner: 'proxy-sgp', access: 'internal-secret', decision: 'keep' },
   { method: 'POST', path: '/sync-clients', owner: 'proxy-sgp', access: 'internal-secret', decision: 'keep' },
   { method: 'POST', path: '/get-cached-clients', owner: 'proxy-sgp', access: 'internal-secret', decision: 'keep' },
   { method: 'POST', path: '/get-single-client', owner: 'proxy-sgp', access: 'internal-secret', decision: 'keep' },

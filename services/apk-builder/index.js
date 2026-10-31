@@ -26,7 +26,7 @@ const PROJECT_ROOT = process.env.APK_PROJECT_ROOT || process.cwd();
 const LOG_DIR = process.env.APK_LOG_DIR || path.join(PROJECT_ROOT, 'apk', 'logs');
 const BUILD_TIMEOUT_MS = Number(process.env.APK_BUILD_TIMEOUT_MS || 25 * 60 * 1000);
 let activeBuild = null;
-const buildJobs = new BuildJobStore();
+const buildJobs = new BuildJobStore(undefined, process.env.APK_JOB_STATE_PATH);
 if (!fs.existsSync(LOG_DIR)) {
     fs.mkdirSync(LOG_DIR, { recursive: true });
 }
@@ -296,8 +296,8 @@ app.post('/generate-apk', verifySuperAdmin, buildLimiter, async (req, res) => {
         ANDROID_SDK_ROOT: process.env.ANDROID_SDK_ROOT || androidSdkPath,
         // Force Pub Cache to user directory to allow patching
         PUB_CACHE: '/home/app/.pub-cache',
-        // Container limit increased to 4GB. Using 3GB for Gradle.
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:+HeapDumpOnOutOfMemoryError"'
+        // Limite de 3 GB no container; heap do Gradle de 1,5 GB.
+        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx1536m -XX:MaxMetaspaceSize=384m -XX:+HeapDumpOnOutOfMemoryError"'
     };
 
     const pythonCmd = fs.existsSync(PYTHON_BIN) ? PYTHON_BIN : 'python3';

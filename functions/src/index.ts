@@ -14,6 +14,8 @@ const routeRequest = createRequestRouter(handlers);
 export const handleFunctionRequest = onDocumentCreated({
   document: "function_requests/{requestId}",
   region: "southamerica-east1",
+  maxInstances: 10,
+  concurrency: 20,
   timeoutSeconds: 540,
   memory: "512MiB",
   secrets: [proxyUrlSecret, proxySecretParam],
@@ -27,9 +29,9 @@ export const cleanupFunctionDocuments = onSchedule({
   timeZone: "America/Sao_Paulo",
 }, async () => {
   const threshold = Timestamp.now();
-  for (const collectionName of ["function_requests", "function_responses"] as const) {
-    const field = collectionName === "function_requests" ? "createdAt" : "expiresAt";
-    const cutoff = collectionName === "function_requests"
+  for (const collectionName of ["function_requests", "function_responses", "function_locks"] as const) {
+    const field = collectionName === "function_requests" ? "createdAt" : collectionName === "function_locks" ? "claimedAt" : "expiresAt";
+    const cutoff = collectionName !== "function_responses"
       ? Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000)
       : threshold;
     while (true) {

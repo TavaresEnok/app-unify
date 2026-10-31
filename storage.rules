@@ -8,12 +8,12 @@ service firebase.storage {
 
     function canManageProvider(providerId) {
       return signedIn() &&
-             (request.auth.token.superAdmin == true || request.auth.token.providerId == providerId);
+             (request.auth.token.get('superAdmin', false) == true || (request.auth.token.get('role', '') == 'providerAdmin' && request.auth.token.get('providerId', '') == providerId));
     }
 
     function isClientOfProvider(providerId) {
       return signedIn() &&
-             firestore.get(/databases/(default)/documents/clientes/$(request.auth.uid)).data.providerId == providerId;
+             request.auth.token.get('role', '') == 'subscriber' && request.auth.token.get('providerId', '') == providerId;
     }
 
     function validImage() {

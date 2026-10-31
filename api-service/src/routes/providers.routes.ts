@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { canAccessProvider, verifyToken } from "../middlewares/auth";
+import { canAccessProvider, verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore, serverTimestamp } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
 
 export const providersRouter = Router();
-providersRouter.use(verifyToken);
+providersRouter.use(verifyToken, verifyAdmin);
 
 function serialize(id: string, input: FirebaseFirestore.DocumentData) {
   const data = { ...input };

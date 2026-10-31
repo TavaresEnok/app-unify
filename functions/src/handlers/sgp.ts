@@ -1,4 +1,4 @@
-import { FieldValue } from "firebase-admin/firestore";
+import { clientPage } from "../app/clientPage";
 import type { RequestHandler } from "../app/request";
 import { AppError } from "../app/errors";
 import { proxySecretParam, proxyUrlSecret } from "../app/config";
@@ -64,21 +64,12 @@ async function credentials(providerId: string) {
 
 export const sgpApiProxy: RequestHandler<"SGP_API_PROXY"> = async ({ requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
-  const config = await credentials(payload.providerId);
+
   const clientsRef = db.collection("provedores").doc(payload.providerId).collection("clientes");
 
   if (payload.action === "get") {
-    const limit = Math.min(Math.max(Number(payload.params?.limit) || 25, 1), 100);
-    const offset = Math.max(Number(payload.params?.offset) || 0, 0);
-    const searchTerm = String(payload.params?.searchTerm || "").trim();
-    let query: FirebaseFirestore.Query = clientsRef;
-    if (searchTerm) query = query.where("nome", ">=", searchTerm).where("nome", "<=", `${searchTerm}\uf8ff`);
-    query = query.orderBy("nome").offset(offset).limit(limit);
-    const [snapshot, count] = await Promise.all([query.get(), clientsRef.count().get()]);
-    return {
-      clientes: snapshot.docs.map((client) => ({ ...client.data(), contratos: sanitizeContracts(client.data().contratos) })),
-      paginacao: { total: count.data().count, limit, offset },
-    };
+    const page = await clientPage(payload.providerId, { ...payload.params, search: payload.params?.searchTerm });
+    return { clientes: page.items, paginacao: { total: page.total, limit: Math.min(Number(payload.params?.limit) || 25, 50), nextCursor: page.nextCursor } };
   }
 
   if (payload.action === "get_single") {
@@ -91,41 +82,13 @@ export const sgpApiProxy: RequestHandler<"SGP_API_PROXY"> = async ({ requesterUi
     return { ...data, contratos: sanitizeContracts(data.contratos) };
   }
 
-  await postProxy("/sync-clients", {
-    secret: proxySecretParam.value(),
-    providerId: payload.providerId,
-    sgpBaseUrl: config.url,
-    params: { token: config.token, app: config.app },
-  }, 5 * 60_000);
-
-  let offset = 0;
-  let total = 0;
-  const pageSize = 100;
-  while (true) {
-    const page = await postProxy("/get-cached-clients", {
-      secret: proxySecretParam.value(),
-      providerId: payload.providerId,
-      params: { limit: pageSize, offset },
+  if (payload.action === "status") {
+    return await postProxy("/sync-status", {
+      secret: proxySecretParam.value(), providerId: payload.providerId, jobId: payload.params?.jobId,
     });
-    const clients = Array.isArray(page.clientes) ? page.clientes as Array<Record<string, unknown>> : [];
-    if (!clients.length) break;
-    for (let start = 0; start < clients.length; start += 400) {
-      const batch = db.batch();
-      for (const client of clients.slice(start, start + 400)) {
-        const cpf = String(client.cpfcnpj || "").replace(/\D/g, "");
-        if (!cpf) continue;
-        batch.set(clientsRef.doc(cpf), {
-          ...client,
-          contratos: sanitizeContracts(client.contratos),
-          providerId: payload.providerId,
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-      }
-      await batch.commit();
-    }
-    total += clients.length;
-    if (clients.length < pageSize) break;
-    offset += pageSize;
   }
-  return { count: total, message: `Sincronização concluída: ${total} clientes atualizados.` };
+  await credentials(payload.providerId);
+  return await postProxy("/sync-clients", {
+    secret: proxySecretParam.value(), providerId: payload.providerId,
+  });
 };

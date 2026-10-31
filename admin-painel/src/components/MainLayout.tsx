@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   Bell,
   LogOut,
@@ -7,7 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
-import { auth } from "@/firebase/config";
+import { auth } from "@/firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -184,7 +184,9 @@ export default function MainLayout() {
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-7 sm:py-[26px]">
-            <Outlet />
+            <Suspense fallback={<div role="status" className="py-8 text-sm text-muted-foreground">Carregando informações...</div>}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>
