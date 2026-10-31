@@ -1,5 +1,21 @@
 # F1 E1/C14 — estados honestos (31/10/2026)
 
+## Ficha atual de rastreabilidade — consolidação documental
+
+Implementação `1ec8591`, integrada pelo controlador em `385ea65` (Git conferido).
+O recibo abaixo registra revisão pendente; parecer independente não anexado
+nesta worktree deve ser vinculado pelo controlador, sem inferir aprovação pelo
+merge. UI28/proxy26 aprovados + seis skips/contato3, tipos UI, scan 821 arquivos e
+whitespace são resultados reutilizados, sem reexecução nesta consolidação.
+Não implantado/distribuído; E1/C14 permanecem abertos até aceite completo.
+Contato sem destino/propriedade/recebimento comprovados continua indisponível;
+501 e estados exigem compatibilidade com consumidores/versões efetivos.
+Seções 9/15.10 do [plano](../plano-rearquitetura-2026-10-30.md) vinculam os gates.
+Executor documental: `executor-codex-task-f73d0e4cd415-f1-evidence-update`;
+revisão desta adição cabe ao controlador. Histórico de implementação preservado.
+
+## Recibo histórico de implementação
+
 Executor nominal: Codex, programador executor desta tarefa delimitada
 `f73d0e4cd415-f1-honest-states`, nesta worktree. Implementação local, sujeita à
 revisão independente do controlador. Continuação das fases 0/1 e matriz 15 do

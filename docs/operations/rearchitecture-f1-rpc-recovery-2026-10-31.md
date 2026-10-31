@@ -1,5 +1,20 @@
 # F1 / C8 — recuperação conservadora do RPC legado
 
+## Ficha atual de rastreabilidade — consolidação documental
+
+Implementação `4804287`, integrada pelo controlador em `110e27f` (Git conferido).
+O recibo abaixo registra revisão pendente; parecer independente não anexado
+nesta worktree deve ser vinculado pelo controlador, sem inferir aprovação pelo
+merge. Functions 120, contratos, scan 816 arquivos, tipos e whitespace são
+resultados reutilizados do recibo, sem reexecução documental. Não implantado nem
+distribuído; C8 continua parcial/aberto até aceite completo e ensaio real de
+recuperação, autorização, índices/retry e retenção. Seções 9/15.10 do
+[plano](../plano-rearquitetura-2026-10-30.md) consolidam riscos/responsáveis/gates.
+Executor documental: `executor-codex-task-f73d0e4cd415-f1-evidence-update`;
+revisão desta adição cabe ao controlador. Histórico de implementação preservado.
+
+## Recibo histórico de implementação
+
 Executor nominal: `executor-codex-task-f73d0e4cd415-f1-rpc-recovery`.
 Base informada: HEAD integrado `a48b2d8`; entregas anteriores preservadas.
 Escopo: implementação local nesta worktree; revisão independente pelo controlador.
