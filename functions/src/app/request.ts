@@ -15,7 +15,8 @@ export function normalizeRequest(raw: unknown): FunctionRequest {
     typeof raw.payload.requesterUid === "string" ? { ...raw, requesterUid: raw.payload.requesterUid } : raw;
   assertFunctionRequest(normalized);
   const { requesterUid: _legacyUid, ...payload } = normalized.payload as Record<string, unknown>;
-  return { type: normalized.type, requesterUid: normalized.requesterUid, payload } as FunctionRequest;
+  return { type: normalized.type, requesterUid: normalized.requesterUid, payload,
+    ...(normalized.session !== undefined ? { session: normalized.session } : {}) } as FunctionRequest;
 }
 
 export function requirePayloadFields(payload: object, allowed: string[]): void {

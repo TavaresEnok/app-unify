@@ -91,8 +91,8 @@ const rateLimiter = createRateLimiter({
         const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
         if (token) {
             try {
-                req.user = await admin.auth().verifyIdToken(token);
-                return `user:${req.user.providerId || 'global'}:${req.user.uid}`;
+                const hint = await admin.auth().verifyIdToken(token);
+                return `user:${hint.providerId || 'global'}:${hint.uid}`;
             } catch { return `invalid:${req.ip}`; }
         }
         const secret = req.body?.secret;
@@ -293,7 +293,7 @@ async function verifyFirebaseToken(req, res, next) {
     }
     const token = authHeader.split('Bearer ')[1];
     try {
-        const decodedToken = req.user || await admin.auth().verifyIdToken(token);
+        const decodedToken = await require('./lib/current-auth').currentIdentity(admin.auth(), token);
         const reqCpf = (req.body.cpfCnpj || req.body.cpf || '').replace(/[^0-9]/g, '');
         
         if (!reqCpf) return res.status(400).json({ error: { message: 'CPF/CNPJ obrigatório.' } });
@@ -317,8 +317,8 @@ async function verifyFirebaseToken(req, res, next) {
         req.user = decodedToken;
         next();
     } catch (error) {
-        console.error('[AUTH] Erro na verificação do token:', error.message);
-        return res.status(401).json({ error: { message: 'Não autorizado. Token Inválido ou Expirado.' } });
+        const failure = require('./lib/current-auth').authFailure(error);
+        return res.status(failure.status).json({ error: { code: failure.code, message: failure.status === 503 ? 'Autorização indisponível. Preserve os dados e tente mais tarde.' : failure.status === 403 ? 'Acesso negado. Autentique novamente.' : 'Sessão inválida.' } });
     }
 }
 
@@ -525,26 +525,6 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
     // Log para debug
     console.log(`[Check-CPF] Iniciando check para ${maskCpfCnpj(cpfCnpjUnformatted)}`);
     console.log(`[Check-CPF] Params usados: App=${sgpParams.app}, URL=${sgpBaseUrl}`);
-    // MOCK LOGIN (somente com ENABLE_DEV_CPF_MOCK=true + DEV_MOCK_CPF)
-    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
-        console.log(`[MOCK] Login Check-CPF para DEV: ${maskCpfCnpj(DEV_CPF)}`);
-        let mockToken = '';
-        try {
-            mockToken = await admin.auth().createCustomToken(DEV_CPF);
-        } catch (e) { console.error('[MOCK] Auth Error', e); }
-
-        return res.status(200).json({
-            nome: "Desenvolvedor Teste Mock",
-            cpfCnpj: DEV_CPF,
-            plano: "Fibra 500MB Mock",
-            status: "Ativo",
-            valorFatura: "99,90",
-            vencimentoFatura: "10/12/2025",
-            contratoId: 222356,
-            email: "dev@teste.com",
-            customToken: mockToken
-        });
-    }
     try {
         const clientParams = {
             ...sgpParams,
@@ -692,19 +672,13 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                 // Vincula o provedor ao token (A2): downstream a identidade do
                 // tenant vem do claim verificado, não do corpo da requisição.
                 const identity = subscriberIdentity(req.body.providerId, cpfCnpjUnformatted);
-                try { await admin.auth().getUser(identity.uid); }
-                catch (error) {
-                    if (error.code !== 'auth/user-not-found') throw error;
-                    try { await admin.auth().createUser({ uid: identity.uid }); }
-                    catch (createError) { if (createError.code !== 'auth/uid-already-exists') throw createError; }
-                }
-                await admin.auth().setCustomUserClaims(identity.uid, identity.claims);
+                const customToken = await require('./lib/current-auth').persistSubscriber(admin.auth(), identity);
                 await require('./lib/subscriber-profile').migrateSubscriberProfile(firestoreDb, identity, responseData, () => admin.firestore.FieldValue.serverTimestamp());
-                const customToken = await admin.auth().createCustomToken(identity.uid, identity.claims);
                 responseData.customToken = customToken;
                 console.log('[Check-CPF] Custom Token gerado para contrato elegível.');
             } catch (tokenError) {
-                console.error('[Check-CPF] Falha ao gerar Custom Token do Firebase:', tokenError.message);
+                const failure = require('./lib/current-auth').authFailure(tokenError);
+                return res.status(failure.status).json({ error: { code: failure.code, message: 'Não foi possível autorizar a sessão.' } });
             }
         } else {
             console.log('[Check-CPF] Token não gerado para contrato encerrado ou inativo.');

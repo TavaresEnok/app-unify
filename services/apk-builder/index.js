@@ -28,6 +28,9 @@ function createApp(options = {}) {
     const limiter = rateLimit({ windowMs: 3600000, limit: 5, validate: false,
         keyGenerator: req => req.buildUid || ipKeyGenerator(req.ip), skip: () => options.disableRateLimit === true });
     const deny = res => res.status(403).json({ success: false, error: 'build-authorization-denied' });
+    const unavailable = error => error?.code === 'authorization-unavailable';
+    const authorizationFailure = (res, error) => unavailable(error)
+        ? res.status(503).json({ success: false, error: 'authorization-unavailable' }) : deny(res);
     app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'apk-builder' }));
     app.get('/jobs/:jobId', async (req, res) => {
         const job = jobs.get(req.params.jobId);
@@ -35,7 +38,7 @@ function createApp(options = {}) {
         try {
             const uid = await check(req.headers.authorization, { providerId: job.providerId, jobId: job.id, purpose: 'poll' });
             if (uid !== job.ownerUid) return deny(res);
-        } catch { return deny(res); }
+        } catch (error) { return authorizationFailure(res, error); }
         return res.json({ success: !['failed', 'interrupted'].includes(job.status), jobId: job.id, status: job.status,
             providerId: job.providerId, createdAt: job.createdAt, startedAt: job.startedAt || null, completedAt: job.completedAt || null,
             ...(job.result || {}), ...(job.error ? { error: job.error } : {}) });
@@ -46,7 +49,7 @@ function createApp(options = {}) {
         try {
             const uid = await check(req.headers.authorization, { providerId: job.providerId, jobId: job.id, purpose: 'request' });
             if (uid !== job.ownerUid) return deny(res);
-        } catch { return deny(res); }
+        } catch (error) { return authorizationFailure(res, error); }
         if (!['preparing', 'running'].includes(job.status)) return res.status(409).json({ success: false, error: 'build-already-terminal' });
         jobs.update(job.id, { status: 'failed', completedAt: Date.now(), error: 'build-cancelled' });
         if (active === job.id && activeChild) {
@@ -60,7 +63,7 @@ function createApp(options = {}) {
         try {
             req.buildUid = await check(req.headers.authorization, { providerId, jobId: req.buildId, purpose: 'request' });
             next();
-        } catch { deny(res); }
+        } catch (error) { authorizationFailure(res, error); }
     }, limiter, async (req, res) => {
         const { providerId, appName, logoUrl, format = 'apk', async: asynchronous = false } = req.body;
         if (!/^[a-z0-9_-]{1,64}$/i.test(providerId) || typeof appName !== 'string' || !appName || appName.length > 80 || /^-/.test(appName) ||
@@ -155,7 +158,7 @@ function createApp(options = {}) {
                     jobs.update(id, { status: 'succeeded', completedAt: Date.now(), result });
                     finished = true; active = null; activeChild = null; fs.rmSync(logo, { force: true });
                     if (!res.headersSent) res.json(result);
-                } catch { fail(403, 'build-release-denied'); }
+                } catch (error) { fail(unavailable(error) ? 503 : 403, unavailable(error) ? 'authorization-unavailable' : 'build-release-denied'); }
                 finally {
                     // Unlinking the private copy cannot affect an already linked release.
                     // Cleanup failure must not misreport a completed public effect.
@@ -163,7 +166,7 @@ function createApp(options = {}) {
                 }
             });
             if (asynchronous === true) res.status(202).json({ success: true, jobId: id, status: 'running' });
-        } catch { fail(403, 'build-authorization-or-preparation-failed'); }
+        } catch (error) { fail(unavailable(error) ? 503 : 403, unavailable(error) ? 'authorization-unavailable' : 'build-authorization-or-preparation-failed'); }
     });
     return app;
 }

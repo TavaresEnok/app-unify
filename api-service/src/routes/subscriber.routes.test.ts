@@ -30,9 +30,10 @@ function collectionRef(path: string, filters: Array<[string, unknown]> = []): an
 vi.mock("../services/firebaseAdmin", () => ({
   firestore: { collection: (name: string) => collectionRef(name) },
   firebaseAuth: {
+    getUser: async (uid: string) => ({ uid, customClaims: [...tokens.values()].find(user => user.uid === uid) || {} }),
     verifyIdToken: async (token: string) => {
       const user = tokens.get(token);
-      if (!user) throw new Error("invalid");
+      if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
       return user;
     },
   },

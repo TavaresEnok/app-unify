@@ -102,3 +102,38 @@ Todos os tipos usados pelo painel/app possuem handler registrado em
 - `SGP_API_PROXY/sync`: agenda e retorna `jobId`; `action=status` com `params.jobId` consulta progresso, `completed` ou `failed`.
 - Administradores exigem `role=providerAdmin`; `providerId` isolado não concede administração.
 - Respostas acima de 700 KB são rejeitadas antes da gravação. Requisições, respostas e locks antigos têm limpeza agendada.
+# Atualização F1 C1/E4 — origem verificável da sessão (31/10/2026)
+
+O envelope web exige `session: {authTime, issuedAt, role, providerId, superAdmin}`,
+derivado de `getIdTokenResult()` Firebase. `authTime`/`issuedAt` são segundos de
+`auth_time`/`iat`; scope ausente usa strings vazias e superAdmin=false.
+Rules vinculam esses campos ao token autenticado, requesterUid ao próprio UID e
+createdAt ao timestamp de servidor. Payload não fornece prova de identidade.
+Router usa a fonte canônica imutável, Auth atual/disabled/tokensValidAfterTime e
+scope corrente antes do handler e em retomadas. Sessão ausente, revogada ou com
+scope alterado é negada sem efeito. Falha de autoridade: authorization-unavailable,
+sem repetição automática de mutação. C8/unknown/fencing continuam obrigatórios.
+Flutter/admin_app/SDKs antigos precisam atualização ou retirada antes de publicar;
+nenhuma exceção insegura para envelope legado. Rules em emulador continuam gate.
+
+## Gate de proveniência de criação (correção F1-SERVER-R1)
+
+`RPC_SESSION_RULES_ACTIVE_AFTER` é configuração exclusiva do servidor, em UTC
+ISO estrito (`YYYY-MM-DDTHH:mm:ss.sssZ`). Operação só pode defini-la para um
+instante posterior à confirmação de que as Rules que vinculam a sessão estão
+ativas. Sem corte válido já alcançado, a fila falha fechada. O lease exige
+`DocumentSnapshot.createTime > corte` e `createTime <= agora`; não usa `createdAt`,
+`updateTime`, campos de payload ou timestamps declarados de sessão para essa prova.
+O mesmo gate vale para entrega e recuperação agendada. Documento anterior é
+negado mesmo contendo sessão sintaticamente válida e posterior à revogação.
+Lock prévio sem prova mantém `unknown`, sem repetição de efeitos.
+
+Configurar corte retroativo, reabrir Rules antigas ou importar documentos legados
+com novos createTimes invalida a prova: bloquear a fila e escolher novo corte após
+restaurar/verificar Rules estritas. Backup não autoriza reenfileirar comandos antigos.
+
+O roteador distingue falha de autoridade no primeiro lookup do handler real,
+cujo prólogo é anterior a qualquer efeito, usando contexto interno por execução.
+O marcador não vem do documento nem do cliente. Só essa falha comprovada preserva
+`authorization-unavailable`; checagens posteriores sem prova de ausência de efeito
+continuam conservadoramente `unknown` em mutações. Não há retry automático.

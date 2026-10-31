@@ -34,6 +34,7 @@ export function useApi() {
         ]);
         result = await callFunctionRequest(db, type, payload, {
           requesterUid: user.uid,
+          user,
           providerId: authProviderId,
           forceProviderScope: userRole === "providerAdmin",
         });

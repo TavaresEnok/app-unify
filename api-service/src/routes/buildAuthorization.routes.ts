@@ -19,7 +19,8 @@ buildAuthorizationRouter.post("/authorize", async (req, res) => {
     const token = await firebaseAuth.verifyIdToken(header.slice(7), true);
     const current = await firebaseAuth.getUser(token.uid);
     const now = Math.floor(Date.now() / 1000);
-    if (current.disabled || current.customClaims?.superAdmin !== true ||
+    if (current.disabled || token.superAdmin !== true || current.customClaims?.superAdmin !== true ||
+        ["subscriber", "providerAdmin"].includes(token.role) || ["subscriber", "providerAdmin"].includes(current.customClaims?.role) ||
         typeof token.auth_time !== "number" || token.auth_time > now + 30 ||
         (["request", "spawn"].includes(purpose) && now - token.auth_time > 300)) throw new Error("denied");
     // SaaS has global tenant scope; existence and active state are server data.
@@ -36,8 +37,9 @@ buildAuthorizationRouter.post("/authorize", async (req, res) => {
       if (!proof || proof.uid !== current.uid || proof.providerId !== providerId) throw new Error("denied");
     }
     res.json({ authorized: true, uid: current.uid, providerId, jobId, purpose });
-  } catch {
-    // Authority outage and denied access are both fail closed; no token logging.
-    res.status(403).json({ success: false, error: "build-authorization-denied" });
+  } catch (error) {
+    const denied = (error instanceof Error && error.message === "denied") ||
+      ["auth/id-token-revoked", "auth/id-token-expired", "auth/invalid-id-token", "auth/argument-error", "auth/user-disabled", "auth/user-not-found"].includes((error as { code: string }).code);
+    res.status(denied ? 403 : 503).json({ success: false, error: denied ? "build-authorization-denied" : "authorization-unavailable" });
   }
 });

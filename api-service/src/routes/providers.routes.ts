@@ -68,7 +68,11 @@ providersRouter.post("/:providerId/integration", asyncRoute(async (req, res) => 
     const verified = await firebaseAuth.verifyIdToken(token, true);
     current = await firebaseAuth.getUser(verified.uid);
     if (current.disabled || current.customClaims?.superAdmin !== true || !verified.auth_time || Date.now() / 1000 - verified.auth_time > 300) throw new Error("reauthentication");
-  } catch { throw new ApiError(403, "Autentique-se novamente para substituir a integração.", "permission-denied"); }
+  } catch (error) {
+    const denied = (error instanceof Error && error.message === "reauthentication") ||
+      ["auth/id-token-revoked", "auth/id-token-expired", "auth/invalid-id-token", "auth/argument-error", "auth/user-disabled", "auth/user-not-found"].includes((error as { code: string }).code);
+    throw new ApiError(denied ? 403 : 503, denied ? "Autentique-se novamente para substituir a integração." : "Autorização indisponível.", denied ? "permission-denied" : "authorization-unavailable");
+  }
   const id = req.params.providerId;
   if (!/^[a-z0-9_-]+$/i.test(id)) throw new ApiError(400, "ID inválido.", "invalid-argument");
   let integrations: Record<string, string>;

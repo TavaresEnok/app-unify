@@ -427,6 +427,21 @@ Testar SGP de 50 ms, 500 ms e 2 s, indisponível, dados inconsistentes e respost
 
 ## 9. Fases de execução
 
+Atualização C1/E4 de servidor em 31/10/2026: executor nominal
+`executor-codex-task-283c3ce00d51-f1-server-access`, implementação local sem commit.
+Critérios e matriz por transporte no [recibo de servidor](operations/rearchitecture-f1-server-access-2026-10-31.md).
+Conforme contrato do controlador, pareceres independentes PASS de RPC `4804287`,
+estados `1ec8591` e consolidação `0b36e36` estão registrados nos relatórios do
+controlador. Esta informação atualiza a situação de revisão; recibos históricos
+com revisão pendente permanecem preservados. PASS não foi inferido de merge.
+O novo bloco exige revisão independente própria. C1/E4/G0/G1 e E8 seguem
+abertos/parciais; etapa A não concluída. Nenhuma implantação/distribuição autorizada.
+Revisão deste bloco retornou FAIL (F1-SERVER-R1/R2/R3). Correções locais de R1/R2
+e novo gate de corte por createTime seguem para nova revisão. Escopo R3 ampliado
+pelo controlador: builder preserva 503 seguro na cadeia autoridade → builder →
+callable, incluindo revalidações, consulta e cancelamento. Correção local e
+checks da recuperação são registrados no recibo; revisão independente pendente.
+
 ### Ficha atual consolidada F0/F1 — 31/10/2026 UTC
 
 Executor documental nominal: `executor-codex-task-f73d0e4cd415-f1-evidence-update`
@@ -439,8 +454,8 @@ registradas pelos implementadores. Nenhum código foi modificado nesta consolida
 | Configuração C4/C11/E3 — [recibo](operations/rearchitecture-f1-config-boundary-2026-10-31.md), 15.8 | `b5ab897` | API 48, Functions 87, UI 20 e builds finais informados no lote anterior | Revisado/integrado conforme contrato; revisão-pendente nos registros antigos é histórica | Não / não neste ciclo |
 | Saída SGP C5/C6 — [recibo](operations/rearchitecture-f1-sgp-outbound-2026-10-31.md), 15.9 | `2ac2bc8` | API 69, Functions 89, proxy 25 aprovados + 6 skips Redis | Revisado/integrado conforme contrato; preservadas reprovação R1–R3 e correções | Não / não neste ciclo |
 | Builder E2/E3/C12/C13 — [recibo](operations/rearchitecture-f1-build-containment-2026-10-31.md) | `447ca7a`, integrado em `a48b2d8` | Builder 19, API 77, Functions 94, Python 5; scan 812 arquivos; resultados finais com reuso entre rodadas descrito no recibo | Revisado/integrado conforme contrato recebido; F1-REVIEW-01 permanece no histórico | Não / não |
-| RPC C8 — [recibo](operations/rearchitecture-f1-rpc-recovery-2026-10-31.md) | `4804287`, integrado em `110e27f` | Functions 120/120 em 13 arquivos; contratos, scan 816 arquivos, TypeScript e whitespace aprovados no recibo | Integração conferida no Git; recibo termina com revisão pendente, sem parecer independente anexado nesta worktree; controlador deve vincular parecer/aceite | Não / não |
-| Estados E1 / contato C14 — [recibo](operations/rearchitecture-f1-honest-states-2026-10-31.md) | `1ec8591`, integrado em `385ea65` | UI 28, proxy 26 aprovados + 6 skips, contato 3; scan 821 arquivos, tipos UI e whitespace aprovados no recibo | Integração conferida no Git; recibo termina com revisão pendente, sem parecer independente anexado nesta worktree; controlador deve vincular parecer/aceite | Não / não |
+| RPC C8 — [recibo](operations/rearchitecture-f1-rpc-recovery-2026-10-31.md) | `4804287`, integrado em `110e27f` | Functions 120/120 em 13 arquivos; contratos, scan 816 arquivos, TypeScript e whitespace aprovados no recibo | Revisão independente PASS informada pelo controlador neste contrato; recibo antigo com pendência preservado como histórico | Não / não |
+| Estados E1 / contato C14 — [recibo](operations/rearchitecture-f1-honest-states-2026-10-31.md) | `1ec8591`, integrado em `385ea65` | UI 28, proxy 26 aprovados + 6 skips, contato 3; scan 821 arquivos, tipos UI e whitespace aprovados no recibo | Revisão independente PASS informada pelo controlador neste contrato; recibo antigo com pendência preservado como histórico | Não / não |
 
 As contagens pertencem às respectivas bases/rodadas, não são somadas nem
 certificam a suíte combinada em `110e27f`. Nenhuma suíte de aplicação, builder,
@@ -1373,3 +1388,39 @@ afetados e preserva releases/locks/identidades/segredos; não restaura permissõ
 inseguras, replay nem mounts administrativos. Nenhum desses ensaios foi executado
 nesta tarefa. Não iniciar migração de dados/banco/framework antes de G0/G1;
 piloto de dados ainda depende de G2. F0/F1/G0/G1 não concedidos.
+
+### 15.11. F1 C1/E4 — sessão atual nas entradas de servidor (31/10/2026)
+
+Executor nominal `executor-codex-task-283c3ce00d51-f1-server-access`.
+Revisão independente deste bloco: FAIL recebido, sem apagar os PASS anteriores.
+R1 agora exige corte operacional `RPC_SESSION_RULES_ACTIVE_AFTER` posterior às
+Rules verificadas e createTime canônico estritamente posterior; legado forjado
+é negado também no recuperador, mantendo unknown quando há lock prévio.
+R2 preserva indisponibilidade comprovada no primeiro lookup do handler antes do
+efeito; falhas posteriores sem prova conservam unknown. Nova revisão pendente.
+R3 resolvido localmente após ampliação explícita do escopo: falhas 503/transporte/
+timeout/resposta inválida permanecem indisponibilidade segura em request, download,
+spawn, publicação, poll e cancel. Negações 401/403/binding/dono continuam sem
+efeito ou estado exposto. Harness compartilhado testa builder HTTP real e callable
+real conectado à autoridade simulada, sem injetar 503 diretamente no callable.
+Recibos anteriores do bloqueio por escopo ficam preservados como históricos;
+revisão independente da recuperação continua pendente. R1/R2 e corte operacional
+não foram alterados; nenhum corte real foi configurado.
+Implementação local do verificador HTTP/proxy com revogação/disabled e Auth atual,
+persistência segura das claims de assinante após senha SGP, envelope RPC vinculado
+ao token pelas Rules e revalidação da origem antes do efeito/retomada, callable
+logo e propagação de indisponibilidade. C8/lease/fencing/unknown conservados.
+Nenhum novo cache de autorização, autenticação própria ou migração de framework.
+
+O controlador informou pareceres independentes PASS de RPC `4804287`, estados
+`1ec8591` e consolidação `0b36e36`; registros históricos de revisão pendente nos
+recibos anteriores são preservados, sem inferir aprovação por integração.
+Este bloco novo será encaminhado à revisão independente pelo controlador.
+Matriz de transportes, testes, resíduos e gates no [recibo](operations/rearchitecture-f1-server-access-2026-10-31.md).
+Firestore/Storage SDKs diretos continuam dependentes de claims antigas nos acessos
+listados; Flutter/admin_app e envelopes legados exigem atualização/retirada.
+Regras em emulador real e compatibilidade de claims/envelopes são gates antes de
+publicação coordenada. Rollback não pode reabrir sessão/papel antigo, CPF sem
+senha, token/build de provedor, replay de lock ou fallback SGP.
+E9/compatibilidade/regressões/IAM/orçamento/backup/manifestos são próximos lotes.
+C1/E4/G0/G1 e E8 abertos/parciais, etapa A não concluída. Sem deploy/distribuição.

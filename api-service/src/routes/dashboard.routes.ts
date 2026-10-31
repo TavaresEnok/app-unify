@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore, firebaseAuth } from "../services/firebaseAdmin";
+import { firestore } from "../services/firebaseAdmin";
 import { loadGlobalDashboard, loadProviderDashboard } from "../services/dashboardData";
 
 export const dashboardRouter = Router();
@@ -25,24 +25,22 @@ export async function warmDashboardData() {
 
 // Keep the fresh account/role check used by the queue handlers: a revoked role
 // must not regain access through an older, still cryptographically valid token.
-async function authorizePanel(uid: string, providerId?: string) {
-  const user = await firebaseAuth.getUser(uid).catch(() => null);
-  const claims = user?.customClaims;
-  if (!user || user.disabled || (claims?.superAdmin !== true &&
+function authorizePanel(claims: Express.Request["user"], providerId?: string) {
+  if (!claims || (claims?.superAdmin !== true &&
       (!providerId || claims?.role !== "providerAdmin" || claims.providerId !== providerId))) {
     throw new ApiError(403, "Sem permissão para este dashboard.", "permission-denied");
   }
 }
 
 dashboardRouter.get("/panel", asyncRoute(async (req, res) => {
-  await authorizePanel(req.user!.uid);
+  authorizePanel(req.user);
   res.setHeader("Cache-Control", "private, no-store");
   res.json({ data: await cachedDashboard("global", () => loadGlobalDashboard(firestore)) });
 }));
 
 dashboardRouter.get("/panel/providers/:providerId", asyncRoute(async (req, res) => {
   const providerId = String(req.params.providerId);
-  await authorizePanel(req.user!.uid, providerId);
+  authorizePanel(req.user, providerId);
   res.setHeader("Cache-Control", "private, no-store");
   res.json({ data: await cachedDashboard(`provider:${providerId}`, () => loadProviderDashboard(firestore, providerId)) });
 }));

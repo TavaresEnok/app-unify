@@ -5,7 +5,7 @@ const state = vi.hoisted(() => ({ mode: 'saas', checked: [] as boolean[] }));
 vi.mock('../services/firebaseAdmin', () => ({ firebaseAuth: {
   verifyIdToken: async (_token: string, revoked: boolean) => {
     state.checked.push(revoked);
-    if (['revoked', 'outage'].includes(state.mode)) throw Error('unavailable');
+    if (['revoked', 'outage'].includes(state.mode)) throw Object.assign(Error('unavailable'), { code: state.mode === 'revoked' ? 'auth/id-token-revoked' : 'auth/internal-error' });
     return { uid: 'real-user', superAdmin: true, auth_time: Math.floor(Date.now()/1000) - (state.mode === 'stale' ? 600 : 0) };
   },
   getUser: async () => ({ uid: 'real-user', disabled: state.mode === 'disabled', customClaims: { superAdmin: ['saas', 'stale', 'disabled'].includes(state.mode) } }),
@@ -16,7 +16,7 @@ const post = (extra = {}) => request(app).post('/internal/builds/authorize').set
 beforeEach(() => { state.mode = 'saas'; state.checked = []; });
 it.each(['subscriber', 'provider', 'old-claim', 'disabled', 'revoked', 'stale', 'outage'])('denies %s using current identity', async mode => {
   state.mode = mode;
-  expect((await post({ superAdmin: true, tenant: 'a' })).status).toBe(403); expect(state.checked).toEqual([true]);
+  expect((await post({ superAdmin: true, tenant: 'a' })).status).toBe(mode === 'outage' ? 503 : 403); expect(state.checked).toEqual([true]);
 });
 it('binds SaaS authorization to existing tenant, job and purpose', async () => {
   expect((await post()).body).toEqual({ authorized: true, uid: 'real-user', providerId: 'a', jobId: 'job-1', purpose: 'request' });
