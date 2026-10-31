@@ -10,7 +10,7 @@ const endpointContracts = [
   { method: 'POST', path: '/unlock-trust', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/diagnostic/onu-signal', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/diagnostic/onu-signal-base', owner: 'proxy-sgp', access: 'firebase-token', decision: 'keep-temporarily' },
-  { method: 'POST', path: '/diagnostic/analyze', owner: 'proxy-sgp', access: 'firebase-token', decision: 'keep-temporarily' },
+  { method: 'POST', path: '/diagnostic/analyze', owner: 'proxy-sgp', access: 'firebase-token', decision: 'keep-temporarily', availability: 'unavailable-501', retirement: 'planned-after-legacy-mobile-gate', errorCode: 'DIAGNOSTIC_UNAVAILABLE' },
   { method: 'POST', path: '/cpe/wifi/list', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/cpe/wifi/update', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'GET', path: '/health', owner: 'proxy-sgp', access: 'healthcheck', decision: 'keep' },

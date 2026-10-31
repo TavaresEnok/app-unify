@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { timestampDate, type TimestampValue } from '@/shared/api/timestamp';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Send, Smartphone, Star, TrendingUp, Users } from "lucide-react";
+import { MessageSquare, Send, Smartphone, Star, Users } from "lucide-react";
 import { ProviderDashboardSkeleton } from '@/components/ProviderDashboardSkeleton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -11,6 +11,7 @@ import StatsCard from '@/components/StatsCard';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { useDashboardState, measuredCount } from '@/shared/api/dashboardState';
 import { reportPanelReady } from '@/shared/api/panelTiming';
 
 interface RecentTicket {
@@ -22,49 +23,21 @@ interface RecentTicket {
 
 export default function ProviderDashboardPage() {
     const navigate = useNavigate();
-    const { user, providerId } = useAuth();
+    const { user, userRole, providerId } = useAuth();
     const { callFunction } = useApi();
-    const [stats, setStats] = useState({ totalClients: 0, openTicketsCount: 0 });
-    const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => { if (!loading && user) reportPanelReady(user); }, [loading, user]);
-
-    const fetchDashboardData = useCallback(async () => {
-        if (!providerId || !user) {
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const result = await callFunction('GET_PROVIDER_DASHBOARD_DATA', { providerId });
-            setStats((result.stats as typeof stats) || { totalClients: 0, openTicketsCount: 0 });
-            setRecentTickets((result.recentTickets as RecentTicket[]) || []);
-        } catch (error) {
-            console.error("Falha ao carregar dashboard", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [providerId, user, callFunction]);
-
-    useEffect(() => {
-        void fetchDashboardData();
-    }, [fetchDashboardData]);
-
-    if (loading) {
-        return <ProviderDashboardSkeleton />;
-    }
-
-    const installsEstimate = stats.totalClients > 0 ? Math.round(stats.totalClients * 0.68) : 0;
-    const adoptionBars = [36, 42, 31, 54, 48, 68, 63, 74, 58, 81, 76, 88];
+    const request = useCallback(() => callFunction('GET_PROVIDER_DASHBOARD_DATA', { providerId: providerId! }, { silent: true }), [callFunction, providerId]);
+    const dashboard = useDashboardState(user, userRole, providerId, !!user && !!providerId && userRole === 'providerAdmin', request);
+    const { status, data } = dashboard;
+    const stats = (data?.stats || {}) as Record<string, unknown>;
+    const recentTickets = Array.isArray(data?.recentTickets) ? data.recentTickets as RecentTicket[] : undefined;
+    useEffect(() => { if (status === 'ready' && user) reportPanelReady(user); }, [status, user]);
 
     return (
         <div className="space-y-5">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
                 <div>
                     <h2 className="m-0 mb-1 text-xl font-bold tracking-normal text-[#0E1320]">Visão geral</h2>
-                    <p className="m-0 text-[13px] text-[#687181]">Resumo da operação do seu provedor hoje.</p>
+                    <p className="m-0 text-[13px] text-[#687181]">Contagens de registros do provedor consultadas no Firestore; sem garantia de frescor da origem.</p>
                 </div>
                 <Button onClick={() => navigate('/provedor/notificacoes')} className="gap-1.5">
                     <Send className="h-3.5 w-3.5" />
@@ -72,11 +45,17 @@ export default function ProviderDashboardPage() {
                 </Button>
             </div>
 
+            <Button variant="outline" onClick={() => void dashboard.reload()} disabled={status === 'loading' || status === 'denied'}>Recarregar</Button>
+            {status === 'loading' && <div role="status">Carregando…<ProviderDashboardSkeleton /></div>}
+            {status === 'denied' && <p role="alert">Sessão sem acesso ao dashboard do provedor.</p>}
+            {status === 'error' && <p role="alert">Não foi possível carregar os dados. Tente recarregar.</p>}
+            {(status === 'stale' || (status === 'loading' && data)) && <p role="status">Dados desatualizados da consulta anterior.</p>}
+            {data && <>
             <div className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-4">
-                <StatsCard title="Clientes ativos" value={stats.totalClients} icon={Users} trend={6} trendLabel="últimos 30 dias" />
-                <StatsCard title="Instalações do app" value={installsEstimate} icon={Smartphone} trend={4} trendLabel="base estimada" />
-                <StatsCard title="Tickets abertos" value={stats.openTicketsCount} icon={MessageSquare} trend={0} trendLabel="fila atual" />
-                <StatsCard title="Nota Play Store" value="N/D" icon={Star} />
+                <StatsCard title="Registros de clientes" value={measuredCount(stats.totalClients)} icon={Users} description="Total cadastrado no Firestore, sem período." />
+                <StatsCard title="Instalações do app" value="N/D" icon={Smartphone} description="Medição indisponível." />
+                <StatsCard title="Tickets abertos" value={measuredCount(stats.openTicketsCount)} icon={MessageSquare} description="Firestore: Aberto ou Em Andamento, sem período." />
+                <StatsCard title="Nota Play Store" value="N/D" icon={Star} description="Medição indisponível." />
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[1.05fr_.95fr]">
@@ -84,25 +63,11 @@ export default function ProviderDashboardPage() {
                     <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-[#EEF0F4]">
                         <div>
                             <CardTitle>Novas adesões</CardTitle>
-                            <p className="mt-0.5 text-[12px] text-[#98A1B1]">Ativações recentes no app do provedor.</p>
+                            <p className="mt-0.5 text-[12px] text-[#98A1B1]">Sem série medida de ativações no app.</p>
                         </div>
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11.5px] font-semibold text-[#2F55D4]">
-                            <TrendingUp className="h-3.5 w-3.5" />
-                            12 semanas
-                        </span>
                     </CardHeader>
                     <CardContent className="p-[18px]">
-                        <div className="flex h-56 items-end gap-2 rounded-lg border border-[#EEF0F4] bg-[#FAFBFC] px-4 pb-4 pt-6">
-                            {adoptionBars.map((height, index) => (
-                                <div key={index} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                                    <div
-                                        className="w-full max-w-[30px] rounded-t-md bg-[#2F55D4]"
-                                        style={{ height: `${height}%`, opacity: 0.45 + index / 28 }}
-                                    />
-                                    <span className="font-mono text-[10px] text-[#98A1B1]">{index + 1}</span>
-                                </div>
-                            ))}
-                        </div>
+                        <p>N/D — Medição de adesões indisponível.</p>
                     </CardContent>
                 </Card>
 
@@ -117,8 +82,8 @@ export default function ProviderDashboardPage() {
                         </Button>
                     </CardHeader>
                     <CardContent className="p-0">
-                        {recentTickets.length === 0 ? (
-                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">Nenhum ticket recente.</div>
+                        {!recentTickets || recentTickets.length === 0 ? (
+                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">{recentTickets ? 'Nenhum ticket recente.' : 'Tickets indisponíveis.'}</div>
                         ) : (
                             recentTickets.map((ticket) => (
                                 <button
@@ -138,6 +103,7 @@ export default function ProviderDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+            </>}
         </div>
     );
 }
