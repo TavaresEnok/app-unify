@@ -3,6 +3,9 @@ services:
   # CADDY — Reverse Proxy com HTTPS automático (Let's Encrypt)
   # =========================================================================
   caddy:
+    networks:
+      - default
+      - apk_build_edge
     cpus: "0.50"
     mem_limit: 128m
     memswap_limit: 128m
@@ -170,6 +173,8 @@ services:
       - "8032:80"
     volumes:
       - ./public_apks:/usr/share/nginx/html/public_apks:ro
+      # Only the public subtree is served; publication preparation stays outside it.
+      - ./apk/releases/public:/usr/share/nginx/html/public_apks/f1:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 30s
@@ -257,6 +262,8 @@ services:
         max-file: "3"
 
   apk-builder:
+    networks:
+      - apk_build_edge
     build:
       context: .
       dockerfile: Dockerfile.apkbuilder
@@ -269,27 +276,31 @@ services:
     ports:
       - "127.0.0.1:8035:8035"
     volumes:
-      - /home/app/Android/Sdk:/opt/android-sdk-linux
-      - /home/app/.secrets/painel_provedores/service-account.json:/run/secrets/service-account.json:ro
+      - /home/app/Android/Sdk:/opt/android-sdk-linux:ro
       - /home/app/.secrets/painel_provedores/apk-release.jks:/run/secrets/apk-release.jks:ro
       - /home/app/.secrets/painel_provedores/apk-signing.properties:/home/app/projects/painel_provedores/app-flutter/unified/android/key.properties:ro
-      - ./public_apks:/home/app/projects/painel_provedores/public_apks
-      - ./apk/logs:/home/app/projects/painel_provedores/apk/logs
+      # One mount for private preparation + public links avoids cross-mount EXDEV.
+      - ./apk/releases:/home/app/projects/painel_provedores/apk/releases
+      - ./apk/private:/home/app/projects/painel_provedores/apk/private
+      - ./apk/identities.json:/run/build-identities.json:ro
       - apk_pub_cache:/home/app/.pub-cache
       - apk_gradle_cache:/root/.gradle
       - apk_kotlin_cache:/root/.kotlin
     working_dir: /home/app/projects/painel_provedores
     environment:
       - APK_BUILDER_PORT=8035
-      - APK_JOB_STATE_PATH=/home/app/projects/painel_provedores/apk/logs/build-state.json
+      - APK_JOB_STATE_PATH=/home/app/projects/painel_provedores/apk/private/build-state.json
+      - APK_PRIVATE_DIR=/home/app/projects/painel_provedores/apk/private
+      - APK_IDENTITY_REGISTRY=/run/build-identities.json
+      - APK_AUTHORIZATION_URL=${APK_AUTHORIZATION_URL:-}
       - PYTHON_BIN=python3
-      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
-      - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
       - APK_PROJECT_ROOT=/home/app/projects/painel_provedores
       - APK_SCRIPT_PATH=/home/app/projects/painel_provedores/scripts/build/generate-apk.py
       - APK_FLUTTER_PROJECT=/home/app/projects/painel_provedores/app-flutter/unified
-      - APK_OUTPUT_DIR=/home/app/projects/painel_provedores/public_apks
+      - APK_OUTPUT_DIR=/home/app/projects/painel_provedores/apk/releases/public
+      - APK_PUBLICATION_DIR=/home/app/projects/painel_provedores/apk/releases/private
+      - APK_PUBLIC_URL_PREFIX=/public_apks/f1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8035/health"]
       interval: 30s
@@ -370,6 +381,8 @@ services:
         max-file: "3"
 
 networks:
+  apk_build_edge:
+    name: painel_apk_build_edge
   default:
     name: painel_net
 

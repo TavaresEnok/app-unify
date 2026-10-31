@@ -449,7 +449,7 @@ export default function AndroidBuilderPage() {
                             <AlertDescription>
                                 O arquivo <strong>{lastResult.format?.toUpperCase() || 'APK'}</strong> foi gerado.
                                 <br />
-                                Caminho: <code>public_apks/app_{providerData.details?.appName?.replace(/[^a-zA-Z0-9]/g, '_') || 'app'}.{lastResult.format || 'apk'}</code>
+                                Caminho: <code>{lastResult.downloadUrl}</code>
                                 <div className="mt-2 p-2 bg-green-900/10 rounded text-sm">
                                     <strong>Versão Gerada:</strong> {lastResult.versionName ? `${lastResult.versionName}` : 'Desconhecida'}
                                     <span className="opacity-75"> (Code: {lastResult.versionCode || '?'})</span>

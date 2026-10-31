@@ -427,9 +427,25 @@ Testar SGP de 50 ms, 500 ms e 2 s, indisponível, dados inconsistentes e respost
 
 ## 9. Fases de execução
 
+**Continuação F1 builds (31/10/2026):** executor nominal
+`executor-codex-task-645c61b8262c-f1-build-containment` implementa contenção local
+E2/E3/C12/C13; [evidência e gates](operations/rearchitecture-f1-build-containment-2026-10-31.md).
+Lotes `17baa3af4fe4` (`b5ab897`) e `2eda0f2a79ac` (`2ac2bc8`) agora
+revisados/integrados, base `047ab67`; referências históricas a revisão pendente
+desses lotes não representam seu estado final. Recibos API69/Functions89/proxy25
+pass + 6 skips Redis são herdados. Este lote requer revisão independente pelo
+controlador, sem implantação/distribuição; F7/assinatura real, IAM/rede e G0/G1
+continuam pendentes. E8 não foi alterado.
+
 Todas as fases estão **pendentes**. Uma fase só termina com código/infraestrutura aplicáveis, verificações e evidências vinculadas. Não marcar uma fase inteira como concluída porque apenas seu esqueleto existe.
 
 ### Gates de passagem e primeira entrega
+
+Continuação F1 builds (31/10): correção local de F1-REVIEW-01 prepara/verifica
+cópia privada e publica por hard link atômico/exclusivo após revalidar acesso.
+Falhas de cópia não deixam binário parcial público; filesystems distintos negam
+publicação. Revalidar compatibilidade dos mounts antes de operar. Nova revisão
+independente é obrigatória; não concede G0/G1 nem substitui F7.
 
 | Gate | Evidência exigida | Libera |
 | --- | --- | --- |
@@ -857,6 +873,23 @@ Registro obrigatório de acompanhamento: [matriz de achados, evidências e encer
 
 ## 15. Matriz de achados e evidências
 
+### Atualização F1 builds — 31/10/2026
+
+| Achado | Código local desta continuação | Limites de encerramento |
+| --- | --- | --- |
+| E2 | Conta administrativa retirada dos mounts/ambiente builder; subprocesso com allowlist; rede declarada separada | Keystore/assinatura e escrita de releases ainda acessíveis; IAM/rede real, imagem e F7 pendentes |
+| E3 geração | Autoridade API atual/revogação/disabled/SaaS, tenant/job/purpose e auth recente; revalida spawn/release; callable sem Python | Revisão independente, operação e distribuição pendentes; E3 amplo continua aberto |
+| C12 | Inventário persistente revisado obrigatório; identidade estável, conflito bloqueado, cópia privada verificada e liberação atômica/exclusiva tenant/versão/build (correção local F1-REVIEW-01) | Nova revisão independente, hard links nos mounts reais, importação administrativa de legado e prova de atualização/assinatura pendentes |
+| C13 | Staging privado, símbolos/mapping/manifesto/checksums persistidos antes do cleanup | Retenção/backup e simbolização real pendentes |
+
+Responsável nominal: `executor-codex-task-645c61b8262c-f1-build-containment`.
+[Evidência, resultados e rollback](operations/rearchitecture-f1-build-containment-2026-10-31.md)
+distinguem código/teste/revisão/implantação/distribuição. Lotes anteriores
+`b5ab897` e `2ac2bc8` revisados/integrados; recibos API69/Functions89/proxy25
+pass+6 skips Redis herdados. Dez testes Java21/demo são evidência externa do
+gerente a incorporar, caminho não acessível nesta worktree. Nenhum encerramento
+integral de E2/E3/C12/C13/G0/G1, nenhum deploy/distribuição, E8 aberto/intocado.
+
 Registro de 30/10/2026 — America/Fortaleza. **Nenhum achado está formalmente encerrado apenas por sua inclusão neste documento.**
 
 ### 15.1. Origem e alcance
@@ -928,8 +961,8 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 | C9 / P1 | Falha de faturas como vazio: exceção agora retorna erro; validação de payload precisa de cobertura | Inspeção de `Promise.all` e resposta de erro; falta teste dedicado uma/duas falhas | Proxy conferido | F1: vazio legítimo, erro total, resposta parcial/ inválida distinguíveis; não cachear erro como sucesso |
 | C10 / P1 | Notificações de outro provedor: fallback removido no Flutter atual | Inspeção de queries restritas ao próprio tenant; falta E2E com dois provedores | Código-fonte apenas nesta revisão; APK/adoção pendentes | F1/F6: app de A nunca consulta B; próprios resultados funcionam; versão legada tem destino documentado |
 | C11 / P1 | Contenção local implementada: backup só de personalização e restore exato transacional; **não encerrado** | Backup antigo misto, remoção de campos novos e integração/native/acesso preservados testados com dados sintéticos (15.8) | Não implantado/não distribuído | F1/F4: revisão, regras reais e jornada de recuperação antes de encerrar; credenciais nunca vêm do backup de personalização |
-| C12 / P1 | Colisão de applicationId/artefatos: **aberto** | Normalização conflita e saída depende do nome comercial | Builder e script conferidos | F1: impedir novo conflito/sobrescrita. F7: applicationId persistido e único, artefato por tenant/versão/build; preservar pacotes e assinaturas existentes |
-| C13 / P1 | Símbolos de ofuscação temporários: **aberto** | Script gera símbolos temporários e copia somente APK/AAB | Script conferido; sem prova de retenção externa | F1: preservar antes da limpeza. F7: recuperar símbolos por build e simbolizar falha de teste; acesso privado |
+| C12 / P1 | **Contenção local F1, aberto** | Registro de identidade revisado obrigatório; conflitos bloqueados; saída exclusiva por tenant/versão/build | Builder/Python sintéticos aprovados; revisão independente e inventário legado pendentes | F7/gates reais: preservar e provar pacotes/assinaturas/atualizações existentes; implantação/distribuição pendentes |
+| C13 / P1 | **Contenção local F1, aberto** | Símbolos/mapping/checksums/manifesto privados persistidos antes do cleanup | Python sintético recupera arquivos após limpeza; retenção externa não provada | F7: backup/retenção e simbolização real; revisão independente e implantação pendentes |
 | C14 / P2 | Formulário comercial confirma envio inexistente: **aberto** | Handler espera e mostra sucesso sem envio | `script.js` da landing conferido | F1: remover falso sucesso; usar contato explícito ou destino persistente. Testar recebimento controlado, falha e preservação dos campos |
 | C15 / P2 | Contagem sem filtro: código agora usa o mesmo filtro e cursor | Inspeção de `clientPage`; falta teste funcional dedicado | Arquivo compilado da Function conferido | F1: 100 registros, busca de 2 retorna total 2; navegação e cursor coerentes, inclusive busca sem resultado |
 | C16 / P1 | Speed test: limites globais implementados, sessão individual ainda ausente | Teste isolado de limites/capabilities aprovado; sem homologação conjunta | `server.js` conferido | F1/F7: autorização de sessão, duração/concorrência/abuso; medir impacto nas APIs e declarar teto sem apresentá-lo como capacidade do plano do cliente |
@@ -939,8 +972,8 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 | ID / prioridade | Pendência | Entrega e verificação |
 | --- | --- | --- |
 | E1 / P1 | Indicadores, tendências, badges e `/diagnostic/analyze` com resultados predeterminados | F0 inventaria consumidores; F1 usa N/D/indisponível ou medida real. Rota 501 deve comunicar indisponibilidade e ter destino no inventário |
-| E2 / P0 | Builder com credencial administrativa e acesso a assinatura no mesmo ambiente de execução | F1 remove acesso indevido; F7 separa executor/assinatura/publicação; teste de negação a banco, segredos e administração |
-| E3 / P0 | **Parcial, aberto:** configuração/integração/backups contidos localmente; builds/callables/builder/IAM e caminhos restantes pendentes | Lote 15.8: API/Functions/UI testados, regras escritas sem emulador; não implantado/distribuído. Próximos lotes cobrem geração e restante da matriz; não declarar E3 inteiro resolvido |
+| E2 / P0 | **Contenção local F1, aberto:** conta administrativa retirada da declaração builder; assinatura e escrita de releases continuam acessíveis | Verificação sintética/estática aprovada; revisão independente, imagem/IAM/rede reais pendentes; F7 separa executor/assinatura/publicação |
+| E3 / P0 | **Parcial, aberto:** configuração/integração/backups e geração HTTP/callable contidos localmente; IAM e caminhos restantes pendentes | Configuração e saída SGP revisadas/integradas em b5ab897/2ac2bc8. Builds com autorização atual e testes sintéticos; revisão independente deste lote, implantação e distribuição pendentes. Não encerrar E3 inteiro |
 | E4 / P1 | Permissões/sessões divergentes entre API, Functions e SDKs diretos | F1 controla revogação do legado; F3 valida cada etapa antes de mover autoridade; nenhum sucesso de suspensão enquanto acesso residual não estiver bloqueado |
 | E5 / P1 | Falta de vínculo commit → testes → artefatos implantados | F0 registra baseline e manifestos; CI fixa ferramentas, Java/Node e imagens; revisão do código sem publicar segredos |
 | E6 / P1 | Backup não equivale a PITR/recuperação integral; `archive_mode=off` na inspeção | F2 implanta WAL externo e ensaia baixo volume; F8 recuperação integral. RPO de 5 min ainda não comprovado |

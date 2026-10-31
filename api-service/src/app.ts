@@ -15,6 +15,7 @@ import { dashboardRouter } from "./routes/dashboard.routes";
 import { subscriberRouter } from "./routes/subscriber.routes";
 import { diagnosticsRouter } from "./routes/diagnostics.routes";
 import { proxyRouter } from "./routes/proxy.routes";
+import { buildAuthorizationRouter } from "./routes/buildAuthorization.routes";
 
 export function createApp() {
   const app = express();
@@ -24,6 +25,7 @@ export function createApp() {
   app.use(measureRequests);
   app.use(corsMiddleware);
   app.use(express.json({ limit: "1mb" }));
+  app.use("/internal/builds", buildAuthorizationRouter);
   app.use(authenticateIfPresent);
   app.use(globalLimiter);
 
