@@ -3,6 +3,7 @@ import { canAccessProvider, verifyToken, verifyAdmin } from "../middlewares/auth
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore, serverTimestamp, firebaseAuth } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
+import sgpOutbound from "../services/sgp-outbound";
 
 import { parseProviderInput, publicProviderData, parsePrivateIntegration } from "../services/providerConfig";
 
@@ -73,6 +74,8 @@ providersRouter.post("/:providerId/integration", asyncRoute(async (req, res) => 
   let integrations: Record<string, string>;
   try { integrations = parsePrivateIntegration(req.body); }
   catch { throw new ApiError(400, "Integração inválida.", "invalid-argument"); }
+  try { await sgpOutbound.assertSafeSgpBaseUrl(integrations.sgpBaseUrl); }
+  catch { throw new ApiError(400, "Destino SGP inválido ou interno.", "invalid-argument"); }
   const provider = firestore.collection("provedores").doc(id);
   if (!(await provider.get()).exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
   await provider.collection("secrets").doc("sgp").set({ integrations }, { merge: true });

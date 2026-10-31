@@ -526,6 +526,29 @@ pendente. Não encerra C4/C11/E3 nem concede G0/G1.
 
 ### Fase 0 — Inventário, contratos e linha de base
 
+**Atualização aditiva F1 C5/C6 (31/10/2026):** lote anterior `17baa3af4fe4`
+agora revisado/integrado em `a499dea`, implementação/correções C4/C11/E3 em
+`b5ab897`. Recibos herdados: 48 API, 87 Functions, 20 UI e builds finais
+aprovados; são reuso de evidência, não execução nova deste lote. Os registros
+históricos acima permanecem válidos para suas datas. Continuação C5/C6 local
+implementa transporte canônico e credenciais privadas completas por tenant;
+primeira revisão independente reprovou R1–R3; correções locais implementadas e
+testadas, aguardando nova revisão do controlador. Implantação não ocorreu. Ver seção 15.9 e
+[evidência deste lote](operations/rearchitecture-f1-sgp-outbound-2026-10-31.md).
+
+- [x] Implementar política comum API/proxy/worker com DNS/IP fixado até o socket,
+  Host/SNI/TLS, sem redirect/proxy por ambiente e sem substituição de destino.
+- [x] Remover fallback global/público de URL/token/app no tráfego por tenant;
+  validar candidata SaaS antes da persistência, sem transmiti-la ao SGP.
+- [x] Corrigir R1–R3: resposta HTTP controlada nas rotas ONU, tenant em
+  verificaacesso e IPv6 limitado às alocações ordinárias conhecidas da IANA;
+  regressões HTTP e transporte API/proxy aprovadas localmente.
+- [ ] Revisão independente C5/C6 pelo controlador e aceite da evidência local.
+- [ ] Compatibilidade/reconciliação operacional de integrações privadas legadas,
+  homologação isolada de implantação e jornadas mobile antes de release.
+
+Essas subtarefas não encerram C5/C6, F0/F1, G0/G1, C4/C11/E3 ou E8.
+
 #### Acompanhamento do primeiro lote — 31/10/2026 UTC
 
 - [x] Preservar snapshot local em clone, identificar HEAD e registrar manifesto dos containers observados (`aeef740`, `608af5f`). Escopo parcial: regras/Functions remotas e APK ainda pendentes.
@@ -898,8 +921,8 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 | C2 / P0 | Login por CPF: senha exigida no backend e enviada pelo Flutter atual | Helper testa senha vazia/incorreta e identidade; falta jornada completa por versão de cliente | Código do proxy conferido; adoção do APK não comprovada | F1: CPF sem senha falha; senha correta funciona; contrato encerrado e SGP indisponível tratados; refresh de perfil não reabre login inseguro |
 | C3 / P0 | Colisão de tabelas: cache atual usa `(provider_id, client_id)` | Inspeção de schema/queries; falta teste específico dos IDs conflitantes e reconciliação histórica | Código de proxy/worker conferido | F1/F5: `isp-a` e `ispa` com mesmo ID externo ficam isolados; dados antigos sem mistura e exceções documentadas |
 | C4 / P0 | Contenção local implementada: schemas explícitos HTTP/RPC, saída legada sanitizada e auditoria sem payload; **não encerrado** | Regressões API/Functions/UI aprovadas (15.8); regras escritas sem emulador nesta sessão | Não implantado; produção não revalidada neste lote | F1: revisão, regras reais, projeções legadas/consulta anônima e compatibilidade antes de encerrar |
-| C5 / P0 | Destinos SGP/SSRF: **aberto**; políticas de proxy e API diferentes | Inspeção confirma lacunas; testes existentes da API não cobrem toda a conexão/redirect | Proxy problemático conferido; não houve exploração de rede | F1: IPv4/IPv6/DNS/redirect controlados; conexão usa endereço validado; tenant não pode alterar URL ou injetar destino/token |
-| C6 / P0 | Fallback global: bloqueado para tenant identificado; modo sem tenant ainda existe | Teste da API para integração incompleta; falta equivalente de todos os caminhos do proxy | Código de resolução no proxy conferido | F1: segredo global fictício nunca sai em requisição de tenant sem segredo; modo global inventariado e isolado/desativado |
+| C5 / P0 | Transporte canônico implementado localmente em 31/10 (15.9); **não encerrado**, revisão independente pendente | Regressões de conexão/DNS/redirect/Host/SNI/TLS e cadastro SaaS sintéticos; ver evidência 15.9 | Não implantado nem homologado na rede operacional neste lote | Revisão independente, artefatos/homologação isolada e compatibilidade antes do aceite integral |
+| C6 / P0 | Fallback global/público removido localmente em 31/10 (15.9); **não encerrado** | Wrappers API/proxy/Functions com A/B, incompleto, ausente, lookup falho e forjados; variáveis globais preservadas sem uso por usuários | Não implantado; integração privada legada exige reconciliação sem migração neste lote | Revisão, reconciliação operacional privada, jornadas mobile e ausência de fallback em artefatos homologados |
 | C7 / P1 | Conclusão de sync: job/status corrigem anúncio prematuro; dual-write e publicação parcial continuam | Inspeção do polling/worker; testes de offset/repetição; faltam falhas entre bancos e publicação por geração | Worker/handler conferidos; painel distribuído não revalidado por hash nesta revisão | F1: sucesso só terminal e erro explícito. F5: geração publicada após reconciliação, retomada sem mistura; testar 250 e 5.000 clientes |
 | C8 / P1 | Lock sem lease e qualquer erro tratado como duplicidade: **aberto** | Inspeção de `requestRouter`; falta teste de interrupção antes/depois do efeito | Arquivo compilado da Function conferido | F1: posse expira, erro transitório não some; reexecução segura ou estado desconhecido com reconciliação |
 | C9 / P1 | Falha de faturas como vazio: exceção agora retorna erro; validação de payload precisa de cobertura | Inspeção de `Promise.all` e resposta de erro; falta teste dedicado uma/duas falhas | Proxy conferido | F1: vazio legítimo, erro total, resposta parcial/ inválida distinguíveis; não cachear erro como sucesso |
@@ -1163,3 +1186,45 @@ demais gates; E3/E9 são parciais. Builds/E2, SSRF/C5, revogação uniforme/E4,
 rotação upstream/E8, compatibilidade mobile/legados, produção e recuperação
 integral seguem pendentes; G0/G1 não concedidos. Nenhuma credencial real,
 produção ou serviço de host acessado/alterado; token operacional intocado.
+
+### 15.9. Continuação F1 C5/C6 — saída SGP (31/10/2026 UTC)
+
+Executor nominal: **Codex — GPT-6.1 Sol**, sessão de programador delegada.
+Base `a499dea`; lote anterior `17baa3af4fe4` agora revisado/integrado,
+implementação C4/C11/E3 em `b5ab897`. Recibos anteriores preservados: 48 API,
+87 Functions, 20 UI e builds finais aprovados; este é reuso de evidências,
+não execução nova. Não altera as conclusões históricas de 15.8/15.8.2.
+
+- [x] Transporte canônico empacotado API/proxy/worker: valida toda a resposta
+  DNS, fixa IP até o socket, confere peer e preserva hostname em Host/SNI/TLS.
+  Nega redirects, proxy por ambiente, opções de destino e URL final forjada.
+- [x] Credenciais privadas completas por tenant; sem fallback global/público,
+  inferência arbitrária por CPF ou segredo recuperado de backup.
+- [x] Cadastro SaaS valida destino/DNS antes de persistir, mantendo autorização
+  atual/revogação/reauth; sem transmitir candidata insegura.
+- [x] Regressões locais com dependências explícitas, HTTP/TLS sintéticos e
+  NODE_ENV=test mantendo política. Recibo anterior: API 62/62; proxy 24 aprovados,
+  6 skips Redis; Functions 89/89; contratos, scan e build API aprovados.
+- [x] Correções pós-revisão R1–R3 implementadas pelo mesmo executor. Nova rodada:
+  API 69/69; proxy 25 aprovados/6 skips Redis; Functions 89/89; contratos,
+  scan de segredos e build API aprovados (uma execução nova de cada comando).
+- [ ] Nova revisão independente pelo controlador após reprovação R1–R3,
+  necessária antes de integração; o executor não aprova as próprias correções.
+- [ ] Homologar artefatos/DNS/TLS/fila e reconciliar integrações privadas
+  legadas em procedimento separado antes de publicar; nenhuma migração aqui.
+
+A primeira rodada detectou erro de classificação de IPv6 comprimido (`NaN`);
+foi corrigido sem relaxar testes e os checks afetados foram repetidos. Conferência
+final também explicitou rejeição de userinfo vazio/URL sem `//`, com regressão.
+Comandos, contagens de execuções/reuso, ambiente e limites constam da
+[evidência C5/C6](operations/rearchitecture-f1-sgp-outbound-2026-10-31.md).
+
+**Implementado/testado localmente; primeira revisão reprovada, correções
+aguardando nova revisão; não implantado nem distribuído.** A revisão encontrou
+Promise ONU não encaminhada, ausência de tenant em verificaacesso e IPv6 reservado
+admitido; os três foram corrigidos com regressões, sem reescrever os recibos
+anteriores. C5/C6, C4/C11/E3, F0/G0/F1/G1 não encerrados integralmente.
+E8 continua aberto: token operacional real intocado. Regras reais/mobile/assets,
+builder/builds Android, revogação uniforme, recuperação/IAM/custo e demais gates
+continuam no backlog; locks e outros domínios não foram alterados. O ciclo
+candidato/teste/ativação de Secret Manager é futuro, sem promessa de entrega aqui.

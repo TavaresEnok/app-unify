@@ -1,6 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, expect, it, vi } from "vitest";
+import sgpOutbound from "../services/sgp-outbound";
 const state = vi.hoisted(() => ({ docs: new Map<string, any>(), audits: [] as any[], verified: [] as any[], access: "active" }));
 const claims = (token: string): any => ({ uid: token, auth_time: Math.floor(Date.now()/1000), ...(token === "saas" ? { superAdmin: true } : { role: token === "subscriber" ? "subscriber" : "providerAdmin", providerId: token === "other" ? "b" : "a" }) });
 function ref(path: string): any { return {
@@ -22,7 +23,12 @@ import { providersRouter } from "./providers.routes";
 import { errorHandler } from "../middlewares/errorHandler";
 const app = express(); app.use(express.json()); app.use(providersRouter); app.use(errorHandler);
 const post = (uid: string, path: string, data: any) => request(app).post(path).set("Authorization", "Bearer " + uid).send(data);
-beforeEach(() => { state.access = "active"; state.docs.clear(); state.audits.length = 0; state.verified.length = 0; state.docs.set("provedores/a", { name: "A", themeColor: "#123", details: { systemUrl: "private-url", appName: "private-app", apiToken: "synthetic" }, config: { faq: [{ question: "Q", answer: "A", password: "synthetic" }], unknown: "synthetic" }, unknown: "synthetic" }); });
+beforeEach(() => { state.access = "active"; state.docs.clear(); state.audits.length = 0; state.verified.length = 0; state.docs.set("provedores/a", { name: "A", themeColor: "#123", details: { systemUrl: "private-url", appName: "private-app", apiToken: "synthetic" }, config: { faq: [{ question: "Q", answer: "A", password: "synthetic" }], unknown: "synthetic" }, unknown: "synthetic" });
+ vi.spyOn(sgpOutbound, "assertSafeSgpBaseUrl").mockImplementation(async (url: string) => {
+  const transport: any = sgpOutbound.createSgpTransport({ lookup: async () => [{ address: "8.8.8.8", family: 4 }] });
+  return transport.assertSafeSgpBaseUrl(url);
+ });
+});
 it("denies subscriber and cross tenant mutations", async () => {
  expect((await post("subscriber", "/", { id: "a", themeColor: "#fff" })).status).toBe(403);
  expect((await post("other", "/", { id: "a", themeColor: "#fff" })).status).toBe(403);
@@ -61,6 +67,18 @@ it("allows only SaaS private replacement, checks revocation and never returns st
  expect(state.docs.get("provedores/a/secrets/sgp").integrations).toEqual(data);
  expect(JSON.stringify(state.audits)).not.toContain("replacement-synthetic");
  expect((await post("saas", "/a/integration", { ...data, unexpected: "injected" })).status).toBe(400);
+});
+it.each(["https://127.1", "https://[::1]", "https://[::ffff:7f00:1]", "https://[2d00::1]", "https://[3000::1]", "https://[3ffe::1]", "https://user:pass@sgp.test/", "https://sgp.test/?token=forged", "https://sgp.test/#x"])("rejects unsafe SaaS candidate %s before persisting", async sgpBaseUrl => {
+ const original = { integrations: { apiToken: "synthetic-original", sgpBaseUrl: "https://original.test", appName: "original" } };
+ state.docs.set("provedores/a/secrets/sgp", original);
+ expect((await post("saas", "/a/integration", { sgpBaseUrl, appName: "new", apiToken: "synthetic-candidate" })).status).toBe(400);
+ expect(state.docs.get("provedores/a/secrets/sgp")).toEqual(original); expect(state.audits).toEqual([]);
+});
+it.each(["10.0.0.1", "2d00::1", "3000::1", "3ffe::1"])("rejects mixed DNS including %s at SaaS registration before persisting", async address => {
+ const transport: any = sgpOutbound.createSgpTransport({ lookup: async () => [{ address: "8.8.8.8", family: 4 }, { address, family: address.includes(":") ? 6 : 4 }] });
+ vi.mocked(sgpOutbound.assertSafeSgpBaseUrl).mockImplementation(transport.assertSafeSgpBaseUrl);
+ expect((await post("saas", "/a/integration", { sgpBaseUrl: "https://sgp.test", appName: "new", apiToken: "synthetic-candidate" })).status).toBe(400);
+ expect(state.docs.has("provedores/a/secrets/sgp")).toBe(false); expect(state.audits).toEqual([]);
 });
 it.each(["revoked", "disabled", "demoted", "stale"])("preserves private credentials when SaaS access is %s", async access => {
  const original = { integrations: { apiToken: "synthetic-operational", sgpBaseUrl: "https://original.test", appName: "original" } };
