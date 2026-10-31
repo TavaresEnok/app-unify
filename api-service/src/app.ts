@@ -10,6 +10,7 @@ import { globalLimiter } from "./middlewares/rateLimits";
 import { adminAuthRouter } from "./routes/adminAuth.routes";
 import { providersRouter } from "./routes/providers.routes";
 import { ticketsRouter } from "./routes/tickets.routes";
+import { privateAttachmentsRouter } from "./routes/privateAttachments.routes";
 import { usersRouter } from "./routes/users.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
 import { subscriberRouter } from "./routes/subscriber.routes";
@@ -40,6 +41,7 @@ export function createApp() {
   app.use("/admin/auth", adminAuthRouter);
   app.use("/admin/providers", providersRouter);
   app.use("/admin/tickets", ticketsRouter);
+  app.use("/private", privateAttachmentsRouter);
   app.use("/admin/users", usersRouter);
   app.use("/admin/dashboard", dashboardRouter);
   app.use("/diagnostic", diagnosticsRouter);

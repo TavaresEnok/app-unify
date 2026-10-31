@@ -13,7 +13,7 @@ let environment;
 
 before(async () => {
   environment = await initializeTestEnvironment({
-    projectId: process.env.GCLOUD_PROJECT || "app-ajust-provedor",
+    projectId: "demo-private-attachments",
     firestore: { rules: await readFile("firestore.rules", "utf8") },
     storage: { rules: await readFile("storage.rules", "utf8") },
   });
@@ -96,7 +96,7 @@ test("storage keeps public assets readable and ticket attachments private", asyn
   const anonymous = environment.unauthenticatedContext().storage();
   await assertSucceeds(getBytes(ref(anonymous, "providers/alpha/logo.png")));
   const client = environment.authenticatedContext("client-alpha", { role: "subscriber", providerId: "alpha", cpfCnpj: "12345678901" }).storage();
-  await assertSucceeds(uploadBytes(
+  await assertFails(uploadBytes(
     ref(client, "providers/alpha/ticket_attachments/evidence.png"),
     new Uint8Array([1, 2, 3]),
     { contentType: "image/png" },
@@ -203,4 +203,88 @@ test("storage denies mixed legacy backups/secrets while branding remains usable"
   }
   const own = environment.authenticatedContext("admin", { role: "providerAdmin", providerId: "alpha" }).storage();
   await assertSucceeds(uploadBytes(ref(own, "providers/alpha/public_assets/branding.png"), new Uint8Array([1]), { contentType: "image/png" }));
+});
+
+test('E9 diagnostics bind SDK creation to uid and tenant; no client URL/ref/update bypass', async () => {
+  const own = environment.authenticatedContext('a1', { role: 'subscriber', providerId: 'alpha' }).firestore();
+  const valid = { schemaVersion: 2, createdByUid: 'a1', providerId: 'alpha', createdAt: serverTimestamp(), severity: 'ok', measurements: {} };
+  const path = 'provedores/alpha/diagnostic_results/r1';
+  await environment.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'provedores/alpha/diagnostic_results/legacy'), { createdByUid: 'unknown', reportUrl: 'https://legacy.invalid' }));
+  await assertSucceeds(setDoc(doc(own, path), valid));
+  // Creation does not establish legacy-proof provenance for direct SDK reads.
+  await assertFails(getDoc(doc(own, path)));
+  for (const claims of [{ role: 'subscriber', providerId: 'alpha' }, { role: 'subscriber', providerId: 'beta' }, { role: 'providerAdmin', providerId: 'beta' }]) {
+    const db = environment.authenticatedContext('a2', claims).firestore();
+    await assertFails(getDoc(doc(db, path)));
+    await assertFails(setDoc(doc(db, path), { reportAttachmentId: 'forged' }, { merge: true }));
+  }
+  for (const [index, forged] of [{ createdByUid: 'a2' }, { providerId: 'beta' }, { reportUrl: 'https://outside.invalid' }, { reportAttachmentId: 'forged' }, { status: 'approved' }].entries())
+    await assertFails(setDoc(doc(own, 'provedores/alpha/diagnostic_results/forged-' + index), { ...valid, ...forged }));
+  await assertFails(setDoc(doc(own, path), { measurements: { speed: 999 } }, { merge: true }));
+  for (const claims of [{ role: 'providerAdmin', providerId: 'alpha' }, { superAdmin: true }]) {
+    const db = environment.authenticatedContext('admin', claims).firestore();
+    await assertSucceeds(getDoc(doc(db, path)));
+    await assertSucceeds(getDoc(doc(db, 'provedores/alpha/diagnostic_results/legacy')));
+    await assertFails(setDoc(doc(db, path), { reportUrl: 'https://outside.invalid' }, { merge: true }));
+    for (const root of ['provedores', 'providers']) {
+      await assertFails(setDoc(doc(db, `${root}/alpha/diagnostic_results/r1/private_attachments/up1`), { state: 'committed' }));
+      await assertFails(getDoc(doc(db, `${root}/alpha/diagnostic_results/r1/private_attachments/up1`)));
+    }
+    await assertFails(setDoc(doc(db, 'tickets/t1/private_attachments/up1'), { state: 'committed' }));
+  }
+});
+
+test('E9 legacy forged owner, tenant, schema and timestamp never grant subscriber reads', async () => {
+  const paths = ['legacy-owner', 'legacy-schema', 'legacy-full'].map(id => `provedores/alpha/diagnostic_results/${id}`);
+  await environment.withSecurityRulesDisabled(async context => {
+    for (const [index, path] of paths.entries()) {
+      await setDoc(doc(context.firestore(), path), {
+        providerId: 'alpha', createdByUid: 'a1', measurements: { speed: 123 },
+        ...(index >= 1 ? { schemaVersion: 2, createdAt: new Date('2099-01-01') } : {}),
+        ...(index >= 2 ? { reportUrl: 'https://legacy.invalid/private.pdf', reportAttachmentId: 'forged' } : {}),
+      });
+    }
+  });
+  for (const [uid, claims, allowed] of [
+    ['a1', { role: 'subscriber', providerId: 'alpha' }, false],
+    ['a2', { role: 'subscriber', providerId: 'alpha' }, false],
+    ['b1', { role: 'subscriber', providerId: 'beta' }, false],
+    ['pb', { role: 'providerAdmin', providerId: 'beta' }, false],
+    ['pa', { role: 'providerAdmin', providerId: 'alpha' }, true],
+    ['saas', { superAdmin: true }, true],
+  ]) {
+    const db = environment.authenticatedContext(uid, claims).firestore();
+    for (const path of paths) await (allowed ? assertSucceeds : assertFails)(getDoc(doc(db, path)));
+  }
+});
+
+test('E9 tickets require uid and tenant; legacy CPF does not authorize SDK reads', async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'tickets/t1'), { createdByUid: 'a1', providerId: 'alpha' });
+    await setDoc(doc(db, 'tickets/legacy'), { createdByUid: '123', providerId: 'alpha' });
+  });
+  for (const [uid, providerId, succeeds] of [['a1','alpha',true], ['a2','alpha',false], ['a1','beta',false]]) {
+    const db = environment.authenticatedContext(uid, { role: 'subscriber', providerId, cpfCnpj: '123' }).firestore();
+    await (succeeds ? assertSucceeds : assertFails)(getDoc(doc(db, 'tickets/t1')));
+    await assertFails(getDoc(doc(db, 'tickets/legacy')));
+  }
+});
+
+test('E9 private v2 is backend-only and v1 grants no subscriber tenant-wide access', async () => {
+  const paths = ['private_v2/alpha/tickets/t1/up1', 'private_v2/alpha/results/r1/up1',
+    'providers/alpha/ticket_attachments/old.png', 'providers/alpha/diagnostic_reports/old.pdf'];
+  await environment.withSecurityRulesDisabled(async context => {
+    for (const path of paths) await uploadBytes(ref(context.storage(), path), new Uint8Array([1]), { contentType: 'image/png' });
+  });
+  for (const [uid, claims] of [['a1', { role: 'subscriber', providerId: 'alpha' }], ['a2', { role: 'subscriber', providerId: 'alpha' }], ['b1', { role: 'subscriber', providerId: 'beta' }], ['pa', { role: 'providerAdmin', providerId: 'alpha' }], ['saas', { superAdmin: true }]]) {
+    const storage = environment.authenticatedContext(uid, claims).storage();
+    for (const path of paths) {
+      if (path.startsWith('private_v2/') || claims.role !== 'providerAdmin' && !claims.superAdmin) {
+        await assertFails(getBytes(ref(storage, path)));
+        await assertFails(deleteObject(ref(storage, path)));
+      }
+      await assertFails(uploadBytes(ref(storage, path), new Uint8Array([1]), { contentType: 'image/png' }));
+    }
+  }
 });

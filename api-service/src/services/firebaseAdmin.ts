@@ -7,7 +7,7 @@ if (credentialsPath && !fs.existsSync(credentialsPath)) {
 }
 
 if (!admin.apps.length) {
-  admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT || undefined });
+  admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT || undefined, storageBucket: process.env.FIREBASE_STORAGE_BUCKET || undefined });
 }
 
 export const firebaseAuth = admin.auth();

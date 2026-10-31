@@ -16,6 +16,7 @@ export interface TicketMessageDocument {
   senderEmail: string;
   message?: string;
   imageUrl?: string;
+  attachmentId?: string;
   timestamp: { seconds: number; nanoseconds: number };
 }
 

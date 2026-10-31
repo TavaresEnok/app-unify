@@ -23,7 +23,8 @@ async function requireTicketAccess(requesterUid: string, ticketId: string) {
   ]);
   if (!ticket.exists) throw new AppError("not-found", "Ticket não encontrado.");
   const data = ticket.data() || {};
-  const allowed = isSuperAdmin(user) || (user.customClaims?.role === "providerAdmin" && requesterProviderId(user) === data.providerId) || data.createdByUid === requesterUid || (user.customClaims?.role === "subscriber" && user.customClaims.providerId === data.providerId && user.customClaims.cpfCnpj === data.createdByUid);
+  const allowed = isSuperAdmin(user) || (requesterProviderId(user) === data.providerId &&
+    (user.customClaims?.role === "providerAdmin" || (user.customClaims?.role === "subscriber" && data.createdByUid === requesterUid)));
   if (!allowed) throw new AppError("permission-denied", "Permissão negada para este ticket.");
   return { user, ticket, data };
 }
@@ -44,6 +45,7 @@ export const getProviderTickets: RequestHandler<"GET_PROVIDER_TICKETS"> = async 
 };
 
 export const createTicket: RequestHandler<"CREATE_TICKET"> = async ({ requestId, requesterUid, payload }) => {
+  rejectAttachmentPayload(payload);
   const user = await requireRequester(requesterUid);
   const claimedProvider = requesterProviderId(user);
   if (!isSuperAdmin(user) && !["providerAdmin", "subscriber"].includes(String(user.customClaims?.role))) {
@@ -79,13 +81,13 @@ export const createTicket: RequestHandler<"CREATE_TICKET"> = async ({ requestId,
     senderUid: requesterUid,
     senderEmail: payload.userEmail || user.email || "",
     senderRole: isSuperAdmin(user) ? "superAdmin" : (user.customClaims?.role === "providerAdmin" ? "providerAdmin" : "client"),
-    imageUrl: payload.imageUrl || null,
     createdAt: now,
   });
   return { success: true, message: "Ticket criado com sucesso.", ticketId: ticketRef.id };
 };
 
 export const replyToTicket: RequestHandler<"REPLY_TO_TICKET"> = async ({ requesterUid, payload }) => {
+  rejectAttachmentPayload(payload);
   const { user, ticket } = await requireTicketAccess(requesterUid, payload.ticketId);
   if (!payload.message.trim()) throw new AppError("invalid-argument", "A mensagem é obrigatória.");
   const now = FieldValue.serverTimestamp();
@@ -95,13 +97,18 @@ export const replyToTicket: RequestHandler<"REPLY_TO_TICKET"> = async ({ request
       senderUid: requesterUid,
       senderEmail: user.email || "",
       senderRole: isSuperAdmin(user) ? "superAdmin" : (user.customClaims?.role === "providerAdmin" ? "providerAdmin" : "client"),
-      imageUrl: payload.imageUrl || null,
       createdAt: now,
     }),
     ticket.ref.set({ updatedAt: now }, { merge: true }),
   ]);
   return { success: true, message: "Resposta enviada." };
 };
+
+function rejectAttachmentPayload(payload: object) {
+  if (Object.keys(payload).some(key => /url|path|attachment|image|owner/i.test(key))) {
+    throw new AppError("invalid-argument", "Anexos exigem o endpoint privado por recurso.");
+  }
+}
 
 export const updateTicketStatus: RequestHandler<"UPDATE_TICKET_STATUS"> = async ({ requesterUid, payload }) => {
   const { user, ticket, data } = await requireTicketAccess(requesterUid, payload.ticketId);
