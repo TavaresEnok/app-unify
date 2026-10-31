@@ -4,6 +4,19 @@ import type {
   FunctionRequestType,
 } from "../contracts";
 import { AppError } from "./errors";
+import { assertFunctionRequest, isRecord } from "../contracts";
+
+export function normalizeRequest(raw: unknown): FunctionRequest {
+  if (isRecord(raw) && isRecord(raw.payload) && typeof raw.requesterUid === "string" &&
+      typeof raw.payload.requesterUid === "string" && raw.requesterUid !== raw.payload.requesterUid) {
+    throw new AppError("invalid-argument", "Requisição inválida.");
+  }
+  const normalized = isRecord(raw) && isRecord(raw.payload) && raw.requesterUid === undefined &&
+    typeof raw.payload.requesterUid === "string" ? { ...raw, requesterUid: raw.payload.requesterUid } : raw;
+  assertFunctionRequest(normalized);
+  const { requesterUid: _legacyUid, ...payload } = normalized.payload as Record<string, unknown>;
+  return { type: normalized.type, requesterUid: normalized.requesterUid, payload } as FunctionRequest;
+}
 
 export function requirePayloadFields(payload: object, allowed: string[]): void {
   if (Object.keys(payload).some(key => !allowed.includes(key))) {
