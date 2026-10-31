@@ -788,21 +788,13 @@ async function handleOnuRequest(req, res, useFilters) {
         res.status(200).json({ data: formattedData });
     } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } })); }
 }
-// 4. Rota Analyze
-// 4. Rota Analyze
-// ATENÇÃO: retorna análise PLACEHOLDER fixa (não há motor de diagnóstico real).
-// Mantida por compatibilidade com apps antigos (contracts.js "keep-temporarily").
-// Não exibir como diagnóstico real sem implementar a análise de fato.
+// Compatibility route retained until the legacy/mobile retirement gate.
+// No measured analysis engine exists in this proxy.
 app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
-    res.status(200).json({
-        data: {
-            problem: "Sinal óptico abaixo do ideal (-25dBm)",
-            category: "FIBER_ISSUE",
-            confidence: 0.95,
-            solution: "Verificar integridade do cabo de fibra e conexões.",
-            estimatedTime: "24h",
-            priority: 1,
-            timestamp: new Date().toISOString()
+    res.status(501).json({
+        error: {
+            code: 'DIAGNOSTIC_UNAVAILABLE',
+            message: 'Análise de diagnóstico indisponível. Nenhuma análise medida foi realizada.'
         }
     });
 });
