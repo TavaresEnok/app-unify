@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-31T00:53:55.069685+00:00",
+  "sourceBaseline": "aeef740",
+  "deploymentBaseline": "608af5f",
+  "backupVerification": "2373f8c",
+  "project": "demo-painel-rearchitecture",
+  "java": "21.0.12.1 isolated, host default unchanged",
+  "node": "24.22.1",
+  "command": "JAVA_HOME=<isolated-java21> PATH=<isolated-java21>/bin:$PATH JAVA_TOOL_OPTIONS=-Xmx384m GCLOUD_PROJECT=demo-painel-rearchitecture firebase emulators:exec --project demo-painel-rearchitecture --only firestore,storage \"node --test tests/firestore-rules.test.mjs\"",
+  "result": {
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0
+  },
+  "limits": [
+    "Existing test explicitly allows providerAdmin to read secrets: passing is not E3 acceptance.",
+    "No production change, no new APK, no full restoration."
+  ],
+  "rulesSha256": {
+    "firestore.rules": "226860389a96a65a99c848b428173cc67efe0c7476b0ff736a6764faabfe914e",
+    "storage.rules": "31dcb74737449dc82b08c3f611082d7bc0dcaac6652a2bc0dce08e64b145fc4d"
+  }
+}
