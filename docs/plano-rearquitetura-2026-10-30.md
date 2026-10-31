@@ -427,6 +427,35 @@ Testar SGP de 50 ms, 500 ms e 2 s, indisponível, dados inconsistentes e respost
 
 ## 9. Fases de execução
 
+### Ficha atual consolidada F0/F1 — 31/10/2026 UTC
+
+Executor documental nominal: `executor-codex-task-f73d0e4cd415-f1-evidence-update`
+(Codex). Base conferida `110e27f`. Esta ficha e a seção 15.10 atualizam o estado
+dos recibos históricos abaixo sem apagar tentativas, reprovações ou pendências
+registradas pelos implementadores. Nenhum código foi modificado nesta consolidação.
+
+| Escopo / recibo | Implementação / commit efetivo | Testes locais do recibo, reutilizados | Revisão / integração | Implantação / distribuição |
+| --- | --- | --- | --- | --- |
+| Configuração C4/C11/E3 — [recibo](operations/rearchitecture-f1-config-boundary-2026-10-31.md), 15.8 | `b5ab897` | API 48, Functions 87, UI 20 e builds finais informados no lote anterior | Revisado/integrado conforme contrato; revisão-pendente nos registros antigos é histórica | Não / não neste ciclo |
+| Saída SGP C5/C6 — [recibo](operations/rearchitecture-f1-sgp-outbound-2026-10-31.md), 15.9 | `2ac2bc8` | API 69, Functions 89, proxy 25 aprovados + 6 skips Redis | Revisado/integrado conforme contrato; preservadas reprovação R1–R3 e correções | Não / não neste ciclo |
+| Builder E2/E3/C12/C13 — [recibo](operations/rearchitecture-f1-build-containment-2026-10-31.md) | `447ca7a`, integrado em `a48b2d8` | Builder 19, API 77, Functions 94, Python 5; scan 812 arquivos; resultados finais com reuso entre rodadas descrito no recibo | Revisado/integrado conforme contrato recebido; F1-REVIEW-01 permanece no histórico | Não / não |
+| RPC C8 — [recibo](operations/rearchitecture-f1-rpc-recovery-2026-10-31.md) | `4804287`, integrado em `110e27f` | Functions 120/120 em 13 arquivos; contratos, scan 816 arquivos, TypeScript e whitespace aprovados no recibo | Integração conferida no Git; recibo termina com revisão pendente, sem parecer independente anexado nesta worktree; controlador deve vincular parecer/aceite | Não / não |
+| Estados E1 / contato C14 — [recibo](operations/rearchitecture-f1-honest-states-2026-10-31.md) | `1ec8591`, integrado em `385ea65` | UI 28, proxy 26 aprovados + 6 skips, contato 3; scan 821 arquivos, tipos UI e whitespace aprovados no recibo | Integração conferida no Git; recibo termina com revisão pendente, sem parecer independente anexado nesta worktree; controlador deve vincular parecer/aceite | Não / não |
+
+As contagens pertencem às respectivas bases/rodadas, não são somadas nem
+certificam a suíte combinada em `110e27f`. Nenhuma suíte de aplicação, builder,
+Python ou regras foi reexecutada nesta tarefa documental. Manifestos produtivos
+da seção 15.2 são históricos e não representam esses commits novos.
+
+- [x] Consolidar commits e recibos locais de builder, RPC e estados/contato.
+- [x] Registrar revisão/integração de `b5ab897`, `2ac2bc8` e `447ca7a`, conforme contrato.
+- [ ] Controlador anexar pareceres independentes e aceite de `4804287` e `1ec8591`; integração isoladamente não comprova revisão nem encerramento.
+- [ ] Incorporar/validar manifesto e log dos dez testes de regras Java 21/demo informados pelo gerente: `/home/app/srv_projetos/orchestration/evidence/painel_provedores/config-boundary-20261031`. Caminho consultado, ausente nesta sessão; fonte externa não incorporada e testes não reexecutados. Não equivale a Rules/IAM reais homologados.
+- [ ] Concluir gates F0/G0 e F1/G1 da lista priorizada em 15.10; nenhum achado abrangente encerrado por esta consolidação.
+
+Os blocos seguintes são registros das entregas em suas datas; quando disserem
+revisão-pendente ou sem implementação, consultar esta ficha para o estado atual.
+
 **Continuação F1 builds (31/10/2026):** executor nominal
 `executor-codex-task-645c61b8262c-f1-build-containment` implementa contenção local
 E2/E3/C12/C13; [evidência e gates](operations/rearchitecture-f1-build-containment-2026-10-31.md).
@@ -875,6 +904,10 @@ Registro obrigatório de acompanhamento: [matriz de achados, evidências e encer
 
 ### Atualização F1 builds — 31/10/2026
 
+Registro histórico do implementador, anterior à integração `447ca7a`/`a48b2d8`.
+A ficha atual da seção 9 e 15.10 registra revisão/integração; os gates reais
+abaixo continuam abertos, mesmo após aprovação do código.
+
 | Achado | Código local desta continuação | Limites de encerramento |
 | --- | --- | --- |
 | E2 | Conta administrativa retirada dos mounts/ambiente builder; subprocesso com allowlist; rede declarada separada | Keystore/assinatura e escrita de releases ainda acessíveis; IAM/rede real, imagem e F7 pendentes |
@@ -946,7 +979,10 @@ Existe log anterior com seis testes de regras aprovados; ele é evidência hist�
 
 ### 15.3. Matriz C1–C16
 
-Em todas as linhas, **commit de correção: não identificado para as alterações locais posteriores ao HEAD auditado**. Cada encerramento deve atualizar esse campo com o commit efetivo e a referência do manifesto de implantação.
+Na revisão histórica, o commit das alterações locais posteriores ao HEAD auditado
+não estava identificado. Os commits efetivos agora conhecidos constam da ficha
+atual da seção 9 e de 15.10; os demais continuam sem identificação nova.
+Cada encerramento ainda exige manifesto de implantação e aceite integral.
 
 | ID / prioridade | Achado e situação do código | Teste / evidência disponível | Situação de implantação | Fase e condição de encerramento |
 | --- | --- | --- | --- | --- |
@@ -954,16 +990,16 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 | C2 / P0 | Login por CPF: senha exigida no backend e enviada pelo Flutter atual | Helper testa senha vazia/incorreta e identidade; falta jornada completa por versão de cliente | Código do proxy conferido; adoção do APK não comprovada | F1: CPF sem senha falha; senha correta funciona; contrato encerrado e SGP indisponível tratados; refresh de perfil não reabre login inseguro |
 | C3 / P0 | Colisão de tabelas: cache atual usa `(provider_id, client_id)` | Inspeção de schema/queries; falta teste específico dos IDs conflitantes e reconciliação histórica | Código de proxy/worker conferido | F1/F5: `isp-a` e `ispa` com mesmo ID externo ficam isolados; dados antigos sem mistura e exceções documentadas |
 | C4 / P0 | Contenção local implementada: schemas explícitos HTTP/RPC, saída legada sanitizada e auditoria sem payload; **não encerrado** | Regressões API/Functions/UI aprovadas (15.8); regras escritas sem emulador nesta sessão | Não implantado; produção não revalidada neste lote | F1: revisão, regras reais, projeções legadas/consulta anônima e compatibilidade antes de encerrar |
-| C5 / P0 | Transporte canônico implementado localmente em 31/10 (15.9); **não encerrado**, revisão independente pendente | Regressões de conexão/DNS/redirect/Host/SNI/TLS e cadastro SaaS sintéticos; ver evidência 15.9 | Não implantado nem homologado na rede operacional neste lote | Revisão independente, artefatos/homologação isolada e compatibilidade antes do aceite integral |
+| C5 / P0 | Transporte canônico em `2ac2bc8`, revisado/integrado; **não encerrado** | Regressões de conexão/DNS/redirect/Host/SNI/TLS e cadastro SaaS sintéticos; ver evidência 15.9 e ficha atual 9 | Não implantado nem homologado na rede operacional neste lote | Engenharia SaaS: artefatos/homologação isolada e compatibilidade antes do aceite integral |
 | C6 / P0 | Fallback global/público removido localmente em 31/10 (15.9); **não encerrado** | Wrappers API/proxy/Functions com A/B, incompleto, ausente, lookup falho e forjados; variáveis globais preservadas sem uso por usuários | Não implantado; integração privada legada exige reconciliação sem migração neste lote | Revisão, reconciliação operacional privada, jornadas mobile e ausência de fallback em artefatos homologados |
 | C7 / P1 | Conclusão de sync: job/status corrigem anúncio prematuro; dual-write e publicação parcial continuam | Inspeção do polling/worker; testes de offset/repetição; faltam falhas entre bancos e publicação por geração | Worker/handler conferidos; painel distribuído não revalidado por hash nesta revisão | F1: sucesso só terminal e erro explícito. F5: geração publicada após reconciliação, retomada sem mistura; testar 250 e 5.000 clientes |
-| C8 / P1 | Lock sem lease e qualquer erro tratado como duplicidade: **aberto** | Inspeção de `requestRouter`; falta teste de interrupção antes/depois do efeito | Arquivo compilado da Function conferido | F1: posse expira, erro transitório não some; reexecução segura ou estado desconhecido com reconciliação |
+| C8 / P1 | **Parcial, aberto:** lease/fencing, recuperação agendada e unknown conservador em `4804287`, integrado em `110e27f` | Functions 120 sintéticos, falhas antes/depois de efeito e ACK perdido; [recibo](operations/rearchitecture-f1-rpc-recovery-2026-10-31.md), 15.10; parecer independente a vincular pelo controlador | Novo código não implantado; inspeção antiga de Function não o cobre | Engenharia SaaS/controlador: revisão, drenagem de invocações antigas, Rules/IAM/índices, redelivery e falhas reais; reconciliação sem replay de mutações |
 | C9 / P1 | Falha de faturas como vazio: exceção agora retorna erro; validação de payload precisa de cobertura | Inspeção de `Promise.all` e resposta de erro; falta teste dedicado uma/duas falhas | Proxy conferido | F1: vazio legítimo, erro total, resposta parcial/ inválida distinguíveis; não cachear erro como sucesso |
 | C10 / P1 | Notificações de outro provedor: fallback removido no Flutter atual | Inspeção de queries restritas ao próprio tenant; falta E2E com dois provedores | Código-fonte apenas nesta revisão; APK/adoção pendentes | F1/F6: app de A nunca consulta B; próprios resultados funcionam; versão legada tem destino documentado |
 | C11 / P1 | Contenção local implementada: backup só de personalização e restore exato transacional; **não encerrado** | Backup antigo misto, remoção de campos novos e integração/native/acesso preservados testados com dados sintéticos (15.8) | Não implantado/não distribuído | F1/F4: revisão, regras reais e jornada de recuperação antes de encerrar; credenciais nunca vêm do backup de personalização |
-| C12 / P1 | **Contenção local F1, aberto** | Registro de identidade revisado obrigatório; conflitos bloqueados; saída exclusiva por tenant/versão/build | Builder/Python sintéticos aprovados; revisão independente e inventário legado pendentes | F7/gates reais: preservar e provar pacotes/assinaturas/atualizações existentes; implantação/distribuição pendentes |
-| C13 / P1 | **Contenção local F1, aberto** | Símbolos/mapping/checksums/manifesto privados persistidos antes do cleanup | Python sintético recupera arquivos após limpeza; retenção externa não provada | F7: backup/retenção e simbolização real; revisão independente e implantação pendentes |
-| C14 / P2 | Formulário comercial confirma envio inexistente: **aberto** | Handler espera e mostra sucesso sem envio | `script.js` da landing conferido | F1: remover falso sucesso; usar contato explícito ou destino persistente. Testar recebimento controlado, falha e preservação dos campos |
+| C12 / P1 | **Contenção local F1, aberto**, `447ca7a` revisado/integrado | Inventário obrigatório, conflitos bloqueados, preparo privado e link atômico/exclusivo; builder 19/API77/Functions94/Python5, recibo builder | Não implantado/distribuído; inventário legado e hard links nos mounts reais pendentes | Engenharia SaaS/F7: provar pacotes/assinaturas/atualizações existentes sem sobrescrita ou troca de identidade |
+| C13 / P1 | **Contenção local F1, aberto**, `447ca7a` revisado/integrado | Símbolos/mapping/checksums/manifesto privados sobrevivem ao cleanup sintético; recibo builder | Não implantado; retenção externa não provada | Engenharia SaaS/F7: backup, restauração e simbolização reais antes do aceite |
+| C14 / P2 | **Contido, aberto:** `1ec8591` remove falso envio, destino continua ausente | 3 testes de contato com campo preservado, bloqueio/exceção e nenhuma transmissão de email; recibo estados, 15.10 | Não implantado/distribuído; revisão independente a vincular | Comercial valida propriedade/destino/jornada e recebimento controlado; engenharia SaaS habilita somente após aceite, sem simular sucesso |
 | C15 / P2 | Contagem sem filtro: código agora usa o mesmo filtro e cursor | Inspeção de `clientPage`; falta teste funcional dedicado | Arquivo compilado da Function conferido | F1: 100 registros, busca de 2 retorna total 2; navegação e cursor coerentes, inclusive busca sem resultado |
 | C16 / P1 | Speed test: limites globais implementados, sessão individual ainda ausente | Teste isolado de limites/capabilities aprovado; sem homologação conjunta | `server.js` conferido | F1/F7: autorização de sessão, duração/concorrência/abuso; medir impacto nas APIs e declarar teto sem apresentá-lo como capacidade do plano do cliente |
 
@@ -971,9 +1007,9 @@ Em todas as linhas, **commit de correção: não identificado para as alteraçõ
 
 | ID / prioridade | Pendência | Entrega e verificação |
 | --- | --- | --- |
-| E1 / P1 | Indicadores, tendências, badges e `/diagnostic/analyze` com resultados predeterminados | F0 inventaria consumidores; F1 usa N/D/indisponível ou medida real. Rota 501 deve comunicar indisponibilidade e ter destino no inventário |
-| E2 / P0 | **Contenção local F1, aberto:** conta administrativa retirada da declaração builder; assinatura e escrita de releases continuam acessíveis | Verificação sintética/estática aprovada; revisão independente, imagem/IAM/rede reais pendentes; F7 separa executor/assinatura/publicação |
-| E3 / P0 | **Parcial, aberto:** configuração/integração/backups e geração HTTP/callable contidos localmente; IAM e caminhos restantes pendentes | Configuração e saída SGP revisadas/integradas em b5ab897/2ac2bc8. Builds com autorização atual e testes sintéticos; revisão independente deste lote, implantação e distribuição pendentes. Não encerrar E3 inteiro |
+| E1 / P1 | **Parcial, aberto:** `1ec8591` integrado, medidas rotuladas, N/D/erro/stale/denied e diagnóstico autorizado 501 sem laudo fabricado | UI28/proxy26 + 6 skips/contato3, recibo estados e 15.10; controlador vincula revisão; engenharia SaaS inventaria versões ativas, testa 501/estados em browser/mobile antes de retirar rota ou distribuir |
+| E2 / P0 | **Contenção local F1, aberto:** `447ca7a` revisado/integrado retira conta administrativa da declaração builder; assinatura e escrita de releases continuam acessíveis | Testes sintéticos/estáticos no recibo builder; engenharia SaaS valida imagem/mounts/IAM/rede reais; F7 separa executor/assinatura/publicação. Não implantado/distribuído |
+| E3 / P0 | **Parcial, aberto:** configuração/integração/backups e geração HTTP/callable contidos; IAM e caminhos restantes pendentes | `b5ab897`/`2ac2bc8`/`447ca7a` revisados/integrados; testes sintéticos vinculados na seção 9. Engenharia SaaS valida mobile/assets/leitores diretos e autorização em todos os caminhos antes de implantação/distribuição; não encerrar E3 inteiro |
 | E4 / P1 | Permissões/sessões divergentes entre API, Functions e SDKs diretos | F1 controla revogação do legado; F3 valida cada etapa antes de mover autoridade; nenhum sucesso de suspensão enquanto acesso residual não estiver bloqueado |
 | E5 / P1 | Falta de vínculo commit → testes → artefatos implantados | F0 registra baseline e manifestos; CI fixa ferramentas, Java/Node e imagens; revisão do código sem publicar segredos |
 | E6 / P1 | Backup não equivale a PITR/recuperação integral; `archive_mode=off` na inspeção | F2 implanta WAL externo e ensaia baixo volume; F8 recuperação integral. RPO de 5 min ainda não comprovado |
@@ -1261,3 +1297,79 @@ E8 continua aberto: token operacional real intocado. Regras reais/mobile/assets,
 builder/builds Android, revogação uniforme, recuperação/IAM/custo e demais gates
 continuam no backlog; locks e outros domínios não foram alterados. O ciclo
 candidato/teste/ativação de Secret Manager é futuro, sem promessa de entrega aqui.
+
+### 15.10. Consolidação documental após integração RPC e estados — 31/10/2026 UTC
+
+Executor: `executor-codex-task-f73d0e4cd415-f1-evidence-update` (Codex).
+HEAD conferido `110e27f`: incorpora `4804287` (RPC), depois de `385ea65`
+incorporar `1ec8591` (estados/contato), sobre `a48b2d8`/`447ca7a` (builder).
+A ficha da seção 9 vincula commits, recibos, testes, revisão e situação de
+implantação/distribuição. Esta consolidação não altera código e sua revisão
+documental independente cabe ao controlador. Nenhum deploy ou distribuição foi
+feito; nenhuma equivalência com artefatos produtivos antigos é afirmada.
+
+**C8:** implementado lease de 120 s com heartbeat de 30 s, owner/fence e origem
+canônica, resposta/terminal transacionais, recuperação a cada cinco minutos e
+cleanup limitado com tombstone. Leituras podem retomar com autorização atual;
+toda mutação iniciada sem conclusão comprovada fica `unknown`, sem replay.
+Recibo final: `npm --prefix functions run test -- --run` 120/120, contratos,
+scan 816 arquivos, TypeScript e whitespace aprovados. São evidências reutilizadas
+do executor, com Firestore sintético, sem prova de rede/índices/Rules/IAM reais.
+Não promete exatamente uma vez nem cobre crash de builder/SGP/FCM fora do
+protocolo RPC. Parecer independente não está anexado; controlador deve vinculá-lo.
+Retenção permanente de unknown/tombstones, custo, capacidade e reconciliação SaaS
+seguem gates operacionais. C8 só encerra com aceite completo, implantação e
+observação das falhas reais indicadas no recibo.
+
+**E1/C14:** `1ec8591` explicita origem/período/limites dos indicadores, N/D para
+medidas ausentes, zero somente recebido, erro/stale/denied e isolamento de sessão.
+Cache agregado de até dez segundos não prova frescor upstream. Diagnóstico mantém
+autorização e devolve 501 `DIAGNOSTIC_UNAVAILABLE`, sem laudo ou efeito SGP.
+Recibo final: UI 28, proxy 26 aprovados + seis skips de armazenamento, contato
+três; tipos UI, scan 821 arquivos e whitespace aprovados. SSR/harness/loopback com
+dependências sintéticas não provam browser completo, mobile ou serviços reais.
+Sem parecer independente anexado, o controlador deve vincular revisão/aceite.
+Contato permanece sem destino: não envia email nem declara recebimento; abertura
+de página externa futura não significa envio. Comercial deve validar propriedade,
+destino, jornada e recebimento antes de habilitar. E1/C14 permanecem abertos até
+aceite completo, compatibilidade e verificação da versão efetivamente entregue.
+
+**Builder:** `447ca7a` revisado/integrado conforme contrato, preservada a
+reprovação F1-REVIEW-01 e sua correção. Recibo final reutilizado: builder 19,
+API 77, Functions 94, Python 5 e scan 812 arquivos; sem nova execução nesta
+consolidação. Keystore/assinatura e escrita de releases continuam acessíveis ao
+executor; imagem, hard links nos mounts reais, IAM/rede, retenção/restauração,
+simbolização e atualização assinada de pacote existente não foram homologados.
+E2/E3/C12/C13 permanecem parciais, sem implantação/distribuição.
+
+**Regras:** gerente informou dez testes Java 21/demo aprovados na fonte externa
+`/home/app/srv_projetos/orchestration/evidence/painel_provedores/config-boundary-20261031`.
+A consulta nesta sessão retornou caminho inexistente. Manifesto/log não foram
+incorporados, inspecionados ou reexecutados. Controlador deve disponibilizar e
+vincular recibo/commit/ferramentas; não substituir por esse relato a homologação
+de regras, IAM e consumidores reais. Os seis testes antigos continuam históricos.
+E8 permanece externo/aberto e o token privado operacional intocado.
+
+#### Próxima lista priorizada F0/F1 e gates de operação
+
+| Ordem / gate | Próximo passo e critério concreto | Risco bloqueado / responsável |
+| --- | --- | --- |
+| 1 — F0 rastreabilidade/G0 | Controlador anexar pareceres de RPC/estados, revisar esta consolidação e incorporar recibo externo de regras; engenharia SaaS completar mapa por versão/tenant de web, `admin_app`, mobile, leitores diretos, assets, filas e endpoints | Integração sem aceite, cliente não inventariado ou evidência não verificável; G0 segue aberto |
+| 2 — F1 compatibilidade de segurança/G1 | Engenharia SaaS testar configuração/backup antigo misto, branding e assets em versões suportadas; A/B/SaaS/assinante, tokens revogados e papel removido em HTTP/RPC/Firestore/Storage/callables; nenhuma leitura de segredo/geração pelo provedor | Bloqueio de cliente legítimo ou acesso residual; regras restritivas não devem ser revertidas para recuperar compatibilidade |
+| 3 — F1 recuperação C8 | Engenharia SaaS preparar ensaio isolado autorizado, drenar invocações antigas sem fencing antes de ativar, validar índices/scheduler/retry/checkpoint, falha antes de claim/após start/após efeito/ACK perdido e perda de lease; comprovar ausência de segundo efeito e resposta legada compreensível | Replay de mutação, órfãos ou cleanup destrutivo; unknown exige recibo de domínio e reconciliação SaaS, nunca liberação manual de lock |
+| 4 — F1 builder E2/E3/C12/C13 | Engenharia SaaS inventariar pacotes/certificados publicados, reconstruir imagem identificada sem resíduos administrativos, testar autoridade/revogação, mounts/hard links/EXDEV, negar rede/ADC/metadados indevidos, restaurar símbolos e provar atualização assinada | Troca de identidade, publicação parcial, exposição de credencial e perda de símbolos; F7 ainda separa assinatura/publicação |
+| 5 — F1 estados/contato E1/C14 | Engenharia SaaS validar browser/versões mobile, 501/error.message e inventário de consumidores antes de retirar rota; comercial validar canal/propriedade/recebimento, engenharia testar falha e preservação de campos | Dados fabricados ou falsa confirmação; contato fica indisponível até prova de destino/recebimento |
+| 6 — F0/F1 pendências e aceite G0/G1 | Engenharia SaaS priorizar C1/C2/C3/E4/E9 (jornadas reais/revogação/acessos), C7/C9/C10/C15/C16 (regressões específicas), IAM/custo/backup e mitigação E8 com administrador SGP externo; controlador registrar aceite por achado | Nenhum P0 local aberto pode liberar piloto; relato externo não encerra E8 nem equivale a rotação |
+
+Antes de qualquer implantação futura autorizada: manifesto commit→contratos→testes
+→imagens/regras/Functions/APK com hashes e versões suportadas; backup verificável,
+ensaio de retorno compatível com novas escritas, responsáveis e critérios de
+interrupção definidos. Planejar por dependência: consumidores compatíveis antes de
+restringir acesso direto; API/autoridade antes do builder/painel dependente; RPC
+antigo drenado antes do novo protocolo; regras restritivas após compatibilidade
+comprovada, sem manter exposição para atender legado. Observar autorização,
+erros, unknown e projeções após cada ativação. Rollback desabilita geração/efeitos
+afetados e preserva releases/locks/identidades/segredos; não restaura permissões
+inseguras, replay nem mounts administrativos. Nenhum desses ensaios foi executado
+nesta tarefa. Não iniciar migração de dados/banco/framework antes de G0/G1;
+piloto de dados ainda depende de G2. F0/F1/G0/G1 não concedidos.

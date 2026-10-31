@@ -1,5 +1,20 @@
 # Contenção F1 de builds — 31/10/2026
 
+## Ficha atual de rastreabilidade — consolidação documental
+
+Implementação `447ca7a`, integrada em `a48b2d8`, **revisada/integrada conforme
+contrato do controlador**. Os relatos de revisão pendente e F1-REVIEW-01 abaixo
+são históricos, preservados. Recibo final: builder 19/API77/Functions94/Python5,
+scan 812 arquivos; apenas reutilizado nesta consolidação, sem reexecução.
+Não implantado/distribuído; assinatura, mounts/hard links, IAM/rede, retenção e
+atualização real seguem pendentes. E2/E3/C12/C13 não encerrados integralmente.
+Fonte externa dos dez testes de regras Java21/demo do gerente continua inacessível,
+não incorporada nem reexecutada. Estado/gates atuais nas seções 9/15.10 do
+[plano](../plano-rearquitetura-2026-10-30.md). Revisão desta adição documental
+cabe ao controlador; executor `executor-codex-task-f73d0e4cd415-f1-evidence-update`.
+
+## Recibo histórico de implementação e correção
+
 Executor nominal: `executor-codex-task-645c61b8262c-f1-build-containment`.
 Worktree: `task-645c61b8262c-f1-build-containment`, base integrada `047ab67`.
 Implementação local; revisão independente obrigatória pelo controlador.
