@@ -1,0 +1,80 @@
+i  emulators: Starting emulators: firestore, storage
+i  emulators: Detected demo project ID "demo-painel-rearchitecture", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: downloading cloud-firestore-emulator-v1.22.0.jar...
+
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  storage: downloading cloud-storage-rules-runtime-v1.1.3.jar...
+
+⚠  Unexpected rules runtime error: Picked up JAVA_TOOL_OPTIONS: -Xmx384m
+
+i  Running script: node --test tests/firestore-rules.test.mjs
+TAP version 13
+# [2026-10-31T00:52:30.349Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32241 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L96:23 for 'create' @ L96, evaluation error at L96:23 for 'update' @ L96, false for 'update' @ L96
+# [2026-10-31T00:52:30.391Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32242 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L96:23 for 'create' @ L96, evaluation error at L96:23 for 'update' @ L96, false for 'update' @ L96
+# [2026-10-31T00:52:30.428Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32243 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L96:23 for 'create' @ L96, evaluation error at L96:23 for 'update' @ L96, false for 'update' @ L96
+# [2026-10-31T00:52:30.464Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32244 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L96:23 for 'create' @ L96, evaluation error at L96:23 for 'update' @ L96, false for 'update' @ L96
+# Subtest: provider public config is readable but secrets are restricted
+ok 1 - provider public config is readable but secrets are restricted
+  ---
+  duration_ms: 3205.752359
+  ...
+# [2026-10-31T00:52:30.745Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32246 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L154, false for 'update' @ L155
+# [2026-10-31T00:52:30.769Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32247 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L154, false for 'update' @ L155
+# Subtest: function request creation is bound to the authenticated uid
+ok 2 - function request creation is bound to the authenticated uid
+  ---
+  duration_ms: 302.359289
+  ...
+# Subtest: notifications and audits remain tenant scoped
+ok 3 - notifications and audits remain tenant scoped
+  ---
+  duration_ms: 254.327209
+  ...
+# Subtest: storage keeps public assets readable and ticket attachments private
+ok 4 - storage keeps public assets readable and ticket attachments private
+  ---
+  duration_ms: 551.611572
+  ...
+# [2026-10-31T00:52:31.834Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f3224e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L96, false for 'update' @ L96
+# [2026-10-31T00:52:31.902Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f3224f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L112, false for 'create' @ L123, false for 'update' @ L112, false for 'update' @ L123
+# [2026-10-31T00:52:32.000Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32251 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L96, false for 'update' @ L96
+# [2026-10-31T00:52:32.054Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32252 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L112, false for 'create' @ L123, false for 'update' @ L112, false for 'update' @ L123
+# Subtest: subscriber and legacy tenant claims cannot grant administration
+ok 5 - subscriber and legacy tenant claims cannot grant administration
+  ---
+  duration_ms: 478.825298
+  ...
+# [2026-10-31T00:52:32.299Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x15f32254 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L154, false for 'update' @ L155
+# Subtest: subscriber cannot submit administrative queue work
+ok 6 - subscriber cannot submit administrative queue work
+  ---
+  duration_ms: 280.974342
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5442.269616
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  storage: Stopping Storage Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

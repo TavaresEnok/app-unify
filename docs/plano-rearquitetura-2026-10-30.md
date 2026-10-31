@@ -451,6 +451,17 @@ Dependência externa aberta não recebe status de correção. E8 exige registro 
 
 ### Fase 0 — Inventário, contratos e linha de base
 
+#### Acompanhamento do primeiro lote — 31/10/2026 UTC
+
+- [x] Preservar snapshot local em clone, identificar HEAD e registrar manifesto dos containers observados (`aeef740`, `608af5f`). Escopo parcial: regras/Functions remotas e APK ainda pendentes.
+- [x] Conferir hashes dos nove arquivos locais do backup concluído (`2373f8c`); restauração integral continua pendente.
+- [x] Registrar inventário mínimo C4/C11/E3/E9 e executar baseline das regras em Java 21 isolado: 6/6 aprovados (`5c3ef77`), com política legada ainda incompatível com E3.
+- [ ] Implementar/revisar primeiro lote de configuração, credenciais e backups: controlador bloqueado na admissão `policy_changed`, sem executor iniciado.
+- [ ] Concluir critérios completos F0/G0 e testes novos F1/G1; preparar rollback aprovado e validar backup antes de implantar.
+
+Ver [registro da entrega](#157-entrega-inicial-f0--31102026-utc). Estas subtarefas não encerram as checklists abrangentes abaixo.
+
+
 **Dependência:** nenhuma. **Prioridade:** imediata.
 
 - [ ] Registrar revisão do código, alterações locais e artefatos em produção; preservar o trabalho existente sem reset ou limpeza destrutiva. Preparar commits revisáveis e manifesto que relacione commit, testes, imagens, regras, Functions e APK, sem incluir segredos.
@@ -867,3 +878,23 @@ Cada ficha de encerramento terá:
 P0 local não resolvido bloqueia corte de dados e novo piloto público. Uma dependência externa como E8 continua aberta; qualquer avanço deve ter mitigação registrada, responsável, revisão do risco e limites de operação explícitos, nunca um encerramento fictício. P1 bloqueia a entrega que depende de sua correção. P2 tem prazo por fase e também precisa de aceite.
 
 Esta seção registra o estado conhecido; as checklists da seção 9 registram o trabalho a executar. Atualizar as duas seções a cada entrega. Não marcar “resolvido” por existir uma tarefa futura para o achado.
+
+
+### 15.7. Entrega inicial F0 — 31/10/2026 UTC
+
+**Estado:** inventário mínimo e linha de base registrados; F0/G0 não concluídos. F1 ainda sem implementação nova por bloqueio de admissão do controlador. Nenhuma implantação ou distribuição nesta entrega.
+
+| Evidência/commit | Resultado e limite |
+| --- | --- |
+| `aeef740` | Snapshot preserva correções locais anteriores em clone de desenvolvimento; não é correção nova nem homologação |
+| `608af5f` | Manifesto atual dos 11 containers do projeto; sem revision OCI; Functions/regras remotas/APKs ainda não revalidados |
+| `2373f8c` | Nove arquivos locais do último backup concluído conferem com hashes do manifesto; não prova restauração integral ou disponibilidade externa |
+| `5c3ef77` | Inventário mínimo de configuração/segredos/backups/builds e evidência de seis testes de regras aprovados com Java 21 isolado e projeto demo |
+
+Detalhes: [entrega e inventário](operations/rearchitecture-first-batch-2026-10-31.md), [manifesto de validação](operations/rearchitecture-2026-10-31/validation.json) e [log sanitizado](operations/rearchitecture-2026-10-31/rules-baseline.txt). Commits no clone `/home/app/srv_projetos/workspace/painel_provedores`, branch `orchestration/17baa3af4fe4`. O diretório original e suas correções foram preservados; esta atualização documental é aditiva.
+
+**Revalidação da matriz:** C4 permanece aberto: POST aceita objetos aninhados genéricos. C11 permanece aberto: backup inclui secrets e restore usa merge. E3 permanece aberto: listener/UI/RPC/regras permitem integração ao provedor, inclusive wildcard. Um dos seis testes existentes exige leitura de secrets por providerAdmin; seu sucesso comprova a política legada, não o aceite SaaS. E5 avançou na rastreabilidade local, mas artefatos remotos/distribuição seguem pendentes. E6/E7 não foram encerrados pela checagem de hashes. E8 continua externo e aberto; token privado não foi alterado ou exibido. Demais C/E não recebem encerramento por esta inspeção.
+
+**Responsáveis:** coordenação do gerente `e4e7beb1-03af-4207-a183-664af14df188`; implementação/revisão ainda aguardam admissão nominal no job `17baa3af4fe4`; emissão/revogação SGP depende de administrador externo, com cadastro pela equipe SaaS.
+
+**Bloqueio:** três recusas de admissão `policy_changed` antes de criar executor, attempt=0; fila preservada. Houve também amostra de pressão de memória alta. Não classificar o erro de admissão como quota esgotada sem prova. Não houve recover repetido, reinício de daemon, alteração de outros projetos ou contorno da divisão de papéis. Próxima ação: controlador admitir executor sob política consistente; continuar os mesmos contratos de inventário e C4/C11/E3, com testes agrupados e revisão independente. Nenhum deploy é liberado por este registro.
