@@ -3,11 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Plus, Server, Users, Bell, MessageSquare } from "lucide-react";
+import { Plus, Server, Users, Bell, MessageSquare } from "lucide-react";
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import StatsCard from '@/components/StatsCard';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { reportPanelReady } from '@/shared/api/panelTiming';
 
 interface ChartData { name: string; clientes: number; }
 interface RecentTicket {
@@ -26,6 +27,10 @@ export default function DashboardPage() {
     const [chartData, setChartData] = useState<ChartData[]>([]);
     const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [retry, setRetry] = useState(0);
+
+    useEffect(() => { if (!loading && !error && user) reportPanelReady(user); }, [loading, error, user]);
 
     useEffect(() => {
         if (userRole !== 'superAdmin' || !user) {
@@ -34,6 +39,8 @@ export default function DashboardPage() {
         }
 
         const loadDashboardData = async () => {
+            setLoading(true);
+            setError(false);
             try {
                 const result = await callFunction('GET_DASHBOARD_DATA', {});
                 setStats(result.stats as typeof stats);
@@ -41,13 +48,14 @@ export default function DashboardPage() {
                 setRecentTickets((result.recentTickets as RecentTicket[]) || []);
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
+                setError(true);
             } finally {
                 setLoading(false);
             }
         };
 
         loadDashboardData();
-    }, [userRole, user, callFunction]);
+    }, [userRole, user, callFunction, retry]);
 
     const maxClients = Math.max(...chartData.map(item => item.clientes), 1);
     const visibleProviders = chartData.slice(0, 6);
@@ -57,6 +65,8 @@ export default function DashboardPage() {
         return <DashboardSkeleton />;
     }
 
+    if (error) return <Card><CardHeader><CardTitle>Não foi possível carregar a visão geral</CardTitle></CardHeader><CardContent><Button onClick={() => setRetry(value => value + 1)}>Tentar novamente</Button></CardContent></Card>;
+
     return (
         <div className="space-y-5 fade-in">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
@@ -65,10 +75,6 @@ export default function DashboardPage() {
                     <p className="m-0 text-[13px] text-[#687181]">Acompanhe a operação de todos os provedores da plataforma.</p>
                 </div>
                 <div className="flex gap-2.5">
-                    <Button variant="outline" className="hidden gap-2 sm:inline-flex">
-                        Últimos 30 dias
-                        <ChevronDown className="h-3 w-3" />
-                    </Button>
                     <Button onClick={() => navigate('/provedores')} className="gap-1.5">
                         <Plus className="h-3.5 w-3.5" />
                         Novo provedor
@@ -83,7 +89,7 @@ export default function DashboardPage() {
                     icon={Server}
                 />
                 <StatsCard
-                    title="Total de Clientes (App)"
+                    title="Perfis de assinantes"
                     value={stats.clientCount}
                     icon={Users}
                 />
@@ -115,7 +121,7 @@ export default function DashboardPage() {
                                     <div className="h-2 overflow-hidden rounded-full bg-[#EEF1F6]">
                                         <div
                                             className="h-full rounded-full bg-primary"
-                                            style={{ width: `${Math.max(4, Math.round((item.clientes / maxClients) * 100))}%` }}
+                                            style={{ width: `${Math.round((item.clientes / maxClients) * 100)}%` }}
                                         />
                                     </div>
                                     <span className="text-right font-mono text-[11.5px] text-[#687181]">{formatClientCount(item.clientes)}</span>

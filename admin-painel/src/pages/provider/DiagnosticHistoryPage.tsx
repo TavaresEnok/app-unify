@@ -83,9 +83,7 @@ export default function DiagnosticHistoryPage() {
         return () => unsubscribe();
     }, [providerId]);
 
-    // Métrica de deflexão (§ estudo 4.4): dos diagnósticos feitos, quantos o app
-    // resolveu sozinho (problema do cliente) vs quantos apontaram o provedor.
-    // É o número que prova a redução de visita técnica.
+    // Classificação do diagnóstico; não comprova resolução nem visita evitada.
     const metrics = useMemo(() => {
         const total = results.length;
         const needsProvider = results.filter((r) => r.needsProviderSupport).length;
@@ -152,9 +150,9 @@ export default function DiagnosticHistoryPage() {
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <MetricCard label="Diagnósticos" value={String(metrics.total)} />
                     <MetricCard
-                        label="Resolvidos sem visita"
+                        label="Orientação ao assinante"
                         value={`${metrics.deflectionRate}%`}
-                        hint={`${metrics.selfResolvable} de ${metrics.total} apontaram algo que o cliente resolve`}
+                        hint={`${metrics.selfResolvable} de ${metrics.total} indicaram orientação ao assinante`}
                         tone="green"
                     />
                     <MetricCard

@@ -1,0 +1,41 @@
+{
+  "measurements": [
+    {
+      "phase": "before",
+      "role": "superAdmin",
+      "formMs": 749,
+      "submitToShellMs": 2101,
+      "submitToDataMs": 3666,
+      "dashboardHttp": 200,
+      "browserErrors": 0
+    },
+    {
+      "phase": "before",
+      "role": "providerAdmin",
+      "formMs": 403,
+      "submitToShellMs": 1297,
+      "submitToDataMs": 1814,
+      "dashboardHttp": 200,
+      "browserErrors": 0
+    },
+    {
+      "phase": "after",
+      "role": "superAdmin",
+      "formMs": 461,
+      "submitToShellMs": 1279,
+      "submitToDataMs": 2303,
+      "dashboardHttp": 200,
+      "browserErrors": 0
+    },
+    {
+      "phase": "after",
+      "role": "providerAdmin",
+      "formMs": 393,
+      "submitToShellMs": 1263,
+      "submitToDataMs": 1618,
+      "dashboardHttp": 200,
+      "browserErrors": 0
+    }
+  ],
+  "method": "Production browser timings from the actual form submit event, with temporary accounts deleted after each run. Includes Firebase authentication. API is cold after deployment for the first SaaS measurement."
+}

@@ -1,6 +1,5 @@
 import { Outlet, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink, Save, Smartphone, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,9 +15,9 @@ function ProviderDetailContent() {
 
   const displayName = String(provider.name || providerId);
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-  const cnpj = String(provider.cnpj || provider.document || providerId);
-  const plan = String(provider.plan || provider.plano || "Standard");
-  const status = String(provider.appStatus || provider.statusApp || "Publicado");
+  const cnpj = String(provider.details?.cnpj || provider.cnpj || provider.document || providerId);
+  const plan = provider.plan || provider.plano;
+  const status = provider.appStatus || provider.statusApp;
   const avatarColor = String(provider.themeColor || config.themeColor || "#10324B");
 
   const handleSave = async () => {
@@ -46,19 +45,24 @@ function ProviderDetailContent() {
           <h2 className="truncate text-[16.5px] font-bold tracking-normal text-[#0E1320]">{displayName}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="rounded-[5px] bg-[#F2F4F7] px-2 py-0.5 font-mono text-[11px] text-[#687181]">{cnpj}</span>
-            <span className="rounded-md bg-[#EEF0F4] px-2 py-0.5 text-[11.5px] font-semibold text-[#4A5364]">{plan}</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-current" />{status}
-            </span>
+            {Boolean(plan) && <span className="rounded-md bg-[#EEF0F4] px-2 py-0.5 text-[11.5px] font-semibold text-[#4A5364]">{String(plan)}</span>}
+            {Boolean(status) && <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />{String(status)}
+            </span>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
-          <Button variant="outline" className="gap-2" onClick={() => toast.info("A URL pública deve ser definida nas configurações do provedor.")}>
-            <ExternalLink className="h-3.5 w-3.5" />Ver app publicado
+          <Button variant="outline" className="gap-2" onClick={() => navigate(userRole === "superAdmin" ? `/provedores/${providerId}/aplicativo` : "/provedor/aplicativo")}>
+            <ExternalLink className="h-3.5 w-3.5" />Ver aplicativo
           </Button>
-          <Button variant="outline" onClick={() => navigate(`${userRole === "superAdmin" ? `/provedores/${providerId}` : "/provedor/personalizacao"}/app-build`)} className="gap-2">
-            <Smartphone className="h-3.5 w-3.5" />Gerar APK
-          </Button>
+          {userRole === "superAdmin" && <>
+            <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/appearance`)}>Personalização</Button>
+            <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/comunicados`)}>Comunicados</Button>
+            <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/integrations`)}>Integração SGP</Button>
+            <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/app-build`)} className="gap-2">
+              <Smartphone className="h-3.5 w-3.5" />Gerar aplicativo
+            </Button>
+          </>}
           <Button onClick={handleSave} disabled={isSaving} className="gap-2">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Salvar alterações

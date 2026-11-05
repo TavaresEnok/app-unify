@@ -50,7 +50,7 @@ case "$action" in
     ;;
   health)
     curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8031/ >/dev/null
-    curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8034/health
+    curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8034/ready
     echo
     curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8030/health
     echo
@@ -60,6 +60,8 @@ case "$action" in
     echo
     curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8033/health
     echo
+    docker compose exec -T jobs-worker node -e 'fetch("http://127.0.0.1:3003/health").then(async r => { console.log(await r.text()); if (!r.ok) process.exitCode = 1; }).catch(() => { process.exitCode = 1; })'
+    node scripts/ops/backup-status.cjs
     ;;
   *)
     echo "Uso: $0 {start|stop|restart|rebuild|logs|status|health} [servico]" >&2

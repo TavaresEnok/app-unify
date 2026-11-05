@@ -1,9 +1,14 @@
-const add = jest.fn();
-const set = jest.fn();
-const serverTimestamp = jest.fn(() => "SERVER_TIMESTAMP");
-const fromDate = jest.fn((date: Date) => date);
+import { test, expect, beforeEach, vi } from "vitest";
+const { add, set, serverTimestamp, fromDate } = vi.hoisted(() => {
+const add = vi.fn();
+const set = vi.fn();
+const serverTimestamp = vi.fn(() => "SERVER_TIMESTAMP");
+const fromDate = vi.fn((date: Date) => date);
+return { add, set, serverTimestamp, fromDate };
+});
 
-jest.mock("./firebase", () => ({
+
+vi.mock("./firebase", () => ({
   db: {
     collection: (name: string) => ({
       add: name === "audit_logs" ? add : undefined,
@@ -11,7 +16,7 @@ jest.mock("./firebase", () => ({
     }),
   },
 }));
-jest.mock("firebase-admin/firestore", () => ({
+vi.mock("firebase-admin/firestore", () => ({
   FieldValue: { serverTimestamp },
   Timestamp: { fromDate },
 }));
@@ -20,7 +25,7 @@ import { recordAudit } from "./audit";
 import { writeFailure, writeSuccess } from "./writeResponse";
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   add.mockResolvedValue(undefined);
   set.mockResolvedValue(undefined);
 });
@@ -56,4 +61,10 @@ test("writeFailure persists the public error envelope", async () => {
     code: "internal",
     requesterUid: "user-1",
   }));
+});
+
+
+test("oversized responses fail before any Firestore write", async () => {
+  expect(() => writeSuccess("huge", "user-1", { data: "x".repeat(710000) })).toThrow("Resultado muito grande");
+  expect(set).not.toHaveBeenCalled();
 });

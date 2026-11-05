@@ -11,7 +11,7 @@ function commaSeparated(value, fallback) {
 }
 
 function loadConfig(env = process.env) {
-    const enableDevMock = env.ENABLE_DEV_CPF_MOCK === 'true';
+    const enableDevMock = env.NODE_ENV !== 'production' && env.ENABLE_DEV_CPF_MOCK === 'true';
     return Object.freeze({
         port: positiveInteger(env.PORT, 3002),
         redisUrl: env.REDIS_URL || 'redis://localhost:6379',
@@ -23,7 +23,7 @@ function loadConfig(env = process.env) {
             'http://127.0.0.1:8031',
         ]),
         rateLimitWindowMs: positiveInteger(env.RATE_LIMIT_WINDOW_MS, 60_000),
-        rateLimitMaxRequests: positiveInteger(env.RATE_LIMIT_MAX_REQUESTS, 60),
+        rateLimitMaxRequests: positiveInteger(env.RATE_LIMIT_MAX_REQUESTS, 120),
         cacheTtlMs: positiveInteger(env.CACHE_TTL_MS, 300_000),
         devCpf: enableDevMock ? (env.DEV_MOCK_CPF || '').replace(/\D/g, '') : '',
     });

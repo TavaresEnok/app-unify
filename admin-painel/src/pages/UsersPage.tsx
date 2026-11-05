@@ -73,7 +73,7 @@ export default function UsersPage() {
 
     return (
         <DataTable<AdminUser>
-            title="Utilizadores"
+            title="Equipe"
             description="Adicione ou remova administradores do painel."
             actions={(
                 <>
@@ -92,7 +92,7 @@ export default function UsersPage() {
                 </>
             )}
             columns={[
-                { label: "Utilizador" },
+                { label: "Usuário" },
                 { label: "Permissão" },
                 { label: "Provedor" },
                 { label: "Último acesso" },

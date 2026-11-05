@@ -1,23 +1,30 @@
 import { Router } from "express";
-import { canAccessProvider, verifyToken } from "../middlewares/auth";
+import { canAccessProvider, verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore, serverTimestamp } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
 
 export const providersRouter = Router();
-providersRouter.use(verifyToken);
+providersRouter.use(verifyToken, verifyAdmin);
+
+const privateKeys = new Set(["integrations", "apitoken", "token", "password", "senha", "secret", "secrets"]);
+
+export function sanitizeProviderData(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeProviderData);
+  if (!value || typeof value !== "object") return value;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => !privateKeys.has(key.toLowerCase().replace(/[^a-z0-9]/g, "")))
+    .map(([key, item]) => [key, sanitizeProviderData(item)]));
+}
 
 function serialize(id: string, input: FirebaseFirestore.DocumentData) {
-  const data = { ...input };
+  const data = sanitizeProviderData(input) as FirebaseFirestore.DocumentData;
   for (const key of ["createdAt", "updatedAt"]) {
     if (data[key]?.toDate) data[key] = data[key].toDate().toISOString();
   }
-  delete data.integrations;
-  if (data.config && typeof data.config === "object" && !Array.isArray(data.config)) {
-    data.config = { ...data.config };
-    delete data.config.integrations;
-  }
-  return { id, ...data };
+  return { ...data, id };
 }
 
 providersRouter.get("/", asyncRoute(async (req, res) => {
@@ -37,12 +44,17 @@ providersRouter.post("/", asyncRoute(async (req, res) => {
   if (id && !canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para alterar este provedor.", "permission-denied");
   if (id && !/^[a-z0-9_-]+$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
 
-  const data = { ...req.body };
+  const data = sanitizeProviderData(req.body) as Record<string, unknown>;
   delete data.id;
-  delete data.integrations;
-  delete data.apiToken;
-  delete data.token;
-  delete data.password;
+  if (req.user?.superAdmin !== true) {
+    delete data.sgpBaseUrl;
+    delete data.appName;
+    if (data.details && typeof data.details === "object" && !Array.isArray(data.details)) {
+      delete (data.details as Record<string, unknown>).systemUrl;
+      delete (data.details as Record<string, unknown>).appName;
+      if (!Object.keys(data.details).length) delete data.details;
+    } else delete data.details;
+  }
   data.updatedAt = serverTimestamp();
   if (id) {
     await firestore.collection("provedores").doc(id).set(data, { merge: true });

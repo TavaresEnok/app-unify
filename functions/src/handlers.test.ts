@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { FUNCTION_REQUEST_TYPES } from "./contracts";
 import { handlers } from "./handlers";
 

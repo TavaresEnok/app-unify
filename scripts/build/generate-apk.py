@@ -435,9 +435,9 @@ flutter_launcher_icons:
             os.makedirs(symbols_dir, exist_ok=True)
             build_cmd += f" --obfuscate --split-debug-info={symbols_dir}"
         
-        # Container limit increased to 4GB. Using 3GB for Gradle.
+        # Limite de 3 GB no container; heap do Gradle de 1,5 GB.
         build_env = {
-            'GRADLE_OPTS': '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m"'
+            'GRADLE_OPTS': '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx1536m -XX:MaxMetaspaceSize=384m"'
         }
         
         run_command(build_cmd, build_dir, env=build_env)

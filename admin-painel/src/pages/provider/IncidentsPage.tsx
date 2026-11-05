@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { Loader2, TriangleAlert, Megaphone, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ function formatDate(ts?: { toDate: () => Date } | null): string {
 }
 
 export default function IncidentsPage() {
-    const { providerId } = useAuth();
+    const { providerId } = useSettings();
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

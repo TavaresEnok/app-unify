@@ -19,3 +19,12 @@ await Promise.all(targets.map(async (target) => {
 }));
 
 console.log(`Contracts synchronized to ${targets.length} projects.`);
+
+const runtime = await readFile(resolve(root, "shared/runtime/upstream.js"), "utf8");
+for (const target of ["proxy-sgp/lib/upstream.js", "api-service/src/services/upstream-runtime.js"]) {
+  await writeFile(resolve(root, target), runtime);
+}
+const dashboard = await readFile(resolve(root, "shared/runtime/dashboard.ts"), "utf8");
+for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/services/dashboardData.ts"]) {
+  await writeFile(resolve(root, target), dashboard);
+}

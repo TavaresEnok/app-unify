@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Timestamp } from "firebase/firestore";
+import { timestampDate, type TimestampValue } from '@/shared/api/timestamp';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Send, Smartphone, Star, TrendingUp, Users } from "lucide-react";
+import { MessageSquare, Send, Activity, Bell, Users } from "lucide-react";
 import { ProviderDashboardSkeleton } from '@/components/ProviderDashboardSkeleton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -11,21 +11,25 @@ import StatsCard from '@/components/StatsCard';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { reportPanelReady } from '@/shared/api/panelTiming';
 
 interface RecentTicket {
     id: string;
     subject: string;
     status: 'Aberto' | 'Em Andamento' | 'Fechado';
-    updatedAt?: Timestamp;
+    updatedAt?: TimestampValue;
 }
 
 export default function ProviderDashboardPage() {
     const navigate = useNavigate();
     const { user, providerId } = useAuth();
     const { callFunction } = useApi();
-    const [stats, setStats] = useState({ totalClients: 0, openTicketsCount: 0 });
+    const [stats, setStats] = useState<{ totalClients: number; openTicketsCount: number; notificationCount?: number }>({ totalClients: 0, openTicketsCount: 0 });
+    const [error, setError] = useState(false);
     const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => { if (!loading && !error && user) reportPanelReady(user); }, [loading, error, user]);
 
     const fetchDashboardData = useCallback(async () => {
         if (!providerId || !user) {
@@ -34,12 +38,14 @@ export default function ProviderDashboardPage() {
         }
 
         setLoading(true);
+        setError(false);
         try {
             const result = await callFunction('GET_PROVIDER_DASHBOARD_DATA', { providerId });
             setStats((result.stats as typeof stats) || { totalClients: 0, openTicketsCount: 0 });
             setRecentTickets((result.recentTickets as RecentTicket[]) || []);
         } catch (error) {
             console.error("Falha ao carregar dashboard", error);
+            setError(true);
         } finally {
             setLoading(false);
         }
@@ -53,8 +59,7 @@ export default function ProviderDashboardPage() {
         return <ProviderDashboardSkeleton />;
     }
 
-    const installsEstimate = stats.totalClients > 0 ? Math.round(stats.totalClients * 0.68) : 0;
-    const adoptionBars = [36, 42, 31, 54, 48, 68, 63, 74, 58, 81, 76, 88];
+    if (error) return <Card><CardHeader><CardTitle>Não foi possível carregar a visão geral</CardTitle></CardHeader><CardContent><Button onClick={() => void fetchDashboardData()}>Tentar novamente</Button></CardContent></Card>;
 
     return (
         <div className="space-y-5">
@@ -63,53 +68,32 @@ export default function ProviderDashboardPage() {
                     <h2 className="m-0 mb-1 text-xl font-bold tracking-normal text-[#0E1320]">Visão geral</h2>
                     <p className="m-0 text-[13px] text-[#687181]">Resumo da operação do seu provedor hoje.</p>
                 </div>
-                <Button onClick={() => navigate('/provedor/notificacoes')} className="gap-1.5">
+                <Button onClick={() => navigate('/provedor/comunicados/notificacoes')} className="gap-1.5">
                     <Send className="h-3.5 w-3.5" />
                     Enviar notificação
                 </Button>
             </div>
 
-            <div className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-4">
-                <StatsCard title="Clientes ativos" value={stats.totalClients} icon={Users} trend={6} trendLabel="últimos 30 dias" />
-                <StatsCard title="Instalações do app" value={installsEstimate} icon={Smartphone} trend={4} trendLabel="base estimada" />
-                <StatsCard title="Tickets abertos" value={stats.openTicketsCount} icon={MessageSquare} trend={0} trendLabel="fila atual" />
-                <StatsCard title="Nota Play Store" value="N/D" icon={Star} />
+            <div className="grid gap-3.5 md:grid-cols-3">
+                <StatsCard title="Clientes sincronizados" value={stats.totalClients} icon={Users} />
+                <StatsCard title="Chamados abertos" value={stats.openTicketsCount} icon={MessageSquare} />
+                <StatsCard title="Notificações (24h)" value={stats.notificationCount ?? "—"} icon={Bell} />
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[1.05fr_.95fr]">
-                <Card className="overflow-hidden">
-                    <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-[#EEF0F4]">
-                        <div>
-                            <CardTitle>Novas adesões</CardTitle>
-                            <p className="mt-0.5 text-[12px] text-[#98A1B1]">Ativações recentes no app do provedor.</p>
-                        </div>
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11.5px] font-semibold text-[#2F55D4]">
-                            <TrendingUp className="h-3.5 w-3.5" />
-                            12 semanas
-                        </span>
-                    </CardHeader>
-                    <CardContent className="p-[18px]">
-                        <div className="flex h-56 items-end gap-2 rounded-lg border border-[#EEF0F4] bg-[#FAFBFC] px-4 pb-4 pt-6">
-                            {adoptionBars.map((height, index) => (
-                                <div key={index} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                                    <div
-                                        className="w-full max-w-[30px] rounded-t-md bg-[#2F55D4]"
-                                        style={{ height: `${height}%`, opacity: 0.45 + index / 28 }}
-                                    />
-                                    <span className="font-mono text-[10px] text-[#98A1B1]">{index + 1}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid gap-4 xl:grid-cols-[.85fr_1.15fr]">
+                <Card><CardHeader><CardTitle>Ações rápidas</CardTitle></CardHeader><CardContent className="flex flex-col items-start gap-3">
+                    <Button variant="outline" onClick={() => navigate('/provedor/atendimento/diagnosticos')}><Activity className="mr-2 h-4 w-4" />Consultar diagnósticos</Button>
+                    <Button variant="outline" onClick={() => navigate('/provedor/comunicados/instabilidades')}><Bell className="mr-2 h-4 w-4" />Publicar aviso de instabilidade</Button>
+                    <Button variant="outline" onClick={() => navigate('/provedor/aplicativo')}>Abrir downloads do aplicativo</Button>
+                </CardContent></Card>
 
                 <Card className="overflow-hidden">
                     <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-[#EEF0F4]">
                         <div>
-                            <CardTitle>Seus tickets</CardTitle>
+                            <CardTitle>Chamados recentes</CardTitle>
                             <p className="mt-0.5 text-[12px] text-[#98A1B1]">Solicitações recentes da sua operação.</p>
                         </div>
-                        <Button variant="link" size="sm" onClick={() => navigate('/provedor/tickets')} className="h-auto px-0 text-[12px] font-semibold">
+                        <Button variant="link" size="sm" onClick={() => navigate('/provedor/atendimento/chamados')} className="h-auto px-0 text-[12px] font-semibold">
                             Ver todos
                         </Button>
                     </CardHeader>
@@ -122,12 +106,12 @@ export default function ProviderDashboardPage() {
                                     key={ticket.id}
                                     type="button"
                                     className="grid w-full grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-b border-[#F2F4F7] px-[18px] py-[11px] text-left transition-colors last:border-b-0 hover:bg-[#F8FAFC]"
-                                    onClick={() => navigate(`/provedor/tickets/${ticket.id}`)}
+                                    onClick={() => navigate(`/provedor/atendimento/chamados/${ticket.id}`)}
                                 >
                                     <span className="truncate text-[13px] font-semibold text-[#1A2233]">{ticket.subject}</span>
                                     <StatusBadge status={ticket.status} className="justify-self-end" />
                                     <span className="col-span-2 font-mono text-[11.5px] text-[#98A1B1]">
-                                        {ticket.updatedAt ? format(ticket.updatedAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}
+                                        {timestampDate(ticket.updatedAt) ? format(timestampDate(ticket.updatedAt)!, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}
                                     </span>
                                 </button>
                             ))

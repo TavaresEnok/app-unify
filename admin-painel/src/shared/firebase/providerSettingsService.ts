@@ -17,8 +17,8 @@ export async function subscribeProviderSettings(
   providerId: string,
   onValue: (value: ProviderSettingsSnapshot) => void,
   onError: (error: Error) => void,
+  canManageIntegrations = false,
 ): Promise<Unsubscribe> {
-  const secretRef = doc(db, "provedores", providerId, "secrets", "sgp");
   const providerRef = doc(db, "provedores", providerId);
 
   // Assina AMBOS os documentos (não um getDoc único capturado no closure): após
@@ -33,13 +33,13 @@ export async function subscribeProviderSettings(
     onValue({ config: fromFirestoreProviderConfig(provider, secrets), provider });
   };
 
-  const unsubscribeSecret = onSnapshot(
-    secretRef,
+  const unsubscribeSecret = canManageIntegrations ? onSnapshot(
+    doc(db, "provedores", providerId, "secrets", "sgp"),
     (snapshot) => { secrets = snapshot.exists() ? (snapshot.data() as Record<string, unknown>) : {}; emit(); },
     // Fail-open localizado: uma falha de permissão nos secrets degrada apenas as
     // integrações (secrets = {}), sem derrubar toda a página de configurações.
     () => { secrets = {}; emit(); },
-  );
+  ) : () => {};
 
   const unsubscribeProvider = onSnapshot(
     providerRef,
@@ -53,6 +53,7 @@ export async function subscribeProviderSettings(
 export async function saveProviderSettings(
   providerId: string,
   config: ProviderConfig,
+  canManageIntegrations = false,
 ): Promise<void> {
   const payload = toFirestoreProviderConfig(config);
   payload.publicConfig.apiUrl = runtimeConfig.publicApiBaseUrl || config.apiUrl || "";
@@ -64,13 +65,8 @@ export async function saveProviderSettings(
     delete (payload.publicConfig as Record<string, unknown>)[field];
   }
   const batch = writeBatch(db);
-  const secretRef = doc(db, "provedores", providerId, "secrets", "sgp");
-  if (payload.secrets) {
-    batch.set(secretRef, payload.secrets, { merge: true });
-  } else {
-    // Integrações limpas na UI → remove o segredo do Firestore em vez de deixar
-    // o valor antigo persistido (M3).
-    batch.set(secretRef, { integrations: deleteField() }, { merge: true });
+  if (canManageIntegrations && payload.secrets) {
+    batch.set(doc(db, "provedores", providerId, "secrets", "sgp"), payload.secrets, { merge: true });
   }
   batch.update(doc(db, "provedores", providerId), {
     ...payload.publicConfig,

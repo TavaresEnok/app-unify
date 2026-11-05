@@ -1,4 +1,5 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { AppError } from "./errors";
 import type { ErrorCode } from "../contracts";
 import { db } from "./firebase";
 
@@ -11,6 +12,9 @@ function expirationDate(): Timestamp {
 }
 
 export function writeSuccess(requestId: string, requesterUid: string, result: unknown): Promise<FirebaseFirestore.WriteResult> {
+  if (Buffer.byteLength(JSON.stringify(result ?? null), "utf8") > 700_000) {
+    throw new AppError("invalid-argument", "Resultado muito grande. Use paginação ou exportação.");
+  }
   return db.collection("function_responses").doc(requestId).set({
     result,
     requesterUid,

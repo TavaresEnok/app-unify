@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ProviderConfig } from "@/shared/contracts";
 import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   saveProviderSettings,
   subscribeProviderSettings,
@@ -39,6 +40,8 @@ interface SettingsContextType {
 export const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children, providerId }: { children: ReactNode; providerId: string }) {
+  const { userRole } = useAuth();
+  const canManageIntegrations = userRole === "superAdmin";
   const [config, setConfig] = useState<ProviderConfig>(DEFAULT_PROVIDER_CONFIG);
   const [provider, setProvider] = useState<ProviderData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +67,7 @@ export function SettingsProvider({ children, providerId }: { children: ReactNode
       console.error("Erro ao carregar configurações", error);
       toast.error("Não foi possível carregar as configurações.");
       setLoading(false);
-    }).then((stop) => {
+    }, canManageIntegrations).then((stop) => {
       if (active) unsubscribe = stop;
       else stop();
     }).catch((error: Error) => {
@@ -78,12 +81,12 @@ export function SettingsProvider({ children, providerId }: { children: ReactNode
       active = false;
       unsubscribe();
     };
-  }, [providerId]);
+  }, [providerId, canManageIntegrations]);
 
   const saveConfig = useCallback(async (nextConfig: ProviderConfig = config) => {
     setIsSaving(true);
     try {
-      await saveProviderSettings(providerId, nextConfig);
+      await saveProviderSettings(providerId, nextConfig, canManageIntegrations);
       toast.success("Salvo com sucesso!");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha inesperada.";
@@ -92,7 +95,7 @@ export function SettingsProvider({ children, providerId }: { children: ReactNode
     } finally {
       setIsSaving(false);
     }
-  }, [config, providerId]);
+  }, [config, providerId, canManageIntegrations]);
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;

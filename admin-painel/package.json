@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && playwright test",
-    "lint": "eslint src"
+    "test:e2e": "npm run build && playwright test && playwright test --config playwright.workspace.config.ts",
+    "lint": "eslint src",
+    "test:e2e:workspace": "playwright test --config playwright.workspace.config.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

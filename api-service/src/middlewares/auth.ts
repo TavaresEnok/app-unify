@@ -8,12 +8,25 @@ function bearerToken(header: string | undefined): string {
 }
 
 export const verifyToken: RequestHandler = async (req, _res, next) => {
+  if (req.user) { next(); return; }
   try {
     req.user = await firebaseAuth.verifyIdToken(bearerToken(req.headers.authorization));
     next();
   } catch (error) {
     next(error instanceof ApiError ? error : new ApiError(403, "Token inválido.", "permission-denied"));
   }
+};
+
+export const authenticateIfPresent: RequestHandler = (req, res, next) => {
+  if (req.headers.authorization) return verifyToken(req, res, next);
+  next();
+};
+
+export const verifyAdmin: RequestHandler = (req, _res, next) => {
+  if (req.user?.superAdmin !== true && req.user?.role !== "providerAdmin") {
+    return next(new ApiError(403, "Acesso administrativo obrigatório.", "permission-denied"));
+  }
+  next();
 };
 
 export const verifySuperAdmin: RequestHandler[] = [
@@ -25,5 +38,5 @@ export const verifySuperAdmin: RequestHandler[] = [
 ];
 
 export function canAccessProvider(req: Express.Request, providerId: string): boolean {
-  return req.user?.superAdmin === true || req.user?.providerId === providerId;
+  return req.user?.superAdmin === true || (req.user?.role === "providerAdmin" && req.user?.providerId === providerId);
 }

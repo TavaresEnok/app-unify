@@ -10,7 +10,7 @@ interface StatsCardProps {
     trendLabel?: string;
 }
 
-export default function StatsCard({ title, value, icon: Icon, trend, trendLabel = "vs. mês passado" }: StatsCardProps) {
+export default function StatsCard({ title, value, icon: Icon, trend, trendLabel }: StatsCardProps) {
     const trendState = trend === undefined ? 'neutral' : trend > 0 ? 'up' : trend < 0 ? 'down' : 'neutral';
     const trendText = trend === undefined ? 'Atual' : trend > 0 ? `+${trend}%` : trend < 0 ? `${trend}%` : '0%';
     const trendClasses = {
@@ -28,7 +28,7 @@ export default function StatsCard({ title, value, icon: Icon, trend, trendLabel 
             <div className="mb-2 text-[26px] font-bold leading-none tracking-normal text-[#0E1320]">{value}</div>
             <div className="flex items-center gap-2">
                 <span className={cn("rounded-full px-2 py-0.5 text-[11.5px] font-semibold", trendClasses)}>{trendText}</span>
-                <span className="text-[11.5px] text-[#98A1B1]">{trend === undefined ? "dados em tempo real" : trendLabel}</span>
+                <span className="text-[11.5px] text-[#98A1B1]">{trendLabel || (trend === undefined ? "última consulta" : "vs. mês passado")}</span>
             </div>
         </Card>
     );

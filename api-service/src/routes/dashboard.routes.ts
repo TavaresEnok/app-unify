@@ -1,10 +1,51 @@
 import { Router } from "express";
-import { verifyToken } from "../middlewares/auth";
+import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore } from "../services/firebaseAdmin";
+import { firestore, firebaseAuth } from "../services/firebaseAdmin";
+import { loadGlobalDashboard, loadProviderDashboard } from "../services/dashboardData";
 
 export const dashboardRouter = Router();
-dashboardRouter.use(verifyToken);
+dashboardRouter.use(verifyToken, verifyAdmin);
+
+const cache = new Map<string, { expires: number; value: Promise<unknown> }>();
+async function cachedDashboard(key: string, load: () => Promise<unknown>) {
+  const current = cache.get(key);
+  if (current && current.expires > Date.now()) return current.value;
+  if (cache.size >= 128) cache.delete(cache.keys().next().value!);
+  const value = load();
+  cache.set(key, { expires: Date.now() + 10000, value });
+  try { return await value; } catch (error) { cache.delete(key); throw error; }
+}
+
+export async function warmDashboardData() {
+  // Establish Firestore connections and prepare the first read at process start,
+  // rather than charging this initialization to the first administrator.
+  await cachedDashboard("global", () => loadGlobalDashboard(firestore));
+}
+
+// Keep the fresh account/role check used by the queue handlers: a revoked role
+// must not regain access through an older, still cryptographically valid token.
+async function authorizePanel(uid: string, providerId?: string) {
+  const user = await firebaseAuth.getUser(uid).catch(() => null);
+  const claims = user?.customClaims;
+  if (!user || user.disabled || (claims?.superAdmin !== true &&
+      (!providerId || claims?.role !== "providerAdmin" || claims.providerId !== providerId))) {
+    throw new ApiError(403, "Sem permissão para este dashboard.", "permission-denied");
+  }
+}
+
+dashboardRouter.get("/panel", asyncRoute(async (req, res) => {
+  await authorizePanel(req.user!.uid);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json({ data: await cachedDashboard("global", () => loadGlobalDashboard(firestore)) });
+}));
+
+dashboardRouter.get("/panel/providers/:providerId", asyncRoute(async (req, res) => {
+  const providerId = String(req.params.providerId);
+  await authorizePanel(req.user!.uid, providerId);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json({ data: await cachedDashboard(`provider:${providerId}`, () => loadProviderDashboard(firestore, providerId)) });
+}));
 
 dashboardRouter.get("/", asyncRoute(async (req, res) => {
   if (req.user?.superAdmin === true) {

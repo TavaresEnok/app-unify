@@ -1,22 +1,27 @@
-const responseGet = jest.fn();
-const writeFailure = jest.fn();
-const writeSuccess = jest.fn();
-const recordAudit = jest.fn();
-const info = jest.fn();
-const warn = jest.fn();
-const error = jest.fn();
+import { test, expect, beforeEach, vi, type Mock } from "vitest";
+const { responseGet, writeFailure, writeSuccess, recordAudit, info, warn, error } = vi.hoisted(() => {
+const responseGet = vi.fn();
+const writeFailure = vi.fn();
+const writeSuccess = vi.fn();
+const recordAudit = vi.fn();
+const info = vi.fn();
+const warn = vi.fn();
+const error = vi.fn();
+return { responseGet, writeFailure, writeSuccess, recordAudit, info, warn, error };
+});
 
-jest.mock("./firebase", () => ({
+
+vi.mock("./firebase", () => ({
   db: { collection: () => ({ doc: () => ({ get: responseGet, create: () => Promise.resolve() }) }) },
 }));
-jest.mock("./writeResponse", () => ({ writeFailure, writeSuccess }));
-jest.mock("./audit", () => ({ recordAudit }));
-jest.mock("firebase-functions/logger", () => ({ info, warn, error }));
+vi.mock("./writeResponse", () => ({ writeFailure, writeSuccess }));
+vi.mock("./audit", () => ({ recordAudit }));
+vi.mock("firebase-functions/logger", () => ({ info, warn, error }));
 
 import { AppError } from "./errors";
 import { createRequestRouter, type HandlerRegistry } from "./requestRouter";
 
-function registry(handler: jest.Mock): HandlerRegistry {
+function registry(handler: Mock): HandlerRegistry {
   return new Proxy({}, { get: () => handler }) as HandlerRegistry;
 }
 
@@ -27,7 +32,7 @@ const validRequest = {
 };
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   responseGet.mockResolvedValue({ exists: false });
   writeFailure.mockResolvedValue(undefined);
   writeSuccess.mockResolvedValue(undefined);
@@ -36,14 +41,14 @@ beforeEach(() => {
 
 test("ignores an idempotently completed request", async () => {
   responseGet.mockResolvedValueOnce({ exists: true });
-  const handler = jest.fn();
+  const handler = vi.fn();
   await createRequestRouter(registry(handler))("request-1", validRequest);
   expect(handler).not.toHaveBeenCalled();
   expect(info).toHaveBeenCalledWith("Function request already completed", { requestId: "request-1" });
 });
 
 test("ignores invalid anonymous requests and records attributable failures", async () => {
-  const route = createRequestRouter(registry(jest.fn()));
+  const route = createRequestRouter(registry(vi.fn()));
   await route("request-1", { type: "UNKNOWN", payload: {} });
   expect(writeFailure).not.toHaveBeenCalled();
 
@@ -53,7 +58,7 @@ test("ignores invalid anonymous requests and records attributable failures", asy
 });
 
 test("supports the legacy requester uid inside payload", async () => {
-  const handler = jest.fn().mockResolvedValue({ total: 1 });
+  const handler = vi.fn().mockResolvedValue({ total: 1 });
   await createRequestRouter(registry(handler))("request-1", {
     type: "GET_DASHBOARD_DATA",
     payload: { requesterUid: "legacy-user" },
@@ -63,7 +68,7 @@ test("supports the legacy requester uid inside payload", async () => {
 });
 
 test("rejects requests whose top-level and payload requesterUid diverge", async () => {
-  const handler = jest.fn();
+  const handler = vi.fn();
   await createRequestRouter(registry(handler))("request-forged", {
     type: "SET_SUPER_ADMIN_BY_EMAIL",
     requesterUid: "victim-super-admin",
@@ -79,7 +84,7 @@ test("rejects requests whose top-level and payload requesterUid diverge", async 
 });
 
 test("writes success and a redacted audit envelope", async () => {
-  const handler = jest.fn().mockResolvedValue({ ok: true });
+  const handler = vi.fn().mockResolvedValue({ ok: true });
   const request = {
     type: "GET_PROVIDER_DASHBOARD_DATA" as const,
     requesterUid: "user-1",
@@ -95,7 +100,7 @@ test("writes success and a redacted audit envelope", async () => {
 });
 
 test("normalizes handler failures and continues when audit fails", async () => {
-  const handler = jest.fn().mockRejectedValue(new AppError("permission-denied", "negado"));
+  const handler = vi.fn().mockRejectedValue(new AppError("permission-denied", "negado"));
   recordAudit.mockRejectedValueOnce(new Error("audit unavailable"));
   await createRequestRouter(registry(handler))("request-1", validRequest);
   expect(writeFailure).toHaveBeenCalledWith("request-1", "user-1", "negado", "permission-denied");

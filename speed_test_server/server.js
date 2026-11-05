@@ -1,123 +1,89 @@
+'use strict';
 const http = require('http');
-const cluster = require('cluster');
-const os = require('os');
-
-// Porta 3001
-const PORT = 3001;
-// 10GB para testes de alta performance (10Gbps)
-// 2GB (Limite seguro para 32-bit signed int ~2.14GB) para evitar overflow no cliente
-const FILE_SIZE = 2 * 1024 * 1024 * 1024 - 1000; // Um pouco menos de 2GB para segurança
-const CHUNK_SIZE = 128 * 1024;
-const ZERO_BUFFER = Buffer.alloc(CHUNK_SIZE, 0);
-
-if (cluster.isMaster) {
-    const numCPUs = os.cpus().length;
-    console.log(`🚀 Iniciando Master (PID: ${process.pid})`);
-    console.log(`💻 Detectados ${numCPUs} núcleos. Iniciando workers...`);
-    console.log(`📂 Tamanho Simulado: 10GB`);
-
-    // Fork workers para cada core
-    for (let i = 0; i < numCPUs; i++) {
-        cluster.fork();
-    }
-
-    cluster.on('exit', (worker, code, signal) => {
-        console.log(`Worker ${worker.process.pid} morreu. Iniciando outro...`);
-        cluster.fork();
-    });
-} else {
-    // --- WORKER PROCESS ---
-    startWorkerServer();
-}
-
-function startWorkerServer() {
-    const server = http.createServer((req, res) => {
-        if (req.url === '/health') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ status: 'ok', service: 'speed-test' }));
-            return;
-        }
-
-        // CORS — restringir a origens conhecidas
-        const allowedOrigins = (process.env.ALLOWED_ORIGINS
-            || 'http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031')
-            .split(',')
-            .map((origin) => origin.trim())
-            .filter(Boolean);
-        const requestOrigin = req.headers.origin || '';
-        // Permitir requisições sem origin (app mobile) ou de origens permitidas
-        const corsOrigin = (!requestOrigin || allowedOrigins.includes(requestOrigin))
-            ? (requestOrigin || '*')
-            : '';
-
-        if (corsOrigin) {
-            res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-        }
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, HEAD, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-
-        if (req.method === 'OPTIONS') {
-            res.writeHead(204);
-            res.end();
-            return;
-        }
-
-        // --- ROTA DE DOWNLOAD (GET/HEAD) ---
-        if (req.method === 'GET' || req.method === 'HEAD') {
-            res.setHeader('Content-Type', 'application/octet-stream');
-            res.setHeader('Content-Disposition', 'attachment; filename=speedtest.bin');
-            res.setHeader('Content-Length', FILE_SIZE);
-
-            if (req.method === 'HEAD') {
-                res.writeHead(200);
-                res.end();
-                return;
+const { isIP } = require('net');
+const CHUNK = Buffer.alloc(128 * 1024);
+function createServer(options = {}) {
+    const maxConcurrent = Number(options.maxConcurrent || process.env.SPEED_TEST_MAX_CONCURRENT || 4);
+    const maxMbps = Number(options.maxMbps || process.env.SPEED_TEST_MAX_MBPS || 300);
+    const maxDuration = Number(options.maxDuration || process.env.SPEED_TEST_MAX_DURATION_MS || 20000);
+    const byteLimit = 512 * 1024 * 1024;
+    const clients = new Map();
+    const transfers = new Set();
+    const timer = setInterval(() => {
+        // Um orçamento GLOBAL impede que mais conexões multipliquem o limite de banda.
+        let budget = maxMbps * 1000000 / 8 / 20;
+        const share = Math.max(1, Math.floor(budget / Math.max(1, transfers.size)));
+        for (const transfer of transfers) {
+            if (transfer.res.destroyed || Date.now() - transfer.start >= maxDuration) { transfer.res.end(); transfers.delete(transfer); continue; }
+            let available = share;
+            while (available > 0 && transfer.bytes < byteLimit && transfer.res.writableLength < 256 * 1024) {
+                const size = Math.min(CHUNK.length, available, byteLimit - transfer.bytes);
+                transfer.res.write(CHUNK.subarray(0, size)); transfer.bytes += size; available -= size;
             }
-
-            res.writeHead(200);
-
-            let bytesSent = 0;
-            const sendChunk = () => {
-                while (bytesSent < FILE_SIZE) {
-                    if (res.destroyed || res.writableEnded) return;
-
-                    const remaining = FILE_SIZE - bytesSent;
-                    const chunkToSend = (remaining < CHUNK_SIZE)
-                        ? ZERO_BUFFER.slice(0, remaining)
-                        : ZERO_BUFFER;
-
-                    const canContinue = res.write(chunkToSend);
-                    bytesSent += chunkToSend.length;
-
-                    if (!canContinue) {
-                        res.once('drain', sendChunk);
-                        return;
-                    }
-                }
-                if (!res.writableEnded) res.end();
-            };
-            sendChunk();
-            return;
+            if (transfer.bytes >= byteLimit) { transfer.res.end(); transfers.delete(transfer); }
         }
-
-        // --- ROTA DE UPLOAD (POST) ---
-        if (req.method === 'POST') {
-            req.on('data', (chunk) => { /* blackhole */ });
-            req.on('end', () => {
-                res.writeHead(200, { 'Content-Type': 'text/plain' });
-                res.end('OK');
+    }, 50);
+    timer.unref();
+    let active = 0;
+    const server = http.createServer((req, res) => {
+        const path = new URL(req.url, 'http://localhost').pathname;
+        res.setHeader('Cache-Control', 'no-store');
+        if (path === '/health' || path === '/capabilities') {
+            res.setHeader('Content-Type', 'application/json');
+            return res.end(JSON.stringify({ status: 'ok', active, maxConcurrent, maxMbps, maxDurationMs: maxDuration, sharedBandwidth: true }));
+        }
+        const origins = (process.env.ALLOWED_ORIGINS || '').split(',').map(value => value.trim());
+        const origin = req.headers.origin;
+        if (origin && !origins.includes(origin)) { res.writeHead(403); return res.end(); }
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,HEAD,OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Expose-Headers', 'X-SpeedTest-Limit-Mbps');
+        res.setHeader('X-SpeedTest-Limit-Mbps', String(maxMbps));
+        if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+        if (req.method === 'HEAD') { res.writeHead(200); return res.end(); }
+        if (!['GET', 'POST'].includes(req.method)) { res.writeHead(405); return res.end(); }
+        const remote = req.socket.remoteAddress || '';
+        const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+        const trustedProxy = /^(::ffff:)?(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(remote) || remote === '::1';
+        const ip = trustedProxy && isIP(forwarded) ? forwarded : remote;
+        const prior = clients.get(ip);
+        if (active >= maxConcurrent || (prior?.active || 0) >= maxConcurrent || (prior?.count || 0) >= 60) {
+            res.writeHead(429, { 'Retry-After': '30' }); return res.end('Teste ocupado. Tente novamente.');
+        }
+        const record = prior || { active: 0, count: 0, since: Date.now() };
+        record.active++; record.count++; clients.set(ip, record); active++;
+        let released = false;
+        const release = () => { if (released) return; released = true; active--; record.active--; };
+        res.once('close', release);
+        const timeout = setTimeout(() => { req.destroy(); res.destroy(); }, maxDuration + 1000);
+        res.once('close', () => clearTimeout(timeout));
+        res.setHeader('Content-Type', 'application/octet-stream');
+        if (req.method === 'GET') {
+            const transfer = { res, bytes: 0, start: Date.now() };
+            transfers.add(transfer);
+            res.once('close', () => transfers.delete(transfer));
+        } else {
+            let received = 0;
+            // Aplica backpressure também ao upload: não drena a interface sem limite.
+            const started = Date.now();
+            req.on('data', chunk => {
+                received += chunk.length;
+                if (received > byteLimit) { req.destroy(); return; }
+                const expectedMs = received / (maxMbps * 1000000 / 8 / Math.max(1, active)) * 1000;
+                const delay = expectedMs - (Date.now() - started);
+                if (delay > 0) { req.pause(); const resume = setTimeout(() => req.resume(), Math.min(delay, 1000)); resume.unref(); }
             });
-            return;
+            req.on('end', () => res.end('OK'));
         }
-
-        res.writeHead(404);
-        res.end('Not Found');
     });
-
-    server.listen(PORT, '0.0.0.0', () => {
-        // Worker listening (log omitido para evitar flood)
-    });
+    const prune = setInterval(() => { for (const [ip, value] of clients) if (!value.active && Date.now() - value.since > 60000) clients.delete(ip); }, 60000);
+    prune.unref();
+    server.on('close', () => { clearInterval(timer); clearInterval(prune); for (const transfer of transfers) transfer.res.destroy(); });
+    server.headersTimeout = 10000;
+    server.requestTimeout = maxDuration + 5000;
+    server.maxConnections = maxConcurrent * 10;
+    return server;
 }
+if (require.main === module) createServer().listen(3001, '0.0.0.0');
+module.exports = { createServer };

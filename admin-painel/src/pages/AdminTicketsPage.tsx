@@ -81,7 +81,7 @@ export default function AdminTicketsPage() {
 
     return (
         <DataTable<Ticket>
-            title="Todos os tickets"
+            title="Suporte da plataforma"
             description="Gerencie os tickets de todos os provedores da plataforma."
             actions={(
                 <>

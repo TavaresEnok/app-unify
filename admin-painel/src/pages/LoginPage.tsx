@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth } from '@/firebase/auth';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Check, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { preloadDashboardPages } from '@/app/dashboardPreload';
+import { startLoginTiming } from '@/shared/api/panelTiming';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -16,17 +18,21 @@ export default function LoginPage() {
     const [failedAttempts, setFailedAttempts] = useState(0);
     const [lockedUntil, setLockedUntil] = useState<number | null>(null);
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, userRole } = useAuth();
 
     const MAX_ATTEMPTS = 10;
     const LOCKOUT_MINUTES = 15;
 
     useEffect(() => {
-        // O redirecionamento agora é centralizado no App.tsx
-        if (user) {
-            navigate('/', { replace: true });
+        if (user && userRole) {
+            navigate(userRole === 'superAdmin' ? '/dashboard' : '/provedor/dashboard', { replace: true });
         }
-    }, [user, navigate]);
+    }, [user, userRole, navigate]);
+
+    useEffect(() => {
+        const timer = window.setTimeout(preloadDashboardPages, 0);
+        return () => window.clearTimeout(timer);
+    }, []);
 
     // Verifica se está bloqueado
     const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
@@ -56,20 +62,35 @@ export default function LoginPage() {
             return;
         }
 
+        startLoginTiming();
         setIsLoading(true);
 
-        // Delay progressivo após falhas (2^n segundos, max 16s)
-        if (failedAttempts >= 3) {
-            const delayMs = Math.min(Math.pow(2, failedAttempts - 2), 16) * 1000;
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-        }
-
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            const { claims } = await credential.user.getIdTokenResult();
+            if (claims.superAdmin !== true && !(claims.role === 'providerAdmin' && typeof claims.providerId === 'string')) {
+                await signOut(auth);
+                toast.error('Esta conta não tem acesso ao painel administrativo.');
+                return;
+            }
             setFailedAttempts(0);
             toast.success('Login bem-sucedido! A redirecionar...');
             // A navegação será tratada pelo useEffect e pelo PostLoginRedirect
         } catch (error) {
+            const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+            if (code === 'auth/network-request-failed') {
+                toast.error('Não foi possível conectar ao serviço de login. Verifique sua conexão e tente novamente.');
+                return;
+            }
+            if (code === 'auth/too-many-requests') {
+                toast.error('O serviço de autenticação limitou novas tentativas. Aguarde alguns minutos.');
+                return;
+            }
+            if (!['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'].includes(code)) {
+                toast.error('Não foi possível concluir o login. Tente novamente.');
+                console.error('Falha ao autenticar:', code);
+                return;
+            }
             const newAttempts = failedAttempts + 1;
             setFailedAttempts(newAttempts);
 
@@ -88,7 +109,7 @@ export default function LoginPage() {
         }
     };
 
-    if (user) {
+    if (user && userRole) {
         return null;
     }
 

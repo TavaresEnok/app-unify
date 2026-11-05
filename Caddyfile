@@ -50,7 +50,7 @@
 
 	handle /apk-builder/* {
 		uri strip_prefix /apk-builder
-		reverse_proxy apk-builder:8035 {
+		reverse_proxy {$APK_BUILDER_UPSTREAM:apk-builder:8035} {
 			import cliente_real
 		}
 	}
@@ -72,7 +72,7 @@
 	# Speed Test
 	handle /speedtest/* {
 		uri strip_prefix /speedtest
-		reverse_proxy speed-test:3001 {
+		reverse_proxy {$SPEED_TEST_UPSTREAM:speed-test:3001} {
 			import cliente_real
 		}
 	}

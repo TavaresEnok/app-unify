@@ -3,42 +3,17 @@ import type { RequestHandler } from "../app/request";
 import { AppError } from "../app/errors";
 import { db } from "../app/firebase";
 import { requireProviderAccess } from "../app/permissions";
-
-// Remove qualquer campo sensível que possa existir na raiz de um backup antigo,
-// impedindo que um restore re-materialize segredos no documento público do
-// provedor (que tem leitura pública). Segredos são restaurados apenas na
-// subcoleção privada `secrets/sgp` (ver restoreProviderConfig).
-function sanitizePublicProviderData(providerData: Record<string, unknown>): Record<string, unknown> {
-  const clone: Record<string, unknown> = { ...providerData };
-  for (const key of ["integrations", "apiToken", "token", "password", "secret", "secrets"]) {
-    delete clone[key];
-  }
-  if (clone.details && typeof clone.details === "object") {
-    const details = { ...(clone.details as Record<string, unknown>) };
-    delete details.apiToken;
-    clone.details = details;
-  }
-  if (clone.config && typeof clone.config === "object") {
-    const config = { ...(clone.config as Record<string, unknown>) };
-    delete config.integrations;
-    clone.config = config;
-  }
-  return clone;
-}
+import { publicProviderData } from "../app/publicProviderData";
 
 export const backupProviderConfig: RequestHandler<"BACKUP_PROVIDER_CONFIG"> = async ({ requestId, requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
   const providerRef = db.collection("provedores").doc(payload.providerId);
-  const [provider, secrets] = await Promise.all([
-    providerRef.get(),
-    providerRef.collection("secrets").doc("sgp").get(),
-  ]);
+  const provider = await providerRef.get();
   if (!provider.exists) throw new AppError("not-found", "Provedor não encontrado.");
   const backupRef = providerRef.collection("backups").doc(requestId);
   await backupRef.set({
     name: payload.name?.trim() || `Backup ${new Date().toISOString()}`,
-    providerData: provider.data(),
-    secrets: secrets.exists ? secrets.data() : null,
+    providerData: publicProviderData(provider.data() || {}),
     createdBy: requesterUid,
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -64,14 +39,23 @@ export const restoreProviderConfig: RequestHandler<"RESTORE_PROVIDER_CONFIG"> = 
   if (!data.providerData || typeof data.providerData !== "object") {
     throw new AppError("invalid-argument", "Backup inválido.");
   }
+  const restored = publicProviderData(data.providerData as Record<string, unknown>);
+  // Destinos legados ainda são usados pelo SGP; a personalização não pode
+  // redirecionar chamadas autenticadas usando um backup antigo ou adulterado.
+  delete restored.sgpBaseUrl;
+  delete restored.appName;
+  if (restored.details && typeof restored.details === "object" && !Array.isArray(restored.details)) {
+    const details = { ...restored.details as Record<string, unknown> };
+    delete details.systemUrl;
+    delete details.appName;
+    if (Object.keys(details).length) restored.details = details;
+    else delete restored.details;
+  } else delete restored.details;
   const batch = db.batch();
   batch.set(providerRef, {
-    ...sanitizePublicProviderData(data.providerData as Record<string, unknown>),
+    ...restored,
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
-  if (data.secrets && typeof data.secrets === "object") {
-    batch.set(providerRef.collection("secrets").doc("sgp"), data.secrets, { merge: true });
-  }
   await batch.commit();
   return { success: true, message: "Backup restaurado." };
 };

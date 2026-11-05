@@ -1,3 +1,4 @@
+import { describe, it, test, expect, beforeEach, vi } from "vitest";
 /**
  * Testes de integração das Cloud Functions.
  *
@@ -9,15 +10,16 @@
 // MOCKS — devem ser declarados antes de qualquer import que use firebase
 // =========================================================================
 
-const mockSet = jest.fn().mockResolvedValue(undefined);
-const mockUpdate = jest.fn().mockResolvedValue(undefined);
-const mockDelete = jest.fn().mockResolvedValue(undefined);
-const mockGet = jest.fn();
+const { mockSet, mockUpdate, mockDelete, mockGet, mockBatch, mockCollectionGet, mockDocRef } = vi.hoisted(() => {
+const mockSet = vi.fn().mockResolvedValue(undefined);
+const mockUpdate = vi.fn().mockResolvedValue(undefined);
+const mockDelete = vi.fn().mockResolvedValue(undefined);
+const mockGet = vi.fn();
 const mockBatch = {
-    delete: jest.fn(),
-    commit: jest.fn().mockResolvedValue(undefined),
+    delete: vi.fn(),
+    commit: vi.fn().mockResolvedValue(undefined),
 };
-const mockCollectionGet = jest.fn().mockResolvedValue({ docs: [] });
+const mockCollectionGet = vi.fn().mockResolvedValue({ docs: [] });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockDocRef = (): any => ({
@@ -27,53 +29,56 @@ const mockDocRef = (): any => ({
     delete: mockDelete,
     get: mockGet,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    collection: jest.fn((): any => ({
+    collection: vi.fn((): any => ({
         get: mockCollectionGet,
-        add: jest.fn().mockResolvedValue({ id: 'new-doc-id' }),
-        doc: jest.fn(() => mockDocRef()),
+        add: vi.fn().mockResolvedValue({ id: 'new-doc-id' }),
+        doc: vi.fn(() => mockDocRef()),
     })),
 });
 
-jest.mock('firebase-admin/app', () => ({ initializeApp: jest.fn() }));
-jest.mock('firebase-admin/auth', () => ({ getAuth: jest.fn(() => ({ getUser: jest.fn() })) }));
-jest.mock('firebase-admin/storage', () => ({ getStorage: jest.fn(() => ({ bucket: jest.fn() })) }));
-jest.mock('firebase-admin/firestore', () => ({
-    getFirestore: jest.fn(() => ({
-        collection: jest.fn(() => ({
-            doc: jest.fn(() => mockDocRef()),
+return { mockSet, mockUpdate, mockDelete, mockGet, mockBatch, mockCollectionGet, mockDocRef };
+});
+
+vi.mock('firebase-admin/app', () => ({ initializeApp: vi.fn() }));
+vi.mock('firebase-admin/auth', () => ({ getAuth: vi.fn(() => ({ getUser: vi.fn() })) }));
+vi.mock('firebase-admin/storage', () => ({ getStorage: vi.fn(() => ({ bucket: vi.fn() })) }));
+vi.mock('firebase-admin/firestore', () => ({
+    getFirestore: vi.fn(() => ({
+        collection: vi.fn(() => ({
+            doc: vi.fn(() => mockDocRef()),
             get: mockCollectionGet,
-            where: jest.fn(() => ({ get: mockCollectionGet })),
+            where: vi.fn(() => ({ get: mockCollectionGet })),
         })),
-        batch: jest.fn(() => mockBatch),
-        runTransaction: jest.fn(async (fn: (t: any) => Promise<any>) => fn({})),
+        batch: vi.fn(() => mockBatch),
+        runTransaction: vi.fn(async (fn: (t: any) => Promise<any>) => fn({})),
     })),
     FieldValue: {
-        serverTimestamp: jest.fn(() => ({ _methodName: 'serverTimestamp' })),
-        delete: jest.fn(() => ({ _methodName: 'deleteField' })),
-        arrayUnion: jest.fn((...args: any[]) => args),
+        serverTimestamp: vi.fn(() => ({ _methodName: 'serverTimestamp' })),
+        delete: vi.fn(() => ({ _methodName: 'deleteField' })),
+        arrayUnion: vi.fn((...args: any[]) => args),
     },
 }));
-jest.mock('firebase-functions/v2/firestore', () => ({
-    onDocumentCreated: jest.fn((_opts: any, handler: Function) => handler),
+vi.mock('firebase-functions/v2/firestore', () => ({
+    onDocumentCreated: vi.fn((_opts: any, handler: Function) => handler),
 }));
-jest.mock('firebase-functions/v2/https', () => ({
-    onCall: jest.fn((_opts: any, handler: Function) => handler),
+vi.mock('firebase-functions/v2/https', () => ({
+    onCall: vi.fn((_opts: any, handler: Function) => handler),
     HttpsError: class HttpsError extends Error {
         constructor(public code: string, message: string) { super(message); }
     },
 }));
-jest.mock('firebase-functions/logger', () => ({
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+vi.mock('firebase-functions/logger', () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
 }));
-jest.mock('firebase-functions/params', () => ({
-    defineSecret: jest.fn((name: string) => ({
-        value: jest.fn(() => name === 'PROXY_URL' ? 'http://proxy:3000' : 'secret123'),
+vi.mock('firebase-functions/params', () => ({
+    defineSecret: vi.fn((name: string) => ({
+        value: vi.fn(() => name === 'PROXY_URL' ? 'http://proxy:3000' : 'secret123'),
     })),
-    defineString: jest.fn((name: string, opts: any) => ({
-        value: jest.fn(() => opts?.default ?? ''),
+    defineString: vi.fn((name: string, opts: any) => ({
+        value: vi.fn(() => opts?.default ?? ''),
     })),
 }));
 
@@ -155,10 +160,10 @@ describe('Validação de dados de entrada', () => {
 // =========================================================================
 
 describe('logger estruturado', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('emite JSON com severity ERROR para logger.error', () => {
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
         logger.error('falha na função', { functionName: 'handleDeleteProvider', requestId: 'req-1' });
         const entry = JSON.parse(spy.mock.calls[0][0]);
         expect(entry.severity).toBe('ERROR');
@@ -168,7 +173,7 @@ describe('logger estruturado', () => {
     });
 
     it('emite JSON com severity WARNING para logger.warn', () => {
-        const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         logger.warn('configuração ausente', { key: 'PROXY_URL' });
         const entry = JSON.parse(spy.mock.calls[0][0]);
         expect(entry.severity).toBe('WARNING');
@@ -176,7 +181,7 @@ describe('logger estruturado', () => {
     });
 
     it('inclui timestamp em todos os logs', () => {
-        const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
         logger.info('operação ok');
         const entry = JSON.parse(spy.mock.calls[0][0]);
         expect(new Date(entry.timestamp).getTime()).toBeGreaterThan(0);

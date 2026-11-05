@@ -19,7 +19,7 @@ describe("navigation registry", () => {
   });
 
   it("uses the closest route title", () => {
-    expect(titleForPath("/provedor/clientes/123", true)).toBe("Cliente");
+    expect(titleForPath("/provedor/tickets/123", true)).toBe("Ticket");
     expect(titleForPath("/provedores/acme/appearance", false)).toBe("Configuração do provedor");
   });
 });

@@ -2,8 +2,9 @@ import { FieldValue } from "firebase-admin/firestore";
 import type { RequestHandler } from "../app/request";
 import { AppError } from "../app/errors";
 import { auth, db } from "../app/firebase";
-import { requireProviderAccess, requireSuperAdmin } from "../app/permissions";
+import { isSuperAdmin, requireProviderAccess, requireSuperAdmin } from "../app/permissions";
 import { isValidNewProviderId } from "../utils";
+import { publicProviderData } from "../app/publicProviderData";
 
 const DEFAULT_PROVIDER_CONFIG = {
   layoutType: "layout_06",
@@ -54,11 +55,18 @@ export const createProvider: RequestHandler<"CREATE_PROVIDER"> = async ({ reques
 };
 
 export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = async ({ requesterUid, payload }) => {
-  await requireProviderAccess(requesterUid, payload.providerId);
+  const requester = await requireProviderAccess(requesterUid, payload.providerId);
   const config = asRecord(payload.config);
-  const publicConfig = { ...config };
+  if (!isSuperAdmin(requester) && ("sgpBaseUrl" in config || "appName" in config ||
+      "systemUrl" in asRecord(config.details) || "appName" in asRecord(config.details))) {
+    throw new AppError("permission-denied", "Apenas Super Admin pode alterar a integração SGP.");
+  }
+  const publicConfig = publicProviderData(config);
   delete publicConfig.config;
-  const integrations = asRecord(publicConfig.integrations);
+  const integrations = asRecord(config.integrations);
+  if ("integrations" in config && !isSuperAdmin(requester)) {
+    throw new AppError("permission-denied", "Apenas Super Admin pode alterar a integração SGP.");
+  }
   delete publicConfig.integrations;
 
   const providerRef = db.collection("provedores").doc(payload.providerId);
@@ -78,9 +86,12 @@ export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = as
 };
 
 export const updateProviderDetails: RequestHandler<"UPDATE_PROVIDER_DETAILS"> = async ({ requesterUid, payload }) => {
-  await requireProviderAccess(requesterUid, payload.providerId);
+  const requester = await requireProviderAccess(requesterUid, payload.providerId);
   const details = asRecord(payload.details);
-  const publicDetails = { ...details };
+  if (["appName", "apiToken", "systemUrl"].some(key => key in details) && !isSuperAdmin(requester)) {
+    throw new AppError("permission-denied", "Apenas Super Admin pode alterar a integração SGP.");
+  }
+  const publicDetails = publicProviderData(details);
   delete publicDetails.apiToken;
   delete publicDetails.token;
   delete publicDetails.password;
@@ -95,7 +106,7 @@ export const updateProviderDetails: RequestHandler<"UPDATE_PROVIDER_DETAILS"> = 
     providerRef.set({
       ...(typeof details.name === "string" && details.name ? { name: details.name } : {}),
       ...(typeof details.apiUrl === "string" && details.apiUrl ? { apiUrl: details.apiUrl } : {}),
-      details: publicDetails,
+      ...(Object.keys(publicDetails).length ? { details: publicDetails } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true }),
     Object.keys(secretIntegrations).length

@@ -48,7 +48,9 @@ export default function MyCompanyPage() {
 
         setIsSaving(true);
         try {
-            await callFunction('UPDATE_PROVIDER_DETAILS', { providerId, details: { ...details } });
+            const { razaoSocial, nomeFantasia, cnpj, email, telefone } = details;
+            const publicDetails = Object.fromEntries(Object.entries({ razaoSocial, nomeFantasia, cnpj, email, telefone }).filter(([, value]) => value !== undefined));
+            await callFunction('UPDATE_PROVIDER_DETAILS', { providerId, details: publicDetails });
         } catch (error) {
             console.error("Falha ao salvar empresa", error);
         } finally {

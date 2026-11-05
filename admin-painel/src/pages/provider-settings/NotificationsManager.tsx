@@ -1,237 +1,62 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Bell, Plus, Send, Trash2, Users } from 'lucide-react';
+import { Bell, Plus, Trash2 } from 'lucide-react';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import StatusBadge from '@/components/StatusBadge';
-import { useApi } from '@/hooks/useApi';
-import { getErrorMessage } from '@/shared/errors';
+
+interface NotificationTemplate {
+  id: string; title: string; message: string; category: string; createdAt: string;
+  [key: string]: unknown;
+}
 
 export default function NotificationsManager() {
   const { config, setConfig, saveConfig, isSaving, providerId } = useSettings();
-  const { callFunction } = useApi();
-  const [notifications, setNotifications] = useState(config.notifications?.list || []);
-  const [newNotif, setNewNotif] = useState({ title: '', message: '', category: 'info', targetAll: true });
-  const [filter, setFilter] = useState('all');
-  const [isSending, setIsSending] = useState(false);
-
-  const categories = [
-    { value: 'urgent', label: 'Urgente', color: 'destructive' },
-    { value: 'info', label: 'Informação', color: 'default' },
-    { value: 'promo', label: 'Promoção', color: 'secondary' },
-  ];
-
-  const createNotification = () => {
-    if (!newNotif.title || !newNotif.message) {
-      toast.error('Preencha título e mensagem');
-      return;
-    }
-    const notif = {
-      id: `notif_${Date.now()}`,
-      ...newNotif,
-      createdAt: new Date().toISOString(),
-      read: false,
-      dismissible: newNotif.category !== 'urgent',
-    };
-    setNotifications([notif, ...notifications]);
-    setNewNotif({ title: '', message: '', category: 'info', targetAll: true });
-    toast.success('Notificação criada! Clique em "Enviar Push" para entregar aos clientes.');
+  const { userRole } = useAuth();
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState({ title: '', message: '', category: 'info' });
+  const templates: NotificationTemplate[] = config.notifications?.list || [];
+  const categories = [{ value: 'urgent', label: 'Urgente' }, { value: 'info', label: 'Informação' }, { value: 'promo', label: 'Promoção' }];
+  const save = async (list: NotificationTemplate[]) => {
+    const next = { ...config, notifications: { ...config.notifications, list } };
+    try { await saveConfig(next); setConfig(next); return true; } catch { return false; }
   };
-
-  const deleteNotification = (id: string) => {
-    if (confirm('Deletar notificação?')) {
-      setNotifications(notifications.filter((n: any) => n.id !== id));
-      toast.success('Deletada!');
-    }
+  const create = async () => {
+    if (!draft.title.trim() || !draft.message.trim()) { toast.error('Preencha título e mensagem.'); return; }
+    const saved = await save([{ id: `notif_${Date.now()}`, title: draft.title.trim(), message: draft.message.trim(), category: draft.category,
+      createdAt: new Date().toISOString(), targetAll: true, dismissible: draft.category !== 'urgent' }, ...templates]);
+    if (saved) setDraft({ title: '', message: '', category: 'info' });
   };
-
-  // NOVA FUNÇÃO: Enviar Push Real via Cloud Function
-  const sendPushNotification = async (notif: any) => {
-    setIsSending(true);
-    const toastId = toast.loading('Enviando notificação push...');
-
-    try {
-      const result = await callFunction('SEND_PUSH_NOTIFICATION', {
-          providerId,
-          title: notif.title,
-          body: notif.message,
-          category: notif.category,
-          targetAll: notif.targetAll,
-          route: notif.route || '',
-      });
-      toast.success(result.message, { id: toastId });
-    } catch (error) {
-      toast.error(`Erro: ${getErrorMessage(error)}`, { id: toastId });
-    } finally {
-      setIsSending(false);
-    }
+  const selectTemplate = (template: NotificationTemplate) => {
+    const base = userRole === 'superAdmin' ? `/provedores/${providerId}/comunicados` : '/provedor/comunicados';
+    navigate(`${base}/notificacoes`, { state: { title: template.title, body: template.message, category: template.category } });
   };
-
-  const sendToAll = async () => {
-    const pendingNotifs = notifications.filter((n: any) => !n.sent);
-    if (pendingNotifs.length === 0) {
-      toast.info('Nenhuma notificação pendente para enviar');
-      return;
-    }
-
-    for (const notif of pendingNotifs) {
-      await sendPushNotification(notif);
-    }
-  };
-
-  const handleSave = async () => {
-    const nextConfig = { ...config, notifications: { ...config.notifications, list: notifications } };
-    setConfig(nextConfig);
-    await saveConfig(nextConfig);
-    toast.success('Notificações salvas!');
-  };
-
-  const filteredNotifications = filter === 'all'
-    ? notifications
-    : notifications.filter((n: any) => n.category === filter);
-
-  return (
-    <SettingsPage
-      title="Notificações"
-      description="Envie avisos e promoções para seus clientes."
-      icon={Bell}
-      actions={(
-        <>
-          <Button variant="outline" onClick={sendToAll} disabled={isSending}>
-            <Send className="h-4 w-4 mr-2" />
-            Enviar Todas
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
-        </>
-      )}
-    >
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SettingsSection title="Nova notificação" description="Crie um aviso para enviar aos clientes.">
-          <div className="space-y-4">
-            <div>
-              <Label>Título *</Label>
-              <Input
-                value={newNotif.title}
-                onChange={(e) => setNewNotif({ ...newNotif, title: e.target.value })}
-                placeholder="Ex: Manutenção Programada"
-                maxLength={100}
-              />
-              <p className="text-xs text-muted-foreground mt-1">{newNotif.title.length}/100</p>
-            </div>
-
-            <div>
-              <Label>Mensagem *</Label>
-              <Textarea
-                value={newNotif.message}
-                onChange={(e) => setNewNotif({ ...newNotif, message: e.target.value })}
-                placeholder="Digite a mensagem completa..."
-                rows={5}
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground mt-1">{newNotif.message.length}/500</p>
-            </div>
-
-            <div>
-              <Label>Categoria</Label>
-              <Select value={newNotif.category} onValueChange={(v) => setNewNotif({ ...newNotif, category: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <Label>Enviar para todos os clientes</Label>
-              </div>
-              <Switch
-                checked={newNotif.targetAll}
-                onCheckedChange={(checked) => setNewNotif({ ...newNotif, targetAll: checked })}
-              />
-            </div>
-
-            <Button onClick={createNotification} className="w-full" size="lg">
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Notificação
-            </Button>
-          </div>
-        </SettingsSection>
-
-        <SettingsSection>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-[13px] font-semibold text-[#1A2233]">Notificações ativas ({filteredNotifications.length})</h3>
-                <p className="mt-0.5 text-[12px] text-[#687181]">Filtre, envie ou remova notificações cadastradas.</p>
-              </div>
-              <Select value={filter} onValueChange={setFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="mt-4 max-h-[600px] space-y-3 overflow-auto">
-              {filteredNotifications.length === 0 ? (
-                <div className="text-center py-12">
-                  <Bell className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-                  <p className="text-muted-foreground">Nenhuma notificação</p>
-                </div>
-              ) : (
-                filteredNotifications.map((notif: any) => {
-                  const cat = categories.find((c) => c.value === notif.category);
-                  return (
-                    <div key={notif.id} className="space-y-2 rounded-lg border border-[#EEF0F4] bg-white p-4 transition-colors hover:bg-[#F8FAFC]">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold">{notif.title}</p>
-                            <StatusBadge status={cat?.label || notif.category} tone={notif.category === 'urgent' ? 'red' : notif.category === 'promo' ? 'amber' : 'blue'} />
-                            {!notif.dismissible && <StatusBadge status="Não dispensável" tone="gray" />}
-                          </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">{notif.message}</p>
-                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            <span>{new Date(notif.createdAt).toLocaleString('pt-BR')}</span>
-                            {notif.targetAll && (
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                Todos
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteNotification(notif.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-        </SettingsSection>
-      </div>
-    </SettingsPage>
-  );
+  return <SettingsPage title="Modelos salvos" description="Reutilize mensagens na tela de envio. Salvar um modelo não envia notificações." icon={Bell}>
+    <div className="grid gap-5 lg:grid-cols-2">
+      <SettingsSection title="Novo modelo"><div className="space-y-4">
+        <div><Label htmlFor="template-title">Título</Label><Input id="template-title" value={draft.title} maxLength={50} onChange={event => setDraft({ ...draft, title: event.target.value })} /></div>
+        <div><Label htmlFor="template-body">Mensagem</Label><Textarea id="template-body" value={draft.message} maxLength={500} onChange={event => setDraft({ ...draft, message: event.target.value })} /></div>
+        <div><Label htmlFor="template-category">Categoria</Label><Select value={draft.category} onValueChange={category => setDraft({ ...draft, category })}>
+          <SelectTrigger id="template-category"><SelectValue /></SelectTrigger><SelectContent>{categories.map(item => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+        </Select></div>
+        <Button onClick={() => void create()} disabled={isSaving}><Plus className="mr-2 h-4 w-4" />Salvar modelo</Button>
+      </div></SettingsSection>
+      <SettingsSection title="Seus modelos"><div className="space-y-3">
+        {templates.length === 0 && <p className="text-sm text-muted-foreground">Nenhum modelo salvo.</p>}
+        {templates.map(template => <div key={template.id} className="space-y-3 rounded-lg border bg-white p-4">
+          <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{template.title}</h3><StatusBadge status={categories.find(item => item.value === template.category)?.label || template.category} tone="blue" /></div>
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{template.message}</p>
+          <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => selectTemplate(template)}>Usar no envio</Button>
+            <Button variant="ghost" aria-label={`Excluir modelo ${template.title}`} disabled={isSaving} onClick={() => { if (window.confirm('Excluir este modelo salvo?')) void save(templates.filter(item => item.id !== template.id)); }}><Trash2 className="h-4 w-4" /></Button></div>
+        </div>)}
+      </div></SettingsSection>
+    </div>
+  </SettingsPage>;
 }

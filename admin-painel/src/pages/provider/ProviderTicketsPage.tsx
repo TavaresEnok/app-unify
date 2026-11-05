@@ -60,7 +60,7 @@ export default function ProviderTicketsPage() {
 
     return (
         <DataTable<Ticket>
-            title="Tickets de suporte"
+            title="Chamados"
             description="Gerencie as solicitações de suporte dos seus clientes."
             actions={(
                 <>
@@ -116,7 +116,7 @@ export default function ProviderTicketsPage() {
                                 type="button"
                     className="grid w-full items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] text-left transition-colors hover:bg-[#F8FAFC]"
                     style={{ gridTemplateColumns: "130px 2.2fr 1.2fr .8fr 1fr 32px" }}
-                                    onClick={() => navigate(`/provedor/tickets/${ticket.id}`)}
+                                    onClick={() => navigate(`/provedor/atendimento/chamados/${ticket.id}`)}
                                 >
                     <StatusBadge status={ticket.status} />
                     <span className="min-w-0">

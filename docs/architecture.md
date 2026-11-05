@@ -1,6 +1,6 @@
 # Arquitetura do Sistema Unify
 
-Atualizado em 2026-07-10.
+Atualizado em 2026-10-29.
 
 ## Visao geral
 
@@ -59,3 +59,9 @@ Esses dados nao devem ser escritos em `provedores/{providerId}` nem em logs.
 - O `proxy-sgp` nao foi removido; ele permanece dono do cache e das rotas SGP
   ainda especificas.
 - O schema `ProviderConfig` segue compativel com campos atuais e legados.
+
+## Operação para múltiplos provedores
+
+`jobs-worker` executa sincronizações e lembretes em BullMQ, com Redis persistente separado do cache. API e proxy compartilham o coordenador SGP de `shared/runtime/upstream.js`. Administradores exigem papel explícito; assinantes usam identidade composta por provedor e CPF e senha no login.
+
+Listagens de clientes são paginadas por cursor e dashboards usam agregações. Detalhes, limites de recursos, implantação e restrições do servidor único: [scaling-single-host.md](operations/scaling-single-host.md).
