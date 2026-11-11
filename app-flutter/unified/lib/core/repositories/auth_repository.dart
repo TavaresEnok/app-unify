@@ -1,3 +1,4 @@
+import '../services/api_response.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -131,8 +132,11 @@ class AuthRepository {
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
       body: jsonEncode({'cpfCnpj': previous.cpfCnpj, 'contratoId': previous.contratoId}),
     ).timeout(const Duration(seconds: 30));
-    if (response.statusCode != 200) throw Exception(_loginErrorMessage(response));
-    final data = (jsonDecode(response.body) as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+    final body = decodeApiResponse(response, fallback: _loginErrorMessage(response));
+    final data = body['data'];
+    if (data is! Map<String, dynamic>) {
+      throw ApiException(response.statusCode, 'Resposta inesperada do servidor. Tente novamente.');
+    }
     return Usuario(
       cpfCnpj: previous.cpfCnpj,
       senha: '',

@@ -1,3 +1,4 @@
+import 'api_response.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -646,34 +647,25 @@ class DiagnosticoService {
           )
           .timeout(const Duration(seconds: 35));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final hopsData = data['data']?['hops'] as List<dynamic>?;
+      final data = decodeApiResponse(response,
+          fallback: 'Erro no servidor (${response.statusCode})');
+      final hopsData = data['data']?['hops'] as List<dynamic>?;
 
-        if (hopsData != null && hopsData.isNotEmpty) {
-          List<String> hops = [];
-          for (final hop in hopsData) {
-            final hopNum = hop['hop'];
-            final ip = hop['ip'] ?? '*';
-            final time = hop['time'] ?? '*';
-            hops.add("$hopNum: $ip ($time)");
-          }
-          _updateTestState('traceroute', TestStatus.success, hops.join('\n'));
-        } else {
-          _updateTestState(
-            'traceroute',
-            TestStatus.error,
-            "Nenhum resultado de traceroute recebido.",
-          );
+      if (hopsData != null && hopsData.isNotEmpty) {
+        List<String> hops = [];
+        for (final hop in hopsData) {
+          final hopNum = hop['hop'];
+          final ip = hop['ip'] ?? '*';
+          final time = hop['time'] ?? '*';
+          hops.add("$hopNum: $ip ($time)");
         }
+        _updateTestState('traceroute', TestStatus.success, hops.join('\n'));
       } else {
-        // Tenta parsear erro
-        try {
-          final error = json.decode(response.body);
-          throw Exception(error['error']?['message'] ?? 'Erro no servidor');
-        } catch (_) {
-          throw Exception('Erro no servidor (${response.statusCode})');
-        }
+        _updateTestState(
+          'traceroute',
+          TestStatus.error,
+          "Nenhum resultado de traceroute recebido.",
+        );
       }
     } catch (e) {
       if (!_currentState.isTesting) return;

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/usuario.dart';
 import '../models/provider_config.dart';
 import '../repositories/auth_repository.dart';
+import '../services/api_response.dart';
 import '../providers/providers.dart';
 
 class AuthNotifier extends AsyncNotifier<Usuario?> {
@@ -12,6 +13,11 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
   @override
   FutureOr<Usuario?> build() async {
     _repository = ref.read(authRepositoryProvider);
+    // 401 numa rota autenticada: sessão revogada no servidor. Volta ao login
+    // em vez de deixar cada tela repetir o erro.
+    ApiSession.onUnauthorized = () {
+      if (state.value != null && !state.isLoading) unawaited(logout());
+    };
     return _loadUser();
   }
 
