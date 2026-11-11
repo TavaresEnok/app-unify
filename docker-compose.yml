@@ -243,6 +243,8 @@ services:
       - REDIS_CACHE_URL=redis://redis:6379
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+      # Bucket dos relatórios/anexos enviados pelo app (o mesmo do firebase_options).
+      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET:-app-ajust-provedor.firebasestorage.app}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
     volumes:
       # Service account montada de fora do repositório (não é commitada)
