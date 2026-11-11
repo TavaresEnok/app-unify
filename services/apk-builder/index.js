@@ -110,6 +110,7 @@ function createApp(options = {}) {
                 '--package', registered.applicationId, '--build-id', id, '--identity-registry', config.APK_IDENTITY_REGISTRY || path.join(privateDir, 'identities.json'),
                 '--version-code', versionCode, '--version-name', `1.0.${versionCode}`, '--format', format, '--arm64'];
             if (format === 'aab') args.push('--obfuscate');
+            if (config.PUBLIC_API_URL) args.push('--api-url', config.PUBLIC_API_URL);
             child = run(config.PYTHON_BIN || '/usr/bin/python3', args, { cwd: root, env: childEnvironment(), detached: true });
             activeChild = child;
             jobs.update(id, { status: 'running', startedAt: Date.now() });

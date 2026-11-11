@@ -172,3 +172,12 @@ test('declared builder mounts and network do not restore administrative access',
     assert.match(compose, /\.\/apk\/releases\/public:\/usr\/share\/nginx\/html\/public_apks\/f1:ro/);
     assert.doesNotMatch(fs.readFileSync(path.join(__dirname, 'index.js'), 'utf8'), /firebase-admin|\.\.\.process.env/);
 });
+test('public API URL reaches the build as an argument, never through the child environment', async t => {
+    const f = await fixture(t);
+    assert.equal((await f.post()).status, 200);
+    assert.equal(f.state.args.includes('--api-url'), false);
+    f.config.PUBLIC_API_URL = 'https://appisp.com.br/api';
+    assert.equal((await f.post()).status, 200);
+    assert.equal(f.state.args[f.state.args.indexOf('--api-url') + 1], 'https://appisp.com.br/api');
+    assert.deepEqual(f.state.env, childEnvironment());
+});

@@ -30,6 +30,7 @@ api-service/src/
 | --- | --- | --- | --- |
 | POST | `/admin/auth/login` | publica com rate limit | Login admin via Identity Toolkit |
 | GET | `/admin/providers` | Firebase token | Lista provedores conforme claims |
+| GET | `/public/providers/:providerId/config` | pública, rate limit por IP, cache 60 s | Configuração do app (marca, menus, textos) pela lista permitida do backend; sem integração, token, `apiUrl` ou destino SGP |
 | POST | `/admin/providers` | Firebase token | Cria/atualiza provedor sem salvar secrets publicos |
 | GET | `/admin/tickets` | Firebase token | Lista tickets por permissao |
 | GET | `/admin/tickets/:id/messages` | Firebase token | Lista mensagens do ticket |
@@ -84,3 +85,9 @@ O proxy continua na porta interna `http://backend-proxy:3002` e publica atual
 - O SGP consultado é o do provedor dono do CPF: claim `providerId` do token do assinante, ou `clientes/{cpf}.providerId`. As credenciais vêm de `provedores/{id}/secrets/sgp`. Se o provedor existe mas não tem integração, a resposta é 503 (sem cair no SGP global do `.env`). O `.env` só é usado para assinantes legados sem provedor identificado.
 - providerAdmin só acessa CPFs do próprio provedor; assinante só o próprio CPF.
 - A URL do SGP é validada contra SSRF com resolução de DNS (IPv4 e IPv6).
+
+### Configuração pública do app (`/public/providers/:providerId/config`)
+
+- O app do assinante carrega a configuração por esta rota antes do login. As regras do Firestore só liberam a projeção plana de marca do documento `provedores/{id}`.
+- Resposta: `{ data }` com a saída de `publicProviderData` (personalização em `providerConfig.ts` + metadados públicos) e `id`. O app usa a URL que respondeu como `apiUrl`.
+- A URL vem de `--dart-define=PUBLIC_API_URL`, gravada pelo gerador de APK a partir de `PUBLIC_API_URL` do apk-builder. Builds sem ela, ou se a rota falhar, caem na leitura direta do Firestore e depois no cache local.

@@ -31,3 +31,6 @@ export const sgpLimiter = limiter("sgp-user", 60_000, 120);
 export const tenantLimiter = limiter("sgp-tenant", 60_000, 3000,
   (req) => req.user?.providerId ? `tenant:${req.user.providerId}` : requestIdentity(req));
 export const tracerouteLimiter = limiter("traceroute", 3_600_000, 40);
+// Config pública do app (sem login). Assinantes de ISP costumam compartilhar
+// IP via CGNAT, então a cota por IP é larga; o cache em memória poupa o Firestore.
+export const publicConfigLimiter = limiter("public-config", 60_000, 600);

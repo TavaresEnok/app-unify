@@ -17,6 +17,7 @@ import { subscriberRouter } from "./routes/subscriber.routes";
 import { diagnosticsRouter } from "./routes/diagnostics.routes";
 import { proxyRouter } from "./routes/proxy.routes";
 import { buildAuthorizationRouter } from "./routes/buildAuthorization.routes";
+import { publicConfigRouter } from "./routes/publicConfig.routes";
 
 export function createApp() {
   const app = express();
@@ -45,6 +46,7 @@ export function createApp() {
   app.use("/admin/users", usersRouter);
   app.use("/admin/dashboard", dashboardRouter);
   app.use("/diagnostic", diagnosticsRouter);
+  app.use("/public", publicConfigRouter);
   app.use(subscriberRouter);
   app.use(proxyRouter);
 

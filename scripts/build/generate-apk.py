@@ -51,6 +51,7 @@ def main():
     parser.add_argument('--version-name', help='Nome da versão (ex: 1.0.0)')
     parser.add_argument('--build-id', required=True)
     parser.add_argument('--identity-registry', required=True)
+    parser.add_argument('--api-url', help='URL pública da API (https) gravada no app para carregar a configuração do provedor')
 
     args = parser.parse_args()
     check_identity(args.identity_registry, args.id, args.nome, args.package)
@@ -429,6 +430,16 @@ flutter_launcher_icons:
         if args.version_name:
             build_cmd += f" --build-name={args.version_name}"
         
+        # Configuração do provedor vem da API pública (as regras do Firestore
+        # não liberam mais o documento completo). Só https, sem credenciais.
+        if args.api_url:
+            api_url = args.api_url.strip().rstrip('/')
+            if not re.match(r'^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$', api_url):
+                print(f"ERRO: --api-url inválida (use https sem credenciais): {api_url}")
+                sys.exit(1)
+            build_cmd += f" --dart-define=PUBLIC_API_URL={api_url}"
+            print(f"🌐 API pública gravada no app: {api_url}")
+
         # Optimization: ARM64-v8a Only
         if args.arm64:
              build_cmd += " --target-platform android-arm64"

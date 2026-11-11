@@ -298,6 +298,8 @@ services:
       - APK_PROJECT_ROOT=/home/app/projects/painel_provedores
       - APK_SCRIPT_PATH=/home/app/projects/painel_provedores/scripts/build/generate-apk.py
       - APK_FLUTTER_PROJECT=/home/app/projects/painel_provedores/app-flutter/unified
+      # URL pública da API gravada nos apps gerados (config do provedor via HTTPS).
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://appisp.com.br/api}
       - APK_OUTPUT_DIR=/home/app/projects/painel_provedores/apk/releases/public
       - APK_PUBLICATION_DIR=/home/app/projects/painel_provedores/apk/releases/private
       - APK_PUBLIC_URL_PREFIX=/public_apks/f1
