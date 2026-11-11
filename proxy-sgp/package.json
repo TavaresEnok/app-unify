@@ -15,7 +15,7 @@
     "bullmq": "^6.5.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "firebase-admin": "^13.10.0",
+    "firebase-admin": "^14.5.0",
     "ioredis": "^5.6.1",
     "node-cron": "^4.6.0",
     "pg": "^8.22.0"
