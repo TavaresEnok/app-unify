@@ -169,7 +169,10 @@ test('declared builder mounts and network do not restore administrative access',
     assert.match(builder, /APK_PUBLICATION_DIR=.*\/apk\/releases\/private/);
     assert.match(builder, /APK_OUTPUT_DIR=.*\/apk\/releases\/public/);
     assert.doesNotMatch(builder, /\.\/public_apks:/);
-    assert.match(compose, /\.\/apk\/releases\/public:\/usr\/share\/nginx\/html\/public_apks\/f1:ro/);
+    // Só a pasta pública, somente leitura, servida pela landing em /public_apks/f1/.
+    assert.match(compose, /\.\/apk\/releases\/public:\/srv\/apk-f1:ro/);
+    assert.doesNotMatch(compose, /\.\/apk\/releases(\/private)?:\/(srv|usr\/share\/nginx)/);
+    assert.match(fs.readFileSync(path.join(__dirname, '../../landing-page/nginx.conf'), 'utf8'), /location \/public_apks\/f1\/ \{\s+alias \/srv\/apk-f1\/;/);
     assert.doesNotMatch(fs.readFileSync(path.join(__dirname, 'index.js'), 'utf8'), /firebase-admin|\.\.\.process.env/);
 });
 test('public API URL reaches the build as an argument, never through the child environment', async t => {

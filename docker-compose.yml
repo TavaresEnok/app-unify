@@ -174,7 +174,7 @@ services:
     volumes:
       - ./public_apks:/usr/share/nginx/html/public_apks:ro
       # Only the public subtree is served; publication preparation stays outside it.
-      - ./apk/releases/public:/usr/share/nginx/html/public_apks/f1:ro
+      - ./apk/releases/public:/srv/apk-f1:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 30s
