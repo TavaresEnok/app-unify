@@ -1,9 +1,11 @@
 import { FieldValue } from "firebase-admin/firestore";
 import type { RequestHandler } from "../app/request";
+import { requirePayloadFields } from "../app/request";
 import { AppError } from "../app/errors";
 import { auth, db } from "../app/firebase";
 import { requireProviderAccess, requireSuperAdmin } from "../app/permissions";
 import { isValidNewProviderId } from "../utils";
+import { parsePersonalization, parseDetails } from "../app/providerConfig";
 
 const DEFAULT_PROVIDER_CONFIG = {
   layoutType: "layout_06",
@@ -20,14 +22,9 @@ const DEFAULT_PROVIDER_CONFIG = {
   menuConfig: { order: ["invoices", "support", "contract"], items: {} },
 };
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
 export const createProvider: RequestHandler<"CREATE_PROVIDER"> = async ({ requestId, requesterUid, payload }) => {
   await requireSuperAdmin(requesterUid);
+  requirePayloadFields(payload, ["providerId", "name"]);
   const providerId = payload.providerId.trim();
   const name = payload.name.trim();
   if (!providerId || !name || !isValidNewProviderId(providerId)) {
@@ -55,19 +52,15 @@ export const createProvider: RequestHandler<"CREATE_PROVIDER"> = async ({ reques
 
 export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = async ({ requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
-  const config = asRecord(payload.config);
-  const publicConfig = { ...config };
-  delete publicConfig.config;
-  const integrations = asRecord(publicConfig.integrations);
-  delete publicConfig.integrations;
-
+  requirePayloadFields(payload, ["providerId", "config"]);
+  let publicConfig: Record<string, unknown>;
+  try { publicConfig = parsePersonalization(payload.config); }
+  catch { throw new AppError("invalid-argument", "Configuração inválida ou campo não permitido."); }
   const providerRef = db.collection("provedores").doc(payload.providerId);
   const provider = await providerRef.get();
-  if (!provider.exists) return { success: true, message: "Provedor apagado com sucesso." };
+  if (!provider.exists) throw new AppError("not-found", "Provedor não encontrado.");
 
-  if (Object.keys(integrations).length) {
-    await providerRef.collection("secrets").doc("sgp").set({ integrations }, { merge: true });
-  }
+
   await providerRef.update({
     ...publicConfig,
     integrations: FieldValue.delete(),
@@ -79,29 +72,16 @@ export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = as
 
 export const updateProviderDetails: RequestHandler<"UPDATE_PROVIDER_DETAILS"> = async ({ requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
-  const details = asRecord(payload.details);
-  const publicDetails = { ...details };
-  delete publicDetails.apiToken;
-  delete publicDetails.token;
-  delete publicDetails.password;
-  delete publicDetails.secret;
-  delete publicDetails.name;
-  const secretIntegrations: Record<string, unknown> = {};
-  if ("appName" in details) secretIntegrations.appName = details.appName;
-  if ("apiToken" in details) secretIntegrations.apiToken = details.apiToken;
-  if ("systemUrl" in details) secretIntegrations.sgpBaseUrl = details.systemUrl;
-  const providerRef = db.collection("provedores").doc(payload.providerId);
-  await Promise.all([
-    providerRef.set({
-      ...(typeof details.name === "string" && details.name ? { name: details.name } : {}),
-      ...(typeof details.apiUrl === "string" && details.apiUrl ? { apiUrl: details.apiUrl } : {}),
-      details: publicDetails,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true }),
-    Object.keys(secretIntegrations).length
-      ? providerRef.collection("secrets").doc("sgp").set({ integrations: secretIntegrations }, { merge: true })
-      : Promise.resolve(),
-  ]);
+  requirePayloadFields(payload, ["providerId", "details"]);
+  let details: Record<string, unknown>;
+  try { details = parseDetails(payload.details); }
+  catch { throw new AppError("invalid-argument", "Dados inválidos ou campo não permitido."); }
+  const { name, ...publicDetails } = details;
+  await db.collection("provedores").doc(payload.providerId).update({
+    ...(typeof name === "string" ? { name } : {}),
+    ...Object.fromEntries(Object.entries(publicDetails).map(([key, value]) => ["details." + key, value])),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   return { success: true, message: "Provedor atualizado com sucesso.", providerId: payload.providerId };
 };
 

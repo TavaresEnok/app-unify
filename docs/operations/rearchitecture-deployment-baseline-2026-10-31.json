@@ -1,0 +1,111 @@
+{
+  "observedAt": "2026-10-31T00:49:18.066862+00:00",
+  "containers": [
+    {
+      "container": "painel_frontend",
+      "imageId": "sha256:a2f091f72ab8292c453c18b634edbea21c8c982df2d7efef5fbdacbc90f511f9",
+      "startedAt": "2026-10-30T08:35:56.867670399Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_api",
+      "imageId": "sha256:d9fa8bec4fc788aade149d8277f2474ee2d80a44c04628f6a0b6de1b52a3447c",
+      "startedAt": "2026-10-30T08:35:54.558403381Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_landing",
+      "imageId": "sha256:502b490da61023424561f4f4df08043cb2747ade43876fc61324cfb2e073fdf1",
+      "startedAt": "2026-10-29T21:48:38.27939943Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_provedores-jobs-worker-1",
+      "imageId": "sha256:5371a5711558d996ab80a4da89efeae3756843bf1a96683979be7d910d4695ca",
+      "startedAt": "2026-10-29T21:39:58.341458916Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_proxy_sgp",
+      "imageId": "sha256:ce00e7cfc5f2f75edfdb7d96859a8b1ff88590493d1fa864cecbebcb31e826ea",
+      "startedAt": "2026-10-29T21:31:28.043555041Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_caddy",
+      "imageId": "sha256:af555904a0961945f16bb323a501457b13a4f7e9bde969b145b97da80b38ecbe",
+      "startedAt": "2026-10-29T21:04:50.858595042Z",
+      "status": "running",
+      "health": null,
+      "revision": null
+    },
+    {
+      "container": "painel_postgres",
+      "imageId": "sha256:bb506a9728d218a29ad9c1fd7ed6acb713214fa3fe10dbc875c5cd1a865ebb46",
+      "startedAt": "2026-10-29T21:04:50.048607775Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_redis",
+      "imageId": "sha256:e08bd8d5a6774025cff22e5db8361f6a5d023811e84d77d0033e47d44970cc94",
+      "startedAt": "2026-10-29T21:04:50.055295709Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_speedtest",
+      "imageId": "sha256:eab4b54699eb3a65e6b297cf34746a21f45094348e4b296011bb7f558a0a8544",
+      "startedAt": "2026-10-29T21:04:50.06262295Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_provedores-redis-state-1",
+      "imageId": "sha256:e08bd8d5a6774025cff22e5db8361f6a5d023811e84d77d0033e47d44970cc94",
+      "startedAt": "2026-10-29T20:55:24.624421232Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    },
+    {
+      "container": "painel_apk_builder",
+      "imageId": "sha256:f28c2bf9ce46c249aa05b704273477c89e261d5c20e63f985de01a47c60b878b",
+      "startedAt": "2026-10-29T20:37:24.086270098Z",
+      "status": "running",
+      "health": "healthy",
+      "revision": null
+    }
+  ],
+  "limits": [
+    "Read-only container metadata; not equivalence proof with source.",
+    "Functions, deployed rules and mobile distribution not revalidated yet."
+  ],
+  "backupStatus": {
+    "service": "backup",
+    "status": "ok",
+    "completedAt": "2026-10-30T06:04:05.981Z",
+    "ageHours": 18.75
+  },
+  "host": {
+    "memory": "               total        used        free      shared  buff/cache   available\nMem:           15984       12631         475          26        3296        3353\nSwap:          17782        3259       14523\n",
+    "disk": "Filesystem                         Size  Used Avail Use% Mounted on\n/dev/mapper/ubuntu--vg-ubuntu--lv  195G  162G   25G  87% /\n"
+  },
+  "tools": {
+    "node": "v24.22.1",
+    "java": "17.0.20.1; rules emulator requires compatible isolated Java"
+  }
+}

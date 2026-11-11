@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { URLSearchParams } from "node:url";
 import { verifyToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { sgpLimiter } from "../middlewares/rateLimits";
+import { sgpLimiter, tenantLimiter } from "../middlewares/rateLimits";
 import {
   createSgpSession,
   externalErrorMessage,
@@ -11,10 +11,11 @@ import {
   resolveSgpCredentials,
   type SgpContract,
 } from "../services/sgpClient";
+import { mapWithConcurrency } from "../services/boundedWork";
 import { providerOfCpf } from "../services/tenantScope";
 
 export const subscriberRouter = Router();
-subscriberRouter.use(sgpLimiter);
+
 // Todas as rotas de assinante exigem autenticação (verifyToken por rota — o
 // router é montado na raiz, então middleware de router-level rodaria também em
 // rotas não correspondentes como /health e 404). Sem isto, qualquer anônimo
@@ -30,26 +31,28 @@ interface SubscriberContext {
  * Resolve o CPF alvo e o provedor dono dele, cujo SGP será consultado.
  *
  * - assinante (uid = CPF em dígitos): só o próprio CPF; provedor do claim do
- *   token ou, para tokens legados, de `clientes/{cpf}`.
+ *   token, sem inferência por CPF de tokens legados.
  * - providerAdmin: só CPFs cujo `clientes/{cpf}.providerId` seja o seu.
- * - superAdmin: qualquer CPF; `providerId` do corpo ou de `clientes/{cpf}`.
+ * - superAdmin: qualquer CPF, com `providerId` explícito no corpo.
  */
 async function subscriberContext(req: Request): Promise<SubscriberContext> {
   const cpfCnpj = typeof req.body?.cpfCnpj === "string" ? req.body.cpfCnpj.trim() : "";
   if (!cpfCnpj) throw new ApiError(400, "CPF/CNPJ é obrigatório.", "invalid-argument");
   const digits = cpfCnpj.replace(/\D/g, "");
+  if (!/^\d{11}(\d{3})?$/.test(digits)) throw new ApiError(400, "CPF/CNPJ inválido.", "invalid-argument");
   const user = req.user;
+  if (user?.superAdmin !== true && req.body?.providerId && req.body.providerId !== user?.providerId) throw new ApiError(403, "Provedor inválido.", "permission-denied");
 
   if (user?.superAdmin === true) {
     const fromBody = typeof req.body?.providerId === "string" && req.body.providerId ? req.body.providerId : undefined;
-    return { cpfCnpj, providerId: fromBody || await providerOfCpf(digits) };
+    return { cpfCnpj, providerId: fromBody };
   }
-  if (user && user.uid === digits) {
+  if (user?.role === "subscriber" && user.cpfCnpj === digits) {
     const claim = typeof user.providerId === "string" && user.providerId ? user.providerId : undefined;
-    return { cpfCnpj, providerId: claim || await providerOfCpf(digits) };
+    return { cpfCnpj, providerId: claim };
   }
-  if (typeof user?.providerId === "string") {
-    const owner = await providerOfCpf(digits);
+  if (user?.role === "providerAdmin" && typeof user.providerId === "string") {
+    const owner = await providerOfCpf(digits, user.providerId);
     if (!owner || owner !== user.providerId) {
       throw new ApiError(403, "Este cliente não pertence ao seu provedor.", "permission-denied");
     }
@@ -59,12 +62,10 @@ async function subscriberContext(req: Request): Promise<SubscriberContext> {
 }
 
 async function sgpForRequest(req: Request) {
+  if (["url", "token", "app", "sgpBaseUrl", "sgpParams", "apiToken", "appName"].some(key => Object.prototype.hasOwnProperty.call(req.body || {}, key))) throw new ApiError(400, "Configuração SGP não permitida no pedido.", "invalid-argument");
   const context = await subscriberContext(req);
   const credentials = await resolveSgpCredentials(context.providerId);
-  if (!credentials.providerId) {
-    console.warn(JSON.stringify({ severity: "WARNING", message: "Provedor do CPF não identificado; usando SGP global", correlationId: req.correlationId }));
-  }
-  return { ...context, credentials, session: createSgpSession() };
+  return { ...context, credentials, session: createSgpSession(credentials.providerId, credentials.baseUrl) };
 }
 
 // Loga o detalhe do erro upstream no servidor e devolve uma mensagem genérica —
@@ -97,7 +98,7 @@ function contractSummary(item: SgpContract) {
   };
 }
 
-subscriberRouter.post("/getClientData", verifyToken, asyncRoute(async (req, res) => {
+subscriberRouter.post("/getClientData", verifyToken, sgpLimiter, tenantLimiter, asyncRoute(async (req, res) => {
   const { cpfCnpj, credentials, session } = await sgpForRequest(req);
   try {
     const contracts = await listContracts(session, credentials, cpfCnpj);
@@ -139,14 +140,14 @@ subscriberRouter.post("/getClientData", verifyToken, asyncRoute(async (req, res)
   }
 }));
 
-subscriberRouter.post("/getConsumptionData", verifyToken, asyncRoute(async (req, res) => {
+subscriberRouter.post("/getConsumptionData", verifyToken, sgpLimiter, tenantLimiter, asyncRoute(async (req, res) => {
   const { cpfCnpj, credentials, session } = await sgpForRequest(req);
   try {
     const contracts = pickContracts(await listContracts(session, credentials, cpfCnpj), req.body?.contratoId)
       .filter((item) => item.senhaCentral);
     if (!contracts.length) throw new ApiError(503, "Credencial do contrato indisponível para consulta de consumo.", "service-unavailable");
     const now = new Date();
-    const usage = await Promise.all(contracts.map(async (item) => {
+    const usage = await mapWithConcurrency(contracts, 2, async (item) => {
       const form = new URLSearchParams({
         cpfcnpj: cpfCnpj,
         senha: item.senhaCentral,
@@ -161,7 +162,7 @@ subscriberRouter.post("/getConsumptionData", verifyToken, asyncRoute(async (req,
         totalGb: quota ? Number(quota[1]) : 1000,
         usedGb: Number(response.data?.total || 0) / (1024 ** 3),
       };
-    }));
+    });
     res.json({ data: {
       totalGb: usage.reduce((sum, item) => sum + item.totalGb, 0),
       usedGb: usage.reduce((sum, item) => sum + item.usedGb, 0),
@@ -175,7 +176,7 @@ subscriberRouter.post("/getConsumptionData", verifyToken, asyncRoute(async (req,
   }
 }));
 
-subscriberRouter.post("/getInvoices", verifyToken, asyncRoute(async (req, res) => {
+subscriberRouter.post("/getInvoices", verifyToken, sgpLimiter, tenantLimiter, asyncRoute(async (req, res) => {
   const { cpfCnpj, credentials, session } = await sgpForRequest(req);
   // Sem `contratoId`, o SGP devolve os títulos de todos os contratos do CPF.
   const payload: Record<string, string> = { token: credentials.token, app: credentials.app, cpfcnpj: cpfCnpj };
@@ -208,7 +209,7 @@ subscriberRouter.post("/getInvoices", verifyToken, asyncRoute(async (req, res) =
   }
 }));
 
-subscriberRouter.post("/makePaymentPromise", verifyToken, asyncRoute(async (req, res) => {
+subscriberRouter.post("/makePaymentPromise", verifyToken, sgpLimiter, tenantLimiter, asyncRoute(async (req, res) => {
   const { cpfCnpj, credentials, session } = await sgpForRequest(req);
   try {
     const contracts = await listContracts(session, credentials, cpfCnpj);

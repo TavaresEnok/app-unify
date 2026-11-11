@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/usuario.dart';
 import '../models/provider_config.dart';
 import '../repositories/auth_repository.dart';
+import '../services/api_response.dart';
 import '../providers/providers.dart';
 
 class AuthNotifier extends AsyncNotifier<Usuario?> {
@@ -12,6 +13,11 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
   @override
   FutureOr<Usuario?> build() async {
     _repository = ref.read(authRepositoryProvider);
+    // 401 numa rota autenticada: sessão revogada no servidor. Volta ao login
+    // em vez de deixar cada tela repetir o erro.
+    ApiSession.onUnauthorized = () {
+      if (state.value != null && !state.isLoading) unawaited(logout());
+    };
     return _loadUser();
   }
 
@@ -19,12 +25,12 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
     return await _repository.loadUserFromStorage();
   }
 
-  Future<void> login(String cpf, ProviderConfig config) async {
+  Future<void> login(String cpf, ProviderConfig config, {String password = ''}) async {
     // DO NOT set state = const AsyncValue.loading() here!
     // It causes AuthGate to unmount the LoginPage, destroying local state and hiding errors.
     try {
       // 1. Authenticate with API
-      final user = await _repository.performLoginApi(cpf, config);
+      final user = await _repository.performLoginApi(cpf, config, password: password);
 
       // 2. Save locally
       await _repository.saveUserLocally(user, config.id);
@@ -61,7 +67,7 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
       // We don't set state to loading to avoid flickering UI,
       // just update when data arrives.
       final updatedUser =
-          await _repository.performLoginApi(currentUser.cpfCnpj, config);
+          await _repository.refreshUser(currentUser, config);
 
       // Preserve some local-only fields if any (auth tokens are handled inside repository)
 

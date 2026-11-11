@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   Bell,
   LogOut,
@@ -7,7 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
-import { auth } from "@/firebase/config";
+import { auth } from "@/firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,6 @@ export default function MainLayout() {
   const userName = getDisplayName(user?.email);
   const userRoleLabel = isProvider ? "Painel do provedor" : "Super Admin";
 
-  const hasNotification = true;
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -164,10 +163,10 @@ export default function MainLayout() {
             variant="ghost"
             size="icon"
             aria-label="Notificações"
+            onClick={() => navigate(isProvider ? "/provedor/comunicados/notificacoes" : "/tickets")}
             className="relative h-8 w-8 text-[#5B6472] hover:bg-[#F2F4F8]"
           >
             <Bell className="h-4 w-4" strokeWidth={1.8} />
-            {hasNotification && <span className="absolute right-[7px] top-1.5 h-[7px] w-[7px] rounded-full border border-white bg-[#C2362B]" />}
           </Button>
 
           <DropdownMenu>
@@ -184,7 +183,9 @@ export default function MainLayout() {
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-7 sm:py-[26px]">
-            <Outlet />
+            <Suspense fallback={<div role="status" className="py-8 text-sm text-muted-foreground">Carregando informações...</div>}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

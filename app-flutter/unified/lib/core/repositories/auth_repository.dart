@@ -1,3 +1,4 @@
+import '../services/api_response.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -33,6 +34,8 @@ class AuthRepository {
 
     // A sessão persiste via Firebase Auth; usamos a presença do CPF como marcador
     // de auto-login. A senha não é mais armazenada (M11).
+    final token = await FirebaseAuth.instance.currentUser?.getIdTokenResult();
+    if (token?.claims?['role'] != 'subscriber') return null;
     if (prefs.containsKey('userCpfCnpj')) {
       return Usuario(
         cpfCnpj: prefs.getString('userCpfCnpj')!,
@@ -48,11 +51,12 @@ class AuthRepository {
     return null;
   }
 
-  Future<Usuario> performLoginApi(String cpf, ProviderConfig config) async {
+  Future<Usuario> performLoginApi(String cpf, ProviderConfig config, {String password = ''}) async {
     final apiUrl = config.apiUrl;
     final requestBody = {
       'cpf': cpf,
       'providerId': config.id,
+      'senha': password,
     };
 
     final url = '$apiUrl/check-cpf';
@@ -102,7 +106,7 @@ class AuthRepository {
 
       return Usuario(
         cpfCnpj: cpf.replaceAll(RegExp(r'[^0-9]'), ''),
-        senha: data['senha']?.toString() ?? '',
+        senha: '',
         nome: (data['nome']?.toString() ?? 'Cliente').split(' ').first,
         plano: data['plano']?.toString() ?? 'Plano Básico',
         status: data['status']?.toString() ?? 'Ativo',
@@ -118,6 +122,31 @@ class AuthRepository {
       }
       throw Exception(_loginErrorMessage(response));
     }
+  }
+
+  Future<Usuario> refreshUser(Usuario previous, ProviderConfig config) async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw Exception('Entre novamente para continuar.');
+    final response = await _client.post(
+      Uri.parse('${config.apiUrl}/getClientData'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'cpfCnpj': previous.cpfCnpj, 'contratoId': previous.contratoId}),
+    ).timeout(const Duration(seconds: 30));
+    final body = decodeApiResponse(response, fallback: _loginErrorMessage(response));
+    final data = body['data'];
+    if (data is! Map<String, dynamic>) {
+      throw ApiException(response.statusCode, 'Resposta inesperada do servidor. Tente novamente.');
+    }
+    return Usuario(
+      cpfCnpj: previous.cpfCnpj,
+      senha: '',
+      nome: (data['userName']?.toString() ?? previous.nome).split(' ').first,
+      plano: data['userPlan']?.toString() ?? previous.plano,
+      status: data['userStatus']?.toString() ?? previous.status,
+      valorFatura: data['billValue']?.toString() ?? previous.valorFatura,
+      vencimentoFatura: data['billDueDate']?.toString() ?? previous.vencimentoFatura,
+      contratoId: previous.contratoId,
+    );
   }
 
   String _loginErrorMessage(http.Response response) {

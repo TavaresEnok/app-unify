@@ -1,0 +1,61 @@
+{
+  "measuredAt": "2026-10-29T22:42:03.103Z",
+  "sessionRestore": [
+    {
+      "role": "superAdmin",
+      "run": 1,
+      "beforeShellMs": 2049,
+      "beforeDataMs": 4582,
+      "afterShellMs": 1256,
+      "afterDataMs": 3803
+    },
+    {
+      "role": "superAdmin",
+      "run": 2,
+      "beforeShellMs": 1288,
+      "beforeDataMs": 3834,
+      "afterShellMs": 1320,
+      "afterDataMs": 1829
+    },
+    {
+      "role": "providerAdmin",
+      "run": 1,
+      "beforeShellMs": 1701,
+      "beforeDataMs": 4231,
+      "afterShellMs": 1149,
+      "afterDataMs": 1655
+    },
+    {
+      "role": "providerAdmin",
+      "run": 2,
+      "beforeShellMs": 1703,
+      "beforeDataMs": 3228,
+      "afterShellMs": 1707,
+      "afterDataMs": 1712
+    }
+  ],
+  "passwordLoginAfter": [
+    {
+      "role": "superAdmin",
+      "loginPageMs": 546,
+      "authenticationMs": 693,
+      "clickToShellMs": 2253,
+      "clickToDashboardDataMs": 2761,
+      "dashboardHttp": 200,
+      "browserErrors": 0
+    },
+    {
+      "role": "providerAdmin",
+      "loginPageMs": 511,
+      "authenticationMs": 750,
+      "clickToShellMs": 2261,
+      "clickToDashboardDataMs": 2262,
+      "dashboardHttp": 200,
+      "browserErrors": 0
+    }
+  ],
+  "limitation": "Fresh browser with an already authenticated Firebase session; excludes email/password submission time and user network conditions.",
+  "coldAfterDeployMs": 3803,
+  "meanBeforeMs": 3968.75,
+  "meanAfterMs": 2249.75
+}

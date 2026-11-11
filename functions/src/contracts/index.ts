@@ -160,7 +160,7 @@ export interface Notification {
 
 export interface SgpApiProxyResult {
   clientes?: Client[];
-  paginacao?: { total: number; limit: number; offset: number };
+  paginacao?: { total: number; limit: number; offset?: number; nextCursor?: string | null };
   count?: number;
   message?: string;
   [key: string]: any;
@@ -200,7 +200,7 @@ export interface FunctionRequestPayloadMap {
   };
   SGP_API_PROXY: {
     providerId: string;
-    action: "sync" | "get" | "get_single";
+    action: "sync" | "get" | "get_single" | "status";
     params?: Record<string, unknown>;
   };
   GET_ALL_TICKETS: Record<string, never>;
@@ -211,9 +211,8 @@ export interface FunctionRequestPayloadMap {
     providerId: string;
     providerName?: string;
     userEmail?: string | null;
-    imageUrl?: string | null;
   };
-  REPLY_TO_TICKET: { ticketId: string; message: string; imageUrl?: string | null };
+  REPLY_TO_TICKET: { ticketId: string; message: string };
   UPDATE_TICKET_STATUS: { ticketId: string; status: TicketStatus };
   DELETE_TICKET: { ticketId: string };
   LIST_ADMIN_USERS: Record<string, never>;
@@ -225,7 +224,7 @@ export interface FunctionRequestPayloadMap {
   };
   DELETE_ADMIN_USER: { uid: string };
   SET_SUPER_ADMIN_BY_EMAIL: { email: string };
-  LIST_PROVIDER_CLIENTS: { providerId: string };
+  LIST_PROVIDER_CLIENTS: { providerId: string; limit?: number; cursor?: string; search?: string };
   GET_CLIENT_DETAILS: { providerId: string; clientId: string };
   DELETE_CLIENT: { providerId: string; clientId: string };
   BACKUP_PROVIDER_CONFIG: { providerId: string; name?: string };
@@ -257,7 +256,7 @@ export interface FunctionResultMap {
   CREATE_ADMIN_USER: { success: true; message: string; uid: string };
   DELETE_ADMIN_USER: { success: true; message: string };
   SET_SUPER_ADMIN_BY_EMAIL: { success: true; message: string; uid: string };
-  LIST_PROVIDER_CLIENTS: Client[];
+  LIST_PROVIDER_CLIENTS: { items: Client[]; total: number; nextCursor: string | null };
   GET_CLIENT_DETAILS: Client;
   DELETE_CLIENT: { success: true; message: string };
   BACKUP_PROVIDER_CONFIG: { success: true; message: string; backupId: string };
@@ -271,6 +270,7 @@ export interface FunctionRequest<T extends FunctionRequestType = FunctionRequest
   requesterUid: string;
   payload: FunctionRequestPayloadMap[T];
   createdAt?: unknown;
+  session?: { authTime: number; issuedAt: number; role: string; providerId: string; superAdmin: boolean };
 }
 
 export interface FunctionResponse<T extends FunctionRequestType = FunctionRequestType> {
@@ -282,6 +282,7 @@ export interface FunctionResponse<T extends FunctionRequestType = FunctionReques
 }
 
 export type ErrorCode =
+  | "authorization-unavailable"
   | "unauthenticated"
   | "permission-denied"
   | "invalid-argument"
@@ -390,7 +391,7 @@ export function validateFunctionPayload(type: FunctionRequestType, payload: unkn
   if (type === "UPDATE_TICKET_STATUS" && !["Aberto", "Em Andamento", "Fechado"].includes(String(payload.status))) {
     throw new Error("payload.status invalido.");
   }
-  if (type === "SGP_API_PROXY" && !["sync", "get", "get_single"].includes(String(payload.action))) {
+  if (type === "SGP_API_PROXY" && !["sync", "get", "get_single", "status"].includes(String(payload.action))) {
     throw new Error("payload.action invalido.");
   }
 }

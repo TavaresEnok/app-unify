@@ -3,6 +3,13 @@ services:
   # CADDY — Reverse Proxy com HTTPS automático (Let's Encrypt)
   # =========================================================================
   caddy:
+    networks:
+      - default
+      - apk_build_edge
+    cpus: "0.50"
+    mem_limit: 128m
+    memswap_limit: 128m
+    mem_reservation: 32m
     image: caddy:2-alpine
     container_name: painel_caddy
     restart: always
@@ -13,6 +20,9 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    environment:
+      - APK_BUILDER_UPSTREAM=${APK_BUILDER_UPSTREAM:-apk-builder:8035}
+      - SPEED_TEST_UPSTREAM=${SPEED_TEST_UPSTREAM:-speed-test:3001}
     depends_on:
       - frontend
       - backend-proxy
@@ -25,10 +35,14 @@ services:
   # REDIS — Cache compartilhado e rate limiting persistente
   # =========================================================================
   redis:
+    cpus: "0.50"
+    mem_limit: 256m
+    memswap_limit: 256m
+    mem_reservation: 32m
     image: redis:7-alpine
     container_name: painel_redis
     restart: always
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --save "" --appendonly no
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -42,9 +56,16 @@ services:
         max-file: "3"
 
   frontend:
+    cpus: "0.50"
+    mem_limit: 128m
+    memswap_limit: 128m
+    mem_reservation: 32m
     build:
       context: ./admin-painel
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_PUBLIC_API_URL: ${VITE_PUBLIC_API_URL:-}
@@ -72,9 +93,16 @@ services:
         max-file: "3"
 
   backend-proxy:
+    cpus: "1.00"
+    mem_limit: 512m
+    memswap_limit: 512m
+    mem_reservation: 64m
     build:
       context: ./proxy-sgp
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_proxy_sgp
     restart: always
     ports:
@@ -89,14 +117,17 @@ services:
     environment:
       - DATABASE_URL=postgresql://sgp_user:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/sgp_cache
       - REDIS_URL=redis://redis:6379
+      - JOBS_REDIS_URL=redis://redis-state:6379
+      - NODE_ENV=production
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
     volumes:
-      - /home/app/.secrets/painel_provedores:/run/secrets:ro
+      - /home/app/.secrets/painel_provedores/service-account.json:/run/secrets/service-account.json:ro
     depends_on:
       - postgres
       - redis
+      - redis-state
     init: true
     read_only: true
     tmpfs:
@@ -109,6 +140,10 @@ services:
         max-file: "3"
 
   postgres:
+    cpus: "1.00"
+    mem_limit: 1g
+    memswap_limit: 1g
+    mem_reservation: 256m
     image: postgres:15-alpine
     container_name: painel_postgres
     restart: always
@@ -116,10 +151,24 @@ services:
       POSTGRES_USER: sgp_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: sgp_cache
+    # PITR (E6): cada segmento de WAL é arquivado em /wal-archive (no máximo
+    # 5 min de atraso). O backup diário leva base física + WAL para fora e
+    # limpa o que a base nova já cobre.
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal-archive/%f && cp %p /wal-archive/%f
+      - -c
+      - archive_timeout=300
     # SEGURANÇA: porta NÃO exposta publicamente — acesso apenas via rede Docker interna
     # Para acessar via host: docker exec -it painel_postgres psql -U sgp_user -d sgp_cache
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - pgwal:/wal-archive
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sgp_user -d sgp_cache"]
       interval: 30s
@@ -133,15 +182,22 @@ services:
         max-file: "3"
 
   landing-page:
+    cpus: "0.25"
+    mem_limit: 64m
     build:
       context: ./landing-page
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_landing
     restart: always
     ports:
       - "8032:80"
     volumes:
       - ./public_apks:/usr/share/nginx/html/public_apks:ro
+      # Only the public subtree is served; publication preparation stays outside it.
+      - ./apk/releases/public:/srv/apk-f1:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 30s
@@ -155,12 +211,20 @@ services:
         max-file: "3"
 
   speed-test:
+    cpus: "0.50"
+    mem_limit: 128m
     build:
       context: ./speed_test_server
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_speedtest
     restart: always
     environment:
+      - SPEED_TEST_MAX_CONCURRENT=4
+      - SPEED_TEST_MAX_MBPS=300
+      - SPEED_TEST_MAX_DURATION_MS=15000
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
     ports:
       - "8033:3001"
@@ -181,27 +245,42 @@ services:
         max-file: "3"
 
   api-service:
+    cpus: "1.00"
+    mem_limit: 512m
+    memswap_limit: 512m
+    mem_reservation: 128m
     build:
       context: ./api-service
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_api
     restart: always
     ports:
       - "8034:9136"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9136/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9136/ready', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
       timeout: 5s
       retries: 3
     env_file:
       - ./api-service/.env
     environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis-state:6379
+      - REDIS_CACHE_URL=redis://redis:6379
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+      # Bucket dos relatórios/anexos enviados pelo app (o mesmo do firebase_options).
+      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET:-app-ajust-provedor.firebasestorage.app}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
     volumes:
       # Service account montada de fora do repositório (não é commitada)
-      - /home/app/.secrets/painel_provedores:/run/secrets:ro
+      - /home/app/.secrets/painel_provedores/service-account.json:/run/secrets/service-account.json:ro
+    depends_on:
+      redis-state:
+        condition: service_healthy
     init: true
     read_only: true
     tmpfs:
@@ -214,36 +293,50 @@ services:
         max-file: "3"
 
   apk-builder:
+    networks:
+      - apk_build_edge
     build:
       context: .
       dockerfile: Dockerfile.apkbuilder
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_apk_builder
-    mem_limit: 4g
-    mem_reservation: 1g
+    mem_limit: 3g
+    cpus: "2.00"
+    cpu_shares: 128
+    mem_reservation: 512m
     restart: always
     ports:
       - "127.0.0.1:8035:8035"
     volumes:
-      - /home/app/Android/Sdk:/opt/android-sdk-linux
-      - /home/app/.secrets/painel_provedores/service-account.json:/run/secrets/service-account.json:ro
+      - /home/app/Android/Sdk:/opt/android-sdk-linux:ro
       - /home/app/.secrets/painel_provedores/apk-release.jks:/run/secrets/apk-release.jks:ro
       - /home/app/.secrets/painel_provedores/apk-signing.properties:/home/app/projects/painel_provedores/app-flutter/unified/android/key.properties:ro
-      - ./public_apks:/home/app/projects/painel_provedores/public_apks
-      - ./apk/logs:/home/app/projects/painel_provedores/apk/logs
+      # One mount for private preparation + public links avoids cross-mount EXDEV.
+      - ./apk/releases:/home/app/projects/painel_provedores/apk/releases
+      - ./apk/private:/home/app/projects/painel_provedores/apk/private
+      - ./apk/identities.json:/run/build-identities.json:ro
       - apk_pub_cache:/home/app/.pub-cache
       - apk_gradle_cache:/root/.gradle
       - apk_kotlin_cache:/root/.kotlin
     working_dir: /home/app/projects/painel_provedores
     environment:
       - APK_BUILDER_PORT=8035
+      - APK_JOB_STATE_PATH=/home/app/projects/painel_provedores/apk/private/build-state.json
+      - APK_PRIVATE_DIR=/home/app/projects/painel_provedores/apk/private
+      - APK_IDENTITY_REGISTRY=/run/build-identities.json
+      - APK_AUTHORIZATION_URL=${APK_AUTHORIZATION_URL:-}
       - PYTHON_BIN=python3
-      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
-      - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
       - APK_PROJECT_ROOT=/home/app/projects/painel_provedores
       - APK_SCRIPT_PATH=/home/app/projects/painel_provedores/scripts/build/generate-apk.py
       - APK_FLUTTER_PROJECT=/home/app/projects/painel_provedores/app-flutter/unified
-      - APK_OUTPUT_DIR=/home/app/projects/painel_provedores/public_apks
+      # URL pública da API gravada nos apps gerados (config do provedor via HTTPS).
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://appisp.com.br/api}
+      - APK_OUTPUT_DIR=/home/app/projects/painel_provedores/apk/releases/public
+      - APK_PUBLICATION_DIR=/home/app/projects/painel_provedores/apk/releases/private
+      - APK_PUBLIC_URL_PREFIX=/public_apks/f1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8035/health"]
       interval: 30s
@@ -257,12 +350,86 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  redis-state:
+    image: redis:7-alpine
+    restart: always
+    cpus: "0.50"
+    mem_limit: 768m
+    memswap_limit: 768m
+    mem_reservation: 64m
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy noeviction
+    volumes:
+      - redis_state:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  jobs-worker:
+    build:
+      context: ./proxy-sgp
+      dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
+    command: node worker.js
+    stop_grace_period: 90s
+    restart: always
+    cpus: "1.00"
+    mem_limit: 512m
+    memswap_limit: 512m
+    mem_reservation: 64m
+    env_file:
+      - ./proxy-sgp/.env
+    environment:
+      - NODE_ENV=production
+      - SGP_BACKGROUND=true
+      - REDIS_URL=redis://redis:6379
+      - JOBS_REDIS_URL=redis://redis-state:6379
+      - DATABASE_URL=postgresql://sgp_user:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/sgp_cache
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
+      - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+    volumes:
+      - /home/app/.secrets/painel_provedores/service-account.json:/run/secrets/service-account.json:ro
+    depends_on:
+      redis-state:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
+  apk_build_edge:
+    name: painel_apk_build_edge
   default:
     name: painel_net
 
 volumes:
+  redis_state:
   pgdata:
+  # Arquivo de WAL para recuperação até um ponto no tempo.
+  pgwal:
   caddy_data:
   caddy_config:
   apk_pub_cache:

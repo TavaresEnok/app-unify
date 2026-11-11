@@ -46,8 +46,8 @@ async function sendPush(requesterUid: string, payload: PushPayload) {
   const data = { route: payload.route || "", category: payload.category || "info" };
   if (payload.targetCpf) {
     let client = await db.collection("clientes").doc(payload.targetCpf).get();
-    if (!client.exists) {
-      const matches = await db.collection("clientes").where("cpfCnpj", "==", payload.targetCpf).limit(1).get();
+    if (!client.exists || (providerId && client.data()?.providerId !== providerId)) {
+      const matches = await db.collection("clientes").where("cpfCnpj", "==", payload.targetCpf).where("providerId", "==", providerId).limit(1).get();
       client = matches.docs[0];
     }
     if (!client?.exists || (providerId && client.data()?.providerId !== providerId)) {
@@ -64,9 +64,8 @@ async function sendPush(requesterUid: string, payload: PushPayload) {
     });
     counts.successCount = 1;
   } else if (providerId) {
-    const clients = await db.collection("clientes").where("providerId", "==", providerId).get();
-    const tokens = clients.docs.map((client) => client.data().fcmToken).filter((token): token is string => typeof token === "string" && !!token);
-    counts = await sendTokens(tokens, title, body, data);
+    await messaging.send({ topic: `provider_${providerId}`, notification: { title, body }, data });
+    counts.successCount = 1;
   }
 
   await db.collection("notifications").add({
@@ -98,23 +97,29 @@ export const sendSegmentedNotification: RequestHandler<"SEND_SCOPED_NOTIFICATION
   const body = payload.body.trim();
   if (!title || !body) throw new AppError("invalid-argument", "Título e mensagem são obrigatórios.");
 
-  const clients = await db.collection("clientes").where("providerId", "==", payload.providerId).get();
-  const tokens = clients.docs.flatMap((client) => {
-    const data = client.data();
-    const token = data.fcmToken;
-    if (typeof token !== "string" || !token) return [];
-    if (payload.statusFilter && payload.statusFilter !== "all" &&
-      !String(data.status || "").toLowerCase().includes(payload.statusFilter.toLowerCase())) return [];
-    if (payload.planFilter && payload.planFilter !== "all" &&
-      !String(data.plano || data.plan || "").toLowerCase().includes(payload.planFilter.toLowerCase())) return [];
-    return [token];
-  });
-  const counts = await sendTokens(tokens, title, body, { route: "/provedor/dashboard", category: "segmented" });
+  let query: FirebaseFirestore.Query = db.collection("clientes").where("providerId", "==", payload.providerId).orderBy("__name__");
+  const counts = { successCount: 0, failureCount: 0 };
+  while (true) {
+    const page = await query.limit(500).get();
+    const tokens = page.docs.flatMap((client) => {
+      const data = client.data();
+      const token = data.fcmToken;
+      if (typeof token !== "string" || !token) return [];
+      if (payload.statusFilter && payload.statusFilter !== "all" && !String(data.status || "").toLowerCase().includes(payload.statusFilter.toLowerCase())) return [];
+      if (payload.planFilter && payload.planFilter !== "all" && !String(data.plano || data.plan || "").toLowerCase().includes(payload.planFilter.toLowerCase())) return [];
+      return [token];
+    });
+    const batch = await sendTokens(tokens, title, body, { route: "/faturas", category: "segmented" });
+    counts.successCount += batch.successCount; counts.failureCount += batch.failureCount;
+    if (page.size < 500) break;
+    query = query.startAfter(page.docs[page.docs.length - 1]);
+  }
   await db.collection("notifications").add({
     providerId: payload.providerId,
     title,
     body,
     category: "segmented",
+    targetCpf: null,
     statusFilter: payload.statusFilter || "all",
     planFilter: payload.planFilter || "all",
     ...counts,

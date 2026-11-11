@@ -1,0 +1,29 @@
+[Unit]
+Description=Backup externo do painel_provedores
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=1h
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+User=app
+Group=app
+WorkingDirectory=/home/app/projects/painel_provedores
+Environment=PATH=/home/app/.local/share/node24/bin:/usr/local/bin:/usr/bin:/bin
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/app/.secrets/painel_provedores/service-account.json
+Environment=GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+Environment=PAINEL_BACKUP_BUCKET=app-ajust-provedor.appspot.com
+ExecStart=/bin/bash /home/app/projects/painel_provedores/scripts/ops/backup-scheduled.sh
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+CPUQuota=50%
+MemoryMax=512M
+TimeoutStartSec=1h
+Restart=on-failure
+RestartSec=15min
+StandardOutput=journal
+StandardError=journal
+

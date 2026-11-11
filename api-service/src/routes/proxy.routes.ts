@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyToken } from "../middlewares/auth";
 import { asyncRoute } from "../middlewares/errorHandler";
-import { sgpLimiter } from "../middlewares/rateLimits";
+import { sgpLimiter, tenantLimiter, subscriberLoginLimiter } from "../middlewares/rateLimits";
 import { proxyToSgp } from "../services/proxySgpClient";
 import { assertCpfInTenant } from "../services/tenantScope";
 
@@ -10,7 +10,7 @@ export const proxyRouter = Router();
 // /check-cpf é o endpoint de LOGIN (emite o token) — por definição não pode
 // exigir token. O endurecimento dele é o segundo fator no proxy-sgp
 // (REQUIRE_LOGIN_SECOND_FACTOR), não autenticação aqui.
-proxyRouter.post("/check-cpf", sgpLimiter, asyncRoute(async (req, res) => {
+proxyRouter.post("/check-cpf", subscriberLoginLimiter, asyncRoute(async (req, res) => {
   const result = await proxyToSgp("/check-cpf", req.body);
   res.status(result.status).json(result.data);
 }));
@@ -25,7 +25,7 @@ for (const path of [
   "/cpe/wifi/update",
   "/cpe/wifi/list",
 ] as const) {
-  proxyRouter.post(path, sgpLimiter, verifyToken, asyncRoute(async (req, res) => {
+  proxyRouter.post(path, verifyToken, sgpLimiter, tenantLimiter, asyncRoute(async (req, res) => {
     await assertCpfInTenant(req);
     const result = await proxyToSgp(path, req.body, req.headers.authorization);
     res.status(result.status).json(result.data);

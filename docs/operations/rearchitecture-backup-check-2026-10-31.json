@@ -1,0 +1,45 @@
+{
+  "runId": "20261030T060338Z-2223424",
+  "completedAt": "2026-10-30T06:04:05.981Z",
+  "checks": [
+    {
+      "name": "auth-config.json",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "auth-users.json",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "build-state.json",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "firestore-operation.json",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "postgres.sql.gz",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "private-config.tar.gz",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "public-apks.tar.gz",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "redis-state.rdb",
+      "status": "hash-matches-manifest"
+    },
+    {
+      "name": "source.tar.gz",
+      "status": "hash-matches-manifest"
+    }
+  ],
+  "limitations": [
+    "Local hashes against completion manifest only; remote availability and full restoration not proven by this check."
+  ]
+}

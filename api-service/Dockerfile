@@ -12,6 +12,8 @@ RUN npm run build
 # --- Estágio de Produção ---
 FROM node:22-alpine
 
+RUN apk add --no-cache traceroute
+
 WORKDIR /app
 
 COPY --chown=node:node package*.json ./

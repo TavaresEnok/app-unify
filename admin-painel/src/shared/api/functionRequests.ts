@@ -6,6 +6,7 @@ import {
   setDoc,
   type Firestore,
 } from "firebase/firestore";
+import { getAuth, type User } from "firebase/auth";
 import type {
   FunctionRequestPayloadMap,
   FunctionRequestType,
@@ -28,17 +29,26 @@ export class FunctionRequestError extends Error {
 
 export interface FunctionRequestContext {
   requesterUid: string;
+  user?: Pick<User, "uid" | "getIdTokenResult">;
   providerId?: string | null;
   forceProviderScope?: boolean;
 }
 
-export function callFunctionRequest<T extends FunctionRequestType>(
+export async function callFunctionRequest<T extends FunctionRequestType>(
   firestore: Firestore,
   type: T,
   payload: FunctionRequestPayloadMap[T],
   context: FunctionRequestContext,
   options: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<FunctionResultMap[T]> {
+  const user = context.user || getAuth().currentUser;
+  if (!user || user.uid !== context.requesterUid) throw new FunctionRequestError("Sessão divergente.", "unauthenticated");
+  const token = await user.getIdTokenResult();
+  const session = { authTime: Number(token.claims.auth_time), issuedAt: Number(token.claims.iat),
+    role: typeof token.claims.role === "string" ? token.claims.role : "",
+    providerId: typeof token.claims.providerId === "string" ? token.claims.providerId : "",
+    superAdmin: token.claims.superAdmin === true };
+  if (!Number.isInteger(session.authTime) || !Number.isInteger(session.issuedAt)) throw new FunctionRequestError("Autentique novamente.", "unauthenticated");
   const requestId = doc(collection(firestore, "function_requests")).id;
   const requestRef = doc(firestore, "function_requests", requestId);
   const responseRef = doc(firestore, "function_responses", requestId);
@@ -75,7 +85,7 @@ export function callFunctionRequest<T extends FunctionRequestType>(
       if (!snapshot.exists()) return;
       const response = snapshot.data() as FunctionResponse<T>;
       if (response.error) {
-        finish(() => reject(new FunctionRequestError(response.error!, response.code, requestId)));
+        finish(() => reject(new FunctionRequestError(response.code === "authorization-unavailable" ? "Autorização indisponível. Preserve os dados; nenhuma operação será repetida automaticamente." : response.error!, response.code, requestId)));
         return;
       }
       finish(() => resolve(response.result as FunctionResultMap[T]));
@@ -90,6 +100,7 @@ export function callFunctionRequest<T extends FunctionRequestType>(
     setDoc(requestRef, {
       type,
       requesterUid: context.requesterUid,
+      session,
       payload: scopedPayload,
       createdAt: serverTimestamp(),
     }).catch((error: Error) => finish(() => reject(

@@ -7,6 +7,7 @@ import tempfile
 import sys
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
+from build_containment import check_identity, persist_build
 
 def run_command(command, cwd, env=None):
     """Run a shell command and print output."""
@@ -28,7 +29,7 @@ def main():
     _repo_root = os.path.dirname(os.path.dirname(_script_dir))
     _default_output = os.environ.get(
         'APK_OUTPUT_DIR',
-        os.path.join(_repo_root, 'public_apks')
+        os.path.join(_repo_root, 'apk', 'private', 'staging')
     )
     _default_project_root = os.environ.get(
         'APK_FLUTTER_PROJECT',
@@ -48,8 +49,14 @@ def main():
     parser.add_argument('--arm64', action='store_true', help='Otimizar para processadores recentes (ARM64 apenas)')
     parser.add_argument('--version-code', help='Código da versão (Build Number)')
     parser.add_argument('--version-name', help='Nome da versão (ex: 1.0.0)')
+    parser.add_argument('--build-id', required=True)
+    parser.add_argument('--identity-registry', required=True)
+    parser.add_argument('--api-url', help='URL pública da API (https) gravada no app para carregar a configuração do provedor')
 
     args = parser.parse_args()
+    check_identity(args.identity_registry, args.id, args.nome, args.package)
+    if not args.version_code or not args.version_code.isdigit() or not re.fullmatch(r'[a-zA-Z0-9_-]{1,100}', args.build_id):
+        raise ValueError('invalid-build-identity')
 
     # Paths
     base_project_dir = args.flutter_project
@@ -423,21 +430,32 @@ flutter_launcher_icons:
         if args.version_name:
             build_cmd += f" --build-name={args.version_name}"
         
+        # Configuração do provedor vem da API pública (as regras do Firestore
+        # não liberam mais o documento completo). Só https, sem credenciais.
+        if args.api_url:
+            api_url = args.api_url.strip().rstrip('/')
+            if not re.match(r'^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$', api_url):
+                print(f"ERRO: --api-url inválida (use https sem credenciais): {api_url}")
+                sys.exit(1)
+            build_cmd += f" --dart-define=PUBLIC_API_URL={api_url}"
+            print(f"🌐 API pública gravada no app: {api_url}")
+
         # Optimization: ARM64-v8a Only
         if args.arm64:
              build_cmd += " --target-platform android-arm64"
              print("🚀 Optimization Enabled: Building for ARM64 only (Small size)")
 
         # Security: Obfuscation
+        symbols_dir = None
         if args.obfuscate:
             # Create symbols directory
             symbols_dir = os.path.join(temp_dir, 'symbols')
             os.makedirs(symbols_dir, exist_ok=True)
             build_cmd += f" --obfuscate --split-debug-info={symbols_dir}"
         
-        # Container limit increased to 4GB. Using 3GB for Gradle.
+        # Limite de 3 GB no container; heap do Gradle de 1,5 GB.
         build_env = {
-            'GRADLE_OPTS': '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=768m"'
+            'GRADLE_OPTS': '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx1536m -XX:MaxMetaspaceSize=384m"'
         }
         
         run_command(build_cmd, build_dir, env=build_env)
@@ -454,14 +472,15 @@ flutter_launcher_icons:
              print(f"Error: Build finished but {extension.upper()} not found at {output_source}")
              sys.exit(1)
              
-        output_dir = Path(args.output)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        safe_name = re.sub(r'[^a-zA-Z0-9]', '_', args.nome)
-        target_file = output_dir / f"app_{safe_name}.{extension}"
-        
-        shutil.copy(output_source, target_file)
-        print(f"\n✅ SUCESSO! {extension.upper()} gerado em: {target_file}")
+        mapping = Path(build_dir) / 'build/app/outputs/mapping/release/mapping.txt'
+        gradle = (Path(build_dir) / 'android/app/build.gradle').read_text()
+        minified = bool(re.search(r'(?:minifyEnabled|isMinifyEnabled)\s*(?:=\s*)?true', gradle))
+        persist_build(args.output, output_source, symbols_dir, mapping, {
+            'providerId': args.id, 'applicationId': args.package,
+            'versionCode': args.version_code, 'versionName': args.version_name,
+            'buildId': args.build_id, 'format': extension, 'minified': minified,
+        }, obfuscated=args.obfuscate)
+        print(f"\n✅ SUCESSO! Saída privada verificada em: {args.output}")
         print(f"Temp directory {temp_dir} will be automatically deleted.")
 
 if __name__ == '__main__':

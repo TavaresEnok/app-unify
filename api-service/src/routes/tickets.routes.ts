@@ -1,17 +1,17 @@
 import { Router } from "express";
-import { verifyToken } from "../middlewares/auth";
+import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore, serverTimestamp } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
 
 export const ticketsRouter = Router();
-ticketsRouter.use(verifyToken);
+ticketsRouter.use(verifyToken, verifyAdmin);
 
 async function requireTicket(req: Express.Request, ticketId: string) {
   const ticket = await firestore.collection("tickets").doc(ticketId).get();
   if (!ticket.exists) throw new ApiError(404, "Ticket não encontrado.", "not-found");
   const data = ticket.data() || {};
-  const allowed = req.user?.superAdmin === true || req.user?.providerId === data.providerId || req.user?.uid === data.createdByUid;
+  const allowed = req.user?.superAdmin === true || (req.user?.role === "providerAdmin" && req.user?.providerId === data.providerId);
   if (!allowed) throw new ApiError(403, "Sem permissão para este ticket.", "permission-denied");
   return { ticket, data };
 }
@@ -54,6 +54,7 @@ ticketsRouter.patch("/:id", asyncRoute(async (req, res) => {
 }));
 
 ticketsRouter.post("/:id/reply", asyncRoute(async (req, res) => {
+  if (Object.keys(req.body || {}).some(key => /url|path|attachment|image|owner/i.test(key))) throw new ApiError(400, "Use o endpoint privado de anexos.");
   const { ticket, data } = await requireTicket(req, req.params.id);
   const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
   if (!message) throw new ApiError(400, "Mensagem obrigatória.", "invalid-argument");

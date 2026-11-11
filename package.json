@@ -5,14 +5,18 @@
     "quality:shell": "node scripts/check-shell-scripts.mjs",
     "quality:architecture": "node scripts/check-architecture.mjs",
     "security:secrets": "node scripts/check-secrets.mjs",
-    "security:audit": "npm audit && npm audit --prefix admin-painel && npm audit --prefix functions && npm audit --prefix api-service && npm audit --prefix proxy-sgp && npm audit --prefix services/apk-builder",
+    "security:audit": "node scripts/check-dependency-audit.mjs",
     "services": "bash scripts/ops/services.sh",
     "measure:latency": "bash scripts/diagnostics/measure-api-latency.sh",
     "test:rules": "firebase emulators:exec --only firestore,storage \"node --test tests/firestore-rules.test.mjs\"",
-    "validate:web": "npm run contracts:check && npm run quality:shell && npm run quality:architecture && npm run security:secrets && npm run security:audit && npm run lint --prefix admin-painel && npm run test --prefix admin-painel && npm run build --prefix admin-painel && npm run build --prefix functions && npm run test:ci --prefix functions && npm run test --prefix api-service && npm run build --prefix api-service && npm run test --prefix proxy-sgp && npm run test --prefix services/apk-builder",
+    "validate:web": "npm run contracts:check && npm run quality:shell && npm run quality:architecture && npm run security:secrets && npm run security:audit && npm run lint --prefix admin-painel && npm run test --prefix admin-painel && npm run build --prefix admin-painel && npm run build --prefix functions && npm run test:ci --prefix functions && npm run test --prefix api-service && npm run build --prefix api-service && npm run test --prefix proxy-sgp && npm run test --prefix services/apk-builder && npm run test:ops && npm run test:speed",
     "validate:e2e": "npm run test:e2e --prefix admin-painel",
     "validate:flutter": "cd app-flutter/unified && flutter analyze --no-pub && flutter test --no-pub && cd ../admin_app && flutter analyze --no-pub && flutter test --no-pub",
-    "validate": "npm run validate:web && npm run validate:e2e && npm run validate:flutter"
+    "validate": "npm run validate:web && npm run validate:e2e && npm run validate:flutter",
+    "test:speed": "node --test speed_test_server/*.test.js",
+    "measure:load": "node scripts/diagnostics/load-sgp.mjs",
+    "test:ops": "node --test scripts/ops/*.test.cjs",
+    "measure:capacity": "npm --prefix api-service run measure:capacity"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.1",
@@ -32,6 +36,8 @@
   "overrides": {
     "@opentelemetry/core": "^2.8.0",
     "uuid": "^11.1.1",
-    "@grpc/grpc-js": "^1.14.5"
+    "@grpc/grpc-js": "^1.14.5",
+    "fast-xml-parser": "^5.12.0",
+    "glob@^10.0.0": "^14.0.5"
   }
 }

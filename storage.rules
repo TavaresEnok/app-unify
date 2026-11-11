@@ -8,12 +8,12 @@ service firebase.storage {
 
     function canManageProvider(providerId) {
       return signedIn() &&
-             (request.auth.token.superAdmin == true || request.auth.token.providerId == providerId);
+             (request.auth.token.get('superAdmin', false) == true || (request.auth.token.get('role', '') == 'providerAdmin' && request.auth.token.get('providerId', '') == providerId));
     }
 
     function isClientOfProvider(providerId) {
       return signedIn() &&
-             firestore.get(/databases/(default)/documents/clientes/$(request.auth.uid)).data.providerId == providerId;
+             request.auth.token.get('role', '') == 'subscriber' && request.auth.token.get('providerId', '') == providerId;
     }
 
     function validImage() {
@@ -30,11 +30,11 @@ service firebase.storage {
     match /providers/{providerId}/{fileName} {
 
       // Qualquer pessoa pode ler as imagens (necessário para o app Flutter)
-      allow read: if true;
+      allow read: if fileName.matches('(logo|icon|banner|background)(_[0-9]+)?[.](png|jpg|jpeg|webp)');
 
       // Apenas Super Admins ou o Admin do provedor correto podem escrever (upload, update, delete)
-      allow create, update: if canManageProvider(providerId) && validImage();
-      allow delete: if canManageProvider(providerId);
+      allow create, update: if canManageProvider(providerId) && validImage() && fileName.matches('(logo|icon|banner|background)(_[0-9]+)?[.](png|jpg|jpeg|webp)');
+      allow delete: if canManageProvider(providerId) && fileName.matches('(logo|icon|banner|background)(_[0-9]+)?[.](png|jpg|jpeg|webp)');
     }
 
     match /providers/{providerId}/public_assets/{allPaths=**} {
@@ -44,9 +44,8 @@ service firebase.storage {
     }
 
     match /providers/{providerId}/ticket_attachments/{fileName} {
-      allow read: if canManageProvider(providerId) || isClientOfProvider(providerId);
-      allow create, update: if (canManageProvider(providerId) || isClientOfProvider(providerId)) && validImage();
-      allow delete: if canManageProvider(providerId) || isClientOfProvider(providerId);
+      allow read, delete: if canManageProvider(providerId);
+      allow create, update: if false;
     }
 
     // Relatórios de diagnóstico em PDF gerados pelo app do assinante.
@@ -55,9 +54,10 @@ service firebase.storage {
     // regras de leitura abaixo. Por isso o relatório usa o documento do cliente
     // mascarado. A escrita segue restrita ao próprio cliente/admin do provedor.
     match /providers/{providerId}/diagnostic_reports/{fileName} {
-      allow read: if canManageProvider(providerId) || isClientOfProvider(providerId);
-      allow create: if (canManageProvider(providerId) || isClientOfProvider(providerId)) && validReportPdf();
-      allow update, delete: if canManageProvider(providerId);
+      allow read, delete: if canManageProvider(providerId);
+      allow create, update: if false;
     }
+    // ADC backend only; no client capability or download token is issued.
+    match /private_v2/{allPaths=**} { allow read, write: if false; }
   }
 }

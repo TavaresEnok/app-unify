@@ -8,12 +8,39 @@ function bearerToken(header: string | undefined): string {
 }
 
 export const verifyToken: RequestHandler = async (req, _res, next) => {
+  req.user = undefined;
   try {
-    req.user = await firebaseAuth.verifyIdToken(bearerToken(req.headers.authorization));
+    const identity = await firebaseAuth.verifyIdToken(bearerToken(req.headers.authorization), true);
+    const current = await firebaseAuth.getUser(identity.uid);
+    if (current.disabled) throw new ApiError(401, "Sessão inválida.", "unauthenticated");
+    const claims = current.customClaims || {};
+    if (claims.superAdmin === true && ["subscriber", "providerAdmin"].includes(claims.role)) throw new ApiError(403, "Papel inconsistente.", "permission-denied");
+    if ((identity.role || "") !== (claims.role || "") || (identity.providerId || "") !== (claims.providerId || "") ||
+        (identity.superAdmin === true) !== (claims.superAdmin === true)) throw new ApiError(403, "Acesso alterado. Autentique novamente.", "permission-denied");
+    // Token proves identity only. Access always comes from the current Auth record.
+    req.user = { uid: identity.uid, sub: identity.uid, aud: identity.aud, iss: identity.iss,
+      iat: identity.iat, exp: identity.exp, auth_time: identity.auth_time, firebase: identity.firebase,
+      role: claims.role, providerId: claims.providerId, cpfCnpj: claims.cpfCnpj, superAdmin: claims.superAdmin === true } as typeof identity;
     next();
   } catch (error) {
-    next(error instanceof ApiError ? error : new ApiError(403, "Token inválido.", "permission-denied"));
+    const code = (error as { code?: string }).code;
+    const denied = ["auth/id-token-revoked", "auth/id-token-expired", "auth/invalid-id-token", "auth/argument-error", "auth/user-disabled", "auth/user-not-found"].includes(code || "");
+    next(error instanceof ApiError ? error : denied
+      ? new ApiError(401, "Sessão inválida.", "unauthenticated")
+      : new ApiError(503, "Autorização indisponível. Preserve os dados e tente mais tarde.", "authorization-unavailable"));
   }
+};
+
+export const authenticateIfPresent: RequestHandler = (req, res, next) => {
+  if (req.headers.authorization) return verifyToken(req, res, next);
+  next();
+};
+
+export const verifyAdmin: RequestHandler = (req, _res, next) => {
+  if (req.user?.superAdmin !== true && req.user?.role !== "providerAdmin") {
+    return next(new ApiError(403, "Acesso administrativo obrigatório.", "permission-denied"));
+  }
+  next();
 };
 
 export const verifySuperAdmin: RequestHandler[] = [
@@ -25,5 +52,5 @@ export const verifySuperAdmin: RequestHandler[] = [
 ];
 
 export function canAccessProvider(req: Express.Request, providerId: string): boolean {
-  return req.user?.superAdmin === true || req.user?.providerId === providerId;
+  return req.user?.superAdmin === true || (req.user?.role === "providerAdmin" && req.user?.providerId === providerId);
 }

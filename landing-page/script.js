@@ -300,35 +300,4 @@ function initTestimonialSlider() {
     });
 }
 
-// ===================================
-// Contact Form (Mock)
-// ===================================
-function initContactForm() {
-    const form = document.getElementById('contactForm');
-    if (!form) return;
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = form.querySelector('button');
-        const originalText = btn.innerText;
-
-        btn.disabled = true;
-        btn.innerText = 'Enviando...';
-
-        // Mock delay
-        await new Promise(r => setTimeout(r, 1500));
-
-        btn.style.background = '#10B981';
-        btn.innerText = 'Enviado!';
-
-        // Show success
-        alert('Obrigado! Entraremos em contato em breve.');
-
-        setTimeout(() => {
-            form.reset();
-            btn.style.background = ''; // reset
-            btn.innerText = originalText;
-            btn.disabled = false;
-        }, 3000);
-    });
-}
+// Contact form behavior is provided by contact-form.js.

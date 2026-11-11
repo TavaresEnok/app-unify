@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
 type Doc = Record<string, unknown>;
 
 // Firestore em memória: só o suficiente para os handlers de clientes e dashboard.
@@ -10,20 +11,32 @@ function snapshot(path: string) {
   return { id: path.split("/").pop() as string, exists: data !== undefined, data: () => data };
 }
 
-function query(path: string, filters: Array<(doc: Doc) => boolean> = [], max = Infinity): any {
-  const run = () => [...store.entries()]
+let documentsRead = 0;
+function query(path: string, filters: Array<(doc: Doc) => boolean> = [], max = Infinity, after?: string, fields?: string[]): any {
+  const all = () => [...store.entries()]
     .filter(([key]) => key.startsWith(`${path}/`) && !key.slice(path.length + 1).includes("/"))
     .filter(([, doc]) => filters.every((filter) => filter(doc)))
-    .slice(0, max)
-    .map(([key]) => snapshot(key));
+    .sort(([a, ad], [b, bd]) => String(ad.nome || a).localeCompare(String(bd.nome || b)) || a.localeCompare(b));
+  const run = () => {
+    let entries = all();
+    if (after) { const index = entries.findIndex(([key]) => key.endsWith(`/${after}`)); entries = entries.slice(index + 1); }
+    return entries.slice(0, max).map(([key]) => {
+      const doc = snapshot(key);
+      return fields ? { ...doc, data: () => Object.fromEntries(Object.entries(doc.data() || {}).filter(([key]) => fields.includes(key))) } : doc;
+    });
+  };
   return {
     where: (field: string, op: string, value: unknown) => query(path, [...filters, (doc: Doc) =>
       op === "in" ? (value as unknown[]).includes(doc[field]) :
       op === ">=" ? (doc[field] as number) >= (value as number) :
-      doc[field] === value], max),
-    orderBy: () => query(path, filters, max),
-    limit: (n: number) => query(path, filters, n),
-    get: async () => { const docs = run(); return { docs, size: docs.length }; },
+      op === "<=" ? (doc[field] as number) <= (value as number) :
+      doc[field] === value], max, after, fields),
+    orderBy: () => query(path, filters, max, after, fields),
+    limit: (n: number) => query(path, filters, n, after, fields),
+    startAfter: (doc: { id: string }) => query(path, filters, max, doc.id, fields),
+    select: (...nextFields: string[]) => query(path, filters, max, after, nextFields),
+    count: () => ({ get: async () => ({ data: () => ({ count: all().length }) }) }),
+    get: async () => { const docs = run(); documentsRead += docs.length; return { docs, size: docs.length }; },
   };
 }
 
@@ -38,7 +51,7 @@ function collection(path: string): any {
   };
 }
 
-jest.mock("../app/firebase", () => ({
+vi.mock("../app/firebase", () => ({
   db: {
     collection: (name: string) => collection(name),
     batch: () => ({
@@ -49,12 +62,12 @@ jest.mock("../app/firebase", () => ({
   auth: {
     getUser: async (uid: string) => {
       const user = users.get(uid);
-      if (!user) throw new Error("not found");
+      if (!user) throw Object.assign(new Error("not found"), { code: "auth/user-not-found" });
       return user;
     },
   },
 }));
-jest.mock("firebase-admin/firestore", () => ({
+vi.mock("firebase-admin/firestore", () => ({
   Timestamp: { fromMillis: (ms: number) => ms },
 }));
 
@@ -66,14 +79,32 @@ const call = (handler: any, requesterUid: string, payload: Record<string, unknow
 
 beforeEach(() => {
   store.clear();
+  documentsRead = 0;
   batchDeletes.length = 0;
   users.clear();
-  users.set("admin-a", { customClaims: { providerId: "prov-a" } });
-  users.set("admin-b", { customClaims: { providerId: "prov-b" } });
+  users.set("admin-a", { customClaims: { role: "providerAdmin", providerId: "prov-a" } });
+  users.set("admin-b", { customClaims: { role: "providerAdmin", providerId: "prov-b" } });
   users.set("super", { customClaims: { superAdmin: true } });
 });
 
 describe("client handlers", () => {
+  it("rejects invalid and expired cursors before reading a page", async () => {
+    for (const cursor of ["other/client", 42, "x".repeat(257), "missing-client"]) {
+      await expect(call(listProviderClients, "admin-a", { providerId: "prov-a", cursor }))
+        .rejects.toMatchObject({ code: "invalid-argument" });
+    }
+    expect(documentsRead).toBe(0);
+  });
+
+  it("searches by name within the authorized tenant", async () => {
+    store.set("provedores/prov-a/clientes/1", { nome: "Ana" });
+    store.set("provedores/prov-a/clientes/2", { nome: "Bia" });
+    store.set("provedores/prov-b/clientes/3", { nome: "Ana" });
+    const result = await call(listProviderClients, "admin-a", { providerId: "prov-a", search: " An " });
+    expect(result.items.map((item: Doc) => item.nome)).toEqual(["Ana"]);
+    expect(result.total).toBe(1);
+  });
+
   it("lists provider clients with contract credentials stripped", async () => {
     store.set("provedores/prov-a/clientes/c1", {
       nome: "Ana",
@@ -82,7 +113,25 @@ describe("client handlers", () => {
 
     const result = await call(listProviderClients, "admin-a", { providerId: "prov-a" });
 
-    expect(result).toEqual([{ id: "c1", nome: "Ana", contratos: [{ id: 1, plano: "100M" }, null] }]);
+    expect(result.items).toEqual([{ id: "c1", documentId: "c1", providerId: "prov-a", cpfcnpj: "1", nome: "Ana", contratos: [{ id: 1, status: null }, { id: null, status: null }] }]);
+    expect(result.total).toBe(1);
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it("bounds reads for a 5000-client tenant and paginates without duplicates", async () => {
+    for (let i = 0; i < 5000; i++) store.set(`provedores/prov-a/clientes/${String(i).padStart(5, "0")}`, { nome: `Client ${String(i).padStart(5, "0")}` });
+    const first = await call(listProviderClients, "admin-a", { providerId: "prov-a", limit: 25 });
+    const second = await call(listProviderClients, "admin-a", { providerId: "prov-a", limit: 25, cursor: first.nextCursor });
+    expect(first.total).toBe(5000);
+    expect(first.items).toHaveLength(25);
+    expect(second.items).toHaveLength(25);
+    expect(new Set([...first.items, ...second.items].map(item => item.id)).size).toBe(50);
+    expect(documentsRead).toBe(52);
+  });
+
+  it("rejects subscriber access even when the provider matches", async () => {
+    users.set("subscriber", { customClaims: { role: "subscriber", providerId: "prov-a" } });
+    await expect(call(listProviderClients, "subscriber", { providerId: "prov-a" })).rejects.toMatchObject({ code: "permission-denied" });
   });
 
   it("denies access to another provider's clients", async () => {

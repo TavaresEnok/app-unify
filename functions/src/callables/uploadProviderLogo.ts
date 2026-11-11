@@ -1,7 +1,8 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { db, storage } from "../app/firebase";
-import { requireProviderAccess } from "../app/permissions";
+import { auth, db, storage } from "../app/firebase";
+import { requireProviderAccess, requireSession } from "../app/permissions";
+import { AppError } from "../app/errors";
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
@@ -15,6 +16,17 @@ export const uploadProviderLogo = onCall({
   if (!providerId || !imageBase64) throw new HttpsError("invalid-argument", "Imagem e ProviderID são obrigatórios.");
 
   try {
+    const bearer = request.rawRequest?.headers.authorization;
+    if (typeof bearer !== "string" || !bearer.startsWith("Bearer ")) throw new HttpsError("unauthenticated", "Sessão obrigatória.");
+    let token;
+    try { token = await auth.verifyIdToken(bearer.slice(7), true); }
+    catch (error) {
+      const denied = ["auth/id-token-revoked", "auth/id-token-expired", "auth/invalid-id-token", "auth/argument-error", "auth/user-disabled", "auth/user-not-found"].includes((error as { code: string }).code);
+      throw new HttpsError(denied ? "unauthenticated" : "unavailable", denied ? "Sessão inválida." : "authorization-unavailable");
+    }
+    if (token.uid !== request.auth.uid) throw new HttpsError("unauthenticated", "Sessão divergente.");
+    await requireSession(token.uid, { authTime: token.auth_time, issuedAt: token.iat,
+      role: token.role || "", providerId: token.providerId || "", superAdmin: token.superAdmin === true });
     await requireProviderAccess(request.auth.uid, providerId);
     const match = imageBase64.match(/^data:image\/(png|jpeg|webp);base64,([\s\S]+)$/);
     if (!match) throw new HttpsError("invalid-argument", "Formato de imagem inválido.");
@@ -37,9 +49,8 @@ export const uploadProviderLogo = onCall({
     return { success: true, url };
   } catch (error) {
     if (error instanceof HttpsError) throw error;
-    const message = error instanceof Error ? error.message : "Falha ao enviar a imagem.";
-    logger.error("Logo upload failed", { providerId, requesterUid: request.auth.uid, error: message });
-    if (message.toLowerCase().includes("permiss")) throw new HttpsError("permission-denied", message);
-    throw new HttpsError("internal", message);
+    if (error instanceof AppError) throw new HttpsError(error.code === "authorization-unavailable" ? "unavailable" : error.code === "unauthenticated" ? "unauthenticated" : "permission-denied", error.message);
+    logger.error("Logo upload failed", { providerId, requesterUid: request.auth.uid });
+    throw new HttpsError("internal", "Falha ao enviar a imagem.");
   }
 });

@@ -1,0 +1,3278 @@
+{
+  "observedAt": "2026-10-31T00:49:08.574339+00:00",
+  "sourceHead": "69bc5818e4149ae91b1d028d5634f2af84785972",
+  "sourceStatus": [
+    " M .github/workflows/ci.yml",
+    " M Caddyfile",
+    " M admin-painel/Dockerfile",
+    " M admin-painel/e2e/routes.spec.ts",
+    " M admin-painel/index.html",
+    " M admin-painel/src/App.tsx",
+    " M admin-painel/src/components/MainLayout.tsx",
+    " M admin-painel/src/contexts/AuthContext.tsx",
+    " M admin-painel/src/firebase/config.ts",
+    " M admin-painel/src/hooks/useApi.ts",
+    " M admin-painel/src/main.tsx",
+    " M admin-painel/src/pages/DashboardPage.tsx",
+    " M admin-painel/src/pages/LoginPage.tsx",
+    " M admin-painel/src/pages/provider/ProviderClientsPage.tsx",
+    " M admin-painel/src/pages/provider/ProviderDashboardPage.tsx",
+    " M admin-painel/src/shared/contracts/index.ts",
+    " M admin-painel/vite.config.ts",
+    " M api-service/.env.example",
+    " M api-service/Dockerfile",
+    " M api-service/package-lock.json",
+    " M api-service/package.json",
+    " M api-service/src/app.test.ts",
+    " M api-service/src/app.ts",
+    " M api-service/src/contracts/index.ts",
+    " M api-service/src/middlewares/auth.ts",
+    " M api-service/src/middlewares/errorHandler.ts",
+    " M api-service/src/middlewares/rateLimits.ts",
+    " M api-service/src/routes/dashboard.routes.ts",
+    " M api-service/src/routes/diagnostics.routes.ts",
+    " M api-service/src/routes/providers.routes.ts",
+    " M api-service/src/routes/proxy.routes.ts",
+    " M api-service/src/routes/subscriber.routes.test.ts",
+    " M api-service/src/routes/subscriber.routes.ts",
+    " M api-service/src/routes/tickets.routes.ts",
+    " M api-service/src/routes/users.routes.ts",
+    " M api-service/src/server.ts",
+    " M api-service/src/services/sgpClient.ts",
+    " M api-service/src/services/tenantScope.ts",
+    " M app-flutter/unified/android/gradle.properties",
+    " M app-flutter/unified/lib/core/notifiers/auth_notifier.dart",
+    " M app-flutter/unified/lib/core/pages/unified_login_page.dart",
+    " M app-flutter/unified/lib/core/repositories/auth_repository.dart",
+    " M app-flutter/unified/lib/core/services/diagnostico_service.dart",
+    " M app-flutter/unified/lib/core/services/notification_service.dart",
+    " M docker-compose.yml",
+    " M docs/architecture.md",
+    " M docs/contracts/firestore-schema.md",
+    " M docs/contracts/function-requests.md",
+    " M firestore.indexes.json",
+    " M firestore.rules",
+    " D functions/jest.config.js",
+    " M functions/package-lock.json",
+    " M functions/package.json",
+    " M functions/src/app/permissions.ts",
+    " M functions/src/app/persistence.test.ts",
+    " M functions/src/app/primitives.test.ts",
+    " M functions/src/app/requestRouter.test.ts",
+    " M functions/src/app/writeResponse.ts",
+    " M functions/src/contracts.test.ts",
+    " M functions/src/contracts/index.ts",
+    " M functions/src/handlers.test.ts",
+    " M functions/src/handlers/clients.test.ts",
+    " M functions/src/handlers/clients.ts",
+    " M functions/src/handlers/dashboard.ts",
+    " M functions/src/handlers/notifications.ts",
+    " M functions/src/handlers/providers.ts",
+    " M functions/src/handlers/sgp.ts",
+    " M functions/src/handlers/tickets.ts",
+    " M functions/src/handlers/users.ts",
+    " M functions/src/index.ts",
+    " M functions/src/integration.test.ts",
+    " M functions/src/utils.test.ts",
+    " M landing-page/index.html",
+    " M package-lock.json",
+    " M package.json",
+    " M proxy-sgp/.env.example",
+    " M proxy-sgp/Dockerfile",
+    " M proxy-sgp/contracts.js",
+    " D proxy-sgp/cron-jobs.js",
+    " M proxy-sgp/index.js",
+    " M proxy-sgp/lib/client-access.js",
+    " M proxy-sgp/lib/client-access.test.js",
+    " M proxy-sgp/lib/config.js",
+    " M proxy-sgp/lib/rate-limiter.js",
+    " M proxy-sgp/package-lock.json",
+    " M proxy-sgp/package.json",
+    " M scripts/build/generate-apk.py",
+    " M scripts/check-contracts.mjs",
+    " M scripts/ops/services.sh",
+    " M scripts/sync-contracts.mjs",
+    " M services/apk-builder/index.js",
+    " M services/apk-builder/job-store.js",
+    " M services/apk-builder/job-store.test.js",
+    " M shared/contracts/index.ts",
+    " M speed_test_server/Dockerfile",
+    " M speed_test_server/server.js",
+    " M storage.rules",
+    " M tests/firestore-rules.test.mjs",
+    "?? .claude/",
+    "?? admin-painel/e2e/login.spec.ts",
+    "?? admin-painel/src/app/dashboardPreload.ts",
+    "?? admin-painel/src/firebase/auth.ts",
+    "?? admin-painel/src/shared/api/dashboard.test.ts",
+    "?? admin-painel/src/shared/api/dashboard.ts",
+    "?? admin-painel/src/shared/api/panelTiming.test.ts",
+    "?? admin-painel/src/shared/api/panelTiming.ts",
+    "?? admin-painel/src/shared/api/timestamp.test.ts",
+    "?? admin-painel/src/shared/api/timestamp.ts",
+    "?? api-service/benchmarks/",
+    "?? api-service/src/middlewares/metrics.ts",
+    "?? api-service/src/routes/dashboard.routes.test.ts",
+    "?? api-service/src/services/boundedWork.test.ts",
+    "?? api-service/src/services/boundedWork.ts",
+    "?? api-service/src/services/dashboardData.ts",
+    "?? api-service/src/services/panelTiming.test.ts",
+    "?? api-service/src/services/panelTiming.ts",
+    "?? api-service/src/services/redis.ts",
+    "?? api-service/src/services/upstream-runtime.d.ts",
+    "?? api-service/src/services/upstream-runtime.js",
+    "?? api-service/vitest.capacity.config.mts",
+    "?? docs/operations/capacity-report.json",
+    "?? docs/operations/dashboard-performance.md",
+    "?? docs/operations/dashboard-timing.json",
+    "?? docs/operations/login-followup-2026-10-30.json",
+    "?? docs/operations/scaling-single-host.md",
+    "?? docs/plano-rearquitetura-2026-10-30.md",
+    "?? functions/src/app/clientPage.ts",
+    "?? functions/src/app/dashboardData.ts",
+    "?? functions/src/app/publicProviderData.test.ts",
+    "?? functions/src/app/publicProviderData.ts",
+    "?? functions/vitest.config.mts",
+    "?? proxy-sgp/lib/client-cache.js",
+    "?? proxy-sgp/lib/internal-secret.js",
+    "?? proxy-sgp/lib/internal-secret.test.js",
+    "?? proxy-sgp/lib/jobs.js",
+    "?? proxy-sgp/lib/jobs.test.js",
+    "?? proxy-sgp/lib/sanitize-client.js",
+    "?? proxy-sgp/lib/subscriber-profile.js",
+    "?? proxy-sgp/lib/subscriber-profile.test.js",
+    "?? proxy-sgp/lib/sync-page.js",
+    "?? proxy-sgp/lib/sync-page.test.js",
+    "?? proxy-sgp/lib/upstream.js",
+    "?? proxy-sgp/lib/upstream.test.js",
+    "?? proxy-sgp/worker.js",
+    "?? scripts/check-dependency-audit.mjs",
+    "?? scripts/diagnostics/load-sgp.mjs",
+    "?? scripts/diagnostics/measure-login.cjs",
+    "?? scripts/diagnostics/measure-panel.cjs",
+    "?? scripts/diagnostics/smoke-browser.cjs",
+    "?? scripts/diagnostics/smoke-production.cjs",
+    "?? scripts/migrations/explicit-admin-roles.cjs",
+    "?? scripts/migrations/private-provider-credentials.cjs",
+    "?? scripts/ops/backup-cloud.cjs",
+    "?? scripts/ops/backup-data.sh",
+    "?? scripts/ops/backup-retention.cjs",
+    "?? scripts/ops/backup-retention.test.cjs",
+    "?? scripts/ops/backup-scheduled.sh",
+    "?? scripts/ops/backup-scope.cjs",
+    "?? scripts/ops/backup-scope.test.cjs",
+    "?? scripts/ops/backup-status.cjs",
+    "?? scripts/ops/painel-backup.service",
+    "?? scripts/ops/painel-backup.timer",
+    "?? scripts/ops/upload-backup.cjs",
+    "?? scripts/ops/verify-backup.sh",
+    "?? shared/runtime/",
+    "?? speed_test_server/server.test.js"
+  ],
+  "excluded": [
+    ".claude/",
+    "ignored files including credentials, dependencies and runtime data"
+  ],
+  "files": [
+    {
+      "path": ".dockerignore",
+      "sha256": "cc832fcfcc9bcb7693e59cda58da58b78291842be5df70dd170cf4b9b213fc7b"
+    },
+    {
+      "path": ".firebaserc",
+      "sha256": "ed75ba57edb814ba502a696bb2032ce34c3446a89497dcb4dc52015444c68b08"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "sha256": "2ee48f038f158c8799aa3f13e0d1de4b77e3e8e83015db71b81d62af960d2a01"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "a4b6a9a6561ff39081adfd78177039b89e3e5726bf926e101f80171c7f67bb46"
+    },
+    {
+      "path": ".github/workflows/deploy-functions.yml",
+      "sha256": "e732330b0a542857d019922ffb665395a53895cfaf4d29beaec6c160e655d005"
+    },
+    {
+      "path": ".github/workflows/flutter-ci.yml",
+      "sha256": "c653f837146d21a220b26a86876f58f16c68a718d4979ac48edf10638a002a36"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "sha256": "4683df22ebf10a843ac6c030bbeb3149bd93748fef66b3a0b75ea50a5481c3fa"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "9b23f844d028ae94e574c3b6a68e784156925d971934917182c3d0d933d8f548"
+    },
+    {
+      "path": ".metadata",
+      "sha256": "ac3b0021b378d9d2c06dacb1c3ef89553ba032aca995f72b970d09ad99e85833"
+    },
+    {
+      "path": ".vscode/settings.json",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "path": "Caddyfile",
+      "sha256": "9a619146d78c78850a199af612ea24280b07e827ce38b1a91a0b5804da9964f1"
+    },
+    {
+      "path": "Dockerfile.apkbuilder",
+      "sha256": "c1f84cd3de9e4dd15f73417893701030d530c8021d1ad2b20534c1109cf83114"
+    },
+    {
+      "path": "admin-painel/.dockerignore",
+      "sha256": "2bed57e9c4105c6b5cf7d00b2734e0029cb32d54851965141fef84140948db3d"
+    },
+    {
+      "path": "admin-painel/.env.example",
+      "sha256": "fed880d71eb7ff98143005c74971563e0891237c4dce7941d02b55c5a1f330da"
+    },
+    {
+      "path": "admin-painel/.firebaserc",
+      "sha256": "ed75ba57edb814ba502a696bb2032ce34c3446a89497dcb4dc52015444c68b08"
+    },
+    {
+      "path": "admin-painel/Dockerfile",
+      "sha256": "66adec391c3ccfe40057a30476827f9527347ee192240f7e43446fb8d209cee3"
+    },
+    {
+      "path": "admin-painel/admin-painel@0.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "admin-painel/chamados_pop2.json",
+      "sha256": "b3230b273dd0de8be694ee2e33bf138be8770df4e4cc449f967f38b37f312297"
+    },
+    {
+      "path": "admin-painel/chamados_pop2_todos.json",
+      "sha256": "56f0e444f9c1217d6291e81c3f5ba2ce6b035d01f3a668b5a2add1c4f2711419"
+    },
+    {
+      "path": "admin-painel/clientes_pop2.json",
+      "sha256": "d11a070f34000f5e8ddb361bf547711e91bdb4059f96b1167d56858cba178de5"
+    },
+    {
+      "path": "admin-painel/components.json",
+      "sha256": "9072ccca40e140ebb6bb458b7695e9742828e0695d17f59e0eb5edbe452fe75b"
+    },
+    {
+      "path": "admin-painel/e2e/login.spec.ts",
+      "sha256": "3fe34837603f9db2b107f1d738c060886e91bcf5a611e45d40dd950c5187cb7e"
+    },
+    {
+      "path": "admin-painel/e2e/routes.spec.ts",
+      "sha256": "8aa3f1d12c0ce5ac43e7e110eaecd266b85fb2f7d77fdb2d2a6e255b8404a4a5"
+    },
+    {
+      "path": "admin-painel/eslint.config.js",
+      "sha256": "6d9df8df7759cc0d260ce6a90a822bf0bb8934ac6996261e7df9b55a2242804e"
+    },
+    {
+      "path": "admin-painel/firebase.json",
+      "sha256": "fe15ce69cd094418de45d6c73cc5ed6927e1c28008271251a2cfc9973379730c"
+    },
+    {
+      "path": "admin-painel/index.html",
+      "sha256": "824e3f39daaa378f9ba26684d53e0a89d3bb5c94e63cf918e362a9db77df73ad"
+    },
+    {
+      "path": "admin-painel/lib/firestore/auto-init.ts",
+      "sha256": "846776c40f855dcbe7a0802bfac3db605e266c318536a98dfcf082e050625f47"
+    },
+    {
+      "path": "admin-painel/nginx.conf",
+      "sha256": "d0b5d16f3abb6533002ee31627a30e5c27a560f3366884ca116b034b02533db5"
+    },
+    {
+      "path": "admin-painel/olts.json",
+      "sha256": "a9956f6052b0b921390dabb7a2080c926b0629af287545f7e69e2767517b2271"
+    },
+    {
+      "path": "admin-painel/package-lock.json",
+      "sha256": "039eb5d7d54328464d1e5cc37beadc162f10e2d2d382e6b6640bed5fd0607839"
+    },
+    {
+      "path": "admin-painel/package.json",
+      "sha256": "fb7a37b3c3a616e5c1655ad591dc2e41e7d92af25054e97354a35c54bca74af8"
+    },
+    {
+      "path": "admin-painel/pages/api/providers/[id]/force-update.ts",
+      "sha256": "ae97bd284f0ef931a41b015423a3317801505d76a55c90b95d5685dfea059a98"
+    },
+    {
+      "path": "admin-painel/pages/api/providers/[id]/notifications.ts",
+      "sha256": "2bdda3ef934fbed647127b43481ae3e3afd9fa9afc0bb2144443879455fb8908"
+    },
+    {
+      "path": "admin-painel/playwright.config.ts",
+      "sha256": "f3345b4499f129a9987f22450bf7ee219e066c320c31e92522f2c2ac34a5a54a"
+    },
+    {
+      "path": "admin-painel/pops.json",
+      "sha256": "ce4531587c4bf0abd86059fcc72dbb53853779a8f0b2e749be60f8304e7d38d7"
+    },
+    {
+      "path": "admin-painel/postcss.config.cjs",
+      "sha256": "251ecddd4672c9cf467547e3dc535de00ad2129df26e7e7ae728fa4e5ac45fc5"
+    },
+    {
+      "path": "admin-painel/public/app-arm64-v8a.apk.json",
+      "sha256": "0f9299cca979cffa88c8dfb4a19dad7d298074b98dacda3e93b1469b5e1cec1e"
+    },
+    {
+      "path": "admin-painel/src/App.tsx",
+      "sha256": "234ccbc5b030ea538e69a227a3f139e4da03ff856e14e71fc2c214cfa93ae6b3"
+    },
+    {
+      "path": "admin-painel/src/app/dashboardPreload.ts",
+      "sha256": "69d4f9c353af715b747a9ca38e4e2a91b5eb005eb51dcbfdb6cf390a33153596"
+    },
+    {
+      "path": "admin-painel/src/app/navigation.test.ts",
+      "sha256": "9b299d9563e3096aee5e383ce26df129fddef045bb8bcd236e9f2558687253f6"
+    },
+    {
+      "path": "admin-painel/src/app/navigation.ts",
+      "sha256": "a5a68d68a6a3c4072bc6395e7a81a9b35936fbd4318dbfb9ce21f0a9311923d6"
+    },
+    {
+      "path": "admin-painel/src/components/AddAdminDialog.tsx",
+      "sha256": "7b018dc3b504d8b1997ca4f8209789f6db4023a65af3c6f0539416f74c5b11b3"
+    },
+    {
+      "path": "admin-painel/src/components/AddMenuItemDialog.tsx",
+      "sha256": "0b888cd6a56bfffec470546befc53611e3de1210983f89f099afbf49ba552a8f"
+    },
+    {
+      "path": "admin-painel/src/components/AddProviderDialog.tsx",
+      "sha256": "42eca33455992f87c736dd130f74a5b96605891721bab19571bb9011275942c0"
+    },
+    {
+      "path": "admin-painel/src/components/AddTicketDialog.tsx",
+      "sha256": "f9f5da3d66275f96421ca638cd6b7bde61bf301fdd5368051806c3f53a1187d5"
+    },
+    {
+      "path": "admin-painel/src/components/Breadcrumbs.tsx",
+      "sha256": "09c81434ac50d6d9789bbd8515811c6fda714fbe2d6646b49e274d1a7d7980f9"
+    },
+    {
+      "path": "admin-painel/src/components/ClientsChart.tsx",
+      "sha256": "f75d5fc8fa4dba6cb2893330a813b7e27188d081a544693c29debc2e4c843302"
+    },
+    {
+      "path": "admin-painel/src/components/DashboardSkeleton.tsx",
+      "sha256": "74c2c9cb13d8c958edc58637101fb499649f782d07814b6df71874ee96453995"
+    },
+    {
+      "path": "admin-painel/src/components/DataTable.tsx",
+      "sha256": "538c5d643ca59cfa8e0a87bff8135cae21c208366a389c9b5bda2d1f553b33b5"
+    },
+    {
+      "path": "admin-painel/src/components/EditProviderDialog.tsx",
+      "sha256": "05b48ec13bc865ee1630eca559025ed5f78e43e123f53f848737084da28a3628"
+    },
+    {
+      "path": "admin-painel/src/components/EmptyState.tsx",
+      "sha256": "0340557ebc295b66f48026dce8ef065329c214140c45791c152998359028744e"
+    },
+    {
+      "path": "admin-painel/src/components/MainLayout.tsx",
+      "sha256": "466a2675450cd827f6b9223ab6d9288c4ed0e975bc583c62bf691df12bf40dca"
+    },
+    {
+      "path": "admin-painel/src/components/MobilePreview.tsx",
+      "sha256": "9a39377d569bc5e5802eadf07b0ee91aa0e75fb2bfd785febaaff04b64b9e5df"
+    },
+    {
+      "path": "admin-painel/src/components/NewClientsChart.tsx",
+      "sha256": "22598310f40e07e53feaeb54bbdc57b503a00334da52924f262a36a64ccf52bf"
+    },
+    {
+      "path": "admin-painel/src/components/ProtectedRoute.tsx",
+      "sha256": "f6ba2bd3b72b6d8377dda28f77416dc76d5812d0ec6806105211b450aae0298f"
+    },
+    {
+      "path": "admin-painel/src/components/ProviderDashboardSkeleton.tsx",
+      "sha256": "38ca203a06ef47940a5b6772c64da71f833ce9020bc44dd8f20742a3d170bf7d"
+    },
+    {
+      "path": "admin-painel/src/components/ProviderSettingsLayout.tsx",
+      "sha256": "5cbfcbfea357c2f849a594dfe9811a795f9d63d87e397b431bd66eef263cc721"
+    },
+    {
+      "path": "admin-painel/src/components/RichTextEditor.css",
+      "sha256": "b1aa3db6e3e1a1ddd2f8f97bf14ad8c77f4d1dae0d302e3da513aaa28cc1a92e"
+    },
+    {
+      "path": "admin-painel/src/components/RichTextEditor.tsx",
+      "sha256": "34499c38897d4326fb4b3003007eb20d29c65a26646aa2b608426a7f213f0eba"
+    },
+    {
+      "path": "admin-painel/src/components/SetSuperAdminDialog.tsx",
+      "sha256": "c44af166d99412811a538256b1e41048a19c52f3ea691d7d78d386da3d23accc"
+    },
+    {
+      "path": "admin-painel/src/components/StatsCard.tsx",
+      "sha256": "8ba05a165afd3e99beeaea4d2d136f67bba09f6e8fbe5a6371888c63d58d8168"
+    },
+    {
+      "path": "admin-painel/src/components/StatusBadge.tsx",
+      "sha256": "378e2fdb53cc47c2cf95819221722e2836febf3471b7d3a74d39436c559c93f7"
+    },
+    {
+      "path": "admin-painel/src/components/dialogs/AddEditContactDialog.tsx",
+      "sha256": "e07265d39da9259d8db6f429c2e4a2233200c523eb0752b337525c30f72cdba0"
+    },
+    {
+      "path": "admin-painel/src/components/dialogs/AddEditFaqDialog.tsx",
+      "sha256": "5d26bc6bf8ae5535e7f76ac0f1256102a099544495187772b3ce5b318772e25c"
+    },
+    {
+      "path": "admin-painel/src/components/dialogs/AddEditTipDialog.tsx",
+      "sha256": "030950f98f2389c7b9576829fc41b8245c2e579356899f6cedb3b6d8f76826a7"
+    },
+    {
+      "path": "admin-painel/src/components/dialogs/EditTermDialog.tsx",
+      "sha256": "75573cf5cae90f303854a7ea90c09021a5b7beddbac2cf79c91f7e2a467ecd30"
+    },
+    {
+      "path": "admin-painel/src/components/settings/SettingsPage.tsx",
+      "sha256": "8bdae43ba838feb2e9d88075313b4b7319376acccddfbe06984c6ad572f61c0a"
+    },
+    {
+      "path": "admin-painel/src/components/theme-provider.tsx",
+      "sha256": "118a0d2a23f0148a95075484f1c06c4b09bf47fb0f70329e7cf068148d33a8fd"
+    },
+    {
+      "path": "admin-painel/src/components/ui/accordion.tsx",
+      "sha256": "6b84cb28b5c8e2129d854cffb8c5ba0161758d577db6db30a380cf593a8c0705"
+    },
+    {
+      "path": "admin-painel/src/components/ui/alert-dialog.tsx",
+      "sha256": "e97fab7310cce5ebe9498e05baa63e639399f3c3a9e485d90a67359555a65996"
+    },
+    {
+      "path": "admin-painel/src/components/ui/alert.tsx",
+      "sha256": "9fff8662cd564340cfeeafbf05915e64035019de0d08ae03d458ac5e6980de03"
+    },
+    {
+      "path": "admin-painel/src/components/ui/avatar.tsx",
+      "sha256": "6e9bac0e661810d5d2cd1b0598662444d667ff877de9bc537f5454041d8b9c10"
+    },
+    {
+      "path": "admin-painel/src/components/ui/badge.tsx",
+      "sha256": "2d8223945212391265069d97328eeefca6b6ccc8d0d668b7445fb352a09908e9"
+    },
+    {
+      "path": "admin-painel/src/components/ui/button.tsx",
+      "sha256": "8ab42bb908eb3e98fc7f15001b6f23c12c54833023c514e525d629717b15869a"
+    },
+    {
+      "path": "admin-painel/src/components/ui/card.tsx",
+      "sha256": "fbe3b5eb275b2f99d2c52ad23e2c4d74a4aca149933d6cf90ebeba436c340c3c"
+    },
+    {
+      "path": "admin-painel/src/components/ui/dialog.tsx",
+      "sha256": "e9d9e778a8a248101cdb96383856196e89afd85b8d1525084d0e7cc1190e1292"
+    },
+    {
+      "path": "admin-painel/src/components/ui/dropdown-menu.tsx",
+      "sha256": "15311a77cc48a58ccd1a484fb0af5f6787013b7d9c53a45d4be1762465bf6bcc"
+    },
+    {
+      "path": "admin-painel/src/components/ui/input.tsx",
+      "sha256": "99a8347e6fe0dba2b3ac672b8144723ee9b837908e50bb5948bbb0e60b0319d0"
+    },
+    {
+      "path": "admin-painel/src/components/ui/label.tsx",
+      "sha256": "06918510992f80ed81cb6eb6d40f47c8129f5d323d406d36205a9e7526d8f74b"
+    },
+    {
+      "path": "admin-painel/src/components/ui/select.tsx",
+      "sha256": "e4b6b9313a6421c5f37842692254db20bc548bae75024edf343c6c1252a1b682"
+    },
+    {
+      "path": "admin-painel/src/components/ui/separator.tsx",
+      "sha256": "1d635737a6e99be9a7b6f95a3ebd838afe695a3d9f94ab88e834f30ccda169ee"
+    },
+    {
+      "path": "admin-painel/src/components/ui/sheet.tsx",
+      "sha256": "f5190b30b4190cb153e7a1fae72fc94b2effebaa5f507722c857e7c7c01ef34c"
+    },
+    {
+      "path": "admin-painel/src/components/ui/skeleton.tsx",
+      "sha256": "a72a9d8fc1c1999b5411a33391c5e70048863c5865629077280e943ca85689a8"
+    },
+    {
+      "path": "admin-painel/src/components/ui/slider.tsx",
+      "sha256": "66ad365a51964cd6637866d2bc2e09310190a4bc76e62ae7e1105a7a4277393f"
+    },
+    {
+      "path": "admin-painel/src/components/ui/sonner.tsx",
+      "sha256": "4c335c4d2fcb1d0e785a0c36a7fa01a6da7e80f6264149bbcc4f56ae245e221b"
+    },
+    {
+      "path": "admin-painel/src/components/ui/switch.tsx",
+      "sha256": "c192e03abf8616ff0b9ffdb64f6facf81b92b867c4a19e4d83bf3a2bbf032198"
+    },
+    {
+      "path": "admin-painel/src/components/ui/table.tsx",
+      "sha256": "27b30b49441b59ee7839386355beccaaa14cfc69804ca63f9ec75c3379444af1"
+    },
+    {
+      "path": "admin-painel/src/components/ui/tabs.tsx",
+      "sha256": "c7f8c732e0a5cf3598dcf234c2162eb2050990e76b800bc1ac73ca51d4b57545"
+    },
+    {
+      "path": "admin-painel/src/components/ui/textarea.tsx",
+      "sha256": "1f0c29f705b34d60df7131e807bada3b2cf893f2bb1a06e3d5322276578c7731"
+    },
+    {
+      "path": "admin-painel/src/components/ui/tooltip.tsx",
+      "sha256": "6c4d295445f268fea5ea6cc8bab67452cca4e22fa344e7e20368262b7a2e842c"
+    },
+    {
+      "path": "admin-painel/src/contexts/AuthContext.tsx",
+      "sha256": "ca9303c4a17b4a9429a5c4f6fc9025c6ee0864895c8ebb426fc27e383c90a15d"
+    },
+    {
+      "path": "admin-painel/src/contexts/SettingsContext.tsx",
+      "sha256": "67a04d8d808e18cc0188e2640995feb2a2f22886702be14c1de491fa3b793bd2"
+    },
+    {
+      "path": "admin-painel/src/design-system/components/ConfirmDialog.tsx",
+      "sha256": "038a279b00e6597360deae48fe3afbea763a7ceee3dbf82bad202e67179eb582"
+    },
+    {
+      "path": "admin-painel/src/design-system/components/FormField.tsx",
+      "sha256": "b97ca4b03c043f4083d147e7842a71614a2604dc667fb48994a3ffccba3e63db"
+    },
+    {
+      "path": "admin-painel/src/design-system/components/PageHeader.tsx",
+      "sha256": "02d3993514ddccea8f4194147823184758f0ecfc0734a46b0e05a82d9713d7c1"
+    },
+    {
+      "path": "admin-painel/src/design-system/components/States.tsx",
+      "sha256": "b3a8bb4b705713a6d877cb17f58e268447d74252e6ba96e2584c5b793f15c2f4"
+    },
+    {
+      "path": "admin-painel/src/design-system/components/Toolbar.tsx",
+      "sha256": "d109f83a1f65991dbc76be9ce45c4a4c7a3832d60579b053ffa2cf60732a6f93"
+    },
+    {
+      "path": "admin-painel/src/design-system/components/index.ts",
+      "sha256": "0379fc1c1619b04cfe285597ccd6834e341bf7164b052092b2f1757dfb38447a"
+    },
+    {
+      "path": "admin-painel/src/features/diagnostics/diagnosticService.ts",
+      "sha256": "4ee65cd12d8beb5865f2766bc883375ef248b02cabc3798e84e002f7c2b269d8"
+    },
+    {
+      "path": "admin-painel/src/features/incidents/incidentService.ts",
+      "sha256": "7497c3de0236cda746ddeba1f152cdc127f26bc08e0440e4536bde3e32629b40"
+    },
+    {
+      "path": "admin-painel/src/features/provider-settings/defaults.ts",
+      "sha256": "6b904ead33a966feec11e15488c6724ba38504e686735e8492c3589d73de6f0e"
+    },
+    {
+      "path": "admin-painel/src/features/provider-settings/normalizers.test.ts",
+      "sha256": "762d18643e978b4c5a64962ad43976520f40e20af472f626a39b9afab0ad0d12"
+    },
+    {
+      "path": "admin-painel/src/features/provider-settings/normalizers.ts",
+      "sha256": "0155e701cd7fbd038cc533a3d1dbb06c9c10431a70189d0f43e0b92a6e635c4d"
+    },
+    {
+      "path": "admin-painel/src/features/provider-settings/schema.ts",
+      "sha256": "dcd9b24c05e993940d9d3a57533a115ade04d0bab0af93f6abfa8a2e3e86601d"
+    },
+    {
+      "path": "admin-painel/src/features/providers/providerService.ts",
+      "sha256": "792a97f015060b6393d66b5f4410f40e73f06be22bab22a29d5fc686e00c9998"
+    },
+    {
+      "path": "admin-painel/src/features/tickets/ticketService.ts",
+      "sha256": "159fd498e51a8e1a69a11a317d86ccce8d31e61dd3f39f846c5540a1e6040d64"
+    },
+    {
+      "path": "admin-painel/src/firebase/auth.ts",
+      "sha256": "563fcb73c69a50ea529cd0f325b7999cba380cebc2a91d0ab6f7d0dc5cf066ef"
+    },
+    {
+      "path": "admin-painel/src/firebase/config.ts",
+      "sha256": "839564c96c5c80d4b61e06b033673a73695a2195ba9205ee3479d641f4a95805"
+    },
+    {
+      "path": "admin-painel/src/hooks/useApi.ts",
+      "sha256": "f4b5ea2a1c162fb9b690aa7dbed972649ff3dbc4644d75d2a7fef24ab9b7e3bd"
+    },
+    {
+      "path": "admin-painel/src/index.css",
+      "sha256": "d498b795b3cd821a22527e3c4feaaa5b9e9cc488c372358948440c09af964afd"
+    },
+    {
+      "path": "admin-painel/src/lib/passwordPolicy.ts",
+      "sha256": "16e44f66f7ded77218a96fca98e75ca5a5172e5e40a190d55f6690c3efa936a9"
+    },
+    {
+      "path": "admin-painel/src/lib/utils.ts",
+      "sha256": "7c8c3dfc0cdd370d44932828eb067ef771c8fe7996693221d5d4b90af6d54f2d"
+    },
+    {
+      "path": "admin-painel/src/main.tsx",
+      "sha256": "ace12e9137913c009e84bf09c8c11a798c8591ae68634649516a5d16c2d1db9b"
+    },
+    {
+      "path": "admin-painel/src/pages/AdminTicketsPage.tsx",
+      "sha256": "525c7f2031ac8f3c5ab4596b7ddbcd68cb75b7b84f2ad1fe7d3d94deb29765a2"
+    },
+    {
+      "path": "admin-painel/src/pages/DashboardPage.tsx",
+      "sha256": "dd887bc4365f4876bb0f1249f1f39b3f3c01c59e0e18cda005edf47d85022a20"
+    },
+    {
+      "path": "admin-painel/src/pages/LoginPage.tsx",
+      "sha256": "16eba9926050b3a9a1d6418fb82277a3bc3f9b8f6be72f42441e3c4faf4724ff"
+    },
+    {
+      "path": "admin-painel/src/pages/ProviderDetailPage.tsx",
+      "sha256": "927ee75330f6ff0e91b811756010ec62521cc815e35815dce938165422015d6d"
+    },
+    {
+      "path": "admin-painel/src/pages/ProvidersPage.tsx",
+      "sha256": "26c129e4184164aafecd8d4bc4b208eb3c641134cf7aa18fbf409b116d05baff"
+    },
+    {
+      "path": "admin-painel/src/pages/TicketDetailPage.tsx",
+      "sha256": "6111fc90ea2d34e252bd0ac9ea3db67e3be07f74235b286602ec44674c75aa02"
+    },
+    {
+      "path": "admin-painel/src/pages/UsersPage.tsx",
+      "sha256": "73b5386faf4983284b10fdf6d572db245be7ccd51312b9c23de8518fade83e9f"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/AndroidBuilder_Final.tsx",
+      "sha256": "536614104b8ca622df7fdf1ec593a0c54d0795747c90a8e6ddfef0976af361a0"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/AppearanceSettings.tsx",
+      "sha256": "36e00a4af45876a40d882347837b5eae3464df3f467c11685063630d210b40a7"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/BackupSettings.tsx",
+      "sha256": "cfda37b05367725f168dbd88b198a218d34f7838adf171d3025390e6f8b13a54"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/CarouselSettings.tsx",
+      "sha256": "527b43e52669c37415759a0534eb2ba80bc65025160151f6f406982c6145836f"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/DashboardBuilder.tsx",
+      "sha256": "3b1e4446d686561f660d16eb8d4289cef1bc4066c1ff60d4b86dd912407690fd"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/FaqSettings.tsx",
+      "sha256": "78d9cb01885dc12bb2a885c3bb0763111272d5679bc3247de806026d332a6224"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/FeaturesSettings.tsx",
+      "sha256": "037df5c4e1b649fa9cfa6ce699d5c4260d68b09c0463afe22601f0fe47178b6f"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/ForceUpdate.tsx",
+      "sha256": "0351b9f2be365cfa97e327c19825102426c6d48df0ff1310b31bac71ea67ff06"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/IconPackSettings.tsx",
+      "sha256": "758ffa6ce9b050174052b32499b4114c2797641aebefae986365a8ad4838e9cf"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/ImagesIconsSettings.tsx",
+      "sha256": "315a2735707fbf4ab252308a6b7b99c3d0688ef2b6d7400090e0ad55ceff61f8"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/IntegrationsSettings.tsx",
+      "sha256": "b42622fda8991539792c179310ebe4cfd3d8af752fb13112a34ccdd8577b6545"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/MenusSettingsPage.tsx",
+      "sha256": "5704d1d0b66c97884688903bb86e61cc3ce02dd3de15cddaac6c4bf48dd76d2c"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/MessagesSettings.tsx",
+      "sha256": "831753291fee1ee66bfe6c79ec6704d58c5b039e2f8c3ba2dbf3424dbe1e73d0"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/NotificationsManager.tsx",
+      "sha256": "53b0d1fe321dbd6073b8288393425a747273463074c077078a9b7c128551cbd7"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/OtherSettings.tsx",
+      "sha256": "f34e391fbe55571ca25942e22c128a6856e163011e0e1aae0ed40b8123141192"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/PersonalizedTextsSettings.tsx",
+      "sha256": "0e51fa3456286a38aa788f2803945db1bb613e78834caea67a1a9acb2a5fab37"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/PromotionsManager.tsx",
+      "sha256": "f235920d85767768b7aa47032ed47ab21218ef853b2f9d44b2565cba9471faeb"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/SocialNetworksSettings.tsx",
+      "sha256": "0a6424b9ff2aa3a7b8f9b03e0a614b2c1579da5ef47dd79cf96077c8470aee75"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/SplashLoginConfig.tsx",
+      "sha256": "ff9f6b071f2b539ab31824fd1a66fef4d7252df236f7dcb339c3006dabde7bbd"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/SupportSettings.tsx",
+      "sha256": "0bce8fa08cb900255f6fec25c09716a01cfa01d1b2206f751574f0b15553af14"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/TermsOfUseSettings.tsx",
+      "sha256": "c948da6b300a28f56764418774c4becdeb8f9fe143b6d420d3183c72187e176d"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/TipsSettings.tsx",
+      "sha256": "c90ae75fff2a2e329044a0af7714d15c08bf605362cd52ae18324a87fc95308b"
+    },
+    {
+      "path": "admin-painel/src/pages/provider-settings/TypographySettings.tsx",
+      "sha256": "778218f0720962c93bf36bf5c543d5a9f99019d78397ea511cdbda8b725366e6"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/ClientDetailPage.tsx",
+      "sha256": "5837e92e42e0c0938a235670e121a07c24b6b0b64357a57bfb35a3bf41b0ce21"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/DiagnosticHistoryPage.tsx",
+      "sha256": "61595f50a6055e923355f146685549f986ea0a023ac9d685ed5184e2268a47cd"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/IncidentsPage.tsx",
+      "sha256": "7bf321b2afc11556d5bdb07b6d86a5e90dea61d298aff8503b6a07d79058b1ed"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/MyCompanyPage.tsx",
+      "sha256": "df864c71affed534fe697caeae8d19b045796dafe8a09b6094ddb8256f1840ef"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/NotificationSenderPage.tsx",
+      "sha256": "1d7b88372e0d198b9fe6b738ed4c2368ce6cdd375e2780c5cc108d4374421a63"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/ProviderClientsPage.tsx",
+      "sha256": "a3a024af5ced4022640b1806ef928f11f4d6771943778692ba3b77259d9b216b"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/ProviderDashboardPage.tsx",
+      "sha256": "6e370347071928a7ddbe4975f4b94d439e770f4b8e8f45d014961cc3e2fcd62f"
+    },
+    {
+      "path": "admin-painel/src/pages/provider/ProviderTicketsPage.tsx",
+      "sha256": "dd2f3d2987a195a3eb4b6d7f20dde66e5f35cea74c9a4a72a9592a223ecb50b1"
+    },
+    {
+      "path": "admin-painel/src/shared/api/dashboard.test.ts",
+      "sha256": "e8897d45a8ef1c8ee945296eea30ead281eb362e16d75d5c1ecf0670e90086a9"
+    },
+    {
+      "path": "admin-painel/src/shared/api/dashboard.ts",
+      "sha256": "04f92fa529e630e03e83a709999c1f9a35486598278ff2581db5e3ab0a6d4195"
+    },
+    {
+      "path": "admin-painel/src/shared/api/functionRequests.ts",
+      "sha256": "1acd0d661ebee3ed5d787edeba58d72c8e987908970870c114fe1f97db71c72b"
+    },
+    {
+      "path": "admin-painel/src/shared/api/panelTiming.test.ts",
+      "sha256": "da57d0ad7c80a24723f576497e71d91aedea09d62e0bc1e6dceb3245b114aa49"
+    },
+    {
+      "path": "admin-painel/src/shared/api/panelTiming.ts",
+      "sha256": "9f8abd655b35a42b81d54a29db3da49c113a584af1cd6c4a42509d8643727d95"
+    },
+    {
+      "path": "admin-painel/src/shared/api/timestamp.test.ts",
+      "sha256": "b07c3db969e5fabb66d2310559a512a4a1faf873c019976a9dd24e8e7c72e555"
+    },
+    {
+      "path": "admin-painel/src/shared/api/timestamp.ts",
+      "sha256": "f1e260ce67e28974e1d1fa9628018106a3c5cc1c008db3a33345a17210d07bfb"
+    },
+    {
+      "path": "admin-painel/src/shared/config/publicApi.test.ts",
+      "sha256": "c726f05a2eb17cf364fc00e897b4bfdc378f614582cbd641e1b8869d1dbc08c3"
+    },
+    {
+      "path": "admin-painel/src/shared/config/publicApi.ts",
+      "sha256": "ee39d5b7810938361e499cdb6c0ea2218a0f2ca31976c599f2134b1e7dbc0bc9"
+    },
+    {
+      "path": "admin-painel/src/shared/config/runtime.ts",
+      "sha256": "83f13f7a8440f91df12abc51d8aa5da2a220de16f706920bedd6e747091519b8"
+    },
+    {
+      "path": "admin-painel/src/shared/contracts/index.ts",
+      "sha256": "266e964bca9e95af3d3d2b3085ffbf220b170bded8e7cc97207afe03e3e9ea51"
+    },
+    {
+      "path": "admin-painel/src/shared/errors.ts",
+      "sha256": "c95ee6f74842e0efcb3b61a434515594ca1cdb427418dbd96c3343aee5c94f71"
+    },
+    {
+      "path": "admin-painel/src/shared/firebase/providerSettingsService.ts",
+      "sha256": "b719ca0161a6f1724e8b31704425e1301caafe32073b3a590bca9e8b5001a5f7"
+    },
+    {
+      "path": "admin-painel/src/vite-env.d.ts",
+      "sha256": "b97ecaeefa3d89cd324364b99b7947826201d208bc4bebcf57f49905b99afacf"
+    },
+    {
+      "path": "admin-painel/storage.rules",
+      "sha256": "23faec88252ba61b44bb59853e768808b590e942fc814417d34e59e403c13371"
+    },
+    {
+      "path": "admin-painel/tailwind.config.cjs",
+      "sha256": "a402177deefddd321a2d512c358482e3e24f0563b5be84bb37ed504d20da30b6"
+    },
+    {
+      "path": "admin-painel/todos_clientes.json",
+      "sha256": "d11a070f34000f5e8ddb361bf547711e91bdb4059f96b1167d56858cba178de5"
+    },
+    {
+      "path": "admin-painel/todos_onus.json",
+      "sha256": "a9956f6052b0b921390dabb7a2080c926b0629af287545f7e69e2767517b2271"
+    },
+    {
+      "path": "admin-painel/tsc",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "admin-painel/tsconfig.app.json",
+      "sha256": "a3480b6fdcac5166d1515f4418b785719a831d236477736a6b7433ebbde09d6f"
+    },
+    {
+      "path": "admin-painel/tsconfig.json",
+      "sha256": "12e656c9ad8e9042c628ee01c3b61de1cbb7946c4959f1bb25a969eedaa01eae"
+    },
+    {
+      "path": "admin-painel/tsconfig.node.json",
+      "sha256": "c231fc865558ed6e122ed477b08b5df84dbb2df63667e939bcac7d163281cfaa"
+    },
+    {
+      "path": "admin-painel/vite",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "admin-painel/vite.config.ts",
+      "sha256": "f69bc656cfd04f8942d8932f30e3974f487210ea90f7cd065f4eb0b72090bec3"
+    },
+    {
+      "path": "admin-painel/vitest.config.ts",
+      "sha256": "874eaec430f8d2247b19d6078a719349f6dc9544653616c88c9bc8c919770437"
+    },
+    {
+      "path": "api-service/.dockerignore",
+      "sha256": "a53b1a5c814942c22e62bf40845d2567f6bac5d39d008d2b713343ab0b7f0bdb"
+    },
+    {
+      "path": "api-service/.env.example",
+      "sha256": "6d9b21c698a3f75004cca4b21a7c5ecd3925d5643aea90f122dd381972bcf798"
+    },
+    {
+      "path": "api-service/Dockerfile",
+      "sha256": "b4c7334ec5ebc6b95722d086892ca5d805756a113ab3f8dc6d1e015b5b8d8154"
+    },
+    {
+      "path": "api-service/benchmarks/capacity.test.ts",
+      "sha256": "1c18a29939456483bd9949f4b2a63dd10c62e46db199224b15de45740b114c1a"
+    },
+    {
+      "path": "api-service/package-lock.json",
+      "sha256": "53e3f959ad762e0092d71c0ea5a06edd0dd67d012bc3d70e40eda5e3fedd10b2"
+    },
+    {
+      "path": "api-service/package.json",
+      "sha256": "cf355f4004488f41b13a433a897f24adeadaa607923fd033e479f4cea775658a"
+    },
+    {
+      "path": "api-service/src/app.test.ts",
+      "sha256": "ef03f3d69c7da91127f3720a4e2b4d49c3a096555793544ac146e0a9ee6bc028"
+    },
+    {
+      "path": "api-service/src/app.ts",
+      "sha256": "ec61741c366c15ba766c13837afcdae9d710568c259e2b5b293cf6bcb291623d"
+    },
+    {
+      "path": "api-service/src/config/env.ts",
+      "sha256": "923263f98da8b5d20d4a53358f04935318913a4e639d56252056a51542fb6df5"
+    },
+    {
+      "path": "api-service/src/contracts/index.ts",
+      "sha256": "266e964bca9e95af3d3d2b3085ffbf220b170bded8e7cc97207afe03e3e9ea51"
+    },
+    {
+      "path": "api-service/src/index.ts",
+      "sha256": "b0bdeab9b562fa201bf4a96202d13532f18cbdeb49240a7f69cffe4bc7e12daf"
+    },
+    {
+      "path": "api-service/src/middlewares/auth.ts",
+      "sha256": "ca028c8042fa5a5ea97218c7008c5a75d70a995bf21c5c46afefb2a34c5ec0ce"
+    },
+    {
+      "path": "api-service/src/middlewares/cors.ts",
+      "sha256": "f56d91e6f245a19793ead67e9c3ba1658a3467161d8d16e00a808c8e1f534b84"
+    },
+    {
+      "path": "api-service/src/middlewares/errorHandler.ts",
+      "sha256": "db765b077464aa704404f2374f7c8692b3bbcb23a25b58a43a2f1ed1e576fc76"
+    },
+    {
+      "path": "api-service/src/middlewares/metrics.ts",
+      "sha256": "2a7aa5bcb825c0ece6989e8bff57e111a71b3d72649ecb95648b72813a35f87e"
+    },
+    {
+      "path": "api-service/src/middlewares/rateLimits.ts",
+      "sha256": "87952982b388fb65adb70befa3190a09bbe378dd7f38060a2a84eeedf3f710f8"
+    },
+    {
+      "path": "api-service/src/routes/adminAuth.routes.ts",
+      "sha256": "6f3b036842c7023c58f9ac42c36c2c60979fa7e77a567f0b7a650a6acb471823"
+    },
+    {
+      "path": "api-service/src/routes/dashboard.routes.test.ts",
+      "sha256": "1473a92a62667915cfb14880b4e3aa1d46d2e10ed360f978490dc7fbfbb38002"
+    },
+    {
+      "path": "api-service/src/routes/dashboard.routes.ts",
+      "sha256": "791b5c8b91d365b7d9708569a61f1aa3b0f7d5519d9926586d48ace801aa321d"
+    },
+    {
+      "path": "api-service/src/routes/diagnostics.routes.ts",
+      "sha256": "79aaffeeaca746db3ab6e029039904d7159ce9ac271063debb27b60e63b8f6ad"
+    },
+    {
+      "path": "api-service/src/routes/providers.routes.ts",
+      "sha256": "fb243f7967057bdf1406754d4ba7a442e894af8bed1f7a0a88ca8f4630584616"
+    },
+    {
+      "path": "api-service/src/routes/proxy.routes.ts",
+      "sha256": "c8760b808340c7a7ff381543a035b8f9331f3c3e7a6249b038480991162c51d7"
+    },
+    {
+      "path": "api-service/src/routes/subscriber.routes.test.ts",
+      "sha256": "0970e3ac0e90a9d67a0997eab8ccde35cbcdce50e2959ee42af05d835e17d164"
+    },
+    {
+      "path": "api-service/src/routes/subscriber.routes.ts",
+      "sha256": "2df12af4b5d824243a41057a266c957a7b52c33ee8994423bf655f01217f7473"
+    },
+    {
+      "path": "api-service/src/routes/tickets.routes.ts",
+      "sha256": "c0a2e498698887a327114edcde97c1b0e4c77724d924ac61228337eabf55911c"
+    },
+    {
+      "path": "api-service/src/routes/users.routes.ts",
+      "sha256": "9365a59bc6b207c6ba349cbd69802191dc5f9f134b123dc146ecd167b7899f74"
+    },
+    {
+      "path": "api-service/src/server.ts",
+      "sha256": "b860b176da3bdec6f056170823160a91fbe53d7ed026a477749c409c5545d49d"
+    },
+    {
+      "path": "api-service/src/services/auditService.ts",
+      "sha256": "1c57569959a441b7a5585dec483aa42516e8f5cf7b2e106d4a0777ff4c22eb62"
+    },
+    {
+      "path": "api-service/src/services/boundedWork.test.ts",
+      "sha256": "9653e5f39e296c52a38d9e7f8cee8bc2fbd0e86641239c522e6b03a3afd8c7d7"
+    },
+    {
+      "path": "api-service/src/services/boundedWork.ts",
+      "sha256": "e6830b517c86916d41746ac2e3862af05b509b9b943d3fc6a6b637018aeb47ea"
+    },
+    {
+      "path": "api-service/src/services/dashboardData.ts",
+      "sha256": "cf6f4ac291d98022846544087fffec8f729a2e1f3f3e60eb6af3a0232d0f9730"
+    },
+    {
+      "path": "api-service/src/services/firebaseAdmin.ts",
+      "sha256": "4eb25168cba79eb31ddc8e9978aa5592c44d05e14b4de01be2ee28fbdd1dfbde"
+    },
+    {
+      "path": "api-service/src/services/panelTiming.test.ts",
+      "sha256": "6019d785651ca36ec5c7903736f4d8362e60877bb980f5697c229ac82295989d"
+    },
+    {
+      "path": "api-service/src/services/panelTiming.ts",
+      "sha256": "2778f610151df9dfa1f203321d5ba805bb8fc1b9fa293e92960c51a3b6a9a784"
+    },
+    {
+      "path": "api-service/src/services/proxySgpClient.ts",
+      "sha256": "c69574cf97b9943b314443d31da5fd8d7aab938369259e41c911dc803f63b699"
+    },
+    {
+      "path": "api-service/src/services/redis.ts",
+      "sha256": "45e660b36323abba5dbb2b610717a2a397a0a3c93cf228500a6676149c190b84"
+    },
+    {
+      "path": "api-service/src/services/sgpClient.ts",
+      "sha256": "301ab7163d7d0367bcedfa2209e34f8febc74335db71b957c4a98896a931dc5a"
+    },
+    {
+      "path": "api-service/src/services/tenantScope.ts",
+      "sha256": "3452f9eaf24f76ceff75e14c19b57fd63becf46fdc9eeb30687068fdedc6d83a"
+    },
+    {
+      "path": "api-service/src/services/upstream-runtime.d.ts",
+      "sha256": "3544aca3e2b0049c4cb5693ff4803bde0602a594961b6e0607cac56601e881f6"
+    },
+    {
+      "path": "api-service/src/services/upstream-runtime.js",
+      "sha256": "58bf5e19d5181c056b933a229a885d117eab32aa731654a49c699d8d654bb833"
+    },
+    {
+      "path": "api-service/src/types/express.d.ts",
+      "sha256": "1aa78fffdecced9bd7facde2e4ea8c0280de54af9e4fd0a65f3bf9656a1edfc2"
+    },
+    {
+      "path": "api-service/src/validators/traceroute.test.ts",
+      "sha256": "9ec555fb3a3ad4ce88c829216b67d0739a0cb68d1ffaa5b8e9f56981ef39e4c7"
+    },
+    {
+      "path": "api-service/src/validators/traceroute.ts",
+      "sha256": "465b6d7a97b2b08efbc5850486243691367f241d6add49064af4dbf4a7c99311"
+    },
+    {
+      "path": "api-service/tsconfig.json",
+      "sha256": "d0f8509d3092ff9e6abad4b8ba6bc5707924d9fcbca69de38585316c70452a68"
+    },
+    {
+      "path": "api-service/vitest.capacity.config.mts",
+      "sha256": "61f5e14a03775ac707165471afd6c20a30ae4b5e9776afe254bbbf3d235ac3ac"
+    },
+    {
+      "path": "api-service/vitest.config.ts",
+      "sha256": "eaad4d8e969598cf9febe0fab50f475673be87c25a0b5195656de43a108ef0d2"
+    },
+    {
+      "path": "app-flutter/admin_app/.github/workflows/ci.yml",
+      "sha256": "ce0181dda915049974c73a317e0a9eff6c27c0eee1b28a7812251ee35e233608"
+    },
+    {
+      "path": "app-flutter/admin_app/.gitignore",
+      "sha256": "4a8d984279954e0461e0ffef9b9e7455340a0a762f227c01065a53482a83a4f1"
+    },
+    {
+      "path": "app-flutter/admin_app/.metadata",
+      "sha256": "549c57752e78d91dc2070c1380615e9295ed7c4efce4cd8023a48f80417984ba"
+    },
+    {
+      "path": "app-flutter/admin_app/README.md",
+      "sha256": "17c36b8990acde82413dcdf49c4da0a168d3c9b29d6ec44d4b3e7a8e4a370d4d"
+    },
+    {
+      "path": "app-flutter/admin_app/analysis_options.yaml",
+      "sha256": "e0ea485cfdbc3e12b93efb8679a5ea73ebfe20ea4ca0c473dc594fc2fb274ed5"
+    },
+    {
+      "path": "app-flutter/admin_app/android/.gitignore",
+      "sha256": "b027c9de1011765c015e5819bf857c0d75bfcd0886fb01721c091159012e50f1"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/build.gradle.kts",
+      "sha256": "f2c21b7075c4bf07c6bf8dd2eaf0d053876e1cdf9cd493daf5ad3787fbb47c65"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/google-services.json",
+      "sha256": "a2336671517b315d812acb952b3239a9c223aa0d5069538ae0eaa3dfbc8c8246"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/debug/AndroidManifest.xml",
+      "sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/AndroidManifest.xml",
+      "sha256": "9ba136cb71f6242c8ea435c5416497643a831d1b98aa01f4214938ca4b06308d"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/kotlin/br/com/painel/admin/admin_app/MainActivity.kt",
+      "sha256": "63446a1138a03b0d83fa15a9d6d030b09a79524a2e8bf2f3eb9afddd37225120"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/drawable-v21/launch_background.xml",
+      "sha256": "7ca6d5cec2169c5a98661a119db23a6f3399c8fef2256ff04f3a642831282478"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/drawable/launch_background.xml",
+      "sha256": "94433756fe10005ddd6fc55cc5c0b1e9f3c10b66a08ceac795ece6713d34e28a"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "sha256": "6a7c8f0d703e3682108f9662f813302236240d3f8f638bb391e32bfb96055fef"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "sha256": "c7c0c0189145e4e32a401c61c9bdc615754b0264e7afae24e834bb81049eaf81"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "sha256": "e14aa40904929bf313fded22cf7e7ffcbf1d1aac4263b5ef1be8bfce650397aa"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "sha256": "4d470bf22d5c17d84edc5f82516d1ba8a1c09559cd761cefb792f86d9f52b540"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "sha256": "3c34e1f298d0c9ea3455d46db6b7759c8211a49e9ec6e44b635fc5c87dfb4180"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/values-night/styles.xml",
+      "sha256": "8c5bad5152f217e837519f9c15211d19f39bd45f5f67faf6dd81cb4b299e518f"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/main/res/values/styles.xml",
+      "sha256": "937d7c82f539c72eb94fd3a3773f29b3d3fef1997213c92cb632298cedf4bda9"
+    },
+    {
+      "path": "app-flutter/admin_app/android/app/src/profile/AndroidManifest.xml",
+      "sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b"
+    },
+    {
+      "path": "app-flutter/admin_app/android/build.gradle.kts",
+      "sha256": "6a26dba2cb8dfba1e74f540b0d17a89d96c1301d3c3bfda14348bed257fddcba"
+    },
+    {
+      "path": "app-flutter/admin_app/android/gradle.properties",
+      "sha256": "215f04e8ac65fdaf9ad88bcd35d4040b6a181e1f66dbfe58c325faf7efe0bd3f"
+    },
+    {
+      "path": "app-flutter/admin_app/android/gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "297c9e63b6fa6e7e8b221900fa1787c1a0e38869d8957da66389fd0f6b00f78e"
+    },
+    {
+      "path": "app-flutter/admin_app/android/settings.gradle.kts",
+      "sha256": "a9b5756048f668d4ebf355116678fd334cd5f2169b7d4518ad19b8df14d3af36"
+    },
+    {
+      "path": "app-flutter/admin_app/docs/architecture.md",
+      "sha256": "2ae3f6d4d912fcb33a39609786489b1575d9765eb36ff9b03a7bcbf4b10d4f4c"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/.gitignore",
+      "sha256": "37380775aeb2499662b7aca80f4ac4c95ae827c3ba2bfa179aa3e9af4812c623"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Flutter/AppFrameworkInfo.plist",
+      "sha256": "91b8d35bd9c88b43ae0eac8348f9b57d2f3e209a4500e6516b18b459b7e3f2be"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Flutter/Debug.xcconfig",
+      "sha256": "a82d7765b37116ee4821d2cd1d65942febf8032353757ffb0826eabde785b4a6"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Flutter/Release.xcconfig",
+      "sha256": "a82d7765b37116ee4821d2cd1d65942febf8032353757ffb0826eabde785b4a6"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcodeproj/project.pbxproj",
+      "sha256": "aafc36f8ba25b5f704b94a97dabbade86307ace743a62546feeaf482fccc91e6"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata",
+      "sha256": "7f3b00b5c3fdb45242d7b87e1e5c4e25d1fa8129a16c94295ecc4e8ea2235c5f"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings",
+      "sha256": "11b247bc6796892d67c9a821d18604db4dd6a880981b34f38460b9866e6b247f"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme",
+      "sha256": "2dd28b879e66081e28a3324cf2bee7ab2f70be9a3e50e08926b7366dadff7d6e"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcworkspace/contents.xcworkspacedata",
+      "sha256": "46c3c9702ff7c5584e11c954d943cfb6e07fb26e3fbd072ddbc0f388aa352de1"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings",
+      "sha256": "11b247bc6796892d67c9a821d18604db4dd6a880981b34f38460b9866e6b247f"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/AppDelegate.swift",
+      "sha256": "9418c676adebac7e3f04daa80a7db62066e77f9766c804fd3e5e264124a31f80"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sha256": "3b1e214f466ffedff74baa5598ad5c4421130eea6bc8d57b8fe23435e8280ae4"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png",
+      "sha256": "7770183009e914112de7d8ef1d235a6a30c5834424858e0d2f8253f6b8d31926"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png",
+      "sha256": "cab10a0d391ec5bc09ef50ce49e8ad401cee7ef03707ec0923a222c5c2b3d212"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png",
+      "sha256": "b9ad02cf6576a04d1b6806ac02a2431481b448dd0c2e505ce25842d1f7c4730b"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png",
+      "sha256": "c6e6d3b215ae744a9c391f4c4d44157eff5e739d6ad6c39f9bfa5df66dddd267"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png",
+      "sha256": "5dee24dc104ac76dc162e42ae0beb163d426bf365562ee28ba7b3ad368559a60"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png",
+      "sha256": "a9b21eb6f4271385655a8771f76e29eef8c1107d7879cbcfc567e6619d1f716a"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png",
+      "sha256": "e677d701ffe4af7bc2935098d6b3984cc9ab7ace573e6900955a5535b12410cf"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png",
+      "sha256": "b9ad02cf6576a04d1b6806ac02a2431481b448dd0c2e505ce25842d1f7c4730b"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png",
+      "sha256": "7c61c42fc7b657d9cf314d32a4ec458f0647c3aaf360be1b9377857266ec2499"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png",
+      "sha256": "19be171481dc71a0b2803ebcd01dd8b0c5fd5778dee34c0a3cabc948c225f24e"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png",
+      "sha256": "19be171481dc71a0b2803ebcd01dd8b0c5fd5778dee34c0a3cabc948c225f24e"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png",
+      "sha256": "4209a49e44a92ec40a327d3455eb1b1c153ee83d75de1c2be0a12ab18b2ff9de"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png",
+      "sha256": "836c918cb613249eba0483a6b02fa3df3c1c0a89a315ee4d3b88509b83c7ab73"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png",
+      "sha256": "41c7d42f6e61f8fe7f30b1ffa2256aecbc9682be06d18c4a3062043e1a2e547c"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png",
+      "sha256": "5d7e5bdf01b93802bc973345b3a78c038907147625035952a08a115a563b7f81"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json",
+      "sha256": "ccc7950fd5f5b82067c85f667940a9d59189151460761ece8098ca78daa19469"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png",
+      "sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png",
+      "sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png",
+      "sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md",
+      "sha256": "a985b626c4f7546a8ba392d135e9226c3547c8e2b46895f5f2bdf40d7b14ef9f"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Base.lproj/LaunchScreen.storyboard",
+      "sha256": "857e61203b3deafb05766d8fcda898b86a7cb6f3d5e385ecc9926c4d698215e9"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Base.lproj/Main.storyboard",
+      "sha256": "fd367b6c43006d61b730f674970dd48b9f662c8f2264e52ffc1558102a2c9f2d"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Info.plist",
+      "sha256": "4a723e6f6c259963e7156027a1e81708f01032cc9488e6065b8441e66074564f"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/Runner/Runner-Bridging-Header.h",
+      "sha256": "1a8d11d01d1cc92c650c9c9ed35299240052d4683a15a719a2315ef44185e074"
+    },
+    {
+      "path": "app-flutter/admin_app/ios/RunnerTests/RunnerTests.swift",
+      "sha256": "5e8f4908dacea6f29b2a790e4d38bf5fded69096063f9a27a2f21584d62b30c0"
+    },
+    {
+      "path": "app-flutter/admin_app/l10n.yaml",
+      "sha256": "30981e598ddc284f51e4bb899a35cc12515a8d6531d26d91bcb183d7c01132b4"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/models/app_user.dart",
+      "sha256": "fe7b8910f769b80b63a44c39a7451b8291123f5f2d6ab621c7563a41e228d834"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/models/provider_model.dart",
+      "sha256": "50f19d79b7f9fe5f8c3338553a6d66bf4fb39ed358328e3b1c892a5dbddca5f2"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/models/ticket_model.dart",
+      "sha256": "f875fe94fdfda0c136782443ff07108ffea33ebbb02ab1573e9e40b1287853f8"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/notifiers/auth_notifier.dart",
+      "sha256": "6b8f15612e2463d9922cc55b28785b5bdbb21e162e257e62a3077402c0c1649f"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/providers/providers.dart",
+      "sha256": "1ed0ed730fe5e3ae6b5341721197ef75a2e31f2a1114fa8e384762454a5d0f8b"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/repositories/auth_repository.dart",
+      "sha256": "145721e41ebb22157c2f42019640497af0e58da73ee91b6fe5ba3f55b24d01c5"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/repositories/provider_repository.dart",
+      "sha256": "5ba7fe8ef68ebcefcd9614be43b5343f1e16afbe5dffa1e420c5088e8957228c"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/repositories/ticket_repository.dart",
+      "sha256": "914c6a27ecda3c0e6a020b9ad756f0ecd9d36fa089d491db0001f8065bc49e90"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/repositories/user_repository.dart",
+      "sha256": "aab39648f4f2a18bf09434c606f5a6a5903962c612fcd68936d95bd70f455af4"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/core/services/api_service.dart",
+      "sha256": "658e6d91bbc08d789947f6218345dbf947b1e2e4b9becc2a66662b7acd8d59b9"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/firebase_options.dart",
+      "sha256": "e906f81c6a13fad0edc918038c574bb422bfc47f194691430b09d2731777a5c1"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/l10n/app_en.arb",
+      "sha256": "b3fb2ddb8437cf1a4d53d50099a6459b46a947e0216bcdfbc166b628ea246ba0"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/l10n/app_localizations.dart",
+      "sha256": "743d8cb5b0dc8a8d845c959b28b4de99a1d301052e966ca0a286855903eea24a"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/l10n/app_localizations_en.dart",
+      "sha256": "e94e75ae90d0dcf1663084a9e71a22663120657c53ba371bb11f5492b2903b1e"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/l10n/app_localizations_pt.dart",
+      "sha256": "573cf30de415250962b79c1f1144a199ace33420ea73cc395ad6daf79331fbf9"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/l10n/app_pt.arb",
+      "sha256": "6c1a1139383665700443405916cab6542a5b566756c7f29243ff0a5dfce62866"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/main.dart",
+      "sha256": "97909356e9c2719cb495a46a3024a6de3a1796d43b33dd5cb35bb4cbcb70ae53"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/dashboard_page.dart",
+      "sha256": "52e97b623e12ce6e071f40fa8ce5c052a6193a13936cecb5a888190e6569c720"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/home_page.dart",
+      "sha256": "af75bbf8f9567ed05c177fc36f7c17fb7f080327b85ede386726e076858d3f9f"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/login_page.dart",
+      "sha256": "76ad5daa85ea02f78169f55a51d82d889a9494c188167209f437739354a9918f"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/provider_details_page.dart",
+      "sha256": "b2f12ca64ab2a40e7a48d704d4f1261748d5782bdf7291afbd3f18f75e7d38a3"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/provider_settings_page.dart",
+      "sha256": "aad52a4f82c5781d66284d804a398d54abd1e61969daade16f8b6d4070d83e48"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/providers_list_page.dart",
+      "sha256": "7c21295183e0f34314bdd5cc56802c104eb8fe68232c2304fc057a13e4e3b9ba"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/app_config_tab.dart",
+      "sha256": "8455f6e279c479e88cda6490d6b2ad21e8df5f10ff7f82ea58a2f8a7c21508a6"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/backup_tab.dart",
+      "sha256": "c32059b638e2b74c25594eec4a8f02a7e75dcdd125acaaf3e3b6cdcae541b219"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/banners_tab.dart",
+      "sha256": "1a62d6dc46564eea28c437bdd4b7ce686f27c8e05751c73ae983d48f8ba2b7e1"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/dashboard_builder_tab.dart",
+      "sha256": "68b24ca2894e65a94200484699323ab50db4fbb5aed8afdc88e63b004cac8e10"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/faq_tab.dart",
+      "sha256": "40d600d840cebf435982978685b9833cf514a72072a2a389443e0784620f16e9"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/menus_tab.dart",
+      "sha256": "91bd01a2933c8f1f8bc63309e1399e018f7e178f6856c5f3113900705324b89f"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/notifications_tab.dart",
+      "sha256": "81eaf20dc1f7221af4d25625529d4a6fb0f33323dea742a0525495bd9b867583"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/other_tab.dart",
+      "sha256": "134c334c681d3fd12c642b6cb27701981f70e6dc3a57061b880e9dfbaf74985f"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/promotions_tab.dart",
+      "sha256": "b9cab7fb9afdf5739e8e30977336e1d368e80b986950c2fdeda4ca19a666200a"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/social_tab.dart",
+      "sha256": "67077602e151ab667b6a4aac6eca3da538e36e9d24f835b8a5225a113c4b6946"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/support_tab.dart",
+      "sha256": "91b97b7a8bd117edfe9c2a857190f1a376575933e79e53f46c36c16e4aa35876"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/terms_tab.dart",
+      "sha256": "2bc9eef162d6daad7d14784b27581b3cb061d9b61d789479fe2e195974ac98b7"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/texts_tab.dart",
+      "sha256": "704b343d27ae564b43b67291001baf3119e51b7357957061549923efd23f0c0f"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/providers/tabs/tips_tab.dart",
+      "sha256": "a7d8ee6294bb720013943c348437c9ee6490a6f0cfc8d185e2fc93b63b3a10b6"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/tickets/ticket_details_page.dart",
+      "sha256": "cd35ce5c567dd5058221de8a93328d50c8cfc05692b3f046bfbb408144753fef"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/tickets/tickets_list_page.dart",
+      "sha256": "ee0381ace971c57efe1420ac915a5fccb22f28a939cfc5a8e4d4f57e357d27e1"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/pages/users/users_list_page.dart",
+      "sha256": "52c22b38b42da9cce5a77d569620f798cbeccc205e3072c611a552f80caa519f"
+    },
+    {
+      "path": "app-flutter/admin_app/lib/widgets/stat_card.dart",
+      "sha256": "a21762587d500418fe5b2fd50510ea7a404fde0710402b9f9d3e959b0de91005"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/.gitignore",
+      "sha256": "5ded4f1a9d10d34bf6ee5beb0711d88ee2ef07b0f07ace9ed77935a246e8eb82"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/CMakeLists.txt",
+      "sha256": "c7ec87d50536fcc21017a2f14ae4106b7831a252dcf68ee1ba664ad782f19adb"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/flutter/CMakeLists.txt",
+      "sha256": "d81f7a4ac51a5ec752e446d61dba7d88cd7787529a890ee1851707c26707a6e8"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/flutter/generated_plugin_registrant.cc",
+      "sha256": "7861b227b10a10cc1d7643f82a246b7db35b503f2d9ff1d3c906136e6c260dce"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/flutter/generated_plugin_registrant.h",
+      "sha256": "00f93bb5b1faefdede8f6065df327522900fb0b8efee86bacf424fd947ed14bb"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/flutter/generated_plugins.cmake",
+      "sha256": "d5aaa52ef8594d3128b35b6619c6a353e1be5f3c5a63a9c29c0a32b424e91952"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/runner/CMakeLists.txt",
+      "sha256": "8cdcfd911e770fd7d511c97c7bce6559486a815352a47c953f7ef632e236d2cc"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/runner/main.cc",
+      "sha256": "ea23f7cdf74091d63bba29ef60486370b766157b848f0cfe62bd8b1c1695a0c1"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/runner/my_application.cc",
+      "sha256": "4e5964735325440c4191868e40609e5692b58f8da0a78871109156cdcc8bc3e7"
+    },
+    {
+      "path": "app-flutter/admin_app/linux/runner/my_application.h",
+      "sha256": "a4218d7ac0db8a9a6716daf216b2d4fc6bdc7ac647e3183078b2c962ebdfcf70"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/.gitignore",
+      "sha256": "ffec1a0bbd70547186b82ad4e49089bafab2de309b89de97c776d70debb179fa"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Flutter/Flutter-Debug.xcconfig",
+      "sha256": "62290ad8e938bf410206d8c7e131262696b58a6df110d39faf3399396ffe61b1"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Flutter/Flutter-Release.xcconfig",
+      "sha256": "62290ad8e938bf410206d8c7e131262696b58a6df110d39faf3399396ffe61b1"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Flutter/GeneratedPluginRegistrant.swift",
+      "sha256": "0f23565d4259ef0fdbbf3b5b4e61825ec6c1732cebd529bd5c3ad27d834a6236"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner.xcodeproj/project.pbxproj",
+      "sha256": "e0f786fca53db47f13bbbf383c54c52e0e1577c41829e318085a0e81e8dfbcf6"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme",
+      "sha256": "dae95d85204618a5cd2cdc80b64cd1b273d5236c435558e99d30faaf2293229f"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner.xcworkspace/contents.xcworkspacedata",
+      "sha256": "46c3c9702ff7c5584e11c954d943cfb6e07fb26e3fbd072ddbc0f388aa352de1"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/AppDelegate.swift",
+      "sha256": "ce9dbe45a57c59e85519da50a26c471615b9c8cdd85a8f4a39d2e480e62a4af4"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sha256": "bc6ba8105ca69651aeeb77358851590de295dca04681a1d58c0f449641c242f3"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png",
+      "sha256": "6232e5815af17e25e0268b2fec7aea9e068cc92ec709e9605c2b31df4ff2a313"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png",
+      "sha256": "15591f03f31313af6fd644ed0512106cc04365130b8b73244f1cfa6dddfb4400"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png",
+      "sha256": "cc6928b5adfc00dbf526192e2705dd9af641cdf20ab4c6c7ca7cd4936dca59f0"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png",
+      "sha256": "416efd77cde932d42ef34168da24dd428a495b1f4f34bbbd125a18d2add186a2"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png",
+      "sha256": "ae8c4458e41f1e28b1e851ed87d3268d4a0351ceea427fa2a84cc94ddfb6d4c5"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png",
+      "sha256": "0a91c6c1bf242e54ee179e34629e9ef3e8a6d286c0fce01e302280a8be9277e6"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png",
+      "sha256": "6ad229623498e5f1277800db3ab7cb11faf85eb2569e1213f7d8e55003c07b42"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Base.lproj/MainMenu.xib",
+      "sha256": "be9e9ef8469d3262370e0f0b855ed163cbf9c8362c59e330b2ffe63b86fa42f4"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Configs/AppInfo.xcconfig",
+      "sha256": "d2ea0555154b5ea4b65d5da9c5ee9d69e217d4df69c28f65cf5ba5c1a867783c"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Configs/Debug.xcconfig",
+      "sha256": "8067d533ef6593760baad9a9855a786a7a77470fcc3f0925ec04fe43bc1ac4b0"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Configs/Release.xcconfig",
+      "sha256": "7a6a4b4d973a23052fa0a0388dd261e32d311d7b66ba1bfc3b914b361808ac61"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Configs/Warnings.xcconfig",
+      "sha256": "0e341a392b16ad302d12890aa3dac9257a6c10ece685437604259a85341645a3"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/DebugProfile.entitlements",
+      "sha256": "ebaab2b9992173de422c33e1fbab7f6e31acaa2213956097ac8cefd894a91ac8"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Info.plist",
+      "sha256": "f253e89c512b3a9a81bc5cdd7a14bf932470f835f261654a808ea4549cd94aad"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/MainFlutterWindow.swift",
+      "sha256": "65c9613c11bcedfa51416b16c975d8ba6ff12b405fc19d60db8755d92e86d9fe"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/Runner/Release.entitlements",
+      "sha256": "b746c74b201e6af4e0864fbd1f4f629f96156a7ec4b7208bc995d0a5089bb592"
+    },
+    {
+      "path": "app-flutter/admin_app/macos/RunnerTests/RunnerTests.swift",
+      "sha256": "6bc180bc77c7def7a21d197233e25dff42cc493ab9d294632edafc18fdf0ac44"
+    },
+    {
+      "path": "app-flutter/admin_app/pubspec.lock",
+      "sha256": "ebd64e4f8ce84a6eec17cc1d4f154b9607e49167217d122f71f59b59355f9c1b"
+    },
+    {
+      "path": "app-flutter/admin_app/pubspec.yaml",
+      "sha256": "6927a40b1ae51bd2c03ca0ce6eb6e16fe31df6544603e6ccb345adbd1a5a58e5"
+    },
+    {
+      "path": "app-flutter/admin_app/test/unit/provider_model_test.dart",
+      "sha256": "0087c5b2ead35c9253c43b7d252d741993af1ea7b931848b03e2b9a207b92183"
+    },
+    {
+      "path": "app-flutter/admin_app/test/widget/login_page_test.dart",
+      "sha256": "729dcd1a7a3563989ae1bf203664c1663772622a7a2744e025376ff6966fb82d"
+    },
+    {
+      "path": "app-flutter/admin_app/test/widget_test.dart",
+      "sha256": "a071b133fab476512c0a8b43a1977ef13e3e5d8cc2d4d993ba534cfd9559f936"
+    },
+    {
+      "path": "app-flutter/admin_app/web/favicon.png",
+      "sha256": "7ab2525f4b86b65d3e4c70358a17e5a1aaf6f437f99cbcc046dad73d59bb9015"
+    },
+    {
+      "path": "app-flutter/admin_app/web/icons/Icon-192.png",
+      "sha256": "3dce99077602f70421c1c6b2a240bc9b83d64d86681d45f2154143310c980be3"
+    },
+    {
+      "path": "app-flutter/admin_app/web/icons/Icon-512.png",
+      "sha256": "baccb205ae45f0b421be1657259b4943ac40c95094ab877f3bcbe12cd544dcbe"
+    },
+    {
+      "path": "app-flutter/admin_app/web/icons/Icon-maskable-192.png",
+      "sha256": "d2c842e22a9f4ec9d996b23373a905c88d9a203b220c5c151885ad621f974b5c"
+    },
+    {
+      "path": "app-flutter/admin_app/web/icons/Icon-maskable-512.png",
+      "sha256": "6aee06cdcab6b2aef74b1734c4778f4421d2da100b0ff9e52b21b55240202929"
+    },
+    {
+      "path": "app-flutter/admin_app/web/index.html",
+      "sha256": "cf10f116668bc3315071d7a83bbc62c555430866b361c3d4a1592fd382ad84fb"
+    },
+    {
+      "path": "app-flutter/admin_app/web/manifest.json",
+      "sha256": "023573ac9c6dc0e7a729da86226e5cd162b8bc059063995a90478e9d0b2599cb"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/.gitignore",
+      "sha256": "96345475f1a3c66bd32d28178fba151ab1506b35b1f7857b8f7651863093ea11"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/CMakeLists.txt",
+      "sha256": "1c995a4c74bc20f2a615730eeb42670b9660ff73bf39ef14600645674e1271b3"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/flutter/CMakeLists.txt",
+      "sha256": "4307a33ed0057bf81da9ddf08262f88f9d544dd2ef9f54d73a14c4f4cd8cc5a3"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/flutter/generated_plugin_registrant.cc",
+      "sha256": "90b2f0d41e03b12c20083a05499cab97b75b93efe08940ec9168ee494065c06a"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/flutter/generated_plugin_registrant.h",
+      "sha256": "dbc11635d7b1ba1887adf40df5b83d634e9c3ab0bee34510c71528bb4d73602a"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/flutter/generated_plugins.cmake",
+      "sha256": "e5af1cee7d2492bd22f8c2b8a1b3989d615dcec484235556cc183937693d377e"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/CMakeLists.txt",
+      "sha256": "34119ec122e36940235ef4bc245fcfb43b6960ed443e28af1a8d833a81209b9e"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/Runner.rc",
+      "sha256": "2e0dd06cdaf980f8b76d254467282821458867e5825fd35cb76021db1664f55e"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/flutter_window.cpp",
+      "sha256": "dd185884c0b5301d400b58f12ebb36b1c8b326531597e531b40e44a6eeb0e943"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/flutter_window.h",
+      "sha256": "38e0fcd3a0b83895852ec295cb70d90179c0dcd40d58f065eb5232a4ecd84898"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/main.cpp",
+      "sha256": "3eac9a5a1469825d9425299557db6a4d9651f73ecd2e9685926f9a936dd5e572"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/resource.h",
+      "sha256": "1fa98588b04561590ba1cf0521ab86a9db4a878312f21c9d5861d965ddd8d1ae"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/resources/app_icon.ico",
+      "sha256": "c098d3fc85cacff98b8e69811b48e9f0d852fcee278132d794411d978869cbf8"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/runner.exe.manifest",
+      "sha256": "825d243e9fa1542619909c1b72d09b3ed7c1f3b225bb8367c125835e5dc3f8aa"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/utils.cpp",
+      "sha256": "dc2ee94d43116f959a4abd42557f71d07acc631abbffe03b11489dbeed35bedb"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/utils.h",
+      "sha256": "95a7f7dddb832997cefa937a96f89472332277e75734a5de553610760b744b03"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/win32_window.cpp",
+      "sha256": "9065f31ccf746cf8b390121f958f9e959033af864aed779597066625ed56bc36"
+    },
+    {
+      "path": "app-flutter/admin_app/windows/runner/win32_window.h",
+      "sha256": "7dd03746b19dcf3542829b2f6e8ed40a2714ce5f2cb3b0e23f0118a2fcf62d62"
+    },
+    {
+      "path": "app-flutter/unified/.gitignore",
+      "sha256": "f483baf491cd16f961f613a7b83dc6290cf5e3438fcbd546dce497c6800eff93"
+    },
+    {
+      "path": "app-flutter/unified/.metadata",
+      "sha256": "ac3b0021b378d9d2c06dacb1c3ef89553ba032aca995f72b970d09ad99e85833"
+    },
+    {
+      "path": "app-flutter/unified/README.md",
+      "sha256": "187da46895f28b792733461ba9da07d6d160c21517ad4e7e3d6c18bfbb7603fd"
+    },
+    {
+      "path": "app-flutter/unified/analysis_options.yaml",
+      "sha256": "e0ea485cfdbc3e12b93efb8679a5ea73ebfe20ea4ca0c473dc594fc2fb274ed5"
+    },
+    {
+      "path": "app-flutter/unified/android/.gitignore",
+      "sha256": "9b5d9b8044bf2322229102a9a1c7cb2402ff1a3b23eb09f7ef0209ce24e86c86"
+    },
+    {
+      "path": "app-flutter/unified/android/app/build.gradle",
+      "sha256": "3c185f58f14d7973440730bbab747b86040abf418f9f17ca60b4e7bb34ea0c95"
+    },
+    {
+      "path": "app-flutter/unified/android/app/google-services.json",
+      "sha256": "a2336671517b315d812acb952b3239a9c223aa0d5069538ae0eaa3dfbc8c8246"
+    },
+    {
+      "path": "app-flutter/unified/android/app/proguard-rules.pro",
+      "sha256": "74cde8abe65534a7b5f1a2ff16e363b695260a8070f30e380a16cb1affb970a7"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/debug/AndroidManifest.xml",
+      "sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/AndroidManifest.xml",
+      "sha256": "85612ea7a72518a937fae414ecf9a5c76408874a13ea0948b1d4adc02faaef94"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/kotlin/com/example/unified/ConnectionWidgetProvider.kt",
+      "sha256": "415fac8bc2db061c6bbde3695ec5cc18bf98cad225643dd016735a3eb0896bc3"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/kotlin/com/example/unified/MainActivity.kt",
+      "sha256": "f9c28030e5ba1a9442427e3265fb637871b8940e8ee04a20a89500d486cebd70"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-hdpi/android12splash.png",
+      "sha256": "13f3174c5e56aa0cabe27526626c51e50c1243599782b2f455af0cd8ad46992a"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-hdpi/splash.png",
+      "sha256": "13f3174c5e56aa0cabe27526626c51e50c1243599782b2f455af0cd8ad46992a"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-mdpi/android12splash.png",
+      "sha256": "7f8033cea637f5b5d904ec44486ae8dcf58005a63118425e1cb58e4e5bb816a2"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-mdpi/splash.png",
+      "sha256": "7f8033cea637f5b5d904ec44486ae8dcf58005a63118425e1cb58e4e5bb816a2"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-night-hdpi/android12splash.png",
+      "sha256": "13f3174c5e56aa0cabe27526626c51e50c1243599782b2f455af0cd8ad46992a"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-night-mdpi/android12splash.png",
+      "sha256": "7f8033cea637f5b5d904ec44486ae8dcf58005a63118425e1cb58e4e5bb816a2"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-night-xhdpi/android12splash.png",
+      "sha256": "c6af16a8dc733bcf1200a9e0fde8ad293fbca9aa552b16f8ca440b3b76da4daf"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-night-xxhdpi/android12splash.png",
+      "sha256": "4f67ebbce0245dc8b0ccf39c5d78256bcce5224ab84d7dcf4f599b7c84cc3ae2"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-night-xxxhdpi/android12splash.png",
+      "sha256": "5b92576d3786da92ee17990917c92e83600d76ddb7966fb77e8a2c59655d9d8c"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-v21/background.png",
+      "sha256": "0d09077c23b4951543939a82dd683361c042e1291722975b5abf94388bfe15c5"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-v21/launch_background.xml",
+      "sha256": "42b8d099f0a6d79e90a67949d7a655c09458c734aa1bd8c4d7c73a79b28397ea"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-xhdpi/android12splash.png",
+      "sha256": "c6af16a8dc733bcf1200a9e0fde8ad293fbca9aa552b16f8ca440b3b76da4daf"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-xhdpi/splash.png",
+      "sha256": "c6af16a8dc733bcf1200a9e0fde8ad293fbca9aa552b16f8ca440b3b76da4daf"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-xxhdpi/android12splash.png",
+      "sha256": "4f67ebbce0245dc8b0ccf39c5d78256bcce5224ab84d7dcf4f599b7c84cc3ae2"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-xxhdpi/splash.png",
+      "sha256": "4f67ebbce0245dc8b0ccf39c5d78256bcce5224ab84d7dcf4f599b7c84cc3ae2"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-xxxhdpi/android12splash.png",
+      "sha256": "5b92576d3786da92ee17990917c92e83600d76ddb7966fb77e8a2c59655d9d8c"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable-xxxhdpi/splash.png",
+      "sha256": "5b92576d3786da92ee17990917c92e83600d76ddb7966fb77e8a2c59655d9d8c"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable/background.png",
+      "sha256": "0d09077c23b4951543939a82dd683361c042e1291722975b5abf94388bfe15c5"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable/launch_background.xml",
+      "sha256": "42b8d099f0a6d79e90a67949d7a655c09458c734aa1bd8c4d7c73a79b28397ea"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/drawable/widget_background.xml",
+      "sha256": "9538cecb03120c2fa8597cfe0e4fe126c73b1ea1e976a313c19007ef4f3586aa"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/layout/connection_widget.xml",
+      "sha256": "9e44d11055f8007f9b4d17918eabcc7b3d82d02946f96a165e00d73225096cda"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "sha256": "6e4d70d29b88cafc99089bc8721866d65c04537698cfa3237d4a609028378acf"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "sha256": "aef3dde59088d9ac8dd0ddf5b356f3b5f931d1f86ee1039d4f2636dc79759542"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "sha256": "3c04584c1fb671f9495919c5a283b1cb005df46c2d24ba00933303884e577f17"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "sha256": "43003549a037111707e1bd9ac2299df788c3baa3a5b259fd799339da6fb98dee"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "sha256": "35641cd22611386ce3b42c1e9055832b978596ac9d7560d1508ac4a0d76014d6"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/values-night-v31/styles.xml",
+      "sha256": "27a7026c9d14f64b433434cfc0464def30124c6785cb7ec62ebaa87279b6f424"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/values-night/styles.xml",
+      "sha256": "11ed372ab62bc04bb47e678f9ec10a55849a9e1378ba4443b4d65baed96ad0af"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/values-v31/styles.xml",
+      "sha256": "886b817625834b5c80d2952168d10c38c1ab271189277bf0d0700e29b397003b"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/values/styles.xml",
+      "sha256": "445e293aee32abfc4d93ca8f7c1979492b26d2de7b38314a9f08776c5813d98d"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/main/res/xml/connection_widget_info.xml",
+      "sha256": "40fc54bdec242f7cf7a3f9ace46804c266b1ffbf0b79573a73194a313834f55b"
+    },
+    {
+      "path": "app-flutter/unified/android/app/src/profile/AndroidManifest.xml",
+      "sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b"
+    },
+    {
+      "path": "app-flutter/unified/android/build.gradle",
+      "sha256": "37bb5e2370be94561043add48ffcc5a939b438f226fc0666a6a1e6a826794d1a"
+    },
+    {
+      "path": "app-flutter/unified/android/gradle.properties",
+      "sha256": "753d801bcb85718afd01dba9585053499a029dfcbf7ca56de15d302f4d140dcc"
+    },
+    {
+      "path": "app-flutter/unified/android/gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "adfec9a4aa8571d468eff9e0e5e4218eefdd6a7870e9f3774eef865641d78ec3"
+    },
+    {
+      "path": "app-flutter/unified/android/settings.gradle",
+      "sha256": "e8e04f317e03d9af1c567675c36f741bde68d77a65ada15d5c5f9e9ef6bfec0e"
+    },
+    {
+      "path": "app-flutter/unified/assets/banners/banner_combo.png",
+      "sha256": "30df69084eebec9d328d9df3d7f4eb11a058f8e35783cb954b05ac6e639c5bb0"
+    },
+    {
+      "path": "app-flutter/unified/assets/banners/banner_indique.png",
+      "sha256": "c535bcf0aa9d60325fb069675949a98c9cde9734c9aed1ef283dc395bb6651e3"
+    },
+    {
+      "path": "app-flutter/unified/assets/banners/banner_upgrade.png",
+      "sha256": "73a66f98e4bc179b2e371ddb46279a772419240434a4fe7f399a9312da14f41a"
+    },
+    {
+      "path": "app-flutter/unified/assets/images/ajust.png",
+      "sha256": "1c818192ec322a3e7cc37893ad448b5c7ba6e9627e56fb07a0f520bc73840de3"
+    },
+    {
+      "path": "app-flutter/unified/flutter_launcher_icons.yaml",
+      "sha256": "cfb33ca5b88489334bd5d2f5825dc4014959ee42dbcc2bf04eea4c1a3340d37e"
+    },
+    {
+      "path": "app-flutter/unified/flutter_native_splash.yaml",
+      "sha256": "5a6a8c3050f441adaeebbc65045ff64885924f7b216a522a80724c3751bccd95"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/controllers/wifi_management_controller.dart",
+      "sha256": "2ddec37428ead909612670320d31c258f743695bec022c0c7aa0ecc89a662f92"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/design_system.dart",
+      "sha256": "fe55edf2bd37eb24920b9d1db7d0eb13bbcc33674d7725663b03e8eac6b1a540"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/achievement.dart",
+      "sha256": "3639ca85c9a18d4824361596c439169bdcd1759fd1a41a29c2976b291b9b2e09"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/diagnostic_enums.dart",
+      "sha256": "56105f034bf1d696d9ab93427aa94fc9cf61243f26ba512f2b5afac6497644a7"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/diagnostic_report.dart",
+      "sha256": "528709a3566261614e80690e3a242d9c62c85345c9dd53910c89556ef0e91a7b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/diagnostico_state.dart",
+      "sha256": "782a048548b95eed1a25337a9dc38e150cfd4b773b059d3947c45309893249e1"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/fatura.dart",
+      "sha256": "ddf0f4529c2d61b77c14be8ca021c70eb6e3352ab826a09f32941ed98b41080d"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/in_app_notification.dart",
+      "sha256": "dcf4ea7dfe4cb8abd9652aa080ce9bc29d53d7af442d5b5df5dcec03ce9b440b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/layout_registry.dart",
+      "sha256": "a546482d92b0f94dd047b03c53849c5167dc4a9e04f908a929233a20aa25c818"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/network_health_score.dart",
+      "sha256": "5e9b81db556caa35f9adaf7556f25881e7aaf4ce2bead5a4af119e4b33831052"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/provider_config.dart",
+      "sha256": "b44d3706298395d97402f3c2de97469e7413892c27211a90615a216d64648a1a"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/provider_config_normalizer.dart",
+      "sha256": "e70c97272fe03d86763285909b6986f82d0833b73812038dbc67449064132c20"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/test_history.dart",
+      "sha256": "f8d9d3055ca3dbd6f6cb0f7092cb915666bab732ac5e1ceb94f8c462de80e4a0"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/test_mode.dart",
+      "sha256": "6b9680c63b5088cd3ed7ebaec9c1f4b4a261a3a564ba5fd3cc56e3cbc6932ebe"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/theme_config.dart",
+      "sha256": "ade46236596b772918dfb33df0dada6f1136a5cfd4eff8692d332962ba972fc0"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/models/usuario.dart",
+      "sha256": "9c178106d6a3e5d4eed80bb3de19eeb527461123e05647b59f6e718cbf323ff2"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/notifiers/auth_notifier.dart",
+      "sha256": "e77520ee1d9aa8eb457f28d2ca4a3a42fd9e81db7e337d199b414b16753a7e5c"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/achievements_page.dart",
+      "sha256": "b0a2c5b4369fda6f93c5347b761f268fa89357090d6dacd378404f53fa54bcc5"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/diagnostic_02_page.dart",
+      "sha256": "4f84a22c08327a1ad0b121cefee364d2114d4f32226c1e210562fedbc6c86c14"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/diagnostic_03_page.dart",
+      "sha256": "c60254cef9d84425d974dbea03b6c8ea43b3a9f6add83ba29ccf111950515ec8"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/diagnostic_05_page.dart",
+      "sha256": "5f4e646d04dcaef4bb1b1a13507da491db472b632e809d1870fe915321113a75"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/diagnostic_06_page.dart",
+      "sha256": "773abd2ebc5d57458201ed435ecc5e13eb12c6e9cc0110517eb11a9e5c91dea0"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/diagnostic_07_page.dart",
+      "sha256": "f64fb8cf10cd322c438e247f16b107f78bd7352c7b2fb3826eb5252e66a5eda4"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_02_models.dart",
+      "sha256": "f85c17034522495aa366279d26c4ff54aed6cb04430ac66a734c19eb62ea34f1"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_02_screen.dart",
+      "sha256": "2eb5a85358396732ad4d9ae87b5a8cf4b895cf51ba9ab30d2ae79dcc93bba338"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_03_models.dart",
+      "sha256": "4ef26847c3536555589fc462b790eadedbd1f1db2963702cd05e5975ef0a8411"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_03_widgets.dart",
+      "sha256": "99ed5c09349216251f48b87eef49805dac9348f0087684a4ff44d4058e5f5bb8"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_05_models.dart",
+      "sha256": "05d8dbf4fc5275210a4e6dae7dffe43ecd343b7d41f9f6e1021fd8862c5c9c2c"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_05_widgets.dart",
+      "sha256": "d65349647674e236321808b54fd62a0c1676a62b477f8d981efc08c88f44b17b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_06_models.dart",
+      "sha256": "26a87102185a2c990186da908e061add9f15f8fc402cfde7da8697d5fb04723e"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_06_painters.dart",
+      "sha256": "365ca73364d696bfeaab5f10f0f1ca284470efa0d01236df89e5c79bf6cda623"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_07_models.dart",
+      "sha256": "1fd4dd5b0714cde446ea6db5b4601380c3ce299a0d800cccda4a5a179dec51d7"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/diagnostics/parts/diagnostic_07_widgets.dart",
+      "sha256": "263d1c19a1cc2a615577531060c47fbb849bef25d81c0a9788f470f473dee764"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/onboarding_page.dart",
+      "sha256": "0cef7802debaa287ad15d5c8776a958dcea82fa20093c3d0767d3ea6103d008d"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_consumo_page.dart",
+      "sha256": "062e46d7f2bf31d9165f132242b2623ef76e89132bc92fba3de66e2d7536eb98"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_contrato_page.dart",
+      "sha256": "74770d5c726bd595fab39299f6fe728ff7fe887b24ef4e5e2bc48aa437f13006"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_diagnostico_page.dart",
+      "sha256": "99b02870d056231785a428b63e0f80c72ea5ebd48f091cecf6c801462002c8b4"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_faq_page.dart",
+      "sha256": "81c3c7fbf2ec8875e2b9ae50a8f50c2b3656ecefee1447cbfbfc91e1365f7dc0"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_financeiro_page.dart",
+      "sha256": "912564e958b71cbbecf82ab6cb524c8f65514b8e2a0ad705d3626264bba944c3"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_meu_ip_page.dart",
+      "sha256": "da81074858322879039be12a3d898f918bf818237b9d1a007b417a9d22e1fe90"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_notification_page.dart",
+      "sha256": "f83acd4271262d3204411c68073f9f014676ab9881d351f7da0f21e7440a6a0b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_speed_test_page.dart",
+      "sha256": "77d02c9eb13376cc8e38ca3d8c3947d60cb79c70efc8722b9c4f778e9f0a2fce"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_suporte_page.dart",
+      "sha256": "4295c3e114a159a4b9cb54b47dd6d884096778c892d526969300a99ace40f639"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/shared_traceroute_page.dart",
+      "sha256": "15e2b6fa4f6cb81e6d7eb849bfd0ecd093bc2f7f22d1bd9bbeae0dd3ecced9ef"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/test_history_page.dart",
+      "sha256": "8e831999f65921ae1df15e08ad7806b693e4b1ef344f2052240f92e190e08083"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/pages/unified_login_page.dart",
+      "sha256": "c9f8f8c7374ab81069e77bcce2ab39ccc0aa9288bd4101a9f263b7036046e101"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/painel_page.dart",
+      "sha256": "223549edd2d239ec04013656ecd05af699fef5e1596749ea8e1ff8c6f7c4ad39"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/configuration_provider.dart",
+      "sha256": "1a67488ac07db4b2ac2074716c7c4d30817232d0f1cb96a05910e2b4bb64e9e6"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/connectivity_provider.dart",
+      "sha256": "8adceb94ded91b8b4832f1aa4efb6e21fb6bba34067383999ee2441b8c6b7d41"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/consumo_provider.dart",
+      "sha256": "64f8048954405e6db1d533c9456ad7153b060e22206c713e86ea365e53895f79"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/financeiro_provider.dart",
+      "sha256": "b37cfb103bbcee64af8fc6bd20c76976d1ead29ff22bed43bbe8fc33123bf90b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/network_state_provider.dart",
+      "sha256": "8b8ce2b014c1a7616eaf212293d9585e3014e4b9aa24ad96335949081364548a"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/providers.dart",
+      "sha256": "4e984dfb201ee332810b130dc673853f75d3ffd3e0b8d5dc7df8cc59c5202df6"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/theme_provider.dart",
+      "sha256": "9d5d0c26eb37eb082e13e65de5673b775153e819c302b6e74084d8ff8e549e18"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/providers/weekly_usage_provider.dart",
+      "sha256": "c1408c92886c893ffec2868870b1d1707b8358ae42c7621da9c86dd8aee1161e"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/repositories/auth_repository.dart",
+      "sha256": "8881a23beab69989852d064f9a2dfca1f354f18cd649074dea499359e4572388"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/achievement_service.dart",
+      "sha256": "5ecdd5003c3c57d048915d58db606a523df6d6199e22bff7b3c6e2e373f6b32f"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/analytics_service.dart",
+      "sha256": "d95b36c74c9a5f686b8fcfcfffe928b8bf6c70656d9c4499c1874bb839c80ad1"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/auto_dark_mode_service.dart",
+      "sha256": "3bcd5723de67f12180cbd6b3fd24452a4a61590bb25ee17c25630abcf1e4482f"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/cache_service.dart",
+      "sha256": "655deb2e18c5a9193e41fd56a02aa569f7e478ff8f6548d088b3aa2d2b52fdc1"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/consumo_service.dart",
+      "sha256": "1646c0df94c9de5b3b18f387e938a2614a8d3557f99d7aeec647cbcadbae50fa"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/deep_link_service.dart",
+      "sha256": "8b5af584088744d86189656c241604c740ea7412b10a1c10a9479da7c0b011f7"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/diagnostic_integration_helper.dart",
+      "sha256": "cd1ce96a4ebbacf7330a242a6594a9b08b57bfc534da31d0a792e75b29399ebd"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/diagnostic_report_service.dart",
+      "sha256": "f21931d4c1ddbc7e8a336dbd878f0557db3204cbabbf09dc6cebe0bdffc5bdea"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/diagnostic_verdict.dart",
+      "sha256": "7fb11437031ee7586d8708c2bcb7c8fb65ccd357dadc66e46cdb8168d6a1c16d"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/diagnostico_service.dart",
+      "sha256": "e2d371d15f8d1d15ecb2f00dcd9cc5342352e723cdf7c0c086951c702121e5d2"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/financeiro_service.dart",
+      "sha256": "8c04a83b1efe583ae4d99d5a81b9ffa609d71e9dfcab9dc6320d02e9da0cfaa4"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/incident_service.dart",
+      "sha256": "92b74a0c1387a331563714553a5317a78a4c2118d7375fbdc477a4f69f187089"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/meu_ip_service.dart",
+      "sha256": "fb08fdc60acf514e9894d128dfd19cd386bbfe114c300a6371522c2599c94a4c"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/notification_service.dart",
+      "sha256": "1383f5af8669b786b506171921b39928cc7bdbb21c95cd710854646a906bc698"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/onu_wifi_service.dart",
+      "sha256": "5137ad184994ce237b0ffe28a6de1662ee3f9f617769a5ba4128a65482d06b08"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/push_notification_service.dart",
+      "sha256": "585a35086350409e89c7f002c2801b0eb4071c96b05572d92623176000a5df0a"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/review_service.dart",
+      "sha256": "8955944220c5683fab357758ac36d2a99b3c1a96c7eb2df92a2b28772db21291"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/speed_test_history_service.dart",
+      "sha256": "992c81402a567d61118e78d7c58178f5a466f7b3554a5461773caedcffd88c79"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/suporte_service.dart",
+      "sha256": "7300160cc8b1a34553dfbfd01f79a54f163b9441c5adffe8c4cdaacced459b80"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/test_history_service.dart",
+      "sha256": "fc60eddca5fad908e42f25f93bcb800dcd08dba544ec9fd8e66080e4f107c2a0"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/services/theme_service.dart",
+      "sha256": "8443c4b8f4a4d825b1dea96d4bff1b5a13f9ba96ffd2c818746addca0e6c925c"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/theme/layout_tokens.dart",
+      "sha256": "1196919a40717c65664a4d1bcc7e0fb56597d02f9f9bee1125ee307a8d167c2f"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/utils/color_utils.dart",
+      "sha256": "2bcaf63293e7ecc5fbb0d20c227ad6b5620cee906cc6f1455077de093e43ab75"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/utils/diagnostic_utils.dart",
+      "sha256": "bc88bd09b989309fcc6c468d7766da8d58e2cf21b8b62fcbe18613f5a007c523"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/utils/page_transitions.dart",
+      "sha256": "1c91c9290a9b1102f71d934564e959822461a46b77766e25e3bb64d7e3e6f4e3"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/utils/pdf_generator_service.dart",
+      "sha256": "8302d27f3b9126a5d25b88d9b3816421e48f2b642ec132cf9f94a6d200db861b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/utils/shared_theme_helper.dart",
+      "sha256": "7cc16dfe2b8ed7668ffd617eb6b42aa69dbccd618c5460e5e81263dcaa5300c1"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/accessibility_widgets.dart",
+      "sha256": "d9ea36f435b0e98385dce0c7e8398be7aebecbf422e8f50d5dbc79e258bba62a"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/animation_widgets.dart",
+      "sha256": "9e17463744ae8a0223863b22902d5bf68b117d72572b951b8fe9258bfeca3f1a"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/app_button.dart",
+      "sha256": "9422ab796d1f1a5f527d109fbe2929ba07ae4938e5b7b3b4a8f4df87a4340035"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/app_colors.dart",
+      "sha256": "12ddb9e79dc4f23194e58a3e69f82b716fceb34a3633760a1f67b71d4737b250"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/comparison_widget.dart",
+      "sha256": "6d64994054e512905ad4965df14a5bb13b983cb983ffe13decbf8aca7a981635"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/dashboard_card.dart",
+      "sha256": "873b9387c2eff77b32fcbe74cdba098db109c2e07809ea600ac09595f42328ec"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostic_report_sheet.dart",
+      "sha256": "830ff51cb4157dec7dd047e07f5ec7f1e7e7489c54158ae1b6ac11637143e1a2"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/diagnostic_data_row.dart",
+      "sha256": "c10ff06cca05184e2c3f7ac99ca6d137b308761f1444b441dde57a5f8ad53c55"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/diagnostic_theme.dart",
+      "sha256": "e6b217df3e70ed1badece5d4eaea16ebd90ca4a9673839a7eca011309bc34148"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/holo_background.dart",
+      "sha256": "1476b5221f096dab8d4fdfe5d2450c295da1e1480ebd532dde92ea31ea65bb1a"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/holo_card.dart",
+      "sha256": "90d30f1bc50e927bb76006c635f52249149fb0d1c72eea14a48bb2fa08066a81"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/live_speed_graph.dart",
+      "sha256": "b13901ab69b02e714a7c81e5b8c43c9f4c3fdee5c0326a152627a4b2ca20937c"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/section_title.dart",
+      "sha256": "d45211b45be4cbdd6a7143134e519a0f62e0b83befba8b13ecf25032502d8e1f"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/stat_card.dart",
+      "sha256": "374cb7ab424e76ba665ff5e5b7f64befdd7da11c84e9803436c87e48e1c58a0a"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/step_progress_bar.dart",
+      "sha256": "f548f43618c2f6537baf83958d19dd361131308456db6e8c83f7046d3cba7d79"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/waiting_box.dart",
+      "sha256": "57abb4c0b76063ae05034e9a5b85e2445f8d54d11d7d9923668ecd2b81c818cc"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/diagnostics/welcome_screen.dart",
+      "sha256": "d4c5fb085e0151fc8358714c9e920f7ab613c86c636578eb238325929b4f2c2b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/empty_state.dart",
+      "sha256": "8a9ce7c6f19fab41bf47cf198b3b2edcabd4cfc73e3fe2375167f66920fae519"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/glass_card.dart",
+      "sha256": "3e8a3a7b3656245985e6335f03d4d76a7366d66bd974f8e4d7bde9ff9df7c07d"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/health_score_widget.dart",
+      "sha256": "b18a34f6b9ba6b420ca5aadb8a1bdeaa125b55bdc7848594c9c9b660489dfd3b"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/offline_banner.dart",
+      "sha256": "7a6f4df4b36176bdf25d6100f2c281c0d0e81f710186947eb8dfbc22003cbd18"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/premium_invoice_card.dart",
+      "sha256": "6813c5acfc4aace1d359d16efea7884cd552ff968da9227229f6a17f1641b140"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/quick_diagnostic_launcher.dart",
+      "sha256": "45727ead171ec061bd8621149939269c179ffb1a52f9326f7b999d707fb2a491"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/rating_prompt_dialog.dart",
+      "sha256": "a11b1356946564279d4e6eecd27b5da0cc551ed9e46f2ba9f258517cccd66199"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/skeleton_loader.dart",
+      "sha256": "291b6fa506b2c54e5d1eea0e0abf0c562a54cd490e31c0f9cc8d077240f8dcba"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/test_mode_selector.dart",
+      "sha256": "6e5ba9a0a7d6fb1c7f0ba232e1008ba5e8b2b339141719c7541cad19e9d2b492"
+    },
+    {
+      "path": "app-flutter/unified/lib/core/widgets/troubleshooter_card.dart",
+      "sha256": "52b98626ceb23a02b831dd55ddb31115cd7a8b3106933882c98f22b7b65ed7b1"
+    },
+    {
+      "path": "app-flutter/unified/lib/firebase_options.dart",
+      "sha256": "e906f81c6a13fad0edc918038c574bb422bfc47f194691430b09d2731777a5c1"
+    },
+    {
+      "path": "app-flutter/unified/lib/layout_selector.dart",
+      "sha256": "ea12b0dc81bdcce2fc3afb3a96830be35c73f65ec27f5e20527dc0573f8b214e"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_02/dashboard_page.dart",
+      "sha256": "ddc3ec7ea565f3248a5f07f37049f272380831919b4a804767ffc0a45dc79b2f"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_02/theme.dart",
+      "sha256": "643f1377a13336d1e4857ff5533b8cfbbc48f17de720135d62f10cc3b9209aa2"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_02/widgets/bottom_nav.dart",
+      "sha256": "489d0025f50d1c538c715d9cbca897629e1d08b3372fe15ef818b6684c9c1c47"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_03/dashboard_page.dart",
+      "sha256": "2b9522b372e1e476b6392a0b1a4faa48267c83d885abddd08046b7afa1e16ebe"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_03/theme.dart",
+      "sha256": "fc1191395d5bcffd445f042104dccd1ab4aab3df54c3b8e27f05cd597fa90eae"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_03/widgets/feature_tile.dart",
+      "sha256": "3e95521079526c3a1c4e398bf23563738e41a77870128efd9a43fe4c1e9309ae"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_03/widgets/neu_button.dart",
+      "sha256": "3f81c93dcaa706cbf2bbd6b28f11b859a8886dda7ac6e0c4b582eda65f9853f0"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_03/widgets/neumorphic_bottom_nav.dart",
+      "sha256": "c488f30e17b3370685b6c8793e45de65225a4affa1db9452b084bd11066ba983"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_03/wifi_page.dart",
+      "sha256": "7d09780378e36ef7c2b5ac70e2c5474a6d1c60a6890dc521abf592a957709446"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/dashboard_page.dart",
+      "sha256": "7121301a5f56ba800661e7bdbc2120b00e550a71a2f30054c5f466f701dd3272"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/pages/speed_test_page.dart",
+      "sha256": "5bb235da7875caf948494c6c6fa88837e08d29e6f5397630790a46d7f6c785a2"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/theme.dart",
+      "sha256": "e9e79ee31f41d5f7f7b9948ed49bd48f3e3514ed81772392fec5f7af6a9d3f81"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/widgets/bottom_nav.dart",
+      "sha256": "8aa922511002cdd6fbc1752cb2df677d252bdb5e8ee4bdcd7c5d358cc39ac4e4"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/widgets/error_widget.dart",
+      "sha256": "c7c1911405b54856f17c0d01775beae30fb9148ad815180d5f358a204e274823"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/widgets/glass_card.dart",
+      "sha256": "1816bfa6d40c9c2c9690a970298abb1da78e0c587c9ade628a1a9fda5b265326"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/widgets/skeleton_dashboard_page.dart",
+      "sha256": "790474d8bea69d7a61fa0e6a89714253ae887c096356c3c279f487ccb622dac0"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_04/widgets/skeleton_financeiro_page.dart",
+      "sha256": "db701b3a7240ebea7aba03b86fb42891c07bc4fed86c5efdd292d8685be3d2e9"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_05/dashboard_page.dart",
+      "sha256": "81b1b095e0a803369420386103adf4021e805f19269a940d85520c5636b68b1a"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_05/pages/speed_test_page.dart",
+      "sha256": "b1ed2d36d15172e49ff4ec140e415adcef446499ecad3b4b6fbbe4a818413ee0"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_05/theme.dart",
+      "sha256": "8765482246563fa312f27008b0744c5e2217511c8b4cc122d2689c7f5be93cb9"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_05/widgets/glass_card.dart",
+      "sha256": "fdc629e6f85d2df8829a8b358a2d3a683927e1a294433c12c8c93ae71f60fe50"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_06/dashboard_page.dart",
+      "sha256": "302691157d5b5aabaeb022c5210e513bba3ffe3ee8c04bd3b641bdf4023dd093"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_06/pages/speed_test_page.dart",
+      "sha256": "b844d61c837b82181f94f44aeb6603d848be81c9c76b286400593adecce9a6ec"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_06/theme.dart",
+      "sha256": "6618a1fd89c6a3adc748fece7c46cd97337f04588e8734eb1fb8503c091f4b34"
+    },
+    {
+      "path": "app-flutter/unified/lib/layouts/layout_06/widgets/glass_card.dart",
+      "sha256": "59e41924271858383682d52bbfb3f259b9bf31f658c40d84f7c4106000ec0513"
+    },
+    {
+      "path": "app-flutter/unified/lib/main.dart",
+      "sha256": "2ab1180cf18bcf295fbcb321fd23ba45c06eae6680a3949bb42c6ad08219f2d1"
+    },
+    {
+      "path": "app-flutter/unified/pubspec.lock",
+      "sha256": "036856ed961789ca91049bfead6d6da9d9e3320d155919c21c98cc015eb1ac50"
+    },
+    {
+      "path": "app-flutter/unified/pubspec.yaml",
+      "sha256": "7df00674123874bf39281772523ab228f5b8fdf89938213e5dd142069f3e321a"
+    },
+    {
+      "path": "app-flutter/unified/test/core/models/provider_config_normalizer_test.dart",
+      "sha256": "93065ef0d3ad5168d86b5d8eb09e6f00650e94be2d161bd7eacfeeb522f14a9a"
+    },
+    {
+      "path": "app-flutter/unified/test/core/repositories/auth_repository_test.dart",
+      "sha256": "9adcc2819591652ae550bacca3b384af8545fc95a1de7df169a881949e275844"
+    },
+    {
+      "path": "app-flutter/unified/test/core/services/diagnostic_verdict_test.dart",
+      "sha256": "5a8a97be7494a360d83e9821d1f745bb88d15cdfccd4181fc08dd61e97510ebb"
+    },
+    {
+      "path": "app-flutter/unified/test/core/services/diagnostico_service_test.dart",
+      "sha256": "b04b7c3750740bb82acc19bd2b12a4dffa5db54bd24acabe9edadeefc5834fdc"
+    },
+    {
+      "path": "app-flutter/unified/test/core/services/diagnostico_service_test.mocks.dart",
+      "sha256": "0c881dc4eef1d56e7e27ad36370726185b6b15be0fb7ce29d54758c1ae3be660"
+    },
+    {
+      "path": "app-flutter/unified/test/core/services/onu_wifi_service_test.dart",
+      "sha256": "ca435a124cbb747bb2ea86ed820f74a31a84096024d31b172612277b7c7ccaba"
+    },
+    {
+      "path": "app-flutter/unified/test/core/services/onu_wifi_service_test.mocks.dart",
+      "sha256": "b18bd7bfa9044215c605d39e76f2446fa44e478836c0dc60bae3146cfad8dd27"
+    },
+    {
+      "path": "app-flutter/unified/test/core/theme/layout_tokens_test.dart",
+      "sha256": "f0df6117562d0ddd6a3ede3c711ceaa625e58db44bd8cf8c84693b395f0f9670"
+    },
+    {
+      "path": "app-flutter/unified/test/widget_test.dart",
+      "sha256": "2f1914c6567cd6a6382510bef2b31e8f0dcc68c865802a76fb5e9f691e1bc113"
+    },
+    {
+      "path": "app-flutter/unified/web/favicon.png",
+      "sha256": "4ccdfbdbde4a5508d8236a201bdfa87a90b77f56010201872b97322d3af195f7"
+    },
+    {
+      "path": "app-flutter/unified/web/icons/Icon-192.png",
+      "sha256": "35641cd22611386ce3b42c1e9055832b978596ac9d7560d1508ac4a0d76014d6"
+    },
+    {
+      "path": "app-flutter/unified/web/icons/Icon-512.png",
+      "sha256": "5f1690d18398a046450e8786c9c312d8d589e45cb5e68b754093d4740e073fea"
+    },
+    {
+      "path": "app-flutter/unified/web/icons/Icon-maskable-192.png",
+      "sha256": "35641cd22611386ce3b42c1e9055832b978596ac9d7560d1508ac4a0d76014d6"
+    },
+    {
+      "path": "app-flutter/unified/web/icons/Icon-maskable-512.png",
+      "sha256": "5f1690d18398a046450e8786c9c312d8d589e45cb5e68b754093d4740e073fea"
+    },
+    {
+      "path": "app-flutter/unified/web/manifest.json",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cors.json",
+      "sha256": "ad15b348e0640dd67da62052600172452cfc00d7da1ce30b971125266c45ad21"
+    },
+    {
+      "path": "docker-compose.yml",
+      "sha256": "0988a7834edee49012373649d6f5c5557420f65b5ae0890d6a7b97a6c91ebd76"
+    },
+    {
+      "path": "docs/API-SGP-completa.txt",
+      "sha256": "68c6dab10e08af2c0b4d48337e2da135e30e12f451aba5da94dabf3b10f1910a"
+    },
+    {
+      "path": "docs/AUDITORIA-2026-07.md",
+      "sha256": "0094093fda10cb4a4c4d523f1a8751561737e65a7c0076f0a58e70e76b73fb7c"
+    },
+    {
+      "path": "docs/DIAGNOSTICO-RELATORIO.md",
+      "sha256": "21853666ef5b0ccf9bb92b764d06a086310b4b304cbb45e5597b7606ba9eb5f9"
+    },
+    {
+      "path": "docs/LAYOUTS.md",
+      "sha256": "1cae77e34cb96e221b2b55c81cad0482cf128701dda4ad11857734119a41ec80"
+    },
+    {
+      "path": "docs/SGP-API.md",
+      "sha256": "c929b3afe4150c3058ff9a2a5be8f7073b512abdfce392066cd93b4ebf23cb56"
+    },
+    {
+      "path": "docs/Unify Admin - standalone.html",
+      "sha256": "c975b27aa1a80e024182a7e81d9fcf467b147af6e088bafe7cdf01bcc8607b08"
+    },
+    {
+      "path": "docs/adr/0001-flutter-monorepo.md",
+      "sha256": "2258ed28a4111eca90339b0d01dfb2a5b21771a66278cb8d4afbf23d39c9c63b"
+    },
+    {
+      "path": "docs/ajust.png",
+      "sha256": "1c818192ec322a3e7cc37893ad448b5c7ba6e9627e56fb07a0f520bc73840de3"
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "0dd865ee8bd22df21ba02f3dc3da079ace4c212d4f6e9017268649b50e50163e"
+    },
+    {
+      "path": "docs/contracts/env-vars.md",
+      "sha256": "96c17cdd821e16d6af9315f2949fd37f362ab5ec82f933e5d1d286cb34e20505"
+    },
+    {
+      "path": "docs/contracts/firestore-schema.md",
+      "sha256": "ea730e1694a9101630948bc342fb292b9bd66b7b19baa8b252cb1986bc7a072c"
+    },
+    {
+      "path": "docs/contracts/function-requests.md",
+      "sha256": "2810c36325e0d5bd9e824f8cdad29cfe868cfc95625d4b724b4669e1c748bae3"
+    },
+    {
+      "path": "docs/contracts/provider-config.md",
+      "sha256": "8eba6b6100a36e24ad969d4c06f7a00397c4351f9763ff7680c6b664688d9e3c"
+    },
+    {
+      "path": "docs/contracts/rest-api.md",
+      "sha256": "cfbcb0ccd25d59a5e88f65a6c0c7a8828499be6ca86b25be75ec7f1d9a81749b"
+    },
+    {
+      "path": "docs/deploy-rollback.md",
+      "sha256": "cdc43ba71b6467a0bc00fb995f0bb57b7b6dc835cf77ce904c3e83ba751117e9"
+    },
+    {
+      "path": "docs/guia_git.md",
+      "sha256": "09e909dd3f79612876f0e6f320db082be5896a34a59040e50aa006463d8c9907"
+    },
+    {
+      "path": "docs/observability-security.md",
+      "sha256": "ff864eacd79d9c194f7bf89ac89fd021cc38d3c4d39844fa21de2091b6aa6402"
+    },
+    {
+      "path": "docs/operations/capacity-report.json",
+      "sha256": "d389b47312d07502504b4e605764d31ad6458753c2c74462fa0e4a6d8c4f30cf"
+    },
+    {
+      "path": "docs/operations/dashboard-performance.md",
+      "sha256": "cd29e3fffd2224d7e774723382fae3a0e3efcaa2a02ff4e201cfb5123c082273"
+    },
+    {
+      "path": "docs/operations/dashboard-timing.json",
+      "sha256": "8f2467a08f7917d1545802b0d6516054875bbeb004cc4c8daf7ef63329ab07b3"
+    },
+    {
+      "path": "docs/operations/deploy-rollback.md",
+      "sha256": "6e8a04ddff4ed67b3f36ae4adb1471a1bf4480204d01826a6cb0e7b955510cbb"
+    },
+    {
+      "path": "docs/operations/login-followup-2026-10-30.json",
+      "sha256": "c1a25e1beb6f3b38be5b66b71f3e64ec641b771032d6435029155585d7e34bc8"
+    },
+    {
+      "path": "docs/operations/observability.md",
+      "sha256": "6f7a876da412d0909c25c29eb1792d432e79c86463c17ab960daf07b149c5e75"
+    },
+    {
+      "path": "docs/operations/scaling-single-host.md",
+      "sha256": "089f5846e05f0c55d884774d90acdec70c7963a82dd49652cbbcc1a4af3f786c"
+    },
+    {
+      "path": "docs/operations/security-rotation.md",
+      "sha256": "5c46b90cbb69b1bd0ed1dc4cdc92d3a3748a068be066e0226b8c876241c1f157"
+    },
+    {
+      "path": "docs/plano-rearquitetura-2026-10-30.md",
+      "sha256": "14bfe58ab7a4955136d85bf93f6851181586b2317498bb89e26263f259006ce9"
+    },
+    {
+      "path": "docs/plano-refatoracao-completa.md",
+      "sha256": "3b4b8a613760bc82d1d1ac2619bb88c01d964021191be73aae08313e0e2608bb"
+    },
+    {
+      "path": "docs/proxy-sgp-strategy.md",
+      "sha256": "50e99226ead19bc892f0209cc301a0026f43968e48dd9ff68509f75abc3d39d8"
+    },
+    {
+      "path": "docs/refactor-baseline-2026-07-10.md",
+      "sha256": "4396cf16611df8f7d055441169a6982f4029f1043de2b5941e3c147a6f24c822"
+    },
+    {
+      "path": "docs/refactor-completion-2026-07-10.md",
+      "sha256": "571853a9fafcd690c901662b40ca7b5f2771147da82e588f457044d0513710d3"
+    },
+    {
+      "path": "firebase.json",
+      "sha256": "6b2fc9d8bd8eec86ed260ce46840bdefd7b558a900b7f870f7165742b3e66181"
+    },
+    {
+      "path": "firestore.indexes.json",
+      "sha256": "fbe12c41234231f194b6e365b6ed1083f335557d7e96d4941477f8ba503fcee7"
+    },
+    {
+      "path": "firestore.rules",
+      "sha256": "226860389a96a65a99c848b428173cc67efe0c7476b0ff736a6764faabfe914e"
+    },
+    {
+      "path": "flutter_analyze.txt",
+      "sha256": "a9d87a440874117f0163aa3624a3870649d2abb591c9f6a601bb78e7f3189017"
+    },
+    {
+      "path": "flutter_launcher_icons.yaml",
+      "sha256": "cfb33ca5b88489334bd5d2f5825dc4014959ee42dbcc2bf04eea4c1a3340d37e"
+    },
+    {
+      "path": "flutter_native_splash.yaml",
+      "sha256": "5a6a8c3050f441adaeebbc65045ff64885924f7b216a522a80724c3751bccd95"
+    },
+    {
+      "path": "functions/.env.example",
+      "sha256": "089c6ec7f4107318ae59e268fad4ca3373d1ce8c11b0ee2041557dfdc3ff615d"
+    },
+    {
+      "path": "functions/.eslintignore",
+      "sha256": "cbdc3544a01ea001ff5be19adaf926aafd18671b997693ee29e1213fc5c16749"
+    },
+    {
+      "path": "functions/.eslintrc.js",
+      "sha256": "e8d0d7f61a35a7a42af8e97251288b5ac7730493d98fdbd8b99bb4fcd1e487ee"
+    },
+    {
+      "path": "functions/jest.config.js",
+      "deleted": true
+    },
+    {
+      "path": "functions/package-lock.json",
+      "sha256": "7a5f6c05e1a898fab3365046a1bfa7e212f6bd52ddba50c8886356f6857085ce"
+    },
+    {
+      "path": "functions/package.json",
+      "sha256": "a05b7861cfd1eb61eba0dbe3f7463686a79774c82d72abbc88c7b3a74cbce284"
+    },
+    {
+      "path": "functions/src/app/audit.ts",
+      "sha256": "fb4c05dd555bf72322f296b527f1aaecfbf9541926d1228484ec3e7314ce86de"
+    },
+    {
+      "path": "functions/src/app/clientPage.ts",
+      "sha256": "a30751fd8ea5ba826d5967f19681266407aa281a0d4ee36e8fa532b49e244286"
+    },
+    {
+      "path": "functions/src/app/config.ts",
+      "sha256": "90ef4462d598e3a853b24945a73339365a1b51b478d53d641f6dcd760b5fc525"
+    },
+    {
+      "path": "functions/src/app/dashboardData.ts",
+      "sha256": "cf6f4ac291d98022846544087fffec8f729a2e1f3f3e60eb6af3a0232d0f9730"
+    },
+    {
+      "path": "functions/src/app/errors.ts",
+      "sha256": "641687bc13ebd187feedc429dd1ea615fadc27d155a39813b8b492ec493c78b8"
+    },
+    {
+      "path": "functions/src/app/firebase.ts",
+      "sha256": "5ecb539d5bc0f4b567b9d327587524f3daefaa24abbe882c95f1914f7b9dd8b2"
+    },
+    {
+      "path": "functions/src/app/permissions.ts",
+      "sha256": "5e8f8d4dd3eb580b20ab32f622f33168e8d87b0ef99fe8e758490e471a9ec8fd"
+    },
+    {
+      "path": "functions/src/app/persistence.test.ts",
+      "sha256": "c964feaefb484f97e445ac34572eeb7f4cef0575e7e9afe72b620e1943eee0b9"
+    },
+    {
+      "path": "functions/src/app/primitives.test.ts",
+      "sha256": "c64f35ba18c3b476c75ce8d6d24382c9624f482d56a647ec2ce65f752f6fcd12"
+    },
+    {
+      "path": "functions/src/app/publicProviderData.test.ts",
+      "sha256": "e98dd04ec299a67654d2408d400493354d867112db9bba6d31a3064377e54923"
+    },
+    {
+      "path": "functions/src/app/publicProviderData.ts",
+      "sha256": "1703fb6d9571259c4342ed7370d0e1407512925093506fd184c33e324fa0feee"
+    },
+    {
+      "path": "functions/src/app/request.ts",
+      "sha256": "b00e82db674ec25006eee86587e06bcfc39ade55c449b73331cf4d4121f75470"
+    },
+    {
+      "path": "functions/src/app/requestRouter.test.ts",
+      "sha256": "492373523ea9369929592d9f1691d89024d3b6b7e97df225d339f58636e908c1"
+    },
+    {
+      "path": "functions/src/app/requestRouter.ts",
+      "sha256": "93420db00f85220f83bf2f8800a545202526096e3b7b0b2cf96543ac0f4196d8"
+    },
+    {
+      "path": "functions/src/app/writeResponse.ts",
+      "sha256": "8b7b4f0cd972c00ef2bcb5265e826c73dcedd51e9a97309dae70e5dcd7e79033"
+    },
+    {
+      "path": "functions/src/callables/generateApk.ts",
+      "sha256": "89ef3400adaf5fa519886b361ccf68f0863b2ea25bc91f31821d0787139d22bb"
+    },
+    {
+      "path": "functions/src/callables/uploadProviderLogo.ts",
+      "sha256": "6cf3237139b9c59bd6b67fe3683baf00e0ecd4673d9b0499a29f0c1faacac75a"
+    },
+    {
+      "path": "functions/src/contracts.test.ts",
+      "sha256": "86dc41b5e6691a39fac89b6e357eb6dbd5c430114cff239bfac07e39036855d7"
+    },
+    {
+      "path": "functions/src/contracts/index.ts",
+      "sha256": "266e964bca9e95af3d3d2b3085ffbf220b170bded8e7cc97207afe03e3e9ea51"
+    },
+    {
+      "path": "functions/src/handlers.test.ts",
+      "sha256": "753e7602c26c10192850a2c407d434baba06c9f668b8c544af55c1a1a61fb8d4"
+    },
+    {
+      "path": "functions/src/handlers/backups.ts",
+      "sha256": "f4fb3c032df004974dfa3846b0c65621a9643a8bb689c01b58f6200c6bc2eac5"
+    },
+    {
+      "path": "functions/src/handlers/clients.test.ts",
+      "sha256": "a3e58e0041d50dfb0bbd07236f4caf0d48148c306ff302329f05a47b661899bd"
+    },
+    {
+      "path": "functions/src/handlers/clients.ts",
+      "sha256": "ac92ac902183c0e5fcdac3016f272ac2bbb00aa301f8a92e4e53095ccf4d6660"
+    },
+    {
+      "path": "functions/src/handlers/dashboard.ts",
+      "sha256": "64e7a13cca9c1ee334590b2a27659da5e0b37315daaca62df296682910376db2"
+    },
+    {
+      "path": "functions/src/handlers/index.ts",
+      "sha256": "c663375ad5e08c35c8f6ea469192a4198a088d02c555e13cb61663662561f5d2"
+    },
+    {
+      "path": "functions/src/handlers/notifications.ts",
+      "sha256": "e206255cd0c38ccdcdd0d0c353a99b987d938120bfc403e68e83336ebc0dbd50"
+    },
+    {
+      "path": "functions/src/handlers/providers.ts",
+      "sha256": "5961c30fefe6d11d7eae4698c641600cfb9d03f5b1a38f1fab3116fdb4ac56ae"
+    },
+    {
+      "path": "functions/src/handlers/sgp.ts",
+      "sha256": "83ade3c056b5f740a5522a2875d192795e9e865d07af70cdc814e22cec42aa5c"
+    },
+    {
+      "path": "functions/src/handlers/tickets.ts",
+      "sha256": "aafc281ee9b73b03522bc2f0138eb33d7fc665ca5cb3d3752f123d4f8347200c"
+    },
+    {
+      "path": "functions/src/handlers/users.ts",
+      "sha256": "b7b25466b100a65e18c0e1947f3443d0166e7b28f9893c17b68c811d2c7a6ca8"
+    },
+    {
+      "path": "functions/src/index.ts",
+      "sha256": "f0eed5a206758ce23616c9da4376f7cdc73090ee39a836ca8cb6458246c09aa0"
+    },
+    {
+      "path": "functions/src/integration.test.ts",
+      "sha256": "282484de6d0b578c9bb20f540e9e1a899ce320f55c1e30213e09923db695e903"
+    },
+    {
+      "path": "functions/src/models/DashboardConfig.ts",
+      "sha256": "b5e4f80a2b54df4a80bdca920fd13d18b451adf395b3df9ddb966d55110a2dd5"
+    },
+    {
+      "path": "functions/src/models/LoginConfig.ts",
+      "sha256": "2c52add717c11f00b4943a621f6f33a3974fc8199b04cf3844c6ca8ab1c81255"
+    },
+    {
+      "path": "functions/src/models/NotificationConfig.ts",
+      "sha256": "c88d51e4f5dc4462a4e2993fd7fa586749cec920732ffc0737f5e4a42af80521"
+    },
+    {
+      "path": "functions/src/models/PromotionConfig.ts",
+      "sha256": "b44af734092e27f7a4522d51fee08291965225ae8cdb91c494b0f68d409f9d71"
+    },
+    {
+      "path": "functions/src/models/SplashConfig.ts",
+      "sha256": "b7f3327a2d69b969dc9622da3de2c9216d77f2b78f4df28ca96bdf75212007ae"
+    },
+    {
+      "path": "functions/src/models/ThemeConfig.ts",
+      "sha256": "4331eb3454f2c0ca2c515a42ea46b930db8a04cc166f44543ed760ad42e2468f"
+    },
+    {
+      "path": "functions/src/utils.test.ts",
+      "sha256": "c2e9da77d78483287064d2de513da2259c5560783256ee052b8bc4d924d1ee1d"
+    },
+    {
+      "path": "functions/src/utils.ts",
+      "sha256": "6b3cd71fc82a9e9808d4744f2e974cae577b562fe81a8989d4cb6f9cc8bfe9df"
+    },
+    {
+      "path": "functions/tsconfig.json",
+      "sha256": "d804780f1cfc2de6f7ee18d77acd552e3f370fbd03c3266c90faeb8250cb8721"
+    },
+    {
+      "path": "functions/vitest.config.mts",
+      "sha256": "c517ea3c62e0098f5c4a0e658eddf6218db9caf9b87b06ec2bf95df76ecc5be9"
+    },
+    {
+      "path": "landing-page/Dockerfile",
+      "sha256": "cc205f4de92b6f95c9044487ea992dd68b406b6fcb2f85778c5d00898e5e4843"
+    },
+    {
+      "path": "landing-page/index.html",
+      "sha256": "76f9df4da5fc5228c302fac2bbefe4f45440a7c71475aa527e844adeadcb00c2"
+    },
+    {
+      "path": "landing-page/script.js",
+      "sha256": "6141d168c87e06c08c95ac92bcbc0c817024cca626a8c9705cc1af0b9098bca7"
+    },
+    {
+      "path": "landing-page/styles.css",
+      "sha256": "4ac7dc4ff04288e925209ece0e2c26d88865f7b91e4cfe97cab2eb83da46e05c"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1dbd9917a0205a029da428a4caee125efea8662231a4c89f029c3bb20a668274"
+    },
+    {
+      "path": "package.json",
+      "sha256": "182f240e1d05c9e3a3d05d2a738dd65430ab89c552ad3b2f5b06f4f0a9b9de3f"
+    },
+    {
+      "path": "proxy-sgp/.dockerignore",
+      "sha256": "fb9051b4ac1135085c229b67938e64f3ccb2988b1137485df16ca55a95ab47e1"
+    },
+    {
+      "path": "proxy-sgp/.env.example",
+      "sha256": "e4739e9881d452e5cca0b3274690885b396db1beedf830298f5f1f4c83f19ebe"
+    },
+    {
+      "path": "proxy-sgp/Dockerfile",
+      "sha256": "f8cfecb7fb8c11e2fb1384317bbe0c18fc38ed2713e0a34aee03f4cb0feedcec"
+    },
+    {
+      "path": "proxy-sgp/contracts.js",
+      "sha256": "f3a345b86061d9f9196aa26caa5b526eed8a6837e570ac28d5dd17b9a64e3f8f"
+    },
+    {
+      "path": "proxy-sgp/contracts.test.js",
+      "sha256": "759232cf3256937f2c63647f1d10de37350ff5ef7c2b8f9127a553c902c584d1"
+    },
+    {
+      "path": "proxy-sgp/cron-jobs.js",
+      "deleted": true
+    },
+    {
+      "path": "proxy-sgp/index.js",
+      "sha256": "8c1e55f76d2d366745732c31f9ae3eba459fa74639417de2fe5809d0e2310052"
+    },
+    {
+      "path": "proxy-sgp/lib/client-access.js",
+      "sha256": "f822f12e399461976f9287d18b2fc3532cadb5872079e31bd4b304a9744a104f"
+    },
+    {
+      "path": "proxy-sgp/lib/client-access.test.js",
+      "sha256": "adee84b622ab4e98e73c30a121e44464564155d12e1b6547daa9d160428f6c4d"
+    },
+    {
+      "path": "proxy-sgp/lib/client-cache.js",
+      "sha256": "71a14b4329f0881b509beaea1ca182711e35265c66a5d607d1c18661f82500b6"
+    },
+    {
+      "path": "proxy-sgp/lib/config.js",
+      "sha256": "62a9f076459cca8d59e0a8c936d9759894fbcb7c067f582a83ea4214fda9e62b"
+    },
+    {
+      "path": "proxy-sgp/lib/config.test.js",
+      "sha256": "041abcd00e87993e6eece3db8535b0aae50d74c744ca517e62604d179fc2e23f"
+    },
+    {
+      "path": "proxy-sgp/lib/internal-secret.js",
+      "sha256": "862375f24bbdcab9e4793614fe23c60450520fa23bf1153d6d76615cdfb6e65a"
+    },
+    {
+      "path": "proxy-sgp/lib/internal-secret.test.js",
+      "sha256": "a44cb33e45a75403e3dc7500049e8c0a925dd3f003b25d8c41a3aa4a21f277b3"
+    },
+    {
+      "path": "proxy-sgp/lib/jobs.js",
+      "sha256": "e3ab7758d59e1341dab089e06901125dacd391d24435e4e2e6ad0a25c39a1e46"
+    },
+    {
+      "path": "proxy-sgp/lib/jobs.test.js",
+      "sha256": "3b9a121811f6fd649b4a3087afa57134734d80268fcbff09d00aad3eee0d67b3"
+    },
+    {
+      "path": "proxy-sgp/lib/rate-limiter.js",
+      "sha256": "1efa7bb6b266c34a11d34aef5daf50ed6c6ebdb43e5df703aeee460dfad9b139"
+    },
+    {
+      "path": "proxy-sgp/lib/rate-limiter.test.js",
+      "sha256": "b89bb901db3b9e8b05aa3645d29a4555a83a78f725df53588151e8327894c180"
+    },
+    {
+      "path": "proxy-sgp/lib/sanitize-client.js",
+      "sha256": "c1829d649639ce41ebb2bdc5c1a508202d2525b47255443b9306246a07a63c18"
+    },
+    {
+      "path": "proxy-sgp/lib/secure-log.js",
+      "sha256": "0c4b17b0836d79f90ef55b994fa1ac0e4ba10ed52d7779645dcc1ae91b05d2f4"
+    },
+    {
+      "path": "proxy-sgp/lib/secure-log.test.js",
+      "sha256": "a10950f091fbbcc92f6ac730c37f6ea51acedd0f2d6f5e32ec97ebe249aa34a3"
+    },
+    {
+      "path": "proxy-sgp/lib/subscriber-profile.js",
+      "sha256": "9c1f29ece3cd7b18bb8c6a7708cccae539689d318ec4b09d2c8a6e162c2b5d27"
+    },
+    {
+      "path": "proxy-sgp/lib/subscriber-profile.test.js",
+      "sha256": "6d114f07c06cab9ff0d8be9b9d13abae6c6d79a255d185c64a4092d544d4bc58"
+    },
+    {
+      "path": "proxy-sgp/lib/sync-page.js",
+      "sha256": "766b9d4c237e54aa6bc6267ae009d4e131521b50caef217209eba3b73754f0cc"
+    },
+    {
+      "path": "proxy-sgp/lib/sync-page.test.js",
+      "sha256": "a2138da0939d177b049861b2ea414e7cab42a70dad7056b89ab74751efdd7cf5"
+    },
+    {
+      "path": "proxy-sgp/lib/upstream.js",
+      "sha256": "58bf5e19d5181c056b933a229a885d117eab32aa731654a49c699d8d654bb833"
+    },
+    {
+      "path": "proxy-sgp/lib/upstream.test.js",
+      "sha256": "0ca77cb1eecbbd3af97aa22f9ef9614474773bfc092fa90c1172dfa73fb3cb8c"
+    },
+    {
+      "path": "proxy-sgp/package-lock.json",
+      "sha256": "5a24737459ed968b132931b82d9e278adf32148d7383a16b18606c131e2c9648"
+    },
+    {
+      "path": "proxy-sgp/package.json",
+      "sha256": "0cc93b570a3c02d31023965ae48f4f412c803769d9e2126a160fa50b8bba5323"
+    },
+    {
+      "path": "proxy-sgp/worker.js",
+      "sha256": "ed154e1d6ef5649e9792cd0d59a9b4a160b793040eae976865cc2fa5fd5a0f93"
+    },
+    {
+      "path": "scripts/README.md",
+      "sha256": "218fa04100add5252139d5f4b80c7e5cbe0a2427efc23c311c61e726f98410ea"
+    },
+    {
+      "path": "scripts/build/generate-apk.py",
+      "sha256": "51b95a823738bbce223a258575552401ab2ac69089f5cde347b25d7a261658ad"
+    },
+    {
+      "path": "scripts/check-architecture.mjs",
+      "sha256": "9c354a531727f002fb4f5d5fd5829b57bd50ca2dcf4cbaca704f294d8a5e2a6f"
+    },
+    {
+      "path": "scripts/check-contracts.mjs",
+      "sha256": "ffef4c96a94839ea91a6165994c8dd75729f6efe78722a6b3434c4b0f2485bc7"
+    },
+    {
+      "path": "scripts/check-dependency-audit.mjs",
+      "sha256": "32487b72653b2d3d6d2298837c8421bc5ee42c623213a7278ccc6d240e79df25"
+    },
+    {
+      "path": "scripts/check-secrets.mjs",
+      "sha256": "53f23a9f1573774a953405380bea548e885d7aae7c3a94be61123a3e78f42083"
+    },
+    {
+      "path": "scripts/check-shell-scripts.mjs",
+      "sha256": "c9a6f0261df33dda624fd5171ac313dcf566de85d2f95405eec4bf50b12b50be"
+    },
+    {
+      "path": "scripts/cloud/setup-monitoring.sh",
+      "sha256": "84c06671a4830a0279babf1729499f9dbbb484e8f25432205d67550c671bb36e"
+    },
+    {
+      "path": "scripts/diagnostics/load-sgp.mjs",
+      "sha256": "d4747f6fe9de85be16ac3c4fbe4ff4303555ac9e581759501b9f947759394198"
+    },
+    {
+      "path": "scripts/diagnostics/measure-api-latency.sh",
+      "sha256": "363adaecf12dd1873c846b3b8dcf4ff3883dd909b9b0b243a7fcd36971321bc2"
+    },
+    {
+      "path": "scripts/diagnostics/measure-login.cjs",
+      "sha256": "5490c2bed0552529909860d94b0e411a5cd91f6acc86f610eada3b2b3d6de05b"
+    },
+    {
+      "path": "scripts/diagnostics/measure-panel.cjs",
+      "sha256": "f102c354b9433f603b09c8936de49d0916683a1efd470a66b12e758c7c9ec6c7"
+    },
+    {
+      "path": "scripts/diagnostics/smoke-browser.cjs",
+      "sha256": "e43f52ce610f78db350c4491cbfb1f2faf174d23f50236c857af40d556db7c69"
+    },
+    {
+      "path": "scripts/diagnostics/smoke-production.cjs",
+      "sha256": "463f2f289738daf9893fb684e4fa31895a8282a35db72d9ff37a286dd2dca6ba"
+    },
+    {
+      "path": "scripts/migrations/README.md",
+      "sha256": "f2a7b918df4d05cf6c6c2678fefa678e07343d6e94497ed641751eeb48cef51d"
+    },
+    {
+      "path": "scripts/migrations/explicit-admin-roles.cjs",
+      "sha256": "dc9ed61117dc248d378ac5a893a1976aa7227052bf2578219280c8c7bb9a3585"
+    },
+    {
+      "path": "scripts/migrations/migrate-provider-config.mjs",
+      "sha256": "ca3cb2cb4ee71f77334d5af0ec3d5d4d6fc030ed07106ea56e365c4ad43f3b3d"
+    },
+    {
+      "path": "scripts/migrations/private-provider-credentials.cjs",
+      "sha256": "395bc7de8ac0da4ea5f3c5390df6192a929a3fde61f85a4f43f235524a16944d"
+    },
+    {
+      "path": "scripts/ops/backup-cloud.cjs",
+      "sha256": "7a85aebc3fc0fb18a44e6103b75632ed139faca29aada51131ed84fab3d9fe8e"
+    },
+    {
+      "path": "scripts/ops/backup-data.sh",
+      "sha256": "4263972a1e9475870b85a8d44f3393b85f4e8043ed2eb3cf7294a17f7248f8d6"
+    },
+    {
+      "path": "scripts/ops/backup-retention.cjs",
+      "sha256": "c6b2514892ed201026e75b9f089b9c5803eb82ccc233a8a369da60aa9522d632"
+    },
+    {
+      "path": "scripts/ops/backup-retention.test.cjs",
+      "sha256": "28b9e19f90d61796c173ee74f1bf0354d3ca50248c5af431a8e7e0417fc0c5e2"
+    },
+    {
+      "path": "scripts/ops/backup-scheduled.sh",
+      "sha256": "43815a92c93991a928a4c0eae75807cf0291e341ef4c8d6b827b88ba4ee74b0c"
+    },
+    {
+      "path": "scripts/ops/backup-scope.cjs",
+      "sha256": "99058225e5f52adf32863370e94776148e1fc2c35b9bfd06d91241681940582e"
+    },
+    {
+      "path": "scripts/ops/backup-scope.test.cjs",
+      "sha256": "9527455179a10345b2c48dc2b9bdea3457ab99abf7da5aad9308622dd98cc704"
+    },
+    {
+      "path": "scripts/ops/backup-status.cjs",
+      "sha256": "ba65689c890ce6a323d9cd04f887011cf0ff87b620944b2bbd283af141a9f373"
+    },
+    {
+      "path": "scripts/ops/painel-backup.service",
+      "sha256": "4ac230ea8f52b211442420cfaefab8bb90c69a87261beda2ac444f2bb24c747e"
+    },
+    {
+      "path": "scripts/ops/painel-backup.timer",
+      "sha256": "a3ce598d0e89e2a02ac5a5088631180fffcf201fda3d4eed84abf0d7fa014229"
+    },
+    {
+      "path": "scripts/ops/services.sh",
+      "sha256": "4dcf12455a230899ba443685166bc6705fda8609d769d8b62738482faebb0890"
+    },
+    {
+      "path": "scripts/ops/upload-backup.cjs",
+      "sha256": "1e022e5dbbe82a23f9e3b97d656c6f709d19784ad485fa000859ef054777323b"
+    },
+    {
+      "path": "scripts/ops/verify-backup.sh",
+      "sha256": "53e44563b4730a6e88b2f47dac3502c7dd7fbebea984d8028bda8f30cd66ef44"
+    },
+    {
+      "path": "scripts/sync-contracts.mjs",
+      "sha256": "7839808b9bcd98637f30dc04ff91e667f6d80763185acea4d9cf70a427b16b98"
+    },
+    {
+      "path": "services/apk-builder/index.js",
+      "sha256": "c0d735f4a5c4b4241610635f5c753201a0c80e59c9f694c771b9911535e1f96b"
+    },
+    {
+      "path": "services/apk-builder/job-store.js",
+      "sha256": "4f7edc16134a37732731eded7ea0f7aa7ae0405b2f535a9e471275834fa25019"
+    },
+    {
+      "path": "services/apk-builder/job-store.test.js",
+      "sha256": "d8b97c3fffa7963590e651c627d24867870d4da4f3c64fa3f75b4041eec1a89b"
+    },
+    {
+      "path": "services/apk-builder/package-lock.json",
+      "sha256": "1b7a53b48c865562bbba397faed7742d0a2f4c8ba3a15d207abdc0fe88ff6a94"
+    },
+    {
+      "path": "services/apk-builder/package.json",
+      "sha256": "b86b87b0de044185525c1a70e936db47a6bb63f17ce6bad9d1329f1695b1870f"
+    },
+    {
+      "path": "services/apk-builder/security.js",
+      "sha256": "6f23a0e25a2280e3d486e8c875c053e9553c234fa24064013af49359436b4349"
+    },
+    {
+      "path": "services/apk-builder/security.test.js",
+      "sha256": "1e4a0353a7e0f1f7c82d3cfd8a48d73dad360f297199813343659ad3d5926f03"
+    },
+    {
+      "path": "shared/contracts/index.ts",
+      "sha256": "2eea12be2fa79eb64f4369ee62dc9b88bb603f7f55b53ca5f339255081b18ab6"
+    },
+    {
+      "path": "shared/runtime/dashboard.ts",
+      "sha256": "cf6f4ac291d98022846544087fffec8f729a2e1f3f3e60eb6af3a0232d0f9730"
+    },
+    {
+      "path": "shared/runtime/upstream.js",
+      "sha256": "58bf5e19d5181c056b933a229a885d117eab32aa731654a49c699d8d654bb833"
+    },
+    {
+      "path": "speed_test_server/Dockerfile",
+      "sha256": "6ce7794aebbcb72376f557695d7195679f621cce26ea4e3257f93516f3b78f2f"
+    },
+    {
+      "path": "speed_test_server/server.js",
+      "sha256": "349a852da3a434cb057dad8f9e99a5c2d64e7af3dcbc718d0244ae2255c3563d"
+    },
+    {
+      "path": "speed_test_server/server.test.js",
+      "sha256": "784eb59fa6300851249b606949c758dc6c6440bd8c11bce0d0838dec807db5f4"
+    },
+    {
+      "path": "storage.rules",
+      "sha256": "31dcb74737449dc82b08c3f611082d7bc0dcaac6652a2bc0dce08e64b145fc4d"
+    },
+    {
+      "path": "tests/firestore-rules.test.mjs",
+      "sha256": "e9d0f0f1535c272f24c532cca595f519ebec76eb23aa0b55a6ac9f3de6ccf11a"
+    }
+  ]
+}

@@ -81,16 +81,17 @@ class ProviderConfig {
     String? finalApiUrl =
         rootApiUrl?.isNotEmpty == true ? rootApiUrl : configApiUrl;
 
-    // IMPORTANTE: A URL da API deve ser configurada no Web Admin (Firebase)
-    // Campo: apiUrl no documento do provedor
-    // Exemplo: http://seu-servidor:3000
-    //
-    // O fallback abaixo é apenas para desenvolvimento/emergência.
-    // Se você mudar de servidor, basta atualizar o campo apiUrl no Firebase
-    // e todos os apps receberão a nova URL automaticamente!
+    // apiUrl: quando a configuração vem da API pública, é a URL que respondeu
+    // (ConfigurationProvider a preenche); no fallback do Firestore, é o campo
+    // apiUrl legado do documento do provedor.
+    // Sem apiUrl na configuração, usa a URL gravada no build pelo apk-builder
+    // (PUBLIC_API_URL). O endereço do emulador é só para desenvolvimento.
+    const compiledApiUrl = String.fromEnvironment('PUBLIC_API_URL');
     String effectiveApiUrl;
     if (finalApiUrl != null && finalApiUrl.isNotEmpty) {
       effectiveApiUrl = finalApiUrl.trim();
+    } else if (compiledApiUrl.isNotEmpty) {
+      effectiveApiUrl = compiledApiUrl;
     } else {
       effectiveApiUrl = const String.fromEnvironment(
         'API_BASE_URL',

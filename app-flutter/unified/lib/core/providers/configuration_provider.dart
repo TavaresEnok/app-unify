@@ -4,8 +4,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/provider_config.dart';
 import '../models/provider_config_normalizer.dart';
+import '../services/provider_config_api.dart';
+
+typedef ProviderDocumentLoader = Future<Map<String, dynamic>?> Function(
+    String providerId);
 
 class ConfigurationProvider with ChangeNotifier {
+  ConfigurationProvider({
+    ProviderConfigApi? api,
+    String apiBaseUrl = ProviderConfigApi.compiledBaseUrl,
+    ProviderDocumentLoader? firestoreLoader,
+  })  : _api = api ?? ProviderConfigApi(),
+        _apiBaseUrl = apiBaseUrl,
+        _firestoreLoader = firestoreLoader ?? _loadFromFirestore;
+
+  final ProviderConfigApi _api;
+  final String _apiBaseUrl;
+  final ProviderDocumentLoader _firestoreLoader;
+
   ProviderConfig? _providerConfig;
   bool _isLoading = true;
   String? _errorMessage;
@@ -40,30 +56,15 @@ class ConfigurationProvider with ChangeNotifier {
     await _loadFromCache(providerId);
 
     try {
-      // 2. Busca do servidor em segundo plano
-      final doc = await FirebaseFirestore.instance
-          .collection('provedores')
-          .doc(providerId)
-          .get(const GetOptions(source: Source.server));
+      // 2. Busca do servidor: primeiro a API (configuração sanitizada); o
+      // Firestore direto fica como fallback para builds sem URL gravada e
+      // enquanto as regras antigas ainda estiverem publicadas.
+      var safeData = await _loadFromApi(providerId);
+      safeData ??= await _firestoreLoader(providerId);
 
-      if (doc.exists && doc.data() != null) {
-        final rawData = doc.data()!;
-        final safeData = Map<String, dynamic>.from(rawData);
-
+      if (safeData != null) {
         _providerConfig =
             ProviderConfigNormalizer.fromFirestore(safeData, providerId);
-
-        // DEBUG: Print layoutType and colors being loaded
-        debugPrint(
-            "🎨 [DEBUG] layoutType from Firestore: ${_providerConfig?.layoutType}");
-        debugPrint(
-            "🎨 [DEBUG] Raw layoutType in JSON: ${safeData['layoutType']}");
-        debugPrint("🎨 [DEBUG] themeColor: ${safeData['themeColor']}");
-        debugPrint("🎨 [DEBUG] secondaryColor: ${safeData['secondaryColor']}");
-        debugPrint(
-            "🎨 [DEBUG] config.themeColor: ${_providerConfig?.config.themeColor}");
-        debugPrint(
-            "🎨 [DEBUG] config.secondaryColor: ${_providerConfig?.config.secondaryColor}");
 
         // 3. Atualiza o cache
         await _saveToCache(providerId, safeData);
@@ -84,6 +85,31 @@ class ConfigurationProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Tenta a URL gravada no build e, depois, a última `apiUrl` conhecida (do
+  /// cache), para apps que ainda não foram reconstruídos com a URL.
+  Future<Map<String, dynamic>?> _loadFromApi(String providerId) async {
+    final candidates = <String>{
+      if (_apiBaseUrl.trim().isNotEmpty) _apiBaseUrl.trim(),
+      if (_providerConfig?.apiUrl.trim().isNotEmpty == true)
+        _providerConfig!.apiUrl.trim(),
+    };
+    for (final base in candidates) {
+      final data = await _api.fetch(base, providerId);
+      if (data != null) return data;
+    }
+    return null;
+  }
+
+  static Future<Map<String, dynamic>?> _loadFromFirestore(
+      String providerId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('provedores')
+        .doc(providerId)
+        .get(const GetOptions(source: Source.server));
+    final data = doc.data();
+    return doc.exists && data != null ? Map<String, dynamic>.from(data) : null;
   }
 
   Future<void> _loadFromCache(String providerId) async {

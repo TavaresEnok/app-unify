@@ -1,0 +1,1 @@
+export { publicProviderData } from "./providerConfig";

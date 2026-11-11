@@ -1,6 +1,7 @@
 // ARQUIVO: lib/core/services/financeiro_service.dart
 // DESCRIÇÃO: Serviço para buscar faturas e solicitar desbloqueio
 
+import 'api_response.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
@@ -37,17 +38,10 @@ class FinanceiroService {
           )
           .timeout(const Duration(seconds: 60));
 
-      final responseBody = json.decode(response.body);
-
-      if (response.statusCode == 200) {
-        final responseData = responseBody['data'];
-        return responseData is List ? responseData : [];
-      } else {
-        final errorMessage = responseBody['error']?['message'] ??
-            responseBody['error'] ??
-            'Falha ao carregar faturas. Código: ${response.statusCode}';
-        throw Exception(errorMessage);
-      }
+      final responseBody = decodeApiResponse(response,
+          fallback: 'Falha ao carregar faturas. Código: ${response.statusCode}');
+      final responseData = responseBody['data'];
+      return responseData is List ? responseData : [];
     } on TimeoutException {
       throw TimeoutException(
           'O servidor demorou muito para responder. Verifique sua conexão.');
@@ -76,13 +70,9 @@ class FinanceiroService {
           )
           .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        final body = json.decode(response.body);
-        throw Exception(body['message'] ??
-            'Não foi possível realizar o desbloqueio. Tente novamente.');
-      }
+      decodeApiResponse(response,
+          fallback: 'Não foi possível realizar o desbloqueio. Tente novamente.');
+      return true;
     } catch (e) {
       throw Exception(
           "Erro ao solicitar desbloqueio: ${e.toString().replaceAll('Exception: ', '')}");

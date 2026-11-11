@@ -1,8 +1,8 @@
 import { NavLink, Outlet, useParams, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { SETTINGS_GROUPS, SETTINGS_NAVIGATION } from "@/app/navigation";
+import { TabNavigation } from "@/components/WorkspaceTabs";
 
 export default function ProviderSettingsLayout() {
   const { providerId: providerIdFromParams } = useParams();
@@ -22,37 +22,24 @@ export default function ProviderSettingsLayout() {
     }))
     .filter(group => group.items.length > 0);
 
-  const navLinkClass = (path: string) =>
-    cn(
-      "h-8 w-full justify-start rounded-lg px-2.5 text-[12.5px] font-medium",
-      location.pathname.endsWith(path)
-        ? "bg-primary/10 text-primary hover:bg-primary/10"
-        : "text-[#4A5364] hover:bg-[#F2F4F8] hover:text-[#0E1320]"
-    );
+  const activeGroup = groupedItems.find(group => group.items.some(item => location.pathname.endsWith(`/${item.path}`)));
 
   return (
     <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[210px_1fr]">
       <aside>
-        <nav className="lg:sticky lg:top-5">
-          {groupedItems.map((group) => (
-            <div key={group.label} className="mb-4 last:mb-0">
-              <div className="px-2.5 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[#98A1B1]">
-                {group.label}
-              </div>
-              <div className="space-y-0.5">
-                {group.items.map(item => (
-                  <NavLink key={item.path} to={`${basePath}/${item.path}`}>
-                    <Button variant="ghost" className={navLinkClass(item.path)}>
-                      {item.name}
-                    </Button>
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          ))}
+        <nav aria-label="Áreas de personalização" className="lg:sticky lg:top-5">
+          <div className="space-y-1">
+            {groupedItems.map(group => (
+              <NavLink key={group.label} to={`${basePath}/${group.items[0].path}`} className={cn(
+                  "flex min-h-9 w-full items-center justify-start whitespace-normal rounded-lg px-2.5 py-2 text-left text-[12.5px] font-medium",
+                  activeGroup === group ? "bg-primary/10 text-primary" : "text-[#4A5364] hover:bg-muted",
+                )}>{group.label}</NavLink>
+            ))}
+          </div>
         </nav>
       </aside>
-      <main className="min-w-0 pb-10">
+      <main className="min-w-0 space-y-5 pb-10">
+        {activeGroup && <TabNavigation label={`Seções de ${activeGroup.label}`} tabs={activeGroup.items.map(item => ({ label: item.name, to: `${basePath}/${item.path}` }))} />}
         <Outlet />
       </main>
     </div>

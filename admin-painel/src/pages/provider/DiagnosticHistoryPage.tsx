@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Timestamp } from 'firebase/firestore';
-import { Loader2, Activity, Trash2, Search, Download, ExternalLink } from 'lucide-react';
+import { Loader2, Activity, Trash2, Search, Download } from 'lucide-react';
+import PrivateAttachment from '@/components/PrivateAttachment';
 import EmptyState from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ interface DiagnosticResult {
     needsProviderSupport?: boolean;
     findings?: Array<{ title: string; area: string; severity: string }>;
     reportUrl?: string;
+    reportAttachmentId?: string;
     measurements?: {
         speed?: { downloadMbps?: number; uploadMbps?: number; pingMs?: number };
         googlePing?: { latencyMs?: number; lossPercent?: number };
@@ -64,15 +66,18 @@ function num(value: number | undefined, digits = 1): string {
 }
 
 export default function DiagnosticHistoryPage() {
-    const { providerId } = useAuth();
+    const { providerId, user } = useAuth();
     const [results, setResults] = useState<DiagnosticResult[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!providerId) return;
+        setResults([]); setLoading(true);
+        if (!providerId || !user) return;
+        let alive = true;
         const unsubscribe = subscribeDiagnostics<DiagnosticResult>(providerId, (data) => {
+            if (!alive) return;
             setResults(data);
             setLoading(false);
         }, (error) => {
@@ -80,12 +85,10 @@ export default function DiagnosticHistoryPage() {
             toast.error('Erro ao carregar diagnósticos');
             setLoading(false);
         });
-        return () => unsubscribe();
-    }, [providerId]);
+        return () => { alive = false; unsubscribe(); };
+    }, [providerId, user]);
 
-    // Métrica de deflexão (§ estudo 4.4): dos diagnósticos feitos, quantos o app
-    // resolveu sozinho (problema do cliente) vs quantos apontaram o provedor.
-    // É o número que prova a redução de visita técnica.
+    // Classificação do diagnóstico; não comprova resolução nem visita evitada.
     const metrics = useMemo(() => {
         const total = results.length;
         const needsProvider = results.filter((r) => r.needsProviderSupport).length;
@@ -152,9 +155,9 @@ export default function DiagnosticHistoryPage() {
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <MetricCard label="Diagnósticos" value={String(metrics.total)} />
                     <MetricCard
-                        label="Resolvidos sem visita"
+                        label="Orientação ao assinante"
                         value={`${metrics.deflectionRate}%`}
-                        hint={`${metrics.selfResolvable} de ${metrics.total} apontaram algo que o cliente resolve`}
+                        hint={`${metrics.selfResolvable} de ${metrics.total} indicaram orientação ao assinante`}
                         tone="green"
                     />
                     <MetricCard
@@ -235,11 +238,8 @@ export default function DiagnosticHistoryPage() {
                             tone={result.needsProviderSupport ? 'amber' : 'gray'}
                         />
                         <span>
-                            {result.reportUrl ? (
-                                <a href={result.reportUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" title="Abrir relatório PDF">
-                                    <ExternalLink className="h-4 w-4" />
-                                </a>
-                            ) : <span className="text-[#98A1B1]">—</span>}
+                            {result.reportAttachmentId && providerId ? <PrivateAttachment key={`${user?.uid}/${providerId}/${result.id}/${result.reportAttachmentId}`} resource={{ providerId, resultId: result.id }} attachmentId={result.reportAttachmentId} />
+                                : <span>{result.reportUrl ? 'Legado: remediação pendente' : '—'}</span>}
                         </span>
                         <div className="flex justify-end">
                             <AlertDialog open={deleteId === result.id} onOpenChange={(open) => !open && setDeleteId(null)}>

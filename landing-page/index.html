@@ -44,7 +44,7 @@
                 <a href="#pricing">Planos</a>
             </div>
             <div class="nav-actions">
-                <a href="#contact" class="btn btn-sm btn-outline">Área do Cliente</a>
+                <a href="/painel/login" class="btn btn-sm btn-outline">Área do Cliente</a>
                 <a href="#contact" class="btn btn-sm btn-primary btn-glow">Agendar Demo</a>
             </div>
             <button class="mobile-toggle" id="mobileToggle">
@@ -476,16 +476,17 @@
     </section>
 
     <!-- CTA Final -->
-    <section class="cta-final">
+    <section class="cta-final" id="contact">
         <div class="container">
             <div class="cta-box">
                 <div class="cta-content">
                     <h2>Pronto para digitalizar seu provedor?</h2>
                     <p>Junte-se a mais de 50 provedores que transformaram seu atendimento com o App Unify.</p>
-                    <form class="cta-form-inline" id="contactForm">
+                    <form class="cta-form-inline" id="contactForm" data-contact-url="" aria-describedby="contactStatus">
                         <input type="email" placeholder="Digite seu melhor e-mail" required>
-                        <button type="submit" class="btn btn-primary">Agendar Demo Grátis</button>
+                        <button type="submit" class="btn btn-primary">Contato indisponível</button>
                     </form>
+                    <p id="contactStatus" role="status">Contato indisponível: canal comercial ainda não validado.</p>
                     <p class="cta-note">Teste grátis por 14 dias. Sem cartão de crédito.</p>
                 </div>
             </div>
@@ -531,6 +532,7 @@
         </div>
     </footer>
 
+    <script src="contact-form.js"></script>
     <script src="script.js"></script>
 </body>
 

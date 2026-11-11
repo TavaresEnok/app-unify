@@ -1,3 +1,4 @@
+import { describe, it, test, expect, vi } from "vitest";
 import {
   parseJsonSafely,
   TICKET_STATUSES,
@@ -39,7 +40,7 @@ describe("isValidNewProviderId", () => {
 
 describe("logger", () => {
   it("chama console.error para severity ERROR", () => {
-    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     logger.error("falha crítica", { functionName: "test" });
     expect(spy).toHaveBeenCalledTimes(1);
     const logged = JSON.parse(spy.mock.calls[0][0]);
@@ -50,7 +51,7 @@ describe("logger", () => {
   });
 
   it("chama console.log para severity INFO", () => {
-    const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
     logger.info("operação concluída");
     expect(spy).toHaveBeenCalledTimes(1);
     const logged = JSON.parse(spy.mock.calls[0][0]);

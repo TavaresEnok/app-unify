@@ -1,6 +1,7 @@
 // ARQUIVO: lib/core/services/onu_wifi_service.dart
 // DESCRIÇÃO: Serviço para buscar sinal da ONU e gerenciar WiFi via SGP/TR069
 
+import 'api_response.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
@@ -200,24 +201,12 @@ class OnuWifiService {
           )
           .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['data'] != null) {
-          return OnuData.fromJson(data['data']);
-        }
-        throw Exception('Dados da ONU não encontrados.');
-      } else {
-        // Tenta parsear erro do servidor
-        try {
-          final error = json.decode(response.body);
-          throw Exception(
-            error['error']?['message'] ??
-                'Erro no servidor (${response.statusCode})',
-          );
-        } catch (_) {
-          throw Exception('Erro no servidor (${response.statusCode})');
-        }
+      final data = decodeApiResponse(response,
+          fallback: 'Erro no servidor (${response.statusCode})');
+      if (data['data'] != null) {
+        return OnuData.fromJson(data['data']);
       }
+      throw Exception('Dados da ONU não encontrados.');
     } on http.ClientException catch (_) {
       throw Exception(
         'Servidor indisponível.\nVerifique se o servidor local está rodando.',
@@ -263,25 +252,14 @@ class OnuWifiService {
           )
           .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['data'] != null && data['data'] is List) {
-          return (data['data'] as List)
-              .map((w) => WifiNetwork.fromJson(w))
-              .toList();
-        }
-        return [];
-      } else {
-        try {
-          final error = json.decode(response.body);
-          throw Exception(
-            error['error']?['message'] ??
-                'Erro no servidor (${response.statusCode})',
-          );
-        } catch (_) {
-          throw Exception('Erro no servidor (${response.statusCode})');
-        }
+      final data = decodeApiResponse(response,
+          fallback: 'Erro no servidor (${response.statusCode})');
+      if (data['data'] != null && data['data'] is List) {
+        return (data['data'] as List)
+            .map((w) => WifiNetwork.fromJson(w))
+            .toList();
       }
+      return [];
     } on http.ClientException catch (_) {
       throw Exception(
         'Servidor indisponível.\nVerifique se o servidor local está rodando.',
@@ -334,20 +312,9 @@ class OnuWifiService {
           )
           .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['success'] == true;
-      } else {
-        try {
-          final error = json.decode(response.body);
-          throw Exception(
-            error['error']?['message'] ??
-                'Erro no servidor (${response.statusCode})',
-          );
-        } catch (_) {
-          throw Exception('Erro no servidor (${response.statusCode})');
-        }
-      }
+      final data = decodeApiResponse(response,
+          fallback: 'Erro no servidor (${response.statusCode})');
+      return data['success'] == true;
     } on http.ClientException catch (_) {
       throw Exception(
         'Servidor indisponível.\nVerifique se o servidor local está rodando.',

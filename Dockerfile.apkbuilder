@@ -26,7 +26,16 @@ RUN cd services/apk-builder && npm ci --omit=dev
 
 COPY services/apk-builder ./services/apk-builder
 COPY scripts/build ./scripts/build
-COPY app-flutter/unified ./app-flutter/unified
+# BuildKit bind source is never committed to an image layer. Exclude signing and
+# administrative material before copying the Flutter template into the image.
+RUN --mount=type=bind,source=app-flutter/unified,target=/flutter-source \
+    mkdir -p app-flutter/unified && \
+    tar -C /flutter-source --exclude='.env*' --exclude='*.jks' --exclude='*.keystore' \
+      --exclude='key.properties' --exclude='*service-account*' --exclude='*service*Account*' --exclude='*credentials*' \
+      --exclude='*.pem' --exclude='*.p12' --exclude='*.pfx' --exclude='*.key' \
+      --exclude='.gradle' --exclude='.kotlin' --exclude='.pub-cache' \
+      --exclude='.git' --exclude='build' --exclude='.dart_tool' -cf - . | \
+    tar -C app-flutter/unified -xf -
 
 # Expor porta do serviço
 EXPOSE 8035

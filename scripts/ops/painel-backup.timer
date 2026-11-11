@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup diário do painel_provedores às 03h de Fortaleza
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 America/Fortaleza
+Persistent=true
+RandomizedDelaySec=5m
+Unit=painel-backup.service
+
+[Install]
+WantedBy=timers.target

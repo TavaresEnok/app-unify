@@ -15,7 +15,7 @@ return { count, ttl }
 
 const DEFAULT_EXEMPT_PATHS = ['/health', '/ready'];
 
-function createRateLimiter({ getRedis, windowMs, maxRequests, exemptPaths = DEFAULT_EXEMPT_PATHS, now = Date.now }) {
+function createRateLimiter({ getRedis, windowMs, maxRequests, exemptPaths = DEFAULT_EXEMPT_PATHS, now = Date.now, getClientId }) {
     const fallbackStore = new Map();
     const exempt = new Set(exemptPaths);
 
@@ -49,7 +49,7 @@ function createRateLimiter({ getRedis, windowMs, maxRequests, exemptPaths = DEFA
     async function rateLimiter(req, res, next) {
         if (exempt.has(req.path)) return next();
 
-        const clientId = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+        const clientId = getClientId ? await getClientId(req) : (req.ip || 'unknown');
         let hit = null;
 
         const redis = getRedis();

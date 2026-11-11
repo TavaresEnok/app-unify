@@ -15,3 +15,15 @@ test('denies contracts that are no longer active accounts', () => {
     assert.equal(canIssueClientToken('INATIVO'), false);
     assert.equal(canIssueClientToken('Contrato encerrado'), false);
 });
+
+test('subscriber identities are scoped to provider and cannot grant administrator roles', () => {
+    const { subscriberIdentity, passwordMatches } = require('./client-access');
+    const alpha = subscriberIdentity('alpha', '12345678901');
+    const beta = subscriberIdentity('beta', '12345678901');
+    assert.notEqual(alpha.uid, beta.uid);
+    assert.equal(alpha.claims.role, 'subscriber');
+    assert.equal(passwordMatches('correct', 'correct'), true);
+    assert.equal(passwordMatches('', ''), false);
+    assert.equal(passwordMatches('wrong', 'correct'), false);
+    assert.throws(() => subscriberIdentity('../alpha', '12345678901'));
+});

@@ -50,15 +50,10 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
   late bool _featureSupport;
   late bool _featureInvoices;
   late bool _featureContract;
-  late bool _hasAndroidApp;
-  late bool _hasIosApp;
 
   // Integrations
-  late TextEditingController _apiUrlController;
   late TextEditingController
   _textSecondaryColorController; // [FIX] Re-adding declaration
-  late TextEditingController _apiTokenController;
-  late TextEditingController _systemUrlController;
   late TextEditingController _systemTypeController;
 
   @override
@@ -116,19 +111,7 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
     _featureSupport = features['support'] ?? true;
     _featureInvoices = features['invoices'] ?? true;
     _featureContract = features['contract'] ?? true;
-    _hasAndroidApp = details['hasAndroidApp'] ?? false;
-    _hasIosApp = details['hasIosApp'] ?? false;
 
-    // Init integrations
-    _apiUrlController = TextEditingController(
-      text: _localProvider.apiUrl ?? '',
-    );
-    _apiTokenController = TextEditingController(
-      text: details['apiToken'] ?? '',
-    );
-    _systemUrlController = TextEditingController(
-      text: details['systemUrl'] ?? '',
-    );
     _systemTypeController = TextEditingController(
       text: details['systemType'] ?? '',
     );
@@ -144,8 +127,6 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
     _cardColorController.dispose();
     _textColorController.dispose();
     _logoUrlController.dispose();
-    _apiUrlController.dispose();
-    _apiTokenController.dispose();
     super.dispose();
   }
 
@@ -173,14 +154,9 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
       _localProvider.details ?? {},
     );
     // [FIX] Do NOT save colors to details anymore, save to appConfig
-    updatedDetails['appName'] = _appNameController.text.trim();
     updatedDetails['city'] = _cityController.text.trim();
     updatedDetails['state'] = _stateController.text.trim();
-    updatedDetails['apiToken'] = _apiTokenController.text.trim();
-    updatedDetails['systemUrl'] = _systemUrlController.text.trim();
     updatedDetails['systemType'] = _systemTypeController.text.trim();
-    updatedDetails['hasAndroidApp'] = _hasAndroidApp;
-    updatedDetails['hasIosApp'] = _hasIosApp;
 
     final updatedFeatures = Map<String, dynamic>.from(
       _localProvider.features ?? {},
@@ -205,7 +181,6 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
     final updatedProvider = _localProvider.copyWith(
       themeColor: _themeColorController.text.trim(),
       logoUrl: _logoUrlController.text.trim(),
-      apiUrl: _apiUrlController.text.trim(),
       features: updatedFeatures,
       details: updatedDetails,
       appConfig: updatedAppConfig,
@@ -385,8 +360,12 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
           const SizedBox(height: 16),
           TextField(
             controller: _appNameController,
+            // Identidade do app (nome/pacote/assinatura) é definida pelo SaaS
+            // no registro de builds; não é editável por aqui.
+            readOnly: true,
+            enabled: false,
             decoration: InputDecoration(
-              labelText: 'Nome do Aplicativo',
+              labelText: 'Nome do Aplicativo (definido pela equipe SaaS)',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -508,26 +487,6 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
             (v) => setState(() => _featureContract = v),
           ),
 
-          const Divider(height: 32),
-          const Text(
-            'Plataformas Disponíveis',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          _buildFeatureSwitch(
-            'Android App',
-            'Aplicativo Android habilitado',
-            Icons.android,
-            _hasAndroidApp,
-            (v) => setState(() => _hasAndroidApp = v),
-          ),
-          _buildFeatureSwitch(
-            'iOS App',
-            'Aplicativo iPhone habilitado',
-            Icons.apple,
-            _hasIosApp,
-            (v) => setState(() => _hasIosApp = v),
-          ),
         ],
       ),
     );
@@ -569,46 +528,24 @@ class _ProviderSettingsPageState extends ConsumerState<ProviderSettingsPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'API SGP',
+            'Integração SGP',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 16),
-
-          TextField(
-            controller: _apiUrlController,
-            decoration: InputDecoration(
-              labelText: 'URL da API',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          TextField(
-            controller: _apiTokenController,
-            decoration: InputDecoration(
-              labelText: 'Token',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+          const SizedBox(height: 12),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.lock_outline),
+              title: Text('Gerenciada pela equipe SaaS'),
+              subtitle: Text(
+                  'URL, token e app do SGP ficam em área privada e são cadastrados '
+                  'no painel web pela administração SaaS. Eles não são exibidos '
+                  'nem editados neste aplicativo.'),
             ),
           ),
           const SizedBox(height: 24),
-
           const Text(
             'Sistema de Gestão',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _systemUrlController,
-            decoration: InputDecoration(
-              labelText: 'URL do Sistema (SGP)',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
           const SizedBox(height: 16),
           TextField(

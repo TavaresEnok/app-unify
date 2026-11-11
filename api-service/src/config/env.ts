@@ -12,15 +12,6 @@ export const env = {
   port: numberEnv("PORT", 9136),
   nodeEnv: process.env.NODE_ENV || "development",
   firebaseApiKey: process.env.FIREBASE_API_KEY || "",
-  sgpToken: process.env.SGP_TOKEN || "",
-  sgpAppName: process.env.SGP_APP_NAME || "",
-  sgpBaseUrl: (process.env.SGP_BASE_URL || "https://vibetelecom.sgp.net.br").replace(/\/$/, ""),
-  // Desabilitar a verificação de TLS permite MITM no tráfego SGP (que carrega o
-  // sgpToken). Só é honrado fora de produção — em produção a verificação é
-  // sempre obrigatória, independentemente da env.
-  sgpRejectUnauthorized: (process.env.NODE_ENV === "production")
-    ? true
-    : process.env.SGP_REJECT_UNAUTHORIZED !== "false",
   proxySgpUrl: (process.env.PROXY_SGP_INTERNAL_URL || "http://backend-proxy:3002").replace(/\/$/, ""),
   allowedOrigins: listEnv("ALLOWED_ORIGINS", [
     "http://localhost:5173",
@@ -32,6 +23,5 @@ export const env = {
 export function environmentWarnings(): string[] {
   const warnings: string[] = [];
   if (!env.firebaseApiKey) warnings.push("FIREBASE_API_KEY ausente; login REST ficará indisponível.");
-  if (!env.sgpToken || !env.sgpAppName) warnings.push("Credenciais SGP globais ausentes; só assinantes com provedor identificado acessarão o SGP.");
   return warnings;
 }

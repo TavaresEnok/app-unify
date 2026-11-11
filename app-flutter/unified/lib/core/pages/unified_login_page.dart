@@ -23,18 +23,24 @@ class UnifiedLoginPage extends ConsumerStatefulWidget {
 
 class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
   final _cpfController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void dispose() {
     _cpfController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin(ProviderConfig? config) async {
     if (_cpfController.text.trim().isEmpty) {
       setState(() => _errorMessage = 'Por favor, digite seu CPF ou CNPJ.');
+      return;
+    }
+    if (_passwordController.text.isEmpty) {
+      setState(() => _errorMessage = 'Digite a senha da central do assinante.');
       return;
     }
     if (config == null) {
@@ -50,7 +56,7 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
     try {
       await ref
           .read(authNotifierProvider.notifier)
-          .login(_cpfController.text.trim(), config);
+          .login(_cpfController.text.trim(), config, password: _passwordController.text);
       // Sucesso: o AuthGate navega automaticamente.
     } catch (_) {
       if (mounted) {
@@ -108,6 +114,23 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                   _label('CPF / CNPJ', tokens),
                   const SizedBox(height: 8),
                   _cpfField(tokens),
+                  const SizedBox(height: 20),
+                  _label('Senha da central do assinante', tokens),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.password],
+                    style: TextStyle(color: tokens.textPrimary),
+                    decoration: const InputDecoration(
+                      hintText: 'Sua senha',
+                      prefixIcon: Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) { if (!_isLoading) _handleLogin(config); },
+                  ),
                   const SizedBox(height: 24),
                   _loginButton(tokens, config),
                   if (_errorMessage != null) ...[

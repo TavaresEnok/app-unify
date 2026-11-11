@@ -1,4 +1,5 @@
 import type { RequestHandler } from "../app/request";
+import { clientPage } from "../app/clientPage";
 import { AppError } from "../app/errors";
 import { db } from "../app/firebase";
 import { requireProviderAccess } from "../app/permissions";
@@ -10,7 +11,7 @@ function sanitizeClient(id: string, data: FirebaseFirestore.DocumentData) {
     if (!contract || typeof contract !== "object") return contract;
     const sanitized = { ...(contract as Record<string, unknown>) };
     for (const key of Object.keys(sanitized)) {
-      if (["senha", "password", "token", "apitoken", "authorization", "secret", "contratocentralsenha"].includes(key.toLowerCase())) {
+      if (["senha", "password", "token", "apitoken", "authorization", "secret", "contratocentralsenha", "senhacentral"].includes(key.toLowerCase())) {
         delete sanitized[key];
       }
     }
@@ -21,8 +22,7 @@ function sanitizeClient(id: string, data: FirebaseFirestore.DocumentData) {
 
 export const listProviderClients: RequestHandler<"LIST_PROVIDER_CLIENTS"> = async ({ requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
-  const snapshot = await db.collection("provedores").doc(payload.providerId).collection("clientes").orderBy("nome").get();
-  return snapshot.docs.map((client) => sanitizeClient(client.id, client.data()));
+  return clientPage(payload.providerId, payload);
 };
 
 export const getClientDetails: RequestHandler<"GET_CLIENT_DETAILS"> = async ({ requesterUid, payload }) => {

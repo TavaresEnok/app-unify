@@ -1,6 +1,7 @@
 // ARQUIVO: lib/core/services/consumo_service.dart
 // DESCRIÇÃO: Serviço para buscar dados de consumo de internet
 
+import 'api_response.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
@@ -49,14 +50,14 @@ class ConsumoService {
           )
           .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body)['data'];
-        return responseData as Map<String, dynamic>;
-      } else {
-        final errorBody = json.decode(response.body)['error'];
-        throw Exception(errorBody?['message'] ??
-            'Falha ao carregar dados de consumo. Código: ${response.statusCode}');
+      final responseData = decodeApiResponse(response,
+          fallback:
+              'Falha ao carregar dados de consumo. Código: ${response.statusCode}')['data'];
+      if (responseData is! Map<String, dynamic>) {
+        throw ApiException(response.statusCode,
+            'Resposta inesperada do servidor. Tente novamente.');
       }
+      return responseData;
     } on TimeoutException {
       throw TimeoutException(
           'O servidor demorou muito para responder. Verifique sua conexão.');
