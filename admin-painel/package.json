@@ -68,6 +68,8 @@
     "vitest": "^4.1.12"
   },
   "overrides": {
-    "@grpc/grpc-js": "^1.14.5"
+    "@grpc/grpc-js": "^1.14.5",
+    "minimatch@^10.0.0": "^11.0.8",
+    "minimatch@^9.0.0": "^11.0.8"
   }
 }
