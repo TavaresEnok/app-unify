@@ -151,10 +151,24 @@ services:
       POSTGRES_USER: sgp_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: sgp_cache
+    # PITR (E6): cada segmento de WAL é arquivado em /wal-archive (no máximo
+    # 5 min de atraso). O backup diário leva base física + WAL para fora e
+    # limpa o que a base nova já cobre.
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal-archive/%f && cp %p /wal-archive/%f
+      - -c
+      - archive_timeout=300
     # SEGURANÇA: porta NÃO exposta publicamente — acesso apenas via rede Docker interna
     # Para acessar via host: docker exec -it painel_postgres psql -U sgp_user -d sgp_cache
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - pgwal:/wal-archive
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sgp_user -d sgp_cache"]
       interval: 30s
@@ -414,6 +428,8 @@ networks:
 volumes:
   redis_state:
   pgdata:
+  # Arquivo de WAL para recuperação até um ponto no tempo.
+  pgwal:
   caddy_data:
   caddy_config:
   apk_pub_cache:
