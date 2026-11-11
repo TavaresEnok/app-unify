@@ -29,6 +29,12 @@ case "$action" in
     docker compose ps
     ;;
   rebuild)
+    # Grava o commit nas imagens (label org.opencontainers.image.revision).
+    GIT_REVISION="$(git rev-parse HEAD)"
+    if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+      GIT_REVISION="${GIT_REVISION}-modificado"
+    fi
+    export GIT_REVISION
     if [[ -n "$service" ]]; then
       docker compose build "$service"
       docker compose up -d --no-deps --force-recreate "$service"

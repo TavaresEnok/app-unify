@@ -51,7 +51,7 @@ const ProviderTicketsPage = lazy(() => import("./pages/provider/ProviderTicketsP
 const TicketDetailPage = lazy(() => import("./pages/TicketDetailPage"));
 const MyCompanyPage = lazy(() => import("./pages/provider/MyCompanyPage"));
 const MenusSettingsPage = lazy(() => import("./pages/provider-settings/MenusSettingsPage"));
-const AndroidBuilderPage = lazy(() => import("./pages/provider-settings/AndroidBuilder_Final"));
+const AndroidBuilderPage = lazy(() => import("./pages/provider-settings/AndroidBuilder"));
 
 function PostLoginRedirect() {
   const { userRole } = useAuth();

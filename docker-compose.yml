@@ -63,6 +63,9 @@ services:
     build:
       context: ./admin-painel
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_PUBLIC_API_URL: ${VITE_PUBLIC_API_URL:-}
@@ -97,6 +100,9 @@ services:
     build:
       context: ./proxy-sgp
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_proxy_sgp
     restart: always
     ports:
@@ -167,6 +173,9 @@ services:
     build:
       context: ./landing-page
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_landing
     restart: always
     ports:
@@ -193,6 +202,9 @@ services:
     build:
       context: ./speed_test_server
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_speedtest
     restart: always
     environment:
@@ -226,6 +238,9 @@ services:
     build:
       context: ./api-service
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_api
     restart: always
     ports:
@@ -269,6 +284,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.apkbuilder
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_apk_builder
     mem_limit: 3g
     cpus: "2.00"
@@ -344,6 +362,9 @@ services:
     build:
       context: ./proxy-sgp
       dockerfile: Dockerfile
+      labels:
+        # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     command: node worker.js
     stop_grace_period: 90s
     restart: always

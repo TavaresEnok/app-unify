@@ -226,8 +226,6 @@ async function callSgpApi(params) {
         body: data, ttl: cache ? readTtl(params.url) : 0, mutate: /liberacaopromessa|wifi\/update/.test(params.url) }, () => rawSgpApi(body));
 }
 
-// Mantém compatibilidade com código antigo que usa executePhp
-const executePhp = callSgpApi;
 
 // Helper to parse signal values like "N/A" or "-23.5 dBm"
 function parseSignalValue(value) {
@@ -329,7 +327,7 @@ async function resolveClientContractCredentials({ cpfCnpjUnformatted, sgpParams,
         url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/')
     };
 
-    const consultaResponse = await executePhp(consultaParams);
+    const consultaResponse = await callSgpApi(consultaParams);
     if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) {
         throw new Error('Nenhum contrato encontrado.');
     }
@@ -390,7 +388,7 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
             url: formatSgpUrl(sgpBaseUrl, '/api/central/extratouso/')
         };
 
-        const extratoResponse = await executePhp(extratoParams);
+        const extratoResponse = await callSgpApi(extratoParams);
 
         // DEBUG: Inspetor de Resposta SGP
         console.log(`[Consumo DEBUG] Keys recebidas: ${Object.keys(extratoResponse || {}).join(', ')}`);
@@ -532,7 +530,7 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
             cpfcnpj: cpfCnpjUnformatted,
             url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/')
         };
-        const clientResponse = await executePhp(clientParams);
+        const clientResponse = await callSgpApi(clientParams);
 
         secureLog('[Check-CPF] Consulta cliente (sanitizado):', {
             contratosEncontrados: clientResponse?.contratos?.length || 0,
@@ -560,7 +558,7 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                     url: formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/')
                 };
                 console.log('[Check-CPF] Valor zerado. Buscando títulos abertos...');
-                const titlesResponse = await executePhp(titlesParams);
+                const titlesResponse = await callSgpApi(titlesParams);
 
                 if (titlesResponse?.titulos?.length) {
                     // Filtra apenas faturas vencidas ou a vencer nos próximos 45 dias
@@ -629,7 +627,7 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                     url: formatSgpUrl(sgpBaseUrl, '/api/central/verificaacesso/')
                 };
 
-                const verificaResponse = await executePhp(verificaParams);
+                const verificaResponse = await callSgpApi(verificaParams);
                 secureLog('[Check-CPF] verificaacesso Resposta (sanitizada):', verificaResponse);
 
                 // A API retorna o status de disponibilidade da conexão
@@ -729,7 +727,7 @@ async function handleOnuRequest(req, res, useFilters) {
         const onuParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, url: formatSgpUrl(sgpBaseUrl, '/api/fttx/onu/list/') };
         if (useFilters) { onuParams.signal = '1'; onuParams.connection = '1'; }
         if (contratoResolvido) onuParams.contrato = contratoResolvido.toString();
-        const onuResponse = await executePhp(onuParams);
+        const onuResponse = await callSgpApi(onuParams);
         if (!onuResponse || !Array.isArray(onuResponse) || onuResponse.length === 0) return res.status(404).json({ error: { message: "Nenhuma ONU encontrada." } });
         const onu = onuResponse[0];
 
@@ -804,7 +802,7 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
         const fullUrl = formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contratoId}/wifi/list/`);
         console.log(`[WIFI-LIST] URL SGP: ${fullUrl}`);
         const wifiParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, url: fullUrl };
-        const response = await executePhp(wifiParams);
+        const response = await callSgpApi(wifiParams);
         // Check if response contains PHP errors or execution errors
         if (response && (response.message || response.error)) {
             secureLog(`[WIFI-LIST] Resposta SGP (Possível Erro):`, response);
@@ -841,7 +839,7 @@ app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
         }
 
         const updateParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, wifi_id: wifiId, ssid, password, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/update/`) };
-        const response = await executePhp(updateParams);
+        const response = await callSgpApi(updateParams);
         secureLog(`[WIFI-UPDATE] Resposta SGP:`, response);
         res.status(200).json({ success: true, data: response });
     } catch (error) {
@@ -889,8 +887,8 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
 
         console.log(`[Faturas] Buscando abertas e pagas em paralelo...`);
         const [responseAbertos, responsePagos] = await Promise.all([
-            executePhp(paramsAbertos),
-            executePhp(paramsPagos)
+            callSgpApi(paramsAbertos),
+            callSgpApi(paramsPagos)
         ]);
 
         // DEBUG: Log raw response to find PIX field name
@@ -956,7 +954,7 @@ app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
     try {
         // 1. Busca contrato do cliente
         const consultaParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, url: formatSgpUrl(sgpBaseUrl, '/api/ura/consultacliente/') };
-        const consultaResponse = await executePhp(consultaParams);
+        const consultaResponse = await callSgpApi(consultaParams);
 
         if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) {
             return res.status(404).json({ error: { message: "Nenhum contrato encontrado para este cliente." } });
@@ -965,7 +963,7 @@ app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
 
         // 2. Solicita liberação por promessa
         const promessaParams = { ...sgpParams, contrato: contratoId.toString(), url: formatSgpUrl(sgpBaseUrl, '/api/ura/liberacaopromessa/') };
-        const promessaResponse = await executePhp(promessaParams);
+        const promessaResponse = await callSgpApi(promessaParams);
 
         if (promessaResponse?.status === false) {
             return res.status(400).json({ error: { message: promessaResponse.msg || "Não foi possível realizar o desbloqueio." } });
