@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { parseDetails } from "@/features/provider-settings/configBoundary";
 import { toast } from "sonner";
 import { Loader2, FilePenLine } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
@@ -33,14 +33,14 @@ interface EditProviderDialogProps {
 
 export default function EditProviderDialog({ provider, onUpdate }: EditProviderDialogProps) {
     const { callFunction } = useApi();
-    const [details, setDetails] = useState<ProviderDetails>(provider.details || {});
+    const [details, setDetails] = useState<ProviderDetails>({});
     const [name, setName] = useState(provider.name || '');
     const [isSaving, setIsSaving] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
 
     // Garante que o estado do formulário é atualizado se o prop do provedor mudar
     useEffect(() => {
-        setDetails(provider.details || {});
+        setDetails(Object.fromEntries(Object.entries(provider.details || {}).filter(([key]) => ["city", "state", "systemType"].includes(key))));
         setName(provider.name || '');
     }, [provider]);
 
@@ -52,7 +52,7 @@ export default function EditProviderDialog({ provider, onUpdate }: EditProviderD
         setIsSaving(true);
         const toastId = toast.loading("A guardar alterações...");
         try {
-            await callFunction('UPDATE_PROVIDER_DETAILS', { providerId: provider.id, details: { ...details, name } });
+            await callFunction('UPDATE_PROVIDER_DETAILS', { providerId: provider.id, details: parseDetails({ ...details, name }) });
             toast.success("Provedor atualizado com sucesso!", { id: toastId });
             onUpdate();
             setIsOpen(false);
@@ -79,14 +79,6 @@ export default function EditProviderDialog({ provider, onUpdate }: EditProviderD
                         <Input id="providerName" value={name} onChange={(e) => setName(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="appName">Nome do Aplicativo</Label>
-                        <Input id="appName" value={details.appName || ''} onChange={(e) => handleDetailChange('appName', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="systemUrl">URL do Sistema (SGP)</Label>
-                        <Input id="systemUrl" value={details.systemUrl || ''} onChange={(e) => handleDetailChange('systemUrl', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
                         <Label htmlFor="systemType">Tipo de Sistema</Label>
                         <Input id="systemType" value={details.systemType || ''} onChange={(e) => handleDetailChange('systemType', e.target.value)} />
                     </div>
@@ -97,16 +89,6 @@ export default function EditProviderDialog({ provider, onUpdate }: EditProviderD
                     <div className="space-y-2">
                         <Label htmlFor="state">Estado</Label>
                         <Input id="state" value={details.state || ''} onChange={(e) => handleDetailChange('state', e.target.value)} />
-                    </div>
-                    <div className="flex flex-col gap-2 pt-2">
-                        <div className="flex items-center space-x-2">
-                            <Switch id="hasAndroidApp" checked={details.hasAndroidApp} onCheckedChange={(c) => handleDetailChange('hasAndroidApp', c)} />
-                            <Label htmlFor="hasAndroidApp">Habilitar app Android</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch id="hasIosApp" checked={details.hasIosApp} onCheckedChange={(c) => handleDetailChange('hasIosApp', c)} />
-                            <Label htmlFor="hasIosApp">Habilitar app iPhone</Label>
-                        </div>
                     </div>
                 </div>
                 <DialogFooter>

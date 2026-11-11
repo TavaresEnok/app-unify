@@ -1,4 +1,5 @@
 import type { ProviderConfig } from "@/shared/contracts";
+import { sanitizePersonalization, parsePersonalization } from "./configBoundary";
 import { DEFAULT_PROVIDER_CONFIG } from "./defaults";
 
 type UnknownRecord = Record<string, unknown>;
@@ -24,21 +25,15 @@ function nonEmptyString(value: unknown, fallback: string): string {
 
 export function normalizeProviderConfig(
   providerData: UnknownRecord | null | undefined,
-  secrets: UnknownRecord = {},
+  _secrets: UnknownRecord = {},
 ): ProviderConfig {
   const data = isPlainObject(providerData) ? providerData : {};
-  const legacy = isPlainObject(data.config) ? data.config : {};
-  const root = { ...data };
-  delete root.config;
-
   const merged = mergeConfig(
     DEFAULT_PROVIDER_CONFIG as UnknownRecord,
-    mergeConfig(legacy, root),
+    sanitizePersonalization(data),
   ) as ProviderConfig;
 
-  if (isPlainObject(secrets.integrations)) {
-    merged.integrations = secrets.integrations;
-  }
+
 
   merged.themeColor = nonEmptyString(merged.themeColor, DEFAULT_PROVIDER_CONFIG.themeColor);
   merged.secondaryColor = nonEmptyString(merged.secondaryColor, DEFAULT_PROVIDER_CONFIG.secondaryColor);
@@ -52,17 +47,8 @@ export interface FirestoreProviderPayload {
 }
 
 export function toFirestoreProviderConfig(config: ProviderConfig): FirestoreProviderPayload {
-  const publicConfig = structuredClone(config) as Record<string, unknown>;
-  const integrations = isPlainObject(publicConfig.integrations)
-    ? publicConfig.integrations
-    : null;
-  delete publicConfig.integrations;
-  delete publicConfig.config;
-
-  return {
-    publicConfig,
-    secrets: integrations ? { integrations } : null,
-  };
+  const publicConfig = parsePersonalization(config);
+  return { publicConfig, secrets: null };
 }
 
 export function fromFirestoreProviderConfig(

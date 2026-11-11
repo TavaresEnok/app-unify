@@ -1,6 +1,9 @@
-import axios from "axios";
+import outbound from "../services/sgp-outbound";
 import express from "express";
 import request from "supertest";
+import http from "node:http";
+import net from "node:net";
+import { once } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Firestore em memória: { "provedores/p1": {...}, "provedores/p1/secrets/sgp": {...} }.
@@ -27,9 +30,10 @@ function collectionRef(path: string, filters: Array<[string, unknown]> = []): an
 vi.mock("../services/firebaseAdmin", () => ({
   firestore: { collection: (name: string) => collectionRef(name) },
   firebaseAuth: {
+    getUser: async (uid: string) => ({ uid, customClaims: [...tokens.values()].find(user => user.uid === uid) || {} }),
     verifyIdToken: async (token: string) => {
       const user = tokens.get(token);
-      if (!user) throw new Error("invalid");
+      if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
       return user;
     },
   },
@@ -37,10 +41,11 @@ vi.mock("../services/firebaseAdmin", () => ({
 
 const lookupMock = vi.hoisted(() => vi.fn());
 vi.mock("node:dns/promises", () => ({ lookup: lookupMock }));
+vi.mock("../services/upstream-runtime", () => ({ createUpstream: () => ({ execute: async (_input: unknown, operation: () => Promise<unknown>) => operation() }), readTtl: () => 0 }));
 
 const { subscriberRouter } = await import("./subscriber.routes");
 const { errorHandler } = await import("../middlewares/errorHandler");
-const { assertSafeSgpBaseUrl } = await import("../services/sgpClient");
+const { assertSafeSgpBaseUrl, createSgpSession } = await import("../services/sgpClient");
 
 const app = express();
 app.use(express.json());
@@ -68,7 +73,7 @@ beforeEach(() => {
   lookupMock.mockReset();
   lookupMock.mockResolvedValue([{ address: "200.160.2.3", family: 4 }]);
   docs.set("provedores/p1", { details: { systemUrl: "https://p1.sgp.net.br/" } });
-  docs.set("provedores/p1/secrets/sgp", { integrations: { apiToken: "tok-p1", appName: "app-p1" } });
+  docs.set("provedores/p1/secrets/sgp", { integrations: { apiToken: "tok-p1", appName: "app-p1", sgpBaseUrl: "https://p1.sgp.net.br" } });
   docs.set("provedores/p2", {});
   docs.set("provedores/p2/secrets/sgp", { integrations: { apiToken: "tok-p2", appName: "app-p2", sgpBaseUrl: "https://p2.sgp.net.br" } });
   docs.set(`clientes/${CPF}`, { providerId: "p2", cpfCnpj: CPF });
@@ -76,20 +81,67 @@ beforeEach(() => {
   sgpResponses = {
     "/ws/ura/consultacliente/": () => ({ contratos: [contrato(1, 0), contrato(2, 99.9)] }),
   };
-  vi.spyOn(axios, "create").mockReturnValue({
-    post: async (url: string, body: any) => {
+  vi.spyOn(outbound, "assertSafeSgpBaseUrl").mockImplementation(async (url: string) => {
+    const transport: any = outbound.createSgpTransport({ lookup: lookupMock });
+    return transport.assertSafeSgpBaseUrl(url);
+  });
+  vi.spyOn(outbound, "request").mockImplementation(async (url: string, body: any) => {
       calls.push({ url, body });
       const path = new URL(url).pathname;
       const handler = sgpResponses[path];
       if (!handler) throw new Error(`rota SGP inesperada: ${path}`);
-      return { data: handler(body) };
-    },
-  } as any);
+      return { data: handler(body) } as any;
+  });
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("credenciais SGP por provedor", () => {
+  it("nega tenant ausente/ambíguo, configuração privada incompleta e campos forjados sem saída global", async () => {
+    vi.stubEnv("SGP_TOKEN", "synthetic-global-never-send");
+    docs.set(`clientes/shared`, { providerId: "p1", cpfCnpj: CPF });
+    tokens.set("legacy", { uid: CPF, role: "subscriber", cpfCnpj: CPF });
+    await request(app).post("/getInvoices").set(asSubscriber("legacy")).send({ cpfCnpj: CPF }).expect(503);
+    for (const key of ["sgpBaseUrl", "appName", "apiToken"]) {
+      docs.set("provedores/p2/secrets/sgp", { integrations: { sgpBaseUrl: "https://p2.sgp.net.br", apiToken: "tok-p2", appName: "app-p2", [key]: "" } });
+      await request(app).post("/getInvoices").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(503);
+    }
+    for (const field of ["url", "token", "app", "sgpBaseUrl", "sgpParams", "apiToken", "appName"]) await request(app).post("/getInvoices").set(asSubscriber()).send({ cpfCnpj: CPF, [field]: "synthetic-forged" }).expect(400);
+    await request(app).post("/getInvoices").set(asSubscriber()).send({ cpfCnpj: CPF, providerId: "p1" }).expect(403);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("exercita rota e sessão reais até o socket, bloqueando rebinding/redirect e opções de destino", async () => {
+    const received: string[] = []; let redirect = false; let resolution = "public";
+    const server = http.createServer(async (req, res) => {
+      let body = ""; for await (const chunk of req) body += chunk;
+      received.push(body);
+      if (redirect) { res.writeHead(307, { Location: "http://127.0.0.1:1/forbidden" }); res.end(); return; }
+      res.end('{"titulos":[]}');
+    });
+    server.listen(0, "127.0.0.1"); await once(server, "listening");
+    const port = (server.address() as net.AddressInfo).port;
+    const base = `http://sgp.synthetic.test:${port}`;
+    docs.set("provedores/p2/secrets/sgp", { integrations: { sgpBaseUrl: base, apiToken: "tok-p2", appName: "app-p2" } });
+    const transport: any = outbound.createSgpTransport({ lookup: async () => [{ address: resolution === "public" ? "8.8.8.8" : "127.0.0.1", family: 4 }], connect: (options: any) => {
+      expect(options.host).toBe("8.8.8.8");
+      const socket = net.connect({ host: "127.0.0.1", port }); Object.defineProperty(socket, "remoteAddress", { get: () => "8.8.8.8" }); return socket;
+    } });
+    vi.mocked(outbound.request).mockImplementation(transport.request);
+    vi.mocked(outbound.assertSafeSgpBaseUrl).mockImplementation(transport.assertSafeSgpBaseUrl);
+    try {
+      await request(app).post("/getInvoices").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(200);
+      expect(received).toHaveLength(2); expect(received.every(body => JSON.parse(body).token === "tok-p2")).toBe(true);
+      const session = createSgpSession("p2", base);
+      for (const options of [{ url: "http://evil/" }, { httpsAgent: {} }, { proxy: {} }, { adapter: () => {} }, { headers: { Host: "evil" } }]) await expect(session.post(`${base}/api/ura/titulos/`, { token: "tok-p2" }, options as any)).rejects.toThrow();
+      await expect(session.post("http://other.synthetic.test/api/ura/titulos/", { token: "tok-p2" })).rejects.toThrow();
+      resolution = "private"; await expect(session.post(`${base}/api/ura/titulos/`, { token: "tok-p2" })).rejects.toThrow();
+      expect(received).toHaveLength(2);
+      resolution = "public"; redirect = true;
+      await request(app).post("/getInvoices").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(502);
+      expect(received).toHaveLength(4);
+    } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
   it("usa o SGP e o token do provedor dono do CPF", async () => {
     await request(app).post("/getClientData").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(200);
     expect(calls[0].url).toBe("https://p2.sgp.net.br/ws/ura/consultacliente/");

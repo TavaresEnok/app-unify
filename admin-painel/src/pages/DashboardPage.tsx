@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import StatsCard from '@/components/StatsCard';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { useDashboardState, measuredCount } from '@/shared/api/dashboardState';
 import { reportPanelReady } from '@/shared/api/panelTiming';
 
 interface ChartData { name: string; clientes: number; }
@@ -20,52 +21,20 @@ interface RecentTicket {
 }
 
 export default function DashboardPage() {
-    const { userRole, user } = useAuth();
+    const { userRole, user, providerId } = useAuth();
     const navigate = useNavigate();
     const { callFunction } = useApi();
-    const [stats, setStats] = useState({ providerCount: 0, clientCount: 0, notificationCount: 0, openTicketsCount: 0 });
-    const [chartData, setChartData] = useState<ChartData[]>([]);
-    const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
-    const [retry, setRetry] = useState(0);
-
-    useEffect(() => { if (!loading && !error && user) reportPanelReady(user); }, [loading, error, user]);
-
-    useEffect(() => {
-        if (userRole !== 'superAdmin' || !user) {
-            setLoading(false);
-            return;
-        }
-
-        const loadDashboardData = async () => {
-            setLoading(true);
-            setError(false);
-            try {
-                const result = await callFunction('GET_DASHBOARD_DATA', {});
-                setStats(result.stats as typeof stats);
-                setChartData((result.chartData as ChartData[]) || []);
-                setRecentTickets((result.recentTickets as RecentTicket[]) || []);
-            } catch (error) {
-                console.error('Erro ao carregar dashboard:', error);
-                setError(true);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadDashboardData();
-    }, [userRole, user, callFunction, retry]);
+    const request = useCallback(() => callFunction('GET_DASHBOARD_DATA', {}, { silent: true }), [callFunction]);
+    const dashboard = useDashboardState(user, userRole, providerId, !!user && userRole === 'superAdmin', request);
+    const { status, data } = dashboard;
+    const stats = (data?.stats || {}) as Record<string, unknown>;
+    const chartData = Array.isArray(data?.chartData) ? (data.chartData as ChartData[]).filter(item => typeof item.name === 'string' && measuredCount(item.clientes) !== 'N/D') : [];
+    const recentTickets = Array.isArray(data?.recentTickets) ? data.recentTickets as RecentTicket[] : undefined;
+    useEffect(() => { if (status === 'ready' && user) reportPanelReady(user); }, [status, user]);
 
     const maxClients = Math.max(...chartData.map(item => item.clientes), 1);
     const visibleProviders = chartData.slice(0, 6);
     const formatClientCount = (value: number) => new Intl.NumberFormat('pt-BR').format(value);
-
-    if (loading) {
-        return <DashboardSkeleton />;
-    }
-
-    if (error) return <Card><CardHeader><CardTitle>Não foi possível carregar a visão geral</CardTitle></CardHeader><CardContent><Button onClick={() => setRetry(value => value + 1)}>Tentar novamente</Button></CardContent></Card>;
 
     return (
         <div className="space-y-5 fade-in">
@@ -82,26 +51,37 @@ export default function DashboardPage() {
                 </div>
             </div>
 
+            <p>Consultas agregadas no Firestore; sem garantia de frescor da origem.</p>
+            <Button variant="outline" onClick={() => void dashboard.reload()} disabled={status === 'loading' || status === 'denied'}>Recarregar</Button>
+            {status === 'loading' && <div role="status">Carregando…<DashboardSkeleton /></div>}
+            {status === 'denied' && <p role="alert">Sessão sem acesso ao dashboard SaaS.</p>}
+            {status === 'error' && <p role="alert">Não foi possível carregar os dados. Tente recarregar.</p>}
+            {(status === 'stale' || (status === 'loading' && data)) && <p role="status">Dados desatualizados da consulta anterior.</p>}
+            {data && <>
             <div className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-4">
                 <StatsCard
                     title="Total de Provedores"
-                    value={stats.providerCount}
+                    value={measuredCount(stats.providerCount)}
                     icon={Server}
+                    description="Total de provedores cadastrados, sem período."
                 />
                 <StatsCard
-                    title="Perfis de assinantes"
-                    value={stats.clientCount}
+                    title="Registros de clientes"
+                    value={measuredCount(stats.clientCount)}
                     icon={Users}
+                    description="Total de clientes cadastrados, sem período."
                 />
                 <StatsCard
                     title="Tickets Abertos"
-                    value={stats.openTicketsCount}
+                    value={measuredCount(stats.openTicketsCount)}
                     icon={MessageSquare}
+                    description="Status Aberto ou Em Andamento, sem período."
                 />
                 <StatsCard
                     title="Notificações (24h)"
-                    value={stats.notificationCount}
+                    value={measuredCount(stats.notificationCount)}
                     icon={Bell}
+                    description="Registros criados nas últimas 24 horas; não comprova entrega."
                 />
             </div>
 
@@ -109,11 +89,11 @@ export default function DashboardPage() {
                 <Card className="overflow-hidden">
                     <CardHeader className="border-b border-[#EEF0F4]">
                         <CardTitle>Clientes por provedor</CardTitle>
-                        <CardDescription>Base sincronizada via SGP.</CardDescription>
+                        <CardDescription>Registros no Firestore por provedor (até 6 exibidos); não mede instalações.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3 p-[18px]">
                         {visibleProviders.length === 0 ? (
-                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">Nenhum provedor com clientes sincronizados.</div>
+                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">{Array.isArray(data?.chartData) && data.chartData.length === 0 ? 'Nenhum provedor encontrado.' : 'Dados por provedor indisponíveis.'}</div>
                         ) : (
                             visibleProviders.map((item) => (
                                 <div key={item.name} className="grid grid-cols-[118px_1fr_52px] items-center gap-3">
@@ -121,7 +101,7 @@ export default function DashboardPage() {
                                     <div className="h-2 overflow-hidden rounded-full bg-[#EEF1F6]">
                                         <div
                                             className="h-full rounded-full bg-primary"
-                                            style={{ width: `${Math.round((item.clientes / maxClients) * 100)}%` }}
+                                            style={{ width: `${Math.max(0, Math.round((item.clientes / maxClients) * 100))}%` }}
                                         />
                                     </div>
                                     <span className="text-right font-mono text-[11.5px] text-[#687181]">{formatClientCount(item.clientes)}</span>
@@ -139,8 +119,8 @@ export default function DashboardPage() {
                         </Button>
                     </CardHeader>
                     <CardContent className="p-0">
-                        {recentTickets.length === 0 ? (
-                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">Nenhum ticket encontrado.</div>
+                        {!recentTickets || recentTickets.length === 0 ? (
+                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">{recentTickets ? 'Nenhum ticket encontrado.' : 'Tickets indisponíveis.'}</div>
                         ) : (
                             recentTickets.map((ticket) => (
                                 <button
@@ -158,6 +138,7 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+            </>}
         </div>
     );
 };

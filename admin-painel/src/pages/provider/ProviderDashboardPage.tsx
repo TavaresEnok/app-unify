@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { timestampDate, type TimestampValue } from '@/shared/api/timestamp';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Send, Activity, Bell, Users } from "lucide-react";
+import { Activity, Bell, MessageSquare, Send, Users } from "lucide-react";
 import { ProviderDashboardSkeleton } from '@/components/ProviderDashboardSkeleton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -11,6 +11,7 @@ import StatsCard from '@/components/StatsCard';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { useDashboardState, measuredCount } from '@/shared/api/dashboardState';
 import { reportPanelReady } from '@/shared/api/panelTiming';
 
 interface RecentTicket {
@@ -22,51 +23,21 @@ interface RecentTicket {
 
 export default function ProviderDashboardPage() {
     const navigate = useNavigate();
-    const { user, providerId } = useAuth();
+    const { user, userRole, providerId } = useAuth();
     const { callFunction } = useApi();
-    const [stats, setStats] = useState<{ totalClients: number; openTicketsCount: number; notificationCount?: number }>({ totalClients: 0, openTicketsCount: 0 });
-    const [error, setError] = useState(false);
-    const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => { if (!loading && !error && user) reportPanelReady(user); }, [loading, error, user]);
-
-    const fetchDashboardData = useCallback(async () => {
-        if (!providerId || !user) {
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        setError(false);
-        try {
-            const result = await callFunction('GET_PROVIDER_DASHBOARD_DATA', { providerId });
-            setStats((result.stats as typeof stats) || { totalClients: 0, openTicketsCount: 0 });
-            setRecentTickets((result.recentTickets as RecentTicket[]) || []);
-        } catch (error) {
-            console.error("Falha ao carregar dashboard", error);
-            setError(true);
-        } finally {
-            setLoading(false);
-        }
-    }, [providerId, user, callFunction]);
-
-    useEffect(() => {
-        void fetchDashboardData();
-    }, [fetchDashboardData]);
-
-    if (loading) {
-        return <ProviderDashboardSkeleton />;
-    }
-
-    if (error) return <Card><CardHeader><CardTitle>Não foi possível carregar a visão geral</CardTitle></CardHeader><CardContent><Button onClick={() => void fetchDashboardData()}>Tentar novamente</Button></CardContent></Card>;
+    const request = useCallback(() => callFunction('GET_PROVIDER_DASHBOARD_DATA', { providerId: providerId! }, { silent: true }), [callFunction, providerId]);
+    const dashboard = useDashboardState(user, userRole, providerId, !!user && !!providerId && userRole === 'providerAdmin', request);
+    const { status, data } = dashboard;
+    const stats = (data?.stats || {}) as Record<string, unknown>;
+    const recentTickets = Array.isArray(data?.recentTickets) ? data.recentTickets as RecentTicket[] : undefined;
+    useEffect(() => { if (status === 'ready' && user) reportPanelReady(user); }, [status, user]);
 
     return (
         <div className="space-y-5">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
                 <div>
                     <h2 className="m-0 mb-1 text-xl font-bold tracking-normal text-[#0E1320]">Visão geral</h2>
-                    <p className="m-0 text-[13px] text-[#687181]">Resumo da operação do seu provedor hoje.</p>
+                    <p className="m-0 text-[13px] text-[#687181]">Contagens de registros do provedor consultadas no Firestore; sem garantia de frescor da origem.</p>
                 </div>
                 <Button onClick={() => navigate('/provedor/comunicados/notificacoes')} className="gap-1.5">
                     <Send className="h-3.5 w-3.5" />
@@ -74,10 +45,17 @@ export default function ProviderDashboardPage() {
                 </Button>
             </div>
 
+            <Button variant="outline" onClick={() => void dashboard.reload()} disabled={status === 'loading' || status === 'denied'}>Recarregar</Button>
+            {status === 'loading' && <div role="status">Carregando…<ProviderDashboardSkeleton /></div>}
+            {status === 'denied' && <p role="alert">Sessão sem acesso ao dashboard do provedor.</p>}
+            {status === 'error' && <p role="alert">Não foi possível carregar os dados. Tente recarregar.</p>}
+            {(status === 'stale' || (status === 'loading' && data)) && <p role="status">Dados desatualizados da consulta anterior.</p>}
+            {data && <>
+            {/* Só indicadores medidos; sem cards de instalações/adesões/nota sem origem (E1). */}
             <div className="grid gap-3.5 md:grid-cols-3">
-                <StatsCard title="Clientes sincronizados" value={stats.totalClients} icon={Users} />
-                <StatsCard title="Chamados abertos" value={stats.openTicketsCount} icon={MessageSquare} />
-                <StatsCard title="Notificações (24h)" value={stats.notificationCount ?? "—"} icon={Bell} />
+                <StatsCard title="Clientes sincronizados" value={measuredCount(stats.totalClients)} icon={Users} description="Total cadastrado no Firestore, sem período." />
+                <StatsCard title="Chamados abertos" value={measuredCount(stats.openTicketsCount)} icon={MessageSquare} description="Aberto ou Em Andamento, sem período." />
+                <StatsCard title="Notificações (24h)" value={measuredCount(stats.notificationCount)} icon={Bell} description="Enviadas nas últimas 24 horas." />
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[.85fr_1.15fr]">
@@ -98,8 +76,8 @@ export default function ProviderDashboardPage() {
                         </Button>
                     </CardHeader>
                     <CardContent className="p-0">
-                        {recentTickets.length === 0 ? (
-                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">Nenhum ticket recente.</div>
+                        {!recentTickets || recentTickets.length === 0 ? (
+                            <div className="py-10 text-center text-[13px] text-[#98A1B1]">{recentTickets ? 'Nenhum ticket recente.' : 'Tickets indisponíveis.'}</div>
                         ) : (
                             recentTickets.map((ticket) => (
                                 <button
@@ -119,6 +97,7 @@ export default function ProviderDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+            </>}
         </div>
     );
 }

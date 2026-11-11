@@ -1,5 +1,5 @@
 // admin-painel/src/components/AddTicketDialog.tsx - TESTE FINAL DE CAMINHO
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PlusCircle, Loader2, Paperclip, XCircle } from "lucide-react";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { privateAttachmentRequest } from '@/shared/api/privateAttachments';
+import { TicketDraft } from '@/features/tickets/ticketDraft';
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { getErrorMessage } from "@/shared/errors";
@@ -27,8 +28,21 @@ export default function AddTicketDialog({ providerName, onTicketCreated }: AddTi
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { user, providerId } = useAuth();
     const { callFunction } = useApi();
+    const draft = useRef(new TicketDraft());
+    const session = `${user?.uid}/${providerId}`;
+    const liveSession = useRef(session);
+    liveSession.current = session;
+    const [createdTicketId, setCreatedTicketId] = useState<string>();
+    useEffect(() => {
+        resetState();
+        return () => draft.current.cancel();
+    }, [session]);
+    useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
 
     const resetState = () => {
+        draft.current.cancel();
+        draft.current = new TicketDraft();
+        setCreatedTicketId(undefined);
         setSubject('');
         setMessage('');
         setImageFile(null);
@@ -55,32 +69,24 @@ export default function AddTicketDialog({ providerName, onTicketCreated }: AddTi
         }
         
         setIsSaving(true);
+        const operation = draft.current;
         const toastId = toast.loading("A abrir novo ticket...");
 
         try {
-            let imageUrl: string | null = null;
-            if (imageFile) {
-                toast.loading("A enviar imagem...", { id: toastId });
-                const storage = getStorage();
-
-                // ===================================================================
-                // O TESTE FINAL ESTÁ AQUI: Mudamos o caminho para dentro de 'providers'
-                // ===================================================================
-                const filePath = `providers/${providerId}/ticket_attachments/${Date.now()}_${imageFile.name}`;
-                
-                const storageRef = ref(storage, filePath);
-                const uploadResult = await uploadBytes(storageRef, imageFile);
-                imageUrl = await getDownloadURL(uploadResult.ref);
-            }
-
-            toast.loading("A registar ticket...", { id: toastId });
-            await callFunction('CREATE_TICKET', { subject, message, providerName, providerId, userEmail: user.email, imageUrl });
+            await operation.save(
+                () => callFunction('CREATE_TICKET', { subject, message, providerName, providerId, userEmail: user.email }, { silent: true }),
+                (ticketId, attachmentId, signal) => privateAttachmentRequest(user, { ticketId }, attachmentId, signal, imageFile!),
+                !!imageFile, () => liveSession.current === session && draft.current === operation,
+            );
             toast.success("Ticket criado com sucesso!", { id: toastId });
             onTicketCreated();
             setIsOpen(false);
             resetState();
         } catch (error) {
-            toast.error(`Falha crítica ao criar ticket: ${getErrorMessage(error)}`, { id: toastId });
+            if (draft.current === operation && liveSession.current === session) {
+                setCreatedTicketId(operation.ticketId);
+                toast.error(operation.ticketId ? `Ticket ${operation.ticketId} criado; anexo pendente. Tente novamente com o mesmo arquivo.` : getErrorMessage(error), { id: toastId });
+            }
         } finally {
             setIsSaving(false);
         }
@@ -95,31 +101,32 @@ export default function AddTicketDialog({ providerName, onTicketCreated }: AddTi
                     <DialogDescription>Descreva o seu problema ou dúvida. A nossa equipe responderá o mais breve possível.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                    {createdTicketId && <p role="status">Ticket {createdTicketId} criado. Anexo pendente; reenviar tenta apenas o anexo.</p>}
                     <div className="space-y-2">
                         <Label htmlFor="subject">Assunto</Label>
-                        <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Ex: Dúvida sobre o módulo de faturas" />
+                        <Input id="subject" disabled={!!createdTicketId || isSaving} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Ex: Dúvida sobre o módulo de faturas" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="message">Mensagem</Label>
-                        <Textarea id="message" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Detalhe aqui a sua solicitação..." rows={6} />
+                        <Textarea id="message" disabled={!!createdTicketId || isSaving} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Detalhe aqui a sua solicitação..." rows={6} />
                     </div>
                     {imagePreview && (
                         <div className="relative w-32 h-32">
                             <img src={imagePreview} alt="Pré-visualização" className="rounded-md w-full h-full object-cover"/>
-                            <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-6 w-6 bg-black/50 hover:bg-black/70" onClick={() => { setImageFile(null); setImagePreview(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}>
+                            <Button disabled={isSaving || !!createdTicketId} variant="ghost" size="icon" className="absolute top-0 right-0 h-6 w-6 bg-black/50 hover:bg-black/70" onClick={() => { setImageFile(null); setImagePreview(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}>
                                 <XCircle className="text-white"/>
                             </Button>
                         </div>
                     )}
                 </div>
                 <DialogFooter className="sm:justify-between">
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isSaving}>
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isSaving || !!createdTicketId}>
                         <Paperclip className="mr-2 h-4 w-4" />
                         Anexar Imagem
                     </Button>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/png, image/jpeg" onChange={handleImageSelect}/>
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                        <Button variant="outline" onClick={() => { resetState(); setIsOpen(false); }}>Cancelar</Button>
                         <Button onClick={handleSave} disabled={isSaving}>
                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Enviar Ticket

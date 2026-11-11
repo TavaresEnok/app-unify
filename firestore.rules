@@ -33,7 +33,14 @@ service cloud.firestore {
       return signedIn() &&
         (isSuperAdmin() || request.auth.token.get('role', '') == 'providerAdmin' ||
          (request.auth.token.get('role', '') == 'subscriber' && data.type in ['CREATE_TICKET', 'REPLY_TO_TICKET'])) &&
-        data.keys().hasAll(['requesterUid']) &&
+        data.keys().hasAll(['requesterUid', 'session', 'createdAt']) &&
+        data.createdAt == request.time &&
+        data.session.keys().hasOnly(['authTime', 'issuedAt', 'role', 'providerId', 'superAdmin']) &&
+        data.session.authTime == request.auth.token.auth_time &&
+        data.session.issuedAt == request.auth.token.iat &&
+        data.session.role == request.auth.token.get('role', '') &&
+        data.session.providerId == request.auth.token.get('providerId', '') &&
+        data.session.superAdmin == request.auth.token.get('superAdmin', false) &&
         data.requesterUid == request.auth.uid &&
         (
           !(data.payload is map) ||
@@ -51,8 +58,7 @@ service cloud.firestore {
       return signedIn() && (
         isSuperAdmin() ||
         isProviderAdmin(providerId) ||
-        request.auth.uid == createdByUid ||
-        (isClientOfProvider(providerId) && request.auth.token.get('cpfCnpj', '') == createdByUid)
+        (isClientOfProvider(providerId) && request.auth.uid == createdByUid)
       );
     }
 
@@ -76,47 +82,82 @@ service cloud.firestore {
       request.resource.data.providerId == request.auth.token.get('providerId', '');
     }
 
-    function hasNoCredentials(data) {
-      return !data.keys().hasAny(['integrations', 'apiToken', 'api_token', 'token', 'password', 'senha', 'secret']);
+    function optionalPublicString(data, key) {
+      return !(key in data) || data[key] is string;
     }
 
-    function publicProviderDataValid() {
-      return hasNoCredentials(request.resource.data) &&
-        (!request.resource.data.keys().hasAny(['details']) ||
-         !(request.resource.data.details is map) || hasNoCredentials(request.resource.data.details)) &&
-        (!request.resource.data.keys().hasAny(['config']) ||
-         !(request.resource.data.config is map) ||
-         hasNoCredentials(request.resource.data.config));
+    function publicProviderReadable(data) {
+      // A blacklist at a few levels cannot prove a legacy map/array is safe.
+      // Only this flat, typed branding projection is directly readable. Rich
+      // configuration is served by the recursively sanitized HTTP backend.
+      // Compatibility of legacy mobile readers is a mandatory release gate.
+      return data.keys().hasOnly([
+          'id', 'name', 'active', 'layoutType', 'themeColor', 'secondaryColor',
+          'backgroundColor', 'textColor', 'logoUrl', 'iconUrl', 'loginQuote',
+          'applicationId', 'packageName', 'versionName', 'versionCode',
+          'apkUrl', 'appUrl', 'createdAt', 'updatedAt', 'createdByRequestId'
+        ])
+        && optionalPublicString(data, 'id')
+        && optionalPublicString(data, 'name')
+        && optionalPublicString(data, 'layoutType')
+        && optionalPublicString(data, 'themeColor')
+        && optionalPublicString(data, 'secondaryColor')
+        && optionalPublicString(data, 'backgroundColor')
+        && optionalPublicString(data, 'textColor')
+        && optionalPublicString(data, 'logoUrl')
+        && optionalPublicString(data, 'iconUrl')
+        && optionalPublicString(data, 'loginQuote')
+        && optionalPublicString(data, 'applicationId')
+        && optionalPublicString(data, 'packageName')
+        && optionalPublicString(data, 'versionName')
+        && optionalPublicString(data, 'apkUrl')
+        && optionalPublicString(data, 'appUrl')
+        && optionalPublicString(data, 'createdByRequestId')
+        && (!('active' in data) || data.active is bool)
+        && (!('versionCode' in data) || data.versionCode is int)
+        && (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt is string)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp || data.updatedAt is string);
     }
 
-    // Esses campos legados ainda podem ser usados como destino da integração.
-    // Não permitir que o provedor os redirecione enquanto a migração não termina.
-    function integrationDestinationUnchanged() {
-      let oldDetails = resource.data.get('details', {});
-      let newDetails = request.resource.data.get('details', {});
-      return oldDetails is map && newDetails is map &&
-        resource.data.get('sgpBaseUrl', null) == request.resource.data.get('sgpBaseUrl', null) &&
-        resource.data.get('appName', null) == request.resource.data.get('appName', null) &&
-        oldDetails.get('systemUrl', null) == newDetails.get('systemUrl', null) &&
-        oldDetails.get('appName', null) == newDetails.get('appName', null);
-    }
-
+    // All config writes use backend schemas. Firebase Rules cannot recursively
+    // validate arbitrary nested maps/arrays; never accept client bypasses.
+    // Personalization remains available through UPDATE_PROVIDER_CONFIG RPC.
     // Configurações do provedor — leitura pública necessária para o app carregar
     // tema/logo antes do login do assinante. Escrita restrita a admins.
     match /provedores/{providerId} {
-      allow read: if true;
-      allow write: if publicProviderDataValid() && (isSuperAdmin() ||
-        (isProviderAdmin(providerId) && resource != null && integrationDestinationUnchanged()));
+      allow read: if publicProviderReadable(resource.data);
+      allow write: if false;
     }
 
     match /provedores/{providerId}/backups/{backupId} {
-      // Backups antigos podem conter segredos; acesso apenas pelo Admin SDK.
       allow read, write: if false;
     }
 
     match /provedores/{providerId}/diagnostic_results/{resultId} {
-      allow read, update, delete: if canManageProvider(providerId);
-      allow create: if canManageProvider(providerId) || isClientOfProvider(providerId);
+      // Legacy clients could forge owner/schema/timestamps. Direct subscriber
+      // reads remain denied; private file access uses backend provenance checks.
+      allow read: if canManageProvider(providerId);
+      allow delete: if canManageProvider(providerId);
+      allow update: if false;
+      allow create: if (canManageProvider(providerId) || isClientOfProvider(providerId)) &&
+        request.resource.data.keys().hasOnly(['schemaVersion', 'providerId', 'createdByUid', 'createdAt', 'contractId', 'planName', 'severity', 'headline', 'needsProviderSupport', 'findings', 'measurements']) &&
+        request.resource.data.keys().hasAll(['schemaVersion', 'providerId', 'createdByUid', 'createdAt']) &&
+        request.resource.data.schemaVersion == 2 &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.providerId == providerId &&
+        (isSuperAdmin() || request.resource.data.providerId == request.auth.token.get('providerId', '')) &&
+        request.resource.data.createdAt == request.time &&
+        (!('contractId' in request.resource.data) || request.resource.data.contractId is int) &&
+        (!('planName' in request.resource.data) || (request.resource.data.planName is string && request.resource.data.planName.size() <= 256)) &&
+        (!('headline' in request.resource.data) || (request.resource.data.headline is string && request.resource.data.headline.size() <= 2048)) &&
+        (!('severity' in request.resource.data) || request.resource.data.severity in ['ok', 'attention', 'critical']) &&
+        (!('needsProviderSupport' in request.resource.data) || request.resource.data.needsProviderSupport is bool) &&
+        (!('findings' in request.resource.data) || (request.resource.data.findings is list && request.resource.data.findings.size() <= 100)) &&
+        (!('measurements' in request.resource.data) || request.resource.data.measurements is map);
+    }
+
+    match /{root}/{providerId}/diagnostic_results/{resultId}/private_attachments/{attachmentId} {
+      allow read, write: if false;
     }
 
     // Avisos de instabilidade/manutenção — clientes do provedor podem LER (para o
@@ -126,24 +167,24 @@ service cloud.firestore {
       allow write: if canManageProvider(providerId);
     }
 
-    // Apenas a administração SaaS pode gerenciar a integração.
+    // Secrets e backups são backend-only, inclusive nas wildcards coincidentes.
     match /provedores/{providerId}/secrets/{secretId} {
-      allow read, write: if isSuperAdmin();
+      allow read, write: if false;
     }
 
     // Wildcard para documentos em subcoleções genéricas do provedor.
     match /provedores/{providerId}/{collection}/{document=**} {
-      allow read, write: if collection != 'secrets' && collection != 'backups' && canManageProvider(providerId);
+      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups", "diagnostic_results", "private_attachments"]);
     }
 
     // Coleção legacy — mantida por retrocompatibilidade
     match /providers/{providerId} {
-      allow read: if true;
-      allow write: if canManageProvider(providerId);
+      allow read: if publicProviderReadable(resource.data);
+      allow write: if false;
     }
 
     match /providers/{providerId}/{collection}/{document=**} {
-      allow read, write: if collection != 'secrets' && collection != 'backups' && canManageProvider(providerId);
+      allow read, write: if isSuperAdmin() && !(collection in ["secrets", "backups", "diagnostic_results", "private_attachments"]);
     }
 
     // Clientes: leitura restrita ao admin do provedor, superAdmin, ou ao próprio cliente

@@ -10,6 +10,8 @@ export async function proxyToSgp(path: string, body: unknown, authorization?: st
         ...(authorization ? { Authorization: authorization } : {}),
       },
       timeout: 30_000,
+      maxRedirects: 0,
+      proxy: false,
     });
     return { status: response.status, data: response.data };
   } catch (error) {

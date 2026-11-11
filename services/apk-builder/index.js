@@ -1,448 +1,174 @@
 const express = require('express');
 const cors = require('cors');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { createLogoPolicy } = require('./security');
+const fs = require('node:fs');
+const path = require('node:path');
+const { randomUUID } = require('node:crypto');
+const { spawn } = require('node:child_process');
 const { BuildJobStore } = require('./job-store');
+const { createLogoPolicy } = require('./security');
+const { identity, childEnvironment, verifyOutput, authorize, digest } = require('./containment');
 
-// Firebase Admin for token verification — usa Application Default Credentials (ADC)
-const admin = require('firebase-admin');
-const firebaseCredentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-if (firebaseCredentialsPath && !fs.existsSync(firebaseCredentialsPath)) {
-    throw new Error(`Firebase credentials file not found: ${firebaseCredentialsPath}`);
-}
-admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT || undefined });
-
-const app = express();
-const PORT = Number(process.env.APK_BUILDER_PORT || process.env.PORT || 8035); // Dedicated port for APK builder
-const PYTHON_BIN = process.env.PYTHON_BIN || '/usr/bin/python3';
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8031')
-    .split(',').map(value => value.trim()).filter(Boolean);
-const logoPolicy = createLogoPolicy((process.env.APK_LOGO_HOSTS || 'storage.googleapis.com,firebasestorage.googleapis.com').split(','));
-const PROJECT_ROOT = process.env.APK_PROJECT_ROOT || process.cwd();
-const LOG_DIR = process.env.APK_LOG_DIR || path.join(PROJECT_ROOT, 'apk', 'logs');
-const BUILD_TIMEOUT_MS = Number(process.env.APK_BUILD_TIMEOUT_MS || 25 * 60 * 1000);
-let activeBuild = null;
-const buildJobs = new BuildJobStore(undefined, process.env.APK_JOB_STATE_PATH);
-if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
-}
-
-function assertBuilderRuntime() {
-    const scriptPath = process.env.APK_SCRIPT_PATH || path.join(PROJECT_ROOT, 'scripts', 'build', 'generate-apk.py');
-    const flutterProject = process.env.APK_FLUTTER_PROJECT || path.join(PROJECT_ROOT, 'app-flutter', 'unified');
-    const outputDir = process.env.APK_OUTPUT_DIR || path.join(PROJECT_ROOT, 'public_apks');
-    const requiredFiles = [
-        ['Firebase credentials', firebaseCredentialsPath],
-        ['APK build script', scriptPath],
-        ['Flutter pubspec', path.join(flutterProject, 'pubspec.yaml')],
-        ['Android signing properties', path.join(flutterProject, 'android', 'key.properties')],
-    ];
-
-    for (const [label, filePath] of requiredFiles) {
-        if (!filePath || !fs.existsSync(filePath)) throw new Error(`${label} not found: ${filePath || '(not configured)'}`);
-    }
-    fs.mkdirSync(outputDir, { recursive: true });
-    fs.accessSync(outputDir, fs.constants.W_OK);
-}
-
-assertBuilderRuntime();
-
-function isAllowedOrigin(origin, req) {
-    if (!origin) return true;
-    if (ALLOWED_ORIGINS.includes(origin)) return true;
-
-    try {
-        const parsedOrigin = new URL(origin);
-        const originHost = parsedOrigin.host;
-        const originHostname = parsedOrigin.hostname;
-        const requestHosts = [
-            req.get('host'),
-            req.get('x-forwarded-host'),
-        ].filter(Boolean);
-
-        return requestHosts.some((requestHost) => {
-            if (requestHost === originHost) return true;
-            try {
-                return new URL(`http://${requestHost}`).hostname === originHostname;
-            } catch {
-                return false;
-            }
-        });
-    } catch {
-        return false;
-    }
-}
-
-app.disable('x-powered-by');
-app.set('trust proxy', 1);
-app.use(cors((req, callback) => {
-    callback(null, { origin: isAllowedOrigin(req.get('origin'), req) });
-}));
-app.use((req, res, next) => {
-    if (isAllowedOrigin(req.get('origin'), req)) return next();
-    return res.status(403).json({ success: false, error: 'Origem não permitida' });
-});
-app.use(express.json({ limit: '1mb' }));
-const buildLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    limit: 5,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skipFailedRequests: true,
-    keyGenerator: (req) => req.user?.uid || ipKeyGenerator(req.ip),
-    message: { success: false, error: 'Limite de geração atingido. Tente novamente em 1 hora.' },
-});
-
-// Middleware to verify superAdmin
-const verifySuperAdmin = async (req, res, next) => {
-    const token = req.headers.authorization?.split('Bearer ')[1];
-    if (!token) return res.status(401).json({ error: 'Token não fornecido' });
-
-    try {
-        const decoded = await admin.auth().verifyIdToken(token);
-        if (decoded.superAdmin !== true) {
-            return res.status(403).json({ error: 'Apenas Super Admin pode gerar APKs' });
-        }
-        req.user = decoded;
-        next();
-    } catch (error) {
-        console.error('Token verification error:', error.message);
-        return res.status(403).json({ error: 'Token inválido' });
-    }
-};
-
-app.get('/jobs/:jobId', verifySuperAdmin, (req, res) => {
-    const job = buildJobs.get(req.params.jobId);
-    if (!job) {
-        return res.status(404).json({ success: false, error: 'Geração não encontrada ou expirada.' });
-    }
-    if (job.ownerUid !== req.user.uid) {
-        return res.status(403).json({ success: false, error: 'Acesso negado a esta geração.' });
-    }
-
-    return res.json({
-        success: job.status !== 'failed',
-        jobId: job.id,
-        status: job.status,
-        providerId: job.providerId,
-        createdAt: job.createdAt,
-        startedAt: job.startedAt || null,
-        completedAt: job.completedAt || null,
-        ...(job.result || {}),
-        ...(job.error ? { error: job.error } : {}),
-    });
-});
-
-app.post('/generate-apk', verifySuperAdmin, buildLimiter, async (req, res) => {
-    const { providerId, appName, logoUrl, format = 'apk', async: asyncBuild = false } = req.body;
-
-    if (!providerId || !appName || !logoUrl) {
-        return res.status(400).json({
-            success: false,
-            error: 'providerId, appName e logoUrl são obrigatórios.'
-        });
-    }
-
-    if (!/^[a-z0-9_-]{1,64}$/i.test(providerId) || typeof appName !== 'string' || appName.length > 80 || typeof logoUrl !== 'string' || !['apk', 'aab'].includes(format)) {
-        return res.status(400).json({ success: false, error: 'Parâmetros de geração inválidos.' });
-    }
-
-    const safeProviderId = providerId.replace(/[^a-z0-9]/gi, '').toLowerCase();
-    if (!safeProviderId) {
-        return res.status(400).json({ success: false, error: 'ID do provedor não gera um pacote Android válido.' });
-    }
-    if (activeBuild) {
-        return res.status(409).json({
-            success: false,
-            error: `Já existe uma geração em andamento para ${activeBuild.providerId}. Aguarde a conclusão.`,
-        });
-    }
-
-    const logId = `${Date.now()}_${safeProviderId || 'provider'}`;
-    activeBuild = { id: logId, providerId, startedAt: Date.now() };
-    buildJobs.create(logId, {
-        ownerUid: req.user.uid,
-        providerId,
-        appName,
-        format,
-    });
-    const logFile = path.join(LOG_DIR, `apk_${logId}.log`);
-    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-    const log = (msg) => {
-        const line = `[${new Date().toISOString()}] ${msg}`;
-        console.log(line);
-        logStream.write(line + '\n');
-    };
-
-    log(`[APK Gen] Starting for ${providerId} (${appName}). Format: ${format}`);
-
-    // Convert Firebase Storage URL to public download URL
-    // From: https://storage.googleapis.com/bucket-name/path/to/file
-    // To: https://firebasestorage.googleapis.com/v0/b/bucket-name/o/path%2Fto%2Ffile?alt=media
-    let downloadUrl = logoUrl;
-    if (logoUrl.includes('storage.googleapis.com') && !logoUrl.includes('alt=media')) {
+function createApp(options = {}) {
+    const config = options.config || process.env;
+    const root = config.APK_PROJECT_ROOT || process.cwd();
+    const privateDir = config.APK_PRIVATE_DIR || path.join(root, 'apk', 'private');
+    const output = config.APK_OUTPUT_DIR || path.join(root, 'public_apks');
+    const publicationRoot = config.APK_PUBLICATION_DIR || privateDir;
+    const jobs = options.jobs || new BuildJobStore(undefined, config.APK_JOB_STATE_PATH || path.join(privateDir, 'jobs.json'));
+    const run = options.spawn || spawn;
+    const logos = options.logos || createLogoPolicy((config.APK_LOGO_HOSTS || 'storage.googleapis.com,firebasestorage.googleapis.com').split(','));
+    const check = (bearer, binding) => authorize(config.APK_AUTHORIZATION_URL, bearer, binding, options.fetch);
+    let active = null;
+    let activeChild = null;
+    const app = express();
+    app.disable('x-powered-by');
+    app.use(cors({ origin: (config.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8031').split(',') }));
+    app.use(express.json({ limit: '1mb' }));
+    const limiter = rateLimit({ windowMs: 3600000, limit: 5, validate: false,
+        keyGenerator: req => req.buildUid || ipKeyGenerator(req.ip), skip: () => options.disableRateLimit === true });
+    const deny = res => res.status(403).json({ success: false, error: 'build-authorization-denied' });
+    const unavailable = error => error?.code === 'authorization-unavailable';
+    const authorizationFailure = (res, error) => unavailable(error)
+        ? res.status(503).json({ success: false, error: 'authorization-unavailable' }) : deny(res);
+    app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'apk-builder' }));
+    app.get('/jobs/:jobId', async (req, res) => {
+        const job = jobs.get(req.params.jobId);
+        if (!job) return res.status(404).json({ success: false, error: 'Geração não encontrada ou expirada.' });
         try {
-            const url = new URL(logoUrl);
-            const pathParts = url.pathname.split('/').filter(p => p);
-            if (pathParts.length >= 2) {
-                const bucket = pathParts[0];
-                const objectPath = pathParts.slice(1).join('/');
-                const encodedPath = encodeURIComponent(objectPath);
-                downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
-                log(`[APK Gen] Converted URL: ${downloadUrl}`);
-            }
-        } catch (e) {
-            log(`[APK Gen Warning] Could not convert URL: ${e.message}`);
-        }
-    }
-    // 1. Download logo to temp file using curl (follows redirects properly)
-    const tempLogoPath = path.join(os.tmpdir(), `logo_${providerId}_${Date.now()}.png`);
-    const releaseBuild = () => {
-        if (activeBuild?.id === logId) activeBuild = null;
-    };
-    const failBeforeSpawn = (status, payload) => {
-        fs.unlink(tempLogoPath, () => { });
-        logStream.end();
-        releaseBuild();
-        buildJobs.update(logId, {
-            status: 'failed',
-            completedAt: Date.now(),
-            error: payload.error,
-        });
-        return res.status(status).json(payload);
-    };
-
-    try {
-        const parsedLogoUrl = logoPolicy.validate(downloadUrl);
-        log(`[APK Gen] Logo host: ${parsedLogoUrl.hostname}`);
-
-        const logoSize = await logoPolicy.download(downloadUrl, tempLogoPath);
-        log(`[APK Gen] Downloaded logo: ${logoSize} bytes`);
-
-        if (logoSize < 1000) {
-            // File too small, probably an error page
-            const content = fs.readFileSync(tempLogoPath, 'utf8').substring(0, 200);
-            log(`[APK Gen Error] Logo file too small. Content: ${content}`);
-            return failBeforeSpawn(400, {
-                success: false,
-                error: `Logo inválida (${logoSize} bytes). Verifique se a URL está correta.`,
-                logFile
-            });
-        }
-    } catch (downloadErr) {
-        log(`[APK Gen Error] Download failed: ${downloadErr.message}`);
-        return failBeforeSpawn(400, {
-            success: false,
-            error: `Falha ao baixar logo: ${downloadErr.message}`,
-            logFile
-        });
-    }
-
-    // 2. Build Python command — lê paths do ambiente, sem hardcoded
-    const scriptPath = process.env.APK_SCRIPT_PATH
-        || path.join(PROJECT_ROOT, 'scripts', 'build', 'generate-apk.py');
-    const projectRoot = PROJECT_ROOT;
-    const outputDir = process.env.APK_OUTPUT_DIR
-        || path.join(PROJECT_ROOT, 'public_apks');
-    const flutterProject = process.env.APK_FLUTTER_PROJECT
-        || path.join(PROJECT_ROOT, 'app-flutter', 'unified');
-
-    // Generate package name
-    const packageSegment = /^[a-z]/.test(safeProviderId) ? safeProviderId : `p${safeProviderId}`;
-    const packageName = `br.com.provedores.${packageSegment}`;
-
-    const pythonArgs = [
-        scriptPath,
-        '--id', providerId,
-        '--nome', appName,
-        '--logo', tempLogoPath,
-        '--output', outputDir,
-        '--flutter-project', flutterProject,
-        '--package', packageName
-    ];
-
-    // Generate Version Code based on Unix Timestamp (Seconds)
-    // Fits in Java Integer (Max 2,147,483,647). Current timestamp is ~1,770,000,000. Good until 2038.
-    const versionCode = Math.floor(Date.now() / 1000).toString();
-
-    pythonArgs.push('--version-code', versionCode);
-    pythonArgs.push('--version-name', `1.0.${versionCode}`);
-
-    if (format === 'aab') {
-        pythonArgs.push('--format', 'aab');
-        pythonArgs.push('--obfuscate');
-        // AABs are automatically optimized by Google Play, but we can enforce optimization to be safe
-        pythonArgs.push('--arm64');
-    } else {
-        // For APKs, user specifically asked for "recent processors" optimization to reduce size
-        pythonArgs.push('--arm64');
-    }
-
-    // 3. Execute Python script with Flutter in PATH
-    const androidSdkCandidate = '/home/app/Android/Sdk';
-    const androidSdkFallback = '/home/app/Android';
-    const androidSdkPath = fs.existsSync(androidSdkCandidate)
-        ? androidSdkCandidate
-        : (fs.existsSync(androidSdkFallback) ? androidSdkFallback : androidSdkCandidate);
-
-    const env = {
-        ...process.env,
-        PATH: `/home/app/flutter/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
-        ANDROID_HOME: process.env.ANDROID_HOME || androidSdkPath,
-        ANDROID_SDK_ROOT: process.env.ANDROID_SDK_ROOT || androidSdkPath,
-        // Force Pub Cache to user directory to allow patching
-        PUB_CACHE: '/home/app/.pub-cache',
-        // Limite de 3 GB no container; heap do Gradle de 1,5 GB.
-        GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx1536m -XX:MaxMetaspaceSize=384m -XX:+HeapDumpOnOutOfMemoryError"'
-    };
-
-    const pythonCmd = fs.existsSync(PYTHON_BIN) ? PYTHON_BIN : 'python3';
-
-    const pythonProcess = spawn(pythonCmd, pythonArgs, {
-        cwd: projectRoot,
-        env: env,
-        detached: process.platform !== 'win32',
+            const uid = await check(req.headers.authorization, { providerId: job.providerId, jobId: job.id, purpose: 'poll' });
+            if (uid !== job.ownerUid) return deny(res);
+        } catch (error) { return authorizationFailure(res, error); }
+        return res.json({ success: !['failed', 'interrupted'].includes(job.status), jobId: job.id, status: job.status,
+            providerId: job.providerId, createdAt: job.createdAt, startedAt: job.startedAt || null, completedAt: job.completedAt || null,
+            ...(job.result || {}), ...(job.error ? { error: job.error } : {}) });
     });
-    buildJobs.update(logId, { status: 'running', startedAt: Date.now() });
-
-    if (asyncBuild === true) {
-        res.status(202).json({
-            success: true,
-            jobId: logId,
-            status: 'running',
-            message: `${format.toUpperCase()} em geração.`,
-        });
-    }
-
-    let stdout = '';
-    let stderr = '';
-    let processFailed = false;
-    let timedOut = false;
-    let forceKillTimeout;
-    const killBuildProcess = (signal) => {
-        if (!pythonProcess.pid) return;
+    app.post('/jobs/:jobId/cancel', async (req, res) => {
+        const job = jobs.get(req.params.jobId);
+        if (!job) return res.status(404).json({ success: false, error: 'Geração não encontrada ou expirada.' });
         try {
-            if (process.platform === 'win32') pythonProcess.kill(signal);
-            else process.kill(-pythonProcess.pid, signal);
-        } catch (error) {
-            if (error.code !== 'ESRCH') log(`[APK Gen Warning]: Could not send ${signal}: ${error.message}`);
+            const uid = await check(req.headers.authorization, { providerId: job.providerId, jobId: job.id, purpose: 'request' });
+            if (uid !== job.ownerUid) return deny(res);
+        } catch (error) { return authorizationFailure(res, error); }
+        if (!['preparing', 'running'].includes(job.status)) return res.status(409).json({ success: false, error: 'build-already-terminal' });
+        jobs.update(job.id, { status: 'failed', completedAt: Date.now(), error: 'build-cancelled' });
+        if (active === job.id && activeChild) {
+            try { process.kill(-activeChild.pid, 'SIGKILL'); } catch { activeChild.kill('SIGKILL'); }
         }
-    };
-    const buildTimeout = setTimeout(() => {
-        timedOut = true;
-        log(`[APK Gen Error]: Build exceeded ${BUILD_TIMEOUT_MS} ms and was terminated.`);
-        killBuildProcess('SIGTERM');
-        forceKillTimeout = setTimeout(() => killBuildProcess('SIGKILL'), 10_000);
-        forceKillTimeout.unref();
-    }, BUILD_TIMEOUT_MS);
-
-    pythonProcess.stdout.on('data', (data) => {
-        const str = data.toString();
-        stdout = `${stdout}${str}`.slice(-2 * 1024 * 1024);
-        log(`[APK Gen]: ${str.trimEnd()}`);
+        return res.json({ success: true, jobId: job.id, status: 'failed' });
     });
-
-    pythonProcess.stderr.on('data', (data) => {
-        const str = data.toString();
-        stderr = `${stderr}${str}`.slice(-2 * 1024 * 1024);
-        log(`[APK Gen Error]: ${str.trimEnd()}`);
-    });
-
-    pythonProcess.on('close', (code) => {
-        if (processFailed) return;
-        clearTimeout(buildTimeout);
-        clearTimeout(forceKillTimeout);
-        // Cleanup temp logo
-        fs.unlink(tempLogoPath, () => { });
-        logStream.end();
-        releaseBuild();
-
-        if (timedOut) {
-            const payload = {
-                success: false,
-                error: `A geração excedeu o tempo máximo de ${Math.ceil(BUILD_TIMEOUT_MS / 60_000)} minutos.`,
-                logFile,
-            };
-            buildJobs.update(logId, { status: 'failed', completedAt: Date.now(), error: payload.error });
-            if (!res.headersSent) return res.status(504).json(payload);
-            return;
+    app.post('/generate-apk', async (req, res, next) => {
+        const { providerId } = req.body || {};
+        req.buildId = randomUUID();
+        try {
+            req.buildUid = await check(req.headers.authorization, { providerId, jobId: req.buildId, purpose: 'request' });
+            next();
+        } catch (error) { authorizationFailure(res, error); }
+    }, limiter, async (req, res) => {
+        const { providerId, appName, logoUrl, format = 'apk', async: asynchronous = false } = req.body;
+        if (!/^[a-z0-9_-]{1,64}$/i.test(providerId) || typeof appName !== 'string' || !appName || appName.length > 80 || /^-/.test(appName) ||
+            /[\r\n\t\0]/.test(appName) || typeof logoUrl !== 'string' || !['apk', 'aab'].includes(format)) {
+            return res.status(400).json({ success: false, error: 'Parâmetros de geração inválidos.' });
         }
-
-        if (code === 0) {
-            const safeAppName = appName.replace(/[^a-zA-Z0-9]/g, '_');
-            const extension = format === 'aab' ? 'aab' : 'apk';
-            const apkPath = `/public_apks/app_${safeAppName}.${extension}`;
-
-            const payload = {
-                success: true,
-                message: `${format.toUpperCase()} gerado com sucesso! Versão: 1.0.${versionCode}`,
-                downloadUrl: apkPath,
-                versionCode: versionCode,
-                versionName: `1.0.${versionCode}`,
-                logs: stdout,
-                logFile
-            };
-            buildJobs.update(logId, {
-                status: 'succeeded',
-                completedAt: Date.now(),
-                result: payload,
+        if (active) return res.status(409).json({ success: false, error: 'Já existe uma geração em andamento. Aguarde a conclusão.' });
+        let registered;
+        try { registered = identity(config.APK_IDENTITY_REGISTRY || path.join(privateDir, 'identities.json'), providerId, appName); }
+        catch { return res.status(409).json({ success: false, error: 'identity-inventory-required' }); }
+        const id = req.buildId;
+        // The requester bearer lives only in this closure, never in jobs or children.
+        const bearer = req.headers.authorization;
+        const owner = req.buildUid;
+        const revalidate = async purpose => {
+            if (jobs.get(id)?.status === 'failed') throw Error('build-cancelled');
+            if (await check(bearer, { providerId, jobId: id, purpose }) !== owner) throw Error('build-authorization-denied');
+            if (jobs.get(id)?.status === 'failed') throw Error('build-cancelled');
+        };
+        const versionCode = String(Math.floor(Date.now() / 1000));
+        const expected = { providerId, applicationId: registered.applicationId, versionCode, buildId: id, format };
+        const staging = path.join(privateDir, 'staging', providerId, versionCode, id);
+        const logo = path.join(privateDir, 'logos', `${id}.png`);
+        active = id;
+        jobs.create(id, { ownerUid: owner, providerId, appName, format, versionCode });
+        let timer, child, finished = false;
+        const fail = (code = 500, error = 'build-failed') => {
+            if (finished) return;
+            finished = true; clearTimeout(timer);
+            if (child) { try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); } }
+            fs.rmSync(logo, { force: true });
+            jobs.update(id, { status: 'failed', completedAt: Date.now(), error: jobs.get(id)?.error || error });
+            active = null; activeChild = null;
+            if (!res.headersSent) res.status(code).json({ success: false, error });
+        };
+        try {
+            await revalidate('spawn'); // before logo download or private build output
+            fs.mkdirSync(path.dirname(logo), { recursive: true, mode: 0o700 });
+            await logos.download(logoUrl, logo);
+            await revalidate('spawn'); // accepted then revoked must not spawn
+            const args = [config.APK_SCRIPT_PATH || path.join(root, 'scripts/build/generate-apk.py'),
+                '--id', providerId, '--nome', appName, '--logo', logo, '--output', staging,
+                '--flutter-project', config.APK_FLUTTER_PROJECT || path.join(root, 'app-flutter/unified'),
+                '--package', registered.applicationId, '--build-id', id, '--identity-registry', config.APK_IDENTITY_REGISTRY || path.join(privateDir, 'identities.json'),
+                '--version-code', versionCode, '--version-name', `1.0.${versionCode}`, '--format', format, '--arm64'];
+            if (format === 'aab') args.push('--obfuscate');
+            child = run(config.PYTHON_BIN || '/usr/bin/python3', args, { cwd: root, env: childEnvironment(), detached: true });
+            activeChild = child;
+            jobs.update(id, { status: 'running', startedAt: Date.now() });
+            // Logs remain private and are never included in polling/public releases.
+            const logDir = path.join(privateDir, 'logs'); fs.mkdirSync(logDir, { recursive: true, mode: 0o700 });
+            const log = fs.createWriteStream(path.join(logDir, `${id}.log`), { flags: 'wx', mode: 0o600 });
+            child.stdout.pipe(log, { end: false }); child.stderr.pipe(log, { end: false });
+            log.on('error', () => { child.kill('SIGKILL'); fail(); });
+            timer = setTimeout(() => {
+                try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
+                fail(504, 'build-timeout');
+            }, Number(config.APK_BUILD_TIMEOUT_MS || 1500000));
+            child.on('error', () => { log.end(); fail(); });
+            child.on('close', async code => {
+                log.end(); clearTimeout(timer);
+                if (finished) return;
+                if (code !== 0) return fail();
+                let publicationDir;
+                try {
+                    const artifact = verifyOutput(staging, expected);
+                    // Prepare a complete, independent inode outside the served tree.
+                    // A failed/partial copy can never become a public release.
+                    const checksum = digest(artifact);
+                    fs.mkdirSync(publicationRoot, { recursive: true, mode: 0o700 });
+                    fs.chmodSync(publicationRoot, 0o700);
+                    publicationDir = fs.mkdtempSync(path.join(publicationRoot, 'publication-'));
+                    const prepared = path.join(publicationDir, `app.${format}`);
+                    (options.copyArtifact || fs.copyFileSync)(artifact, prepared, fs.constants.COPYFILE_EXCL);
+                    fs.chmodSync(prepared, 0o600);
+                    if (!fs.lstatSync(prepared).isFile() || fs.statSync(prepared).size === 0 || digest(prepared) !== checksum) {
+                        throw Error('invalid-publication-copy');
+                    }
+                    const fd = fs.openSync(prepared, 'r');
+                    try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+                    // Readers need the final binary; the containing private directory
+                    // remains 0700 until the verified inode is linked into public output.
+                    fs.chmodSync(prepared, 0o644);
+                    await revalidate('publish');
+                    const releaseDir = path.join(output, providerId, versionCode, id);
+                    fs.mkdirSync(releaseDir, { recursive: true });
+                    // Atomic and exclusive: link fails on EEXIST or EXDEV. Never
+                    // fall back to copying into the served tree or replacing a release.
+                    (options.publishLink || fs.linkSync)(prepared, path.join(releaseDir, `app.${format}`));
+                    const result = { success: true, downloadUrl: `${config.APK_PUBLIC_URL_PREFIX || '/public_apks'}/${providerId}/${versionCode}/${id}/app.${format}`,
+                        versionCode, versionName: `1.0.${versionCode}` };
+                    jobs.update(id, { status: 'succeeded', completedAt: Date.now(), result });
+                    finished = true; active = null; activeChild = null; fs.rmSync(logo, { force: true });
+                    if (!res.headersSent) res.json(result);
+                } catch (error) { fail(unavailable(error) ? 503 : 403, unavailable(error) ? 'authorization-unavailable' : 'build-release-denied'); }
+                finally {
+                    // Unlinking the private copy cannot affect an already linked release.
+                    // Cleanup failure must not misreport a completed public effect.
+                    if (publicationDir) { try { fs.rmSync(publicationDir, { recursive: true, force: true }); } catch {} }
+                }
             });
-            if (!res.headersSent) res.json(payload);
-        } else {
-            const stderrSnippet = stderr.trim().slice(-2000);
-            const payload = {
-                success: false,
-                error: `Falha no script (Exit ${code})${stderrSnippet ? ` | ${stderrSnippet}` : ''}`,
-                logs: stdout,
-                errorLogs: stderr,
-                logFile
-            };
-            buildJobs.update(logId, { status: 'failed', completedAt: Date.now(), error: payload.error });
-            if (!res.headersSent) res.status(500).json(payload);
-        }
+            if (asynchronous === true) res.status(202).json({ success: true, jobId: id, status: 'running' });
+        } catch (error) { fail(unavailable(error) ? 503 : 403, unavailable(error) ? 'authorization-unavailable' : 'build-authorization-or-preparation-failed'); }
     });
-
-    pythonProcess.on('error', (err) => {
-        processFailed = true;
-        clearTimeout(buildTimeout);
-        clearTimeout(forceKillTimeout);
-        fs.unlink(tempLogoPath, () => { });
-        log(`[APK Gen Error]: ${err.message}`);
-        logStream.end();
-        releaseBuild();
-        const errorMessage = err.code === 'ENOENT'
-            ? `Python não encontrado. Configure PYTHON_BIN ou instale python3 no host.`
-            : `Erro ao executar script: ${err.message}`;
-        buildJobs.update(logId, { status: 'failed', completedAt: Date.now(), error: errorMessage });
-        if (res.headersSent) return;
-        if (err.code === 'ENOENT') {
-            return res.status(500).json({
-                success: false,
-                error: `Python não encontrado. Configure PYTHON_BIN ou instale python3 no host. PATH atual: ${env.PATH}`,
-                logFile
-            });
-        }
-        res.status(500).json({
-            success: false,
-            error: `Erro ao executar script: ${err.message}`,
-            logFile
-        });
-    });
-});
-
-// Health check
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        service: 'apk-builder',
-        build: activeBuild ? { status: 'running', providerId: activeBuild.providerId } : { status: 'idle' },
-    });
-});
-
-app.listen(PORT, () => {
-    console.log(`✅ APK Builder Service running on port ${PORT}`);
-});
+    return app;
+}
+if (require.main === module) createApp().listen(Number(process.env.APK_BUILDER_PORT || 8035));
+module.exports = { createApp };

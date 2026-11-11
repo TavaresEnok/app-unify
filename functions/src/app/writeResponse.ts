@@ -1,7 +1,6 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { AppError } from "./errors";
 import type { ErrorCode } from "../contracts";
-import { db } from "./firebase";
 
 const RESPONSE_TTL_DAYS = 7;
 
@@ -11,29 +10,16 @@ function expirationDate(): Timestamp {
   return Timestamp.fromDate(expires);
 }
 
-export function writeSuccess(requestId: string, requesterUid: string, result: unknown): Promise<FirebaseFirestore.WriteResult> {
+// Envelope construction only. All response persistence goes through the lease
+// transaction; no unfenced write API is exposed.
+export function successResponse(requesterUid: string, result: unknown) {
   if (Buffer.byteLength(JSON.stringify(result ?? null), "utf8") > 700_000) {
     throw new AppError("invalid-argument", "Resultado muito grande. Use paginação ou exportação.");
   }
-  return db.collection("function_responses").doc(requestId).set({
-    result,
-    requesterUid,
-    completedAt: FieldValue.serverTimestamp(),
-    expiresAt: expirationDate(),
-  });
+  return { result: result ?? null, requesterUid, completedAt: FieldValue.serverTimestamp(), expiresAt: expirationDate() };
 }
 
-export function writeFailure(
-  requestId: string,
-  requesterUid: string,
-  error: string,
-  code: ErrorCode,
-): Promise<FirebaseFirestore.WriteResult> {
-  return db.collection("function_responses").doc(requestId).set({
-    error,
-    code,
-    requesterUid,
-    completedAt: FieldValue.serverTimestamp(),
-    expiresAt: expirationDate(),
-  });
+export function failureResponse(requesterUid: string, error: string, code: ErrorCode, uncertain = false) {
+  return { error, code, requesterUid, completedAt: FieldValue.serverTimestamp(),
+    ...(uncertain ? { reconciliationRequired: true } : { expiresAt: expirationDate() }) };
 }

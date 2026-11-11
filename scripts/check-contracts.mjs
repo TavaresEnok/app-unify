@@ -25,6 +25,11 @@ for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/ser
   if (await readFile(resolve(target), "utf8").catch(() => "") !== dashboard) stale.push(target);
 }
 
+const sgp = await readFile(resolve("shared/runtime/sgp-outbound.js"), "utf8");
+for (const target of ["proxy-sgp/lib/sgp-outbound.js", "api-service/src/services/sgp-outbound.ts"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== (target.endsWith('.ts') ? sgp.replace('module.exports =', 'export default') : sgp)) stale.push(target);
+}
+
 if (stale.length) {
   console.error(`Contratos desatualizados: ${stale.join(", ")}. Execute npm run contracts:sync.`);
   process.exit(1);

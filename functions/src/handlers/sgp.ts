@@ -28,6 +28,7 @@ async function postProxy(path: string, body: Record<string, unknown>, timeoutMs 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,
+      redirect: "error",
     });
     const text = await response.text();
     let data: unknown;
@@ -46,24 +47,21 @@ async function credentials(providerId: string) {
     providerRef.collection("secrets").doc("sgp").get(),
   ]);
   if (!provider.exists) throw new AppError("not-found", "Provedor não encontrado.");
-  const data = provider.data() || {};
-  // O token do SGP vem EXCLUSIVAMENTE da subcoleção privada `secrets/sgp`. Nunca
-  // ler credenciais do documento público (allow read: if true) — evita expor o
-  // token via um simples get anônimo (A7). URL/app não são segredos e podem cair
-  // para a config pública.
+  // All operational fields come from the private integration, never branding.
   const integrations = secret.data()?.integrations || {};
   const result = {
-    url: integrations.sgpBaseUrl || data.details?.systemUrl || data.sgpBaseUrl,
+    url: integrations.sgpBaseUrl,
     token: integrations.apiToken,
-    app: integrations.appName || data.details?.appName || data.appName || "APP-PROVEDOR",
+    app: integrations.appName,
   };
-  if (!result.url || !result.token) throw new AppError("invalid-argument", "Configurações do SGP incompletas.");
+  if (![result.url, result.token, result.app].every(value => typeof value === "string" && value.trim())) throw new AppError("invalid-argument", "Configurações privadas do SGP incompletas.");
   if (!proxyUrlSecret.value() || !proxySecretParam.value()) throw new AppError("internal", "Proxy SGP não configurado.");
   return result;
 }
 
 export const sgpApiProxy: RequestHandler<"SGP_API_PROXY"> = async ({ requesterUid, payload }) => {
   await requireProviderAccess(requesterUid, payload.providerId);
+  if ([payload, payload.params].some(value => value && ["url", "token", "app", "sgpBaseUrl", "sgpParams", "apiToken", "appName"].some(key => Object.prototype.hasOwnProperty.call(value, key)))) throw new AppError("invalid-argument", "Configuração SGP não permitida no pedido.");
 
   const clientsRef = db.collection("provedores").doc(payload.providerId).collection("clientes");
 

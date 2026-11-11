@@ -1,30 +1,26 @@
 import { Router } from "express";
 import { canAccessProvider, verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore, serverTimestamp } from "../services/firebaseAdmin";
+import { firestore, serverTimestamp, firebaseAuth } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
+import sgpOutbound from "../services/sgp-outbound";
+
+import { parseProviderInput, publicProviderData, parsePrivateIntegration } from "../services/providerConfig";
 
 export const providersRouter = Router();
 providersRouter.use(verifyToken, verifyAdmin);
 
-const privateKeys = new Set(["integrations", "apitoken", "token", "password", "senha", "secret", "secrets"]);
-
-export function sanitizeProviderData(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sanitizeProviderData);
-  if (!value || typeof value !== "object") return value;
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) return value;
-  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
-    .filter(([key]) => !privateKeys.has(key.toLowerCase().replace(/[^a-z0-9]/g, "")))
-    .map(([key, item]) => [key, sanitizeProviderData(item)]));
-}
-
 function serialize(id: string, input: FirebaseFirestore.DocumentData) {
-  const data = sanitizeProviderData(input) as FirebaseFirestore.DocumentData;
+  const data = { ...input };
   for (const key of ["createdAt", "updatedAt"]) {
     if (data[key]?.toDate) data[key] = data[key].toDate().toISOString();
   }
-  return { ...data, id };
+  delete data.integrations;
+  if (data.config && typeof data.config === "object" && !Array.isArray(data.config)) {
+    data.config = { ...data.config };
+    delete data.config.integrations;
+  }
+  return { ...publicProviderData(data), id };
 }
 
 providersRouter.get("/", asyncRoute(async (req, res) => {
@@ -39,22 +35,19 @@ providersRouter.get("/", asyncRoute(async (req, res) => {
 }));
 
 providersRouter.post("/", asyncRoute(async (req, res) => {
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body) ||
+      (req.body.id !== undefined && typeof req.body.id !== "string")) {
+    throw new ApiError(400, "Configuração inválida.", "invalid-argument");
+  }
   const id = typeof req.body?.id === "string" ? req.body.id.trim() : "";
   if (!id && req.user?.superAdmin !== true) throw new ApiError(403, "Apenas Super Admin pode criar provedores.", "permission-denied");
   if (id && !canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para alterar este provedor.", "permission-denied");
   if (id && !/^[a-z0-9_-]+$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
 
-  const data = sanitizeProviderData(req.body) as Record<string, unknown>;
-  delete data.id;
-  if (req.user?.superAdmin !== true) {
-    delete data.sgpBaseUrl;
-    delete data.appName;
-    if (data.details && typeof data.details === "object" && !Array.isArray(data.details)) {
-      delete (data.details as Record<string, unknown>).systemUrl;
-      delete (data.details as Record<string, unknown>).appName;
-      if (!Object.keys(data.details).length) delete data.details;
-    } else delete data.details;
-  }
+  const { id: _id, ...input } = req.body;
+  let data: Record<string, unknown>;
+  try { data = parseProviderInput(input, req.user?.superAdmin === true); }
+  catch { throw new ApiError(400, "Configuração inválida ou campo não permitido.", "invalid-argument"); }
   data.updatedAt = serverTimestamp();
   if (id) {
     await firestore.collection("provedores").doc(id).set(data, { merge: true });
@@ -65,4 +58,31 @@ providersRouter.post("/", asyncRoute(async (req, res) => {
   const provider = await firestore.collection("provedores").add(data);
   await recordAdminAudit({ type: "CREATE_PROVIDER", requesterUid: req.user!.uid, providerId: provider.id, correlationId: req.correlationId, payload: data });
   return res.status(201).json({ success: true, id: provider.id });
+}));
+
+providersRouter.post("/:providerId/integration", asyncRoute(async (req, res) => {
+  if (req.user?.superAdmin !== true) throw new ApiError(403, "Apenas SaaS pode substituir integração.", "permission-denied");
+  const token = req.headers.authorization?.slice(7) || "";
+  let current;
+  try {
+    const verified = await firebaseAuth.verifyIdToken(token, true);
+    current = await firebaseAuth.getUser(verified.uid);
+    if (current.disabled || current.customClaims?.superAdmin !== true || !verified.auth_time || Date.now() / 1000 - verified.auth_time > 300) throw new Error("reauthentication");
+  } catch (error) {
+    const denied = (error instanceof Error && error.message === "reauthentication") ||
+      ["auth/id-token-revoked", "auth/id-token-expired", "auth/invalid-id-token", "auth/argument-error", "auth/user-disabled", "auth/user-not-found"].includes((error as { code: string }).code);
+    throw new ApiError(denied ? 403 : 503, denied ? "Autentique-se novamente para substituir a integração." : "Autorização indisponível.", denied ? "permission-denied" : "authorization-unavailable");
+  }
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]+$/i.test(id)) throw new ApiError(400, "ID inválido.", "invalid-argument");
+  let integrations: Record<string, string>;
+  try { integrations = parsePrivateIntegration(req.body); }
+  catch { throw new ApiError(400, "Integração inválida.", "invalid-argument"); }
+  try { await sgpOutbound.assertSafeSgpBaseUrl(integrations.sgpBaseUrl); }
+  catch { throw new ApiError(400, "Destino SGP inválido ou interno.", "invalid-argument"); }
+  const provider = firestore.collection("provedores").doc(id);
+  if (!(await provider.get()).exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  await provider.collection("secrets").doc("sgp").set({ integrations }, { merge: true });
+  await recordAdminAudit({ type: "REPLACE_PROVIDER_INTEGRATION", requesterUid: req.user!.uid, providerId: id, payload: { replaced: true } });
+  res.json({ success: true });
 }));

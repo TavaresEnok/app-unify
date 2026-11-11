@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const axios = require('axios');
+const outbound = require('./lib/sgp-outbound');
+const { formatSgpUrl } = outbound;
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 const Redis = require('ioredis');
@@ -90,8 +91,8 @@ const rateLimiter = createRateLimiter({
         const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
         if (token) {
             try {
-                req.user = await admin.auth().verifyIdToken(token);
-                return `user:${req.user.providerId || 'global'}:${req.user.uid}`;
+                const hint = await admin.auth().verifyIdToken(token);
+                return `user:${hint.providerId || 'global'}:${hint.uid}`;
             } catch { return `invalid:${req.ip}`; }
         }
         const secret = req.body?.secret;
@@ -104,7 +105,7 @@ const rateLimiter = createRateLimiter({
 });
 
 // Limpa fallback in-memory a cada 5 minutos
-setInterval(rateLimiter.pruneFallback, 5 * 60 * 1000);
+setInterval(rateLimiter.pruneFallback, 5 * 60 * 1000).unref();
 
 // ----------------------------------------
 
@@ -154,8 +155,8 @@ async function rawSgpApi(params) {
     if (!url) {
         throw new Error('URL é obrigatória para chamar SGP');
     }
-    // Defesa em profundidade contra SSRF: valida o host antes de qualquer axios.
-    assertSafeSgpUrl(url);
+    // Final URL validation; the shared transport also pins and checks the socket.
+    outbound.parseSgpUrl(url);
 
     console.log(`[SGP-API] Chamando: ${url}`);
     secureLog(`[SGP-API] Params:`, rest);
@@ -174,15 +175,15 @@ async function rawSgpApi(params) {
         if (useGet) {
             // Para endpoints FTTX/CPE, usar GET com query params
             console.log(`[SGP-API] Usando método GET com query params`);
-            response = await axios.get(url, {
+            response = await outbound.request(url, undefined, { method: 'GET',
                 params: rest,
-                timeout: 60000, maxContentLength: 8 * 1024 * 1024, maxBodyLength: 1024 * 1024
+                timeout: 60000
             });
         } else if (useJson) {
             console.log(`[SGP-API] Usando Content-Type: application/json`);
-            response = await axios.post(url, rest, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 60000, maxContentLength: 8 * 1024 * 1024, maxBodyLength: 1024 * 1024
+            response = await outbound.request(url, rest, {
+                encoding: 'json',
+                timeout: 60000
             });
         } else {
             // Para outros endpoints, usa form-urlencoded (igual ao PHP)
@@ -193,9 +194,9 @@ async function rawSgpApi(params) {
                     formData.append(key, value.toString());
                 }
             }
-            response = await axios.post(url, formData.toString(), {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                timeout: 60000, maxContentLength: 8 * 1024 * 1024, maxBodyLength: 1024 * 1024
+            response = await outbound.request(url, formData, {
+                encoding: 'form',
+                timeout: 60000
             });
         }
 
@@ -213,47 +214,20 @@ async function rawSgpApi(params) {
 
 async function callSgpApi(params) {
     const { providerId, cache = true, ...body } = params;
+    if (!providerId) throw Object.assign(new Error('Provedor obrigatório.'), { status: 503 });
+    const credentials = await ensureSgpCredentials({ providerId });
+    const target = outbound.parseSgpUrl(body.url);
+    const approved = outbound.parseSgpUrl(credentials.sgpBaseUrl);
+    if (target.origin !== approved.origin || !target.pathname.startsWith(approved.pathname.replace(/\/$/, '') + '/') ||
+        (body.token !== undefined && body.token !== credentials.sgpParams.token) ||
+        (body.app !== undefined && body.app !== credentials.sgpParams.app)) throw Object.assign(new Error('Destino ou credenciais SGP divergentes.'), { status: 503 });
     const data = { ...body }; delete data.url;
-    return upstream.execute({ providerId: providerId || new URL(params.url).host, url: params.url,
+    return upstream.execute({ providerId, url: params.url,
         body: data, ttl: cache ? readTtl(params.url) : 0, mutate: /liberacaopromessa|wifi\/update/.test(params.url) }, () => rawSgpApi(body));
 }
 
 // Mantém compatibilidade com código antigo que usa executePhp
 const executePhp = callSgpApi;
-
-// Bloqueia SSRF: rejeita esquemas não-http(s) e hosts internos (loopback,
-// faixas privadas, link-local/metadata, CGNAT). Chokepoint usado por todas as
-// chamadas ao SGP, cobrindo inclusive sgpBaseUrl vindo do corpo da requisição.
-function assertSafeSgpUrl(sgpBaseUrl) {
-    let parsed;
-    try {
-        parsed = new URL(sgpBaseUrl.trim());
-    } catch {
-        throw new Error('sgpBaseUrl inválida.');
-    }
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-        throw new Error('sgpBaseUrl deve usar http(s).');
-    }
-    const host = parsed.hostname.toLowerCase();
-    const ipMatch = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-    if (host === 'localhost' || host.endsWith('.localhost')) {
-        throw new Error('sgpBaseUrl aponta para host interno.');
-    }
-    if (ipMatch) {
-        const [a, b] = ipMatch.slice(1).map(Number);
-        const isPrivate = a === 10 || a === 127 || a === 0 ||
-            (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
-            (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
-        if (isPrivate) throw new Error('sgpBaseUrl aponta para faixa de IP interna.');
-    }
-    return parsed;
-}
-
-function formatSgpUrl(sgpBaseUrl, path) {
-    assertSafeSgpUrl(sgpBaseUrl);
-    let base = sgpBaseUrl.trim().replace(/\/$/, '');
-    return `${base}${path}`;
-}
 
 // Helper to parse signal values like "N/A" or "-23.5 dBm"
 function parseSignalValue(value) {
@@ -266,60 +240,18 @@ function parseSignalValue(value) {
 
 // --- HELPER: credenciais SGP (NUNCA hardcodar tokens no repositório) ---
 async function loadSgpCredentials(body) {
-    const sgpParams = {};
-    let sgpBaseUrl = '';
-
-    if (!body.providerId && (body.cpfCnpj || body.cpf)) {
-        try {
-            const cpfCnpj = (body.cpfCnpj || body.cpf).replace(/[^0-9]/g, '');
-            let clienteDoc = await firestoreDb.collection('clientes').doc(cpfCnpj).get();
-            if (!clienteDoc.exists) {
-                const matches = await firestoreDb.collection('clientes').where('cpfCnpj', '==', cpfCnpj).limit(1).get();
-                clienteDoc = matches.docs[0];
-            }
-            if (clienteDoc?.exists) body.providerId = clienteDoc.data().providerId;
-        } catch (error) {
-            console.error("[SGP-API] Erro ao buscar providerId do cliente:", error.message);
-        }
-    }
-
-    if (body.providerId) {
-        try {
-            const providerRef = firestoreDb.collection('provedores').doc(body.providerId);
-            const [providerDoc, secretDoc] = await Promise.all([
-                providerRef.get(),
-                providerRef.collection('secrets').doc('sgp').get(),
-            ]);
-            if (secretDoc.exists) {
-                const integrations = secretDoc.data().integrations;
-                if (integrations) {
-                    sgpParams.token = integrations.apiToken;
-                    sgpParams.app = integrations.appName;
-                    sgpBaseUrl = integrations.sgpBaseUrl || '';
-                }
-            }
-            const provider = providerDoc.exists ? providerDoc.data() : {};
-            sgpBaseUrl = sgpBaseUrl || provider?.details?.systemUrl || provider?.sgpBaseUrl || '';
-        } catch (error) {
-            console.error("[SGP-API] Erro ao buscar secrets:", error.message);
-        }
-    }
-
-    if (body.providerId && (!sgpBaseUrl || !sgpParams.token)) {
-        throw Object.assign(new Error('Integração SGP indisponível para este provedor.'), { status: 503 });
-    }
-    if (!sgpBaseUrl) sgpBaseUrl = process.env.SGP_BASE_URL || 'https://vibetelecom.sgp.net.br';
-    sgpBaseUrl = sgpBaseUrl.trim().replace(/\/$/, '');
-
-    if (!sgpParams.token && process.env.SGP_TOKEN) sgpParams.token = process.env.SGP_TOKEN;
-    if (!sgpParams.app) sgpParams.app = body.providerId ? "APP-PROVEDOR" : process.env.SGP_APP_NAME;
-    sgpParams.providerId = body.providerId;
-
-    return { sgpParams, sgpBaseUrl };
+    const providerId = body.providerId;
+    if (typeof providerId !== 'string' || !/^[a-z0-9_-]+$/i.test(providerId)) throw Object.assign(new Error('Provedor obrigatório.'), { status: 503 });
+    const ref = firestoreDb.collection('provedores').doc(providerId);
+    const [provider, secret] = await Promise.all([ref.get(), ref.collection('secrets').doc('sgp').get()]);
+    if (!provider.exists) throw Object.assign(new Error('Provedor indisponível.'), { status: 503 });
+    const integration = outbound.privateIntegration(secret.data()?.integrations);
+    return { sgpParams: { providerId, token: integration.token, app: integration.app }, sgpBaseUrl: integration.baseUrl };
 }
 
 const credentialCache = new Map();
 async function ensureSgpCredentials(body) {
+    if (['url', 'token', 'app', 'sgpBaseUrl', 'sgpParams', 'apiToken', 'appName'].some(key => Object.prototype.hasOwnProperty.call(body, key))) throw Object.assign(new Error('Configuração SGP não permitida no pedido.'), { status: 400 });
     const providerId = body.providerId;
     if (!providerId) return loadSgpCredentials(body);
     const cached = credentialCache.get(providerId);
@@ -361,7 +293,7 @@ async function verifyFirebaseToken(req, res, next) {
     }
     const token = authHeader.split('Bearer ')[1];
     try {
-        const decodedToken = req.user || await admin.auth().verifyIdToken(token);
+        const decodedToken = await require('./lib/current-auth').currentIdentity(admin.auth(), token);
         const reqCpf = (req.body.cpfCnpj || req.body.cpf || '').replace(/[^0-9]/g, '');
         
         if (!reqCpf) return res.status(400).json({ error: { message: 'CPF/CNPJ obrigatório.' } });
@@ -385,8 +317,8 @@ async function verifyFirebaseToken(req, res, next) {
         req.user = decodedToken;
         next();
     } catch (error) {
-        console.error('[AUTH] Erro na verificação do token:', error.message);
-        return res.status(401).json({ error: { message: 'Não autorizado. Token Inválido ou Expirado.' } });
+        const failure = require('./lib/current-auth').authFailure(error);
+        return res.status(failure.status).json({ error: { code: failure.code, message: failure.status === 503 ? 'Autorização indisponível. Preserve os dados e tente mais tarde.' : failure.status === 403 ? 'Acesso negado. Autentique novamente.' : 'Sessão inválida.' } });
     }
 }
 
@@ -593,26 +525,6 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
     // Log para debug
     console.log(`[Check-CPF] Iniciando check para ${maskCpfCnpj(cpfCnpjUnformatted)}`);
     console.log(`[Check-CPF] Params usados: App=${sgpParams.app}, URL=${sgpBaseUrl}`);
-    // MOCK LOGIN (somente com ENABLE_DEV_CPF_MOCK=true + DEV_MOCK_CPF)
-    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
-        console.log(`[MOCK] Login Check-CPF para DEV: ${maskCpfCnpj(DEV_CPF)}`);
-        let mockToken = '';
-        try {
-            mockToken = await admin.auth().createCustomToken(DEV_CPF);
-        } catch (e) { console.error('[MOCK] Auth Error', e); }
-
-        return res.status(200).json({
-            nome: "Desenvolvedor Teste Mock",
-            cpfCnpj: DEV_CPF,
-            plano: "Fibra 500MB Mock",
-            status: "Ativo",
-            valorFatura: "99,90",
-            vencimentoFatura: "10/12/2025",
-            contratoId: 222356,
-            email: "dev@teste.com",
-            customToken: mockToken
-        });
-    }
     try {
         const clientParams = {
             ...sgpParams,
@@ -710,6 +622,7 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                 console.log(`[Check-CPF] Consultando verificaacesso para contrato ${contratoId}...`);
 
                 const verificaParams = {
+                    providerId: sgpParams.providerId,
                     cpfcnpj: cpfCnpjUnformatted,
                     senha: senhaCentral,
                     contrato: contratoId.toString(),
@@ -759,19 +672,13 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                 // Vincula o provedor ao token (A2): downstream a identidade do
                 // tenant vem do claim verificado, não do corpo da requisição.
                 const identity = subscriberIdentity(req.body.providerId, cpfCnpjUnformatted);
-                try { await admin.auth().getUser(identity.uid); }
-                catch (error) {
-                    if (error.code !== 'auth/user-not-found') throw error;
-                    try { await admin.auth().createUser({ uid: identity.uid }); }
-                    catch (createError) { if (createError.code !== 'auth/uid-already-exists') throw createError; }
-                }
-                await admin.auth().setCustomUserClaims(identity.uid, identity.claims);
+                const customToken = await require('./lib/current-auth').persistSubscriber(admin.auth(), identity);
                 await require('./lib/subscriber-profile').migrateSubscriberProfile(firestoreDb, identity, responseData, () => admin.firestore.FieldValue.serverTimestamp());
-                const customToken = await admin.auth().createCustomToken(identity.uid, identity.claims);
                 responseData.customToken = customToken;
                 console.log('[Check-CPF] Custom Token gerado para contrato elegível.');
             } catch (tokenError) {
-                console.error('[Check-CPF] Falha ao gerar Custom Token do Firebase:', tokenError.message);
+                const failure = require('./lib/current-auth').authFailure(tokenError);
+                return res.status(failure.status).json({ error: { code: failure.code, message: 'Não foi possível autorizar a sessão.' } });
             }
         } else {
             console.log('[Check-CPF] Token não gerado para contrato encerrado ou inativo.');
@@ -781,26 +688,26 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
     } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } })); }
 });
 // 4. Rotas de Hardware // 3. Rotas Diagnóstico / ONU
-app.post('/diagnostic/onu-signal', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, true); });
-app.post('/diagnostic/onu-signal-base', verifyFirebaseToken, async (req, res) => { handleOnuRequest(req, res, false); });
+app.post('/diagnostic/onu-signal', verifyFirebaseToken, (req, res, next) => handleOnuRequest(req, res, true).catch(next));
+app.post('/diagnostic/onu-signal-base', verifyFirebaseToken, (req, res, next) => handleOnuRequest(req, res, false).catch(next));
 async function handleOnuRequest(req, res, useFilters) {
-    const { cpfCnpj, senha: senhaInput, contrato } = req.body;
-    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
-    if (!requireSgpClientCredentials(sgpParams, res)) return;
-    const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
-    if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
-        return res.status(200).json({
-            data: {
-                signalRx: -19.5, signalTx: 2.5, connectionStatus: 'Online',
-                oltId: 1, slot: 1, pon: 4, onuId: 10, temperature: 45.0,
-                oltTemperature: 40.0, voltage: 3.3, model: 'ZTE-F601-MOCK',
-                serialNumber: 'ZTEGC06EED44'
-            },
-            mock: true
-        });
-    }
-    if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos (CPF)." } });
     try {
+        const { cpfCnpj, senha: senhaInput, contrato } = req.body;
+        const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
+        if (!requireSgpClientCredentials(sgpParams, res)) return;
+        const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
+        if (DEV_CPF && cpfCnpjUnformatted === DEV_CPF) {
+            return res.status(200).json({
+                data: {
+                    signalRx: -19.5, signalTx: 2.5, connectionStatus: 'Online',
+                    oltId: 1, slot: 1, pon: 4, onuId: 10, temperature: 45.0,
+                    oltTemperature: 40.0, voltage: 3.3, model: 'ZTE-F601-MOCK',
+                    serialNumber: 'ZTEGC06EED44'
+                },
+                mock: true
+            });
+        }
+        if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos (CPF)." } });
         let senha = senhaInput;
         let contratoResolvido = contrato;
 
@@ -855,21 +762,13 @@ async function handleOnuRequest(req, res, useFilters) {
         res.status(200).json({ data: formattedData });
     } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } })); }
 }
-// 4. Rota Analyze
-// 4. Rota Analyze
-// ATENÇÃO: retorna análise PLACEHOLDER fixa (não há motor de diagnóstico real).
-// Mantida por compatibilidade com apps antigos (contracts.js "keep-temporarily").
-// Não exibir como diagnóstico real sem implementar a análise de fato.
+// Compatibility route retained until the legacy/mobile retirement gate.
+// No measured analysis engine exists in this proxy.
 app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
-    res.status(200).json({
-        data: {
-            problem: "Sinal óptico abaixo do ideal (-25dBm)",
-            category: "FIBER_ISSUE",
-            confidence: 0.95,
-            solution: "Verificar integridade do cabo de fibra e conexões.",
-            estimatedTime: "24h",
-            priority: 1,
-            timestamp: new Date().toISOString()
+    res.status(501).json({
+        error: {
+            code: 'DIAGNOSTIC_UNAVAILABLE',
+            message: 'Análise de diagnóstico indisponível. Nenhuma análise medida foi realizada.'
         }
     });
 });

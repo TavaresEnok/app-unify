@@ -15,6 +15,8 @@ function cpfDigits(body: unknown): string {
  * documento = CPF apenas dígitos, com fallback por campo `cpfCnpj`).
  */
 export async function providerOfCpf(digits: string, expectedProvider?: string): Promise<string | undefined> {
+  // A shared CPF is not a tenant identity. Only resolve inside a known tenant.
+  if (!expectedProvider) return undefined;
   const direct = await firestore.collection("clientes").doc(digits).get();
   if (direct.exists) {
     const providerId = direct.data()?.providerId;

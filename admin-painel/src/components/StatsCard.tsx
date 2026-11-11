@@ -1,6 +1,5 @@
 import { LucideIcon } from 'lucide-react';
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 interface StatsCardProps {
     title: string;
@@ -8,16 +7,10 @@ interface StatsCardProps {
     icon: LucideIcon;
     trend?: number; // Porcentagem de crescimento (opcional)
     trendLabel?: string;
+    description?: string;
 }
 
-export default function StatsCard({ title, value, icon: Icon, trend, trendLabel }: StatsCardProps) {
-    const trendState = trend === undefined ? 'neutral' : trend > 0 ? 'up' : trend < 0 ? 'down' : 'neutral';
-    const trendText = trend === undefined ? 'Atual' : trend > 0 ? `+${trend}%` : trend < 0 ? `${trend}%` : '0%';
-    const trendClasses = {
-        up: 'bg-[#EAF7EF] text-[#157347]',
-        down: 'bg-[#FDECEC] text-[#C2362B]',
-        neutral: 'bg-[#EEF2FF] text-primary',
-    }[trendState];
+export default function StatsCard({ title, value, icon: Icon, description }: StatsCardProps) {
 
     return (
         <Card className="relative overflow-hidden p-4 transition-colors hover:bg-[#FDFEFF]">
@@ -27,8 +20,7 @@ export default function StatsCard({ title, value, icon: Icon, trend, trendLabel 
             </div>
             <div className="mb-2 text-[26px] font-bold leading-none tracking-normal text-[#0E1320]">{value}</div>
             <div className="flex items-center gap-2">
-                <span className={cn("rounded-full px-2 py-0.5 text-[11.5px] font-semibold", trendClasses)}>{trendText}</span>
-                <span className="text-[11.5px] text-[#98A1B1]">{trendLabel || (trend === undefined ? "última consulta" : "vs. mês passado")}</span>
+                {description && <span className="text-[11.5px] text-[#98A1B1]">{description}</span>}
             </div>
         </Card>
     );

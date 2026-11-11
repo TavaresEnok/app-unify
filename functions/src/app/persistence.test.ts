@@ -22,7 +22,7 @@ vi.mock("firebase-admin/firestore", () => ({
 }));
 
 import { recordAudit } from "./audit";
-import { writeFailure, writeSuccess } from "./writeResponse";
+import { failureResponse, successResponse } from "./writeResponse";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,27 +44,51 @@ test("recordAudit recursively redacts credentials", async () => {
   }));
 });
 
-test("writeSuccess persists a response with expiration", async () => {
-  await writeSuccess("request-1", "user-1", { ok: true });
-  expect(set).toHaveBeenCalledWith(expect.objectContaining({
+test("configuration audit records only metadata, never raw personalization", async () => {
+  for (const type of ["UPDATE_PROVIDER_CONFIG", "UPDATE_PROVIDER_DETAILS"]) {
+    await recordAudit({ requestId: "r", type, requesterUid: "admin", outcome: "success",
+      payload: { config: { faq: [{ question: "synthetic-private-disguised-as-text" }] }, details: { systemUrl: "synthetic-private" } } });
+  }
+  for (const [entry] of add.mock.calls) {
+    expect(entry.payload).toEqual({ configurationChanged: true });
+    expect(JSON.stringify(entry)).not.toContain("synthetic-private");
+  }
+});
+
+test("success envelope retains expiration and performs no unfenced write", () => {
+  expect(successResponse("user-1", { ok: true })).toEqual(expect.objectContaining({
     result: { ok: true },
     requesterUid: "user-1",
     completedAt: "SERVER_TIMESTAMP",
     expiresAt: expect.any(Date),
   }));
+  expect(set).not.toHaveBeenCalled();
 });
 
-test("writeFailure persists the public error envelope", async () => {
-  await writeFailure("request-1", "user-1", "falhou", "internal");
-  expect(set).toHaveBeenCalledWith(expect.objectContaining({
+test("failure envelope retains the public legacy fields and performs no unfenced write", () => {
+  expect(failureResponse("user-1", "falhou", "internal")).toEqual(expect.objectContaining({
     error: "falhou",
     code: "internal",
     requesterUid: "user-1",
   }));
+  expect(set).not.toHaveBeenCalled();
 });
 
 
 test("oversized responses fail before any Firestore write", async () => {
-  expect(() => writeSuccess("huge", "user-1", { data: "x".repeat(710000) })).toThrow("Resultado muito grande");
+  expect(() => successResponse("user-1", { data: "x".repeat(710000) })).toThrow("Resultado muito grande");
+  expect(set).not.toHaveBeenCalled();
+});
+
+test("uncertain response has no automatic expiration and requires reconciliation", () => {
+  const envelope = failureResponse("user-1", "Não reenvie.", "conflict", true);
+  expect(envelope.reconciliationRequired).toBe(true);
+  expect(envelope.expiresAt).toBeUndefined();
+  expect(set).not.toHaveBeenCalled();
+});
+
+
+test("oversized responses fail before any Firestore write", async () => {
+  expect(() => successResponse("user-1", { data: "x".repeat(710000) })).toThrow("Resultado muito grande");
   expect(set).not.toHaveBeenCalled();
 });

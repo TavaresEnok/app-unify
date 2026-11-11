@@ -210,9 +210,8 @@ export interface FunctionRequestPayloadMap {
     providerId: string;
     providerName?: string;
     userEmail?: string | null;
-    imageUrl?: string | null;
   };
-  REPLY_TO_TICKET: { ticketId: string; message: string; imageUrl?: string | null };
+  REPLY_TO_TICKET: { ticketId: string; message: string };
   UPDATE_TICKET_STATUS: { ticketId: string; status: TicketStatus };
   DELETE_TICKET: { ticketId: string };
   LIST_ADMIN_USERS: Record<string, never>;
@@ -270,6 +269,7 @@ export interface FunctionRequest<T extends FunctionRequestType = FunctionRequest
   requesterUid: string;
   payload: FunctionRequestPayloadMap[T];
   createdAt?: unknown;
+  session?: { authTime: number; issuedAt: number; role: string; providerId: string; superAdmin: boolean };
 }
 
 export interface FunctionResponse<T extends FunctionRequestType = FunctionRequestType> {
@@ -281,6 +281,7 @@ export interface FunctionResponse<T extends FunctionRequestType = FunctionReques
 }
 
 export type ErrorCode =
+  | "authorization-unavailable"
   | "unauthenticated"
   | "permission-denied"
   | "invalid-argument"

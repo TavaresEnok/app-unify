@@ -1,35 +1,22 @@
 import { beforeEach, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), rpc: vi.fn() }));
+vi.mock("@/features/providers/providerService", () => ({ subscribeProvider: mocks.snapshot }));
+vi.mock("@/firebase/config", () => ({ db: {}, auth: { currentUser: { uid: "provider" } } }));
+vi.mock("@/shared/api/functionRequests", () => ({ callFunctionRequest: mocks.rpc }));
+import { subscribeProviderSettings, saveProviderSettings } from "./providerSettingsService";
 import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";
-
-const mocks = vi.hoisted(() => ({
-  onSnapshot: vi.fn((..._args: unknown[]) => () => {}),
-  set: vi.fn(), update: vi.fn(), commit: vi.fn(async () => {}),
-}));
-vi.mock("@/firebase/config", () => ({ db: {} }));
-vi.mock("firebase/firestore", () => ({
-  doc: (_db: unknown, ...path: string[]) => path.join("/"),
-  deleteField: () => "delete-field",
-  onSnapshot: mocks.onSnapshot,
-  writeBatch: () => ({ set: mocks.set, update: mocks.update, commit: mocks.commit }),
-}));
-import { saveProviderSettings, subscribeProviderSettings } from "./providerSettingsService";
-
 beforeEach(() => vi.clearAllMocks());
-
-it("does not subscribe to or write credentials when a provider administrator saves settings", async () => {
-  await subscribeProviderSettings("alpha", () => {}, () => {});
-  expect(mocks.onSnapshot).toHaveBeenCalledTimes(1);
-  expect(mocks.onSnapshot.mock.calls[0][0]).toBe("provedores/alpha");
-  await saveProviderSettings("alpha", { ...DEFAULT_PROVIDER_CONFIG, integrations: { apiToken: "do-not-write" } });
-  expect(mocks.set).not.toHaveBeenCalled();
-  expect(mocks.update).toHaveBeenCalledOnce();
-  expect(mocks.update.mock.calls[0][1]).not.toHaveProperty("integrations.apiToken");
-  expect(mocks.commit).toHaveBeenCalledOnce();
+it("subscribes only to public config and strips legacy fields", async () => {
+ mocks.snapshot.mockImplementation((_path, emit) => { emit({ themeColor: "#abc", integrations: { apiToken: "private" }, details: { systemUrl: "private" } }); return () => {}; });
+ const emit = vi.fn();
+ await subscribeProviderSettings("a", emit, vi.fn());
+ expect(mocks.snapshot).toHaveBeenCalledTimes(1);
+ expect(mocks.snapshot.mock.calls[0][0]).toBe("a");
+ expect(JSON.stringify(emit.mock.calls)).not.toContain("private");
 });
-
-it("allows the SaaS administrator to subscribe to and save integrations", async () => {
-  await subscribeProviderSettings("alpha", () => {}, () => {}, true);
-  expect(mocks.onSnapshot).toHaveBeenCalledTimes(2);
-  await saveProviderSettings("alpha", { ...DEFAULT_PROVIDER_CONFIG, integrations: { apiToken: "new" } }, true);
-  expect(mocks.set).toHaveBeenCalledWith("provedores/alpha/secrets/sgp", { integrations: { apiToken: "new" } }, { merge: true });
+it("saves customization by validated RPC without a private write", async () => {
+ await saveProviderSettings("a", DEFAULT_PROVIDER_CONFIG);
+ expect(mocks.rpc).toHaveBeenCalledWith({}, "UPDATE_PROVIDER_CONFIG", { providerId: "a", config: DEFAULT_PROVIDER_CONFIG }, { requesterUid: "provider" });
+ await expect(saveProviderSettings("a", { ...DEFAULT_PROVIDER_CONFIG, integrations: { apiToken: "injected" } })).rejects.toThrow();
+ expect(mocks.rpc).toHaveBeenCalledTimes(1);
 });

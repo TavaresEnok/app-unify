@@ -1,10 +1,11 @@
 import { FieldValue } from "firebase-admin/firestore";
 import type { RequestHandler } from "../app/request";
+import { requirePayloadFields } from "../app/request";
 import { AppError } from "../app/errors";
 import { auth, db } from "../app/firebase";
-import { isSuperAdmin, requireProviderAccess, requireSuperAdmin } from "../app/permissions";
+import { requireProviderAccess, requireSuperAdmin } from "../app/permissions";
 import { isValidNewProviderId } from "../utils";
-import { publicProviderData } from "../app/publicProviderData";
+import { parsePersonalization, parseDetails } from "../app/providerConfig";
 
 const DEFAULT_PROVIDER_CONFIG = {
   layoutType: "layout_06",
@@ -21,14 +22,9 @@ const DEFAULT_PROVIDER_CONFIG = {
   menuConfig: { order: ["invoices", "support", "contract"], items: {} },
 };
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
 export const createProvider: RequestHandler<"CREATE_PROVIDER"> = async ({ requestId, requesterUid, payload }) => {
   await requireSuperAdmin(requesterUid);
+  requirePayloadFields(payload, ["providerId", "name"]);
   const providerId = payload.providerId.trim();
   const name = payload.name.trim();
   if (!providerId || !name || !isValidNewProviderId(providerId)) {
@@ -55,27 +51,16 @@ export const createProvider: RequestHandler<"CREATE_PROVIDER"> = async ({ reques
 };
 
 export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = async ({ requesterUid, payload }) => {
-  const requester = await requireProviderAccess(requesterUid, payload.providerId);
-  const config = asRecord(payload.config);
-  if (!isSuperAdmin(requester) && ("sgpBaseUrl" in config || "appName" in config ||
-      "systemUrl" in asRecord(config.details) || "appName" in asRecord(config.details))) {
-    throw new AppError("permission-denied", "Apenas Super Admin pode alterar a integração SGP.");
-  }
-  const publicConfig = publicProviderData(config);
-  delete publicConfig.config;
-  const integrations = asRecord(config.integrations);
-  if ("integrations" in config && !isSuperAdmin(requester)) {
-    throw new AppError("permission-denied", "Apenas Super Admin pode alterar a integração SGP.");
-  }
-  delete publicConfig.integrations;
-
+  await requireProviderAccess(requesterUid, payload.providerId);
+  requirePayloadFields(payload, ["providerId", "config"]);
+  let publicConfig: Record<string, unknown>;
+  try { publicConfig = parsePersonalization(payload.config); }
+  catch { throw new AppError("invalid-argument", "Configuração inválida ou campo não permitido."); }
   const providerRef = db.collection("provedores").doc(payload.providerId);
   const provider = await providerRef.get();
-  if (!provider.exists) return { success: true, message: "Provedor apagado com sucesso." };
+  if (!provider.exists) throw new AppError("not-found", "Provedor não encontrado.");
 
-  if (Object.keys(integrations).length) {
-    await providerRef.collection("secrets").doc("sgp").set({ integrations }, { merge: true });
-  }
+
   await providerRef.update({
     ...publicConfig,
     integrations: FieldValue.delete(),
@@ -86,33 +71,17 @@ export const updateProviderConfig: RequestHandler<"UPDATE_PROVIDER_CONFIG"> = as
 };
 
 export const updateProviderDetails: RequestHandler<"UPDATE_PROVIDER_DETAILS"> = async ({ requesterUid, payload }) => {
-  const requester = await requireProviderAccess(requesterUid, payload.providerId);
-  const details = asRecord(payload.details);
-  if (["appName", "apiToken", "systemUrl"].some(key => key in details) && !isSuperAdmin(requester)) {
-    throw new AppError("permission-denied", "Apenas Super Admin pode alterar a integração SGP.");
-  }
-  const publicDetails = publicProviderData(details);
-  delete publicDetails.apiToken;
-  delete publicDetails.token;
-  delete publicDetails.password;
-  delete publicDetails.secret;
-  delete publicDetails.name;
-  const secretIntegrations: Record<string, unknown> = {};
-  if ("appName" in details) secretIntegrations.appName = details.appName;
-  if ("apiToken" in details) secretIntegrations.apiToken = details.apiToken;
-  if ("systemUrl" in details) secretIntegrations.sgpBaseUrl = details.systemUrl;
-  const providerRef = db.collection("provedores").doc(payload.providerId);
-  await Promise.all([
-    providerRef.set({
-      ...(typeof details.name === "string" && details.name ? { name: details.name } : {}),
-      ...(typeof details.apiUrl === "string" && details.apiUrl ? { apiUrl: details.apiUrl } : {}),
-      ...(Object.keys(publicDetails).length ? { details: publicDetails } : {}),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true }),
-    Object.keys(secretIntegrations).length
-      ? providerRef.collection("secrets").doc("sgp").set({ integrations: secretIntegrations }, { merge: true })
-      : Promise.resolve(),
-  ]);
+  await requireProviderAccess(requesterUid, payload.providerId);
+  requirePayloadFields(payload, ["providerId", "details"]);
+  let details: Record<string, unknown>;
+  try { details = parseDetails(payload.details); }
+  catch { throw new AppError("invalid-argument", "Dados inválidos ou campo não permitido."); }
+  const { name, ...publicDetails } = details;
+  await db.collection("provedores").doc(payload.providerId).update({
+    ...(typeof name === "string" ? { name } : {}),
+    ...Object.fromEntries(Object.entries(publicDetails).map(([key, value]) => ["details." + key, value])),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   return { success: true, message: "Provedor atualizado com sucesso.", providerId: payload.providerId };
 };
 

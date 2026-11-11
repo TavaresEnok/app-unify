@@ -10,11 +10,13 @@ import { globalLimiter } from "./middlewares/rateLimits";
 import { adminAuthRouter } from "./routes/adminAuth.routes";
 import { providersRouter } from "./routes/providers.routes";
 import { ticketsRouter } from "./routes/tickets.routes";
+import { privateAttachmentsRouter } from "./routes/privateAttachments.routes";
 import { usersRouter } from "./routes/users.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
 import { subscriberRouter } from "./routes/subscriber.routes";
 import { diagnosticsRouter } from "./routes/diagnostics.routes";
 import { proxyRouter } from "./routes/proxy.routes";
+import { buildAuthorizationRouter } from "./routes/buildAuthorization.routes";
 
 export function createApp() {
   const app = express();
@@ -24,6 +26,7 @@ export function createApp() {
   app.use(measureRequests);
   app.use(corsMiddleware);
   app.use(express.json({ limit: "1mb" }));
+  app.use("/internal/builds", buildAuthorizationRouter);
   app.use(authenticateIfPresent);
   app.use(globalLimiter);
 
@@ -38,6 +41,7 @@ export function createApp() {
   app.use("/admin/auth", adminAuthRouter);
   app.use("/admin/providers", providersRouter);
   app.use("/admin/tickets", ticketsRouter);
+  app.use("/private", privateAttachmentsRouter);
   app.use("/admin/users", usersRouter);
   app.use("/admin/dashboard", dashboardRouter);
   app.use("/diagnostic", diagnosticsRouter);
