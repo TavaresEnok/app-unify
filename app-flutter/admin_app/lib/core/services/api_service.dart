@@ -94,7 +94,7 @@ class ApiService {
         .post(
           Uri.parse('$baseUrl/admin/providers'),
           headers: _headers,
-          body: jsonEncode(provider.toMap()),
+          body: jsonEncode(provider.toSaveMap()),
         )
         .timeout(const Duration(seconds: 10));
 

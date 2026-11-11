@@ -17,7 +17,6 @@ class ProviderDetailsPage extends ConsumerStatefulWidget {
 
 class _ProviderDetailsPageState extends ConsumerState<ProviderDetailsPage> {
   late TextEditingController _nameController;
-  late TextEditingController _apiUrlController;
   late bool _isActive;
   bool _isSaving = false;
   bool _hasChanges = false;
@@ -26,16 +25,12 @@ class _ProviderDetailsPageState extends ConsumerState<ProviderDetailsPage> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.provider.name);
-    _apiUrlController = TextEditingController(
-      text: widget.provider.apiUrl ?? '',
-    );
     _isActive = widget.provider.active;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _apiUrlController.dispose();
     super.dispose();
   }
 
@@ -51,7 +46,6 @@ class _ProviderDetailsPageState extends ConsumerState<ProviderDetailsPage> {
     try {
       final updatedProvider = widget.provider.copyWith(
         name: _nameController.text.trim(),
-        apiUrl: _apiUrlController.text.trim(),
         active: _isActive,
       );
 
@@ -232,21 +226,6 @@ class _ProviderDetailsPageState extends ConsumerState<ProviderDetailsPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 prefixIcon: const Icon(Icons.business),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // API URL Field
-            TextField(
-              controller: _apiUrlController,
-              onChanged: (_) => _markChanged(),
-              decoration: InputDecoration(
-                labelText: 'URL da API (SGP)',
-                hintText: 'https://api.exemplo.com',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                prefixIcon: const Icon(Icons.link),
               ),
             ),
             const SizedBox(height: 16),

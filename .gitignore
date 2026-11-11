@@ -150,3 +150,6 @@ service-account*.json
 
 # Dump de análise gerado
 flutter_analyze.txt
+
+# Saída e registros privados do apk-builder (artefatos, staging, identidades)
+/apk/

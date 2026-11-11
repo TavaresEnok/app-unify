@@ -12,9 +12,6 @@ export const env = {
   port: numberEnv("PORT", 9136),
   nodeEnv: process.env.NODE_ENV || "development",
   firebaseApiKey: process.env.FIREBASE_API_KEY || "",
-  sgpToken: process.env.SGP_TOKEN || "",
-  sgpAppName: process.env.SGP_APP_NAME || "",
-  sgpBaseUrl: (process.env.SGP_BASE_URL || "https://vibetelecom.sgp.net.br").replace(/\/$/, ""),
   proxySgpUrl: (process.env.PROXY_SGP_INTERNAL_URL || "http://backend-proxy:3002").replace(/\/$/, ""),
   allowedOrigins: listEnv("ALLOWED_ORIGINS", [
     "http://localhost:5173",

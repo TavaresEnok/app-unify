@@ -53,4 +53,47 @@ void main() {
       expect(same.name, provider.name);
     });
   });
+
+  test('toSaveMap envia id e só campos aceitos pela API', () {
+    final provider = ProviderModel(
+      id: 'vibe',
+      name: 'Vibe Telecom',
+      apiUrl: 'http://10.0.0.5:8034',
+      themeColor: '#112233',
+      details: {
+        'city': 'Fortaleza',
+        'systemType': 'SGP',
+        'apiToken': 'synthetic-secret',
+        'systemUrl': 'https://sgp.example',
+        'appName': 'Vibe',
+        'hasAndroidApp': true,
+      },
+      features: {'invoices': true, 'unlock': true, 'support': 'sim'},
+      notifications: {'list': [], 'legacy': 1},
+      appConfig: {
+        'themeColor': '#112233',
+        'apiUrl': 'http://10.0.0.5:8034',
+        'details': {'apiToken': 'synthetic-secret'},
+        'integrations': {'apiToken': 'synthetic-secret'},
+        'updatedAt': '2026-11-11',
+        'faq': [],
+        'strings': {'hello_prefix': 'Oi', 'layoutThemes': '{}'},
+      },
+    );
+
+    final body = provider.toSaveMap();
+
+    expect(body['id'], 'vibe');
+    expect(body['details'], {'city': 'Fortaleza', 'systemType': 'SGP'});
+    expect(body['features'], {'invoices': true});
+    expect(body['notifications'], {'list': []});
+    expect(body['config'], {
+      'themeColor': '#112233',
+      'faq': [],
+      'strings': {'hello_prefix': 'Oi'},
+    });
+    expect(body.containsKey('apiUrl'), isFalse);
+    expect(body.toString(), isNot(contains('synthetic-secret')));
+    expect(body.toString(), isNot(contains('sgp.example')));
+  });
 }
