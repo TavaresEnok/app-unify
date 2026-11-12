@@ -153,3 +153,6 @@ flutter_analyze.txt
 
 # Saída e registros privados do apk-builder (artefatos, staging, identidades)
 /apk/
+
+# Capturas geradas por tool/landing_screens_test.dart (vão para landing-page/img em WebP)
+app-flutter/unified/tool/screens/

@@ -4,535 +4,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Unify | O App Premium para Provedores</title>
+    <title>Unify | App do assinante para provedores de internet</title>
     <meta name="description"
-        content="O sistema definitivo para provedores. Faturas, suporte e velocidade em um app white-label premium.">
+        content="App Android com a marca do seu provedor, ligado ao SGP. O assinante paga a fatura, testa a conexão e troca a senha do Wi-Fi; você personaliza e envia avisos pelo painel.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
-<body>
-    <div class="cursor-glow" id="cursorGlow"></div>
+<!-- Número do WhatsApp comercial: só dígitos, com DDI e DDD (ex.: 5588999990000). -->
 
-    <!-- Navbar -->
-    <nav class="navbar">
-        <div class="container">
-            <a href="#" class="logo">
-                <div class="logo-icon">
-                    <svg viewBox="0 0 40 40" fill="none">
-                        <rect width="40" height="40" rx="12" fill="url(#logoGrad)" />
-                        <path d="M12 28V12L20 20L28 12V28" stroke="white" stroke-width="3" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        <defs>
-                            <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
-                                <stop stop-color="#4F46E5" />
-                                <stop offset="1" stop-color="#7C3AED" />
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                </div>
-                <span class="logo-text">AppUnify</span>
-            </a>
-            <div class="nav-links" id="navLinks">
-                <a href="#features">Recursos</a>
-                <a href="#how-it-works">Como Funciona</a>
-                <a href="#testimonials">Casos de Sucesso</a>
-                <a href="#pricing">Planos</a>
-            </div>
-            <div class="nav-actions">
-                <a href="/painel/login" class="btn btn-sm btn-outline">Área do Cliente</a>
-                <a href="#contact" class="btn btn-sm btn-primary btn-glow">Agendar Demo</a>
-            </div>
-            <button class="mobile-toggle" id="mobileToggle">
-                <span></span><span></span><span></span>
-            </button>
+<body data-whatsapp="">
+    <a class="skip" href="#conteudo">Ir para o conteúdo</a>
+
+    <header class="topo">
+        <a class="marca" href="/" aria-label="Unify, página inicial">
+            <span class="marca-selo" aria-hidden="true">U</span>Unify
+        </a>
+        <nav class="topo-nav" aria-label="Seções">
+            <a href="#app">O app</a>
+            <a href="#painel">O painel</a>
+            <a href="#implantacao">Como entra no ar</a>
+            <a href="#hoje">O que tem hoje</a>
+        </nav>
+        <div class="topo-acoes">
+            <a class="link-discreto" href="/painel/">Área do provedor</a>
+            <a class="botao botao-ciano" href="#contato" data-whatsapp-link>Falar no WhatsApp</a>
         </div>
-    </nav>
+    </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-bg">
-            <div class="mesh-gradient"></div>
-            <div class="grid-overlay"></div>
-        </div>
-        <div class="container">
-            <div class="hero-content">
-                <div class="hero-badge fade-in-up">
-                    <span class="status-dot"></span>
-                    <span>Novo: Integração via PIX Automático</span>
-                </div>
-                <h1 class="fade-in-up delay-1">
-                    Eleve o nível do seu<br>
-                    <span class="gradient-text">Provedor de Internet</span>
-                </h1>
-                <p class="hero-subtitle fade-in-up delay-2">
-                    Um aplicativo exclusivo com a <strong>sua marca</strong>.
-                    Automatize o atendimento, reduza a inadimplência e encante seus clientes com uma experiência
-                    premium.
-                </p>
-                <div class="hero-cta fade-in-up delay-3">
-                    <a href="#contact" class="btn btn-lg btn-primary btn-glow">
-                        <span>Começar Agora</span>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                    </a>
-                    <a href="#video-demo" class="btn btn-lg btn-glass">
-                        <span class="play-icon-sm">▶</span>
-                        <span>Ver Vídeo</span>
-                    </a>
-                </div>
-                <div class="hero-metrics fade-in-up delay-4">
-                    <div class="metric-item">
-                        <strong data-count="50000">+50k</strong>
-                        <span>Usuários Ativos</span>
-                    </div>
-                    <div class="metric-divider"></div>
-                    <div class="metric-item">
-                        <strong data-count="4.9">4.9/5</strong>
-                        <span>Avaliação Média</span>
-                    </div>
-                    <div class="metric-divider"></div>
-                    <div class="metric-item">
-                        <strong data-count="99.9">99.9%</strong>
-                        <span>Uptime</span>
-                    </div>
+    <main id="conteudo">
+        <section class="abertura">
+            <div class="abertura-texto">
+                <h1>O app do seu provedor, com a sua marca, ligado ao seu SGP.</h1>
+                <p class="abertura-resumo">O assinante paga a fatura, testa a conexão e troca a senha do Wi-Fi sem
+                    ligar para você. Você personaliza o app e fala com a base inteira por um painel.</p>
+                <div class="abertura-acoes">
+                    <a class="botao botao-ciano" href="#contato" data-whatsapp-link>Falar no WhatsApp</a>
+                    <a class="botao botao-contorno" href="#app">Ver o que o app faz</a>
                 </div>
             </div>
 
-            <div class="hero-visual fade-in-up delay-5">
-                <div class="phone-wrapper">
-                    <div class="phone-mockup">
-                        <div class="phone-screen">
-                            <!-- Simulated App UI -->
-                            <div class="app-ui">
-                                <div class="app-header">
-                                    <div class="app-greeting">
-                                        <div class="avatar-circle"></div>
-                                        <div class="greeting-text">
-                                            <span>Olá, Ricardo</span>
-                                            <small>Plano Turbo 600MB</small>
-                                        </div>
-                                    </div>
-                                    <div class="app-notif-badge">2</div>
-                                </div>
-                                <div class="app-card highlight-card">
-                                    <div class="card-row">
-                                        <span>Fatura Atual</span>
-                                        <span class="status-pill warning">Vence Hoje</span>
-                                    </div>
-                                    <div class="card-price">R$ 99,90</div>
-                                    <div class="card-actions">
-                                        <button class="app-btn primary">Copiar PIX</button>
-                                        <button class="app-btn secondary">Código de Barras</button>
-                                    </div>
-                                </div>
-                                <div class="quick-actions">
-                                    <div class="qa-item">
-                                        <div class="qa-icon wifi"></div>
-                                        <span>Wi-Fi</span>
-                                    </div>
-                                    <div class="qa-item">
-                                        <div class="qa-icon speed"></div>
-                                        <span>Teste</span>
-                                    </div>
-                                    <div class="qa-item">
-                                        <div class="qa-icon support"></div>
-                                        <span>Suporte</span>
-                                    </div>
-                                    <div class="qa-item">
-                                        <div class="qa-icon more"></div>
-                                        <span>Mais</span>
-                                    </div>
-                                </div>
-                                <div class="app-banner">
-                                    <span>🚀 Indique um amigo e ganhe desconto!</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Floating Elements -->
-                    <div class="floating-card fc-left">
-                        <div class="fc-icon success">✓</div>
-                        <div class="fc-content">
-                            <strong>Pagamento Confirmado</strong>
-                            <span>há 2 minutos</span>
-                        </div>
-                    </div>
-                    <div class="floating-card fc-right">
-                        <div class="fc-speed">
-                            <strong>620</strong> <small>Mbps</small>
-                        </div>
-                        <div class="fc-graph"></div>
-                    </div>
+            <figure class="vitrine">
+                <div class="janela">
+                    <div class="janela-barra" aria-hidden="true"><span></span><span></span><span></span></div>
+                    <img src="img/painel-visao-geral.webp" width="1600" height="740"
+                        alt="Painel do provedor na visão geral: clientes sincronizados, chamados abertos, notificações das últimas 24 horas e ações rápidas.">
                 </div>
-            </div>
-        </div>
-    </section>
+                <div class="aparelho">
+                    <img src="img/app-inicio.webp" width="824" height="1142"
+                        alt="Tela inicial do app do assinante: conexão online, atalhos para faturas, suporte e diagnóstico de rede.">
+                </div>
+                <figcaption>Telas reais do painel e do app, com dados de demonstração.</figcaption>
+            </figure>
+        </section>
 
-    <!-- Trusted By (Clean Marquee) -->
-    <section class="trusted-by">
-        <p>Integrado com as melhores plataformas</p>
-        <div class="marquee-track-clean">
-            <div class="marquee-content-clean">
-                <span>IXC Soft</span>
-                <span>MK Solutions</span>
-                <span>SGP</span>
-                <span>RBX Soft</span>
-                <span>Vigo</span>
-                <span>RadiusNet</span>
-                <span>HubSoft</span>
-                <span>IXC Soft</span>
-                <span>MK Solutions</span>
-                <span>SGP</span>
-                <span>RBX Soft</span>
-                <span>Vigo</span>
-                <span>RadiusNet</span>
-                <span>HubSoft</span>
+        <section class="bloco" id="app">
+            <div class="bloco-cabeca">
+                <h2>O que o assinante resolve sozinho</h2>
+                <p>Cada item abaixo é uma tela que já existe no app. Os dados vêm do SGP do provedor, em tempo real.</p>
             </div>
-        </div>
-    </section>
 
-    <!-- Detailed Features (Zig Zag) -->
-    <section class="features-detailed" id="features">
-        <div class="container">
-            <!-- Feature 1 -->
-            <div class="feature-row">
-                <div class="feature-text">
-                    <div class="feature-icon-box">💳</div>
-                    <h2>Gestão Financeira<br>Simplificada</h2>
-                    <p>Facilite a vida do seu cliente com segundas vias automáticas, desbloqueio em confiança e
-                        pagamentos instantâneos via PIX.</p>
-                    <ul class="feature-list">
-                        <li>
-                            <span class="check-icon">✓</span>
-                            <div>
-                                <strong>PIX Copia e Cola</strong>
-                                <span>Reconhecimento instantâneo do pagamento</span>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="check-icon">✓</span>
-                            <div>
-                                <strong>Desbloqueio Automático</strong>
-                                <span>Reduz chamados de suporte financeiro</span>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="check-icon">✓</span>
-                            <div>
-                                <strong>Histórico Completo</strong>
-                                <span>Todas as faturas na palma da mão</span>
-                            </div>
-                        </li>
+            <div class="resolve">
+                <div class="resolve-grupo">
+                    <h3>Fatura</h3>
+                    <ul>
+                        <li><strong>Segunda via na hora.</strong> Faturas abertas e pagas, com PIX copia e cola e linha
+                            digitável do boleto.</li>
+                        <li><strong>Desbloqueio em confiança.</strong> O assinante bloqueado libera a conexão pelo
+                            app, dentro da regra do seu SGP.</li>
+                        <li><strong>Contrato e plano.</strong> Plano contratado, vencimento e valor em aberto.</li>
                     </ul>
                 </div>
-                <div class="feature-visual">
-                    <div class="visual-card-glass">
-                        <div class="invoice-demo">
-                            <div class="id-header">
-                                <span>Fatura #99283</span>
-                                <span class="badge-success">Paga</span>
-                            </div>
-                            <div class="id-amount">R$ 99,90</div>
-                            <div class="id-timeline">
-                                <div class="idt-item active">Gerada</div>
-                                <div class="idt-item active">Enviada</div>
-                                <div class="idt-item active">Visualizada</div>
-                                <div class="idt-item active">Paga</div>
-                            </div>
-                        </div>
-                        <div class="invoice-notification">
-                            <div class="in-icon">💸</div>
-                            <div class="in-text">
-                                <strong>Pagamento Recebido</strong>
-                                <span>Cliente: Ricardo Silva</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Feature 2 -->
-            <div class="feature-row reversed">
-                <div class="feature-text">
-                    <div class="feature-icon-box">⚡</div>
-                    <h2>Diagnóstico de Rede<br>Inteligente</h2>
-                    <p>Ferramentas avançadas para que o próprio cliente verifique a conexão, reduzindo drasticamente o
-                        número de chamados técnicos.</p>
-                    <ul class="feature-list">
-                        <li>
-                            <span class="check-icon">✓</span>
-                            <div>
-                                <strong>Speed Test Integrado</strong>
-                                <span>Servidor local para resultados precisos</span>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="check-icon">✓</span>
-                            <div>
-                                <strong>Auto-Diagnóstico</strong>
-                                <span>Verificação de conectividade e Wi-Fi</span>
-                            </div>
-                        </li>
+                <div class="resolve-grupo">
+                    <h3>Conexão</h3>
+                    <ul>
+                        <li><strong>Diagnóstico de rede.</strong> O app testa a conexão passo a passo e diz se o
+                            problema está na casa do assinante ou na rede.</li>
+                        <li><strong>Teste de velocidade, rota e IP.</strong> Speed test em servidor próprio,
+                            traceroute e consulta do IP.</li>
+                        <li><strong>Wi-Fi.</strong> Ver as redes do roteador e trocar nome e senha.</li>
+                        <li><strong>Consumo.</strong> Quanto de internet o contrato usou no mês.</li>
                     </ul>
                 </div>
-                <div class="feature-visual">
-                    <div class="visual-card-glass">
-                        <div class="speedtest-demo">
-                            <div class="gauge-circle">
-                                <div class="gauge-value">500</div>
-                                <div class="gauge-label">MEGA</div>
-                            </div>
-                            <div class="speed-stats">
-                                <div class="ss-item">
-                                    <small>Ping</small>
-                                    <strong>4ms</strong>
-                                </div>
-                                <div class="ss-item">
-                                    <small>Jitter</small>
-                                    <strong>1ms</strong>
-                                </div>
-                                <div class="ss-item">
-                                    <small>Loss</small>
-                                    <strong>0%</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Feature 3 -->
-            <div class="feature-row">
-                <div class="feature-text">
-                    <div class="feature-icon-box">💬</div>
-                    <h2>Atendimento<br>Centralizado</h2>
-                    <p>Unifique seus canais de atendimento. Chat, WhatsApp e abertura de chamados diretamente pelo
-                        aplicativo.</p>
-                    <a href="#contact" class="btn-link">Conhecer módulo de suporte →</a>
-                </div>
-                <div class="feature-visual">
-                    <div class="visual-card-glass">
-                        <div class="chat-demo">
-                            <div class="msg left">
-                                <div class="msg-bubble">Minha internet está lenta oscilando</div>
-                                <div class="msg-time">10:42</div>
-                            </div>
-                            <div class="msg right">
-                                <div class="msg-bubble">Olá! Detectamos uma manutenção na sua região. Previsão de
-                                    retorno: 14:00.</div>
-                                <div class="msg-time">10:42</div>
-                            </div>
-                            <div class="msg left">
-                                <div class="msg-bubble">Ah, entendi! Obrigado pelo aviso rápido.</div>
-                                <div class="msg-time">10:43</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Pricing Section (Clean Cards) -->
-    <section class="pricing-premium" id="pricing">
-        <div class="container">
-            <div class="section-center">
-                <span class="tag">Investimento</span>
-                <h2>Planos transparentes</h2>
-                <div class="toggle-container">
-                    <span class="toggle-text active">Mensal</span>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="billingToggle">
-                        <label for="billingToggle"></label>
-                    </div>
-                    <span class="toggle-text">Anual <span class="discount-pill">-20%</span></span>
-                </div>
-            </div>
-
-            <div class="pricing-grid">
-                <!-- Starter -->
-                <div class="pricing-card-minimal">
-                    <div class="pc-header">
-                        <h3>Starter</h3>
-                        <div class="pc-price">
-                            <span class="currency">R$</span>
-                            <span class="amount" data-m="297" data-y="237">297</span>
-                            <span class="period">/mês</span>
-                        </div>
-                        <p class="pc-desc">Ideal para provedores em crescimento</p>
-                    </div>
-                    <div class="pc-divider"></div>
-                    <ul class="pc-features">
-                        <li><span>Até 1.000 clientes</span></li>
-                        <li><span>App Android</span></li>
-                        <li><span>Integração Básica</span></li>
-                        <li><span>Suporte por Email</span></li>
+                <div class="resolve-grupo">
+                    <h3>Atendimento</h3>
+                    <ul>
+                        <li><strong>Chamados.</strong> O assinante abre e acompanha o chamado pelo app.</li>
+                        <li><strong>Avisos.</strong> Notificações push e avisos de instabilidade na região.</li>
+                        <li><strong>Dúvidas frequentes e dicas.</strong> Escritas por você, no painel.</li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline btn-full">Começar Agora</a>
                 </div>
+            </div>
+        </section>
 
-                <!-- Pro -->
-                <div class="pricing-card-minimal featured">
-                    <div class="popular-tag">Mais Escolhido</div>
-                    <div class="pc-header">
-                        <h3>Professional</h3>
-                        <div class="pc-price">
-                            <span class="currency">R$</span>
-                            <span class="amount" data-m="497" data-y="397">497</span>
-                            <span class="period">/mês</span>
-                        </div>
-                        <p class="pc-desc">Automação total para sua operação</p>
-                    </div>
-                    <div class="pc-divider"></div>
-                    <ul class="pc-features">
-                        <li><span>Até 5.000 clientes</span></li>
-                        <li><span>App Android + iOS</span></li>
-                        <li><span>Integração Completa (API)</span></li>
-                        <li><span>Push Notifications</span></li>
-                        <li><span>Suporte Prioritário</span></li>
+        <section class="bloco bloco-marinho" id="painel">
+            <div class="bloco-cabeca">
+                <h2>O que você controla no painel</h2>
+                <p>Escolha um item para ver a tela.</p>
+            </div>
+
+            <div class="painel-demo">
+                <div class="painel-abas" role="tablist" aria-label="Telas do painel">
+                    <button role="tab" id="aba-aparencia" aria-controls="tela-painel" aria-selected="true"
+                        data-img="img/painel-aparencia.webp"
+                        data-alt="Tela de personalização: escolha do layout do app, cores e pré-visualização no celular.">
+                        <strong>Aparência do app</strong>
+                        <span>Cinco layouts, cores, tipografia, ícones, tela de abertura, menus e textos. A
+                            pré-visualização muda enquanto você edita.</span>
+                    </button>
+                    <button role="tab" id="aba-comunicados" aria-controls="tela-painel" aria-selected="false"
+                        tabindex="-1" data-img="img/painel-comunicados.webp"
+                        data-alt="Tela de comunicados: envio de notificação push com segmento por status e por plano.">
+                        <strong>Comunicados</strong>
+                        <span>Notificação push para todos ou por status e plano, com modelos salvos e histórico
+                            de envios.</span>
+                    </button>
+                    <button role="tab" id="aba-instabilidades" aria-controls="tela-painel" aria-selected="false"
+                        tabindex="-1" data-img="img/painel-instabilidades.webp"
+                        data-alt="Tela de instabilidades: publicação de aviso de problema na rede para os assinantes.">
+                        <strong>Instabilidades</strong>
+                        <span>Publique um aviso de problema na rede. Ele aparece no app antes de o assinante
+                            abrir um chamado.</span>
+                    </button>
+                    <button role="tab" id="aba-visao" aria-controls="tela-painel" aria-selected="false" tabindex="-1"
+                        data-img="img/painel-visao-geral.webp"
+                        data-alt="Visão geral: clientes sincronizados, chamados abertos e notificações das últimas 24 horas.">
+                        <strong>Atendimento e visão geral</strong>
+                        <span>Chamados, histórico dos diagnósticos feitos no app (com exportação) e as contagens
+                            da sua base.</span>
+                    </button>
+                </div>
+                <div class="janela janela-grande" id="tela-painel" role="tabpanel" aria-labelledby="aba-aparencia">
+                    <div class="janela-barra" aria-hidden="true"><span></span><span></span><span></span></div>
+                    <img id="painel-imagem" src="img/painel-aparencia.webp" width="1600" height="1000"
+                        alt="Tela de personalização: escolha do layout do app, cores e pré-visualização no celular.">
+                </div>
+            </div>
+        </section>
+
+        <section class="bloco" id="implantacao">
+            <div class="bloco-cabeca">
+                <h2>Como o app entra no ar</h2>
+            </div>
+            <ol class="passos">
+                <li>
+                    <h3>Ligamos o app ao seu SGP</h3>
+                    <p>Você passa o endereço e o token de integração. Nossa equipe cadastra e guarda essa credencial
+                        em área privada, fora do alcance do painel.</p>
+                </li>
+                <li>
+                    <h3>Você deixa o app com a sua cara</h3>
+                    <p>Logo, cores, layout, menus, textos e dúvidas frequentes, tudo pelo painel, sem programar.</p>
+                </li>
+                <li>
+                    <h3>Geramos o app Android</h3>
+                    <p>O aplicativo sai com o nome e a identidade do seu provedor, assinado e pronto para instalar.</p>
+                </li>
+                <li>
+                    <h3>Seus assinantes entram</h3>
+                    <p>O acesso é com CPF ou CNPJ e a senha da central do assinante que ele já tem no SGP.</p>
+                </li>
+            </ol>
+        </section>
+
+        <section class="bloco bloco-claro" id="hoje">
+            <div class="bloco-cabeca">
+                <h2>O que tem hoje, sem enfeite</h2>
+                <p>Preferimos dizer antes do que explicar depois.</p>
+            </div>
+            <div class="hoje">
+                <div>
+                    <h3>Já funciona</h3>
+                    <ul class="lista-sim">
+                        <li>App para Android com a marca do provedor</li>
+                        <li>Integração com o SGP</li>
+                        <li>Cinco layouts de app para escolher</li>
+                        <li>Notificações push e avisos de instabilidade</li>
+                        <li>Painel web para o provedor</li>
                     </ul>
-                    <a href="#contact" class="btn btn-primary btn-glow btn-full">Começar Agora</a>
                 </div>
-
-                <!-- Enterprise -->
-                <div class="pricing-card-minimal">
-                    <div class="pc-header">
-                        <h3>Enterprise</h3>
-                        <div class="pc-price">
-                            <span class="currency">R$</span>
-                            <span class="amount" data-m="997" data-y="797">997</span>
-                            <span class="period">/mês</span>
-                        </div>
-                        <p class="pc-desc">Para grandes operações ISP</p>
-                    </div>
-                    <div class="pc-divider"></div>
-                    <ul class="pc-features">
-                        <li><span>Clientes Ilimitados</span></li>
-                        <li><span>App White-label Total</span></li>
-                        <li><span>Gestor de Conta Dedicado</span></li>
-                        <li><span>SLA Diferenciado</span></li>
-                        <li><span>Customizações</span></li>
+                <div>
+                    <h3>Ainda não tem</h3>
+                    <ul class="lista-nao">
+                        <li>App para iPhone</li>
+                        <li>Integração com outros sistemas de gestão além do SGP</li>
+                        <li>Pagamento com cartão dentro do app</li>
                     </ul>
-                    <a href="#contact" class="btn btn-outline btn-full">Falar com Consultor</a>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Testimonials Slider (Refined) -->
-    <section class="testimonials-slider" id="testimonials">
-        <div class="container">
-            <div class="section-center">
-                <h2>Quem usa, recomenda</h2>
-            </div>
-            <div class="slider-wrapper">
-                <div class="slider-track">
-                    <!-- Cards will be cloned by JS -->
-                    <div class="testimonial-card-clean">
-                        <div class="tc-rating">★★★★★</div>
-                        <p>"O melhor investimento que fizemos no ano. A redução de inadimplência pagou o app no primeiro
-                            mês."</p>
-                        <div class="tc-user">
-                            <div class="tc-avatar c1">RC</div>
-                            <div>
-                                <strong>Roberto Campos</strong>
-                                <span>CEO, SpeedNet Fibra</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="testimonial-card-clean">
-                        <div class="tc-rating">★★★★★</div>
-                        <p>"Meus clientes adoram a facilidade de pegar a segunda via do boleto. O suporte agradeceu!"
-                        </p>
-                        <div class="tc-user">
-                            <div class="tc-avatar c2">AL</div>
-                            <div>
-                                <strong>Ana Lima</strong>
-                                <span>Gerente, Conecta Mais</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="testimonial-card-clean">
-                        <div class="tc-rating">★★★★★</div>
-                        <p>"A integração com o MK Solutions foi perfeita. Tudo funciona em tempo real."</p>
-                        <div class="tc-user">
-                            <div class="tc-avatar c3">MS</div>
-                            <div>
-                                <strong>Marcos Silva</strong>
-                                <span>Diretor, Future Link</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+        <section class="contato" id="contato">
+            <h2>Quer ver funcionando com os dados do seu provedor?</h2>
+            <p>Chame no WhatsApp. Mostramos o app e o painel e dizemos o que é preciso do seu SGP para ligar.</p>
+            <a class="botao botao-ciano botao-grande" href="#contato" data-whatsapp-link>Falar no WhatsApp</a>
+            <p class="contato-aviso" id="contato-aviso" hidden>O canal de WhatsApp ainda está sendo configurado.
+                Volte em breve.</p>
+        </section>
+    </main>
 
-    <!-- CTA Final -->
-    <section class="cta-final" id="contact">
-        <div class="container">
-            <div class="cta-box">
-                <div class="cta-content">
-                    <h2>Pronto para digitalizar seu provedor?</h2>
-                    <p>Junte-se a mais de 50 provedores que transformaram seu atendimento com o App Unify.</p>
-                    <form class="cta-form-inline" id="contactForm" data-contact-url="" aria-describedby="contactStatus">
-                        <input type="email" placeholder="Digite seu melhor e-mail" required>
-                        <button type="submit" class="btn btn-primary">Contato indisponível</button>
-                    </form>
-                    <p id="contactStatus" role="status">Contato indisponível: canal comercial ainda não validado.</p>
-                    <p class="cta-note">Teste grátis por 14 dias. Sem cartão de crédito.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="footer-clean">
-        <div class="container">
-            <div class="footer-row">
-                <div class="footer-col brand-col">
-                    <a href="#" class="logo-text">AppUnify</a>
-                    <p>Tecnologia de ponta para provedores de internet que buscam excelência.</p>
-                </div>
-                <div class="footer-col">
-                    <h4>Produto</h4>
-                    <a href="#">Recursos</a>
-                    <a href="#">Planos</a>
-                    <a href="#">Integrações</a>
-                    <a href="#">Changelog</a>
-                </div>
-                <div class="footer-col">
-                    <h4>Empresa</h4>
-                    <a href="#">Sobre Nós</a>
-                    <a href="#">Carreiras</a>
-                    <a href="#">Blog</a>
-                    <a href="#">Contato</a>
-                </div>
-                <div class="footer-col">
-                    <h4>Social</h4>
-                    <a href="#">Instagram</a>
-                    <a href="#">LinkedIn</a>
-                    <a href="#">Twitter</a>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2026 App Unify. Todos os direitos reservados.</p>
-                <div class="legal-links">
-                    <a href="#">Privacidade</a>
-                    <a href="#">Termos</a>
-                </div>
-            </div>
-        </div>
+    <footer class="rodape">
+        <span class="marca"><span class="marca-selo" aria-hidden="true">U</span>Unify</span>
+        <a href="/painel/">Área do provedor</a>
+        <span>© <span id="ano">2026</span> Unify</span>
     </footer>
 
-    <script src="contact-form.js"></script>
     <script src="script.js"></script>
 </body>
 
