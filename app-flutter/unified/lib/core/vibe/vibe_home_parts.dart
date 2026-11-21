@@ -308,10 +308,10 @@ class VibeConnectionPill extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
-            child: SizedBox(
-              height: 36,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 36),
               child: Padding(
-                padding: const EdgeInsets.only(left: 6, right: 12),
+                padding: const EdgeInsets.fromLTRB(6, 4, 12, 4),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Container(
                     width: 26,
@@ -322,11 +322,7 @@ class VibeConnectionPill extends StatelessWidget {
                     child: VibeIcon(icon, size: 16, color: t.toneText(tone)),
                   ),
                   const SizedBox(width: 8),
-                  Flexible(
-                      child: Text(label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: vibeText(t, 13, 700))),
+                  Flexible(child: Text(label, style: vibeText(t, 13, 700))),
                   const SizedBox(width: 12),
                   Container(width: 1, height: 18, color: t.line),
                   const SizedBox(width: 9),
@@ -600,7 +596,10 @@ class VibeShortcutGrid extends StatelessWidget {
     final box = t.dark ? t.neub : vibeMix(Colors.white, t.ac, .10);
     return LayoutBuilder(builder: (context, constraints) {
       const gap = 6.0;
-      final width = (constraints.maxWidth - gap * 3) / 4;
+      final minLabelWidth = MediaQuery.textScalerOf(context).scale(12) * 4.5;
+      final columns =
+          (constraints.maxWidth - gap * 3) / 4 >= minLabelWidth ? 4 : 2;
+      final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
       return Wrap(spacing: gap, runSpacing: 14, children: [
         for (final item in items)
           SizedBox(
@@ -648,7 +647,11 @@ class VibeServiceRail extends StatelessWidget {
     final fg = onBrand ? t.on : t.ink;
     final scale = MediaQuery.textScalerOf(context).scale(1);
     return LayoutBuilder(builder: (context, constraints) {
-      final width = (constraints.maxWidth - 24) / 3.5;
+      final minLabelWidth =
+          MediaQuery.textScalerOf(context).scale(12) * 4.5 + 12;
+      final visible =
+          (constraints.maxWidth - 24) / 3.5 >= minLabelWidth ? 3.5 : 2.5;
+      final width = (constraints.maxWidth - 8 * visible.floor()) / visible;
       return SizedBox(
         height: 88 + 30 * (scale - 1).clamp(0, 2),
         child: ListView.separated(

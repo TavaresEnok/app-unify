@@ -47,8 +47,8 @@ class VibeNavBar extends StatelessWidget {
       child: InkWell(
         onTap: () => onSelected(i),
         borderRadius: BorderRadius.circular(16),
-        child: SizedBox(
-          height: 47,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 47),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             if (circle)
               Transform.translate(
@@ -75,7 +75,8 @@ class VibeNavBar extends StatelessWidget {
               ),
             SizedBox(height: circle ? 0 : 4),
             Text(_labels[i],
-                maxLines: 1,
+                maxLines: 2,
+                textAlign: TextAlign.center,
                 style: vibeText(t, 11.5, 600,
                     color: on ? t.ink : t.mut, height: 1.1)),
           ]),
@@ -108,9 +109,10 @@ class VibeNavBar extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: () => onSelected(i),
-                    child: SizedBox(
-                      height: 47,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 47),
                       child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             VibeIcon(_dockIcons[i],
@@ -119,7 +121,8 @@ class VibeNavBar extends StatelessWidget {
                                 color: i == selectedIndex ? p.brand : p.muted),
                             const SizedBox(height: 3),
                             Text(_labels[i],
-                                maxLines: 1,
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
                                 style: vibeText(
                                     t, 12, i == selectedIndex ? 700 : 550,
                                     color:
