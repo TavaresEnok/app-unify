@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:app_provedor_unified/core/pages/customer/invoice_document_page.dart';
 import 'package:app_provedor_unified/core/providers/financeiro_provider.dart';
@@ -105,6 +105,43 @@ void main() {
       expect(find.text('Visualização indisponível'), findsOneWidget);
       expect(find.text('Abrir documento'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+  testWidgets('does not start native rendering after leaving the page',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      final provider = FinanceiroProvider(_Service());
+      await provider.fetchHistory();
+      final response = Completer<http.Response>();
+      final client = MockClient((request) => response.future);
+      var rendered = false;
+      const channel = MethodChannel('br.com.ajust.app_provedor/invoice_pdf');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        rendered = true;
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          financeiroViewModelProvider.overrideWith((ref) => provider)
+        ],
+        child: MaterialApp(
+            home: Scaffold(
+                body: InvoiceDocumentPage(
+                    invoice: provider.invoices.first, client: client))),
+      ));
+      await tester.pumpWidget(const SizedBox.shrink());
+      response
+          .complete(http.Response.bytes(utf8.encode('%PDF-1.4\nfixture'), 200));
+      await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+      expect(rendered, isFalse);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
