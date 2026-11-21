@@ -36,40 +36,76 @@ class Fatura {
 
   /// Factory constructor para criar uma Fatura a partir de um JSON
   factory Fatura.fromJson(Map<String, dynamic> json) {
-    final valorString =
-        (json['valor'] ?? '0.0').toString().replaceAll(',', '.');
+    final rawValue = json['valor'];
+    var valueText = rawValue?.toString().trim() ?? '';
+    if (valueText.contains(',')) {
+      valueText = valueText.replaceAll('.', '').replaceAll(',', '.');
+    }
+    final value = double.tryParse(valueText);
 
-    DateTime? parseDate(String? dateString) {
-      if (dateString == null || dateString.isEmpty) return null;
-      try {
-        // Tenta formatos diferentes: yyyy-MM-dd e dd/MM/yyyy
-        if (dateString.contains('-')) {
-          return DateTime.parse(dateString);
-        } else if (dateString.contains('/')) {
-          final parts = dateString.split('/');
-          return DateTime(
-              int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-        }
-      } catch (e) {
-        return null;
+    DateTime? parseDate(dynamic value) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isEmpty) return null;
+      if (text.contains('/')) {
+        final parts = text.split('/');
+        if (parts.length != 3) return null;
+        final day = int.tryParse(parts[0]);
+        final month = int.tryParse(parts[1]);
+        final year = int.tryParse(parts[2]);
+        if (day == null || month == null || year == null) return null;
+        final date = DateTime(year, month, day);
+        return date.year == year && date.month == month && date.day == day
+            ? date
+            : null;
       }
-      return null;
+      return DateTime.tryParse(text);
+    }
+
+    final due = parseDate(json['vencimento'] ?? json['dataVencimento']);
+    final rawStatus = json['status']?.toString().trim().toLowerCase();
+    final paidFlag = json['pago'];
+    final String status;
+    if (rawStatus == 'pago' || rawStatus == 'paga' || rawStatus == 'paid') {
+      status = 'pago';
+    } else if (rawStatus == 'pendente' ||
+        rawStatus == 'aberto' ||
+        rawStatus == 'aberta' ||
+        rawStatus == 'vencido' ||
+        rawStatus == 'vencida' ||
+        rawStatus == 'em aberto') {
+      status = 'pendente';
+    } else if ((rawStatus == null || rawStatus.isEmpty) && paidFlag is bool) {
+      status = paidFlag ? 'pago' : 'pendente';
+    } else {
+      throw const FormatException('Situação da fatura indisponível.');
+    }
+    if (value == null || !value.isFinite || due == null) {
+      throw const FormatException(
+          'Valor ou vencimento da fatura indisponível.');
+    }
+
+    String? text(dynamic value) {
+      final result = value?.toString().trim();
+      return result == null || result.isEmpty ? null : result;
     }
 
     return Fatura(
-      numero:
-          json['id']?.toString() ?? json['nossoNumero']?.toString() ?? 'N/A',
-      valor: double.tryParse(valorString) ?? 0.0,
-      vencimento: parseDate(json['vencimento'] ?? json['dataVencimento']) ??
-          DateTime.now(),
-      status: json['status'] != null
-          ? json['status'].toString()
-          : ((json['pago'] as bool? ?? false) ? 'pago' : 'pendente'),
-      urlBoleto: (json['url_boleto'] ?? json['link']) as String?,
-      linhaDigitavel: json['linha_digitavel'] as String?,
-      pixCopiaECola: json['pix_copia_cola'] as String?,
-      dataPagamento:
-          parseDate(json['data_pagamento'] as String? ?? json['dataPagamento'] as String?),
+      numero: (json['id'] ??
+              json['numero'] ??
+              json['nossoNumero'] ??
+              json['numero_documento'] ??
+              'N/A')
+          .toString(),
+      valor: value,
+      vencimento: due,
+      status: status,
+      urlBoleto: text(json['url_boleto'] ?? json['urlBoleto'] ?? json['link']),
+      linhaDigitavel: text(json['linha_digitavel'] ?? json['linhaDigitavel']),
+      pixCopiaECola: text(json['pix_copia_cola'] ??
+          json['pixCopiaECola'] ??
+          json['linha_digitavel_pix'] ??
+          json['codigoPix']),
+      dataPagamento: parseDate(json['data_pagamento'] ?? json['dataPagamento']),
     );
   }
 

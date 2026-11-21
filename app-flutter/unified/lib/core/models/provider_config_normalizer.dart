@@ -22,9 +22,16 @@ class ProviderConfigNormalizer {
         layout is String && supportedLayouts.contains(layout)
             ? layout
             : 'layout_06';
-    normalized['themeColor'] = _color(normalized['themeColor'], '#673AB7');
-    normalized['secondaryColor'] =
-        _color(normalized['secondaryColor'], '#9575CD');
+    final theme = _stringMap(normalized['theme']);
+    final colors = _stringMap(theme['colors']);
+    normalized['themeColor'] = _color(
+      normalized['themeColor'],
+      _color(colors['primary'], '#2456C9'),
+    );
+    normalized['secondaryColor'] = _color(
+      normalized['secondaryColor'],
+      _color(colors['secondary'], normalized['themeColor'] as String),
+    );
     normalized['features'] = _stringMap(normalized['features']);
     normalized['menuConfig'] = _stringMap(normalized['menuConfig']);
     normalized['integrations'] = _stringMap(normalized['integrations']);

@@ -68,6 +68,8 @@ void main() {
     mockOnuService = MockOnuWifiService();
     mockPingFactory = MockPingFactory();
     mockPing = MockPing();
+    when(mockPing.stop()).thenAnswer((_) async => true);
+    when(mockSpeedTest.cancelTest()).thenAnswer((_) async => true);
 
     service = DiagnosticoService(
       providerConfig: providerConfig,
@@ -80,6 +82,23 @@ void main() {
       onuService: mockOnuService,
       pingFactory: mockPingFactory,
     );
+  });
+
+  test('standalone ping cancels the native process and permits a fresh run', () async {
+    final stream = StreamController<PingData>();
+    when(mockPingFactory.create(any, count: anyNamed('count'), timeout: anyNamed('timeout'), interval: anyNamed('interval'))).thenReturn(mockPing);
+    when(mockPing.stream).thenAnswer((_) => stream.stream);
+    final run = service.runPingOnly('8.8.8.8');
+    expect(service.currentState.isTesting, isTrue);
+    service.stopAllTests();
+    await run;
+    expect(service.currentState.isTesting, isFalse);
+    verify(mockPing.stop()).called(greaterThanOrEqualTo(1));
+    await stream.close();
+    when(mockPing.stream).thenAnswer((_) => const Stream.empty());
+    await service.runPingOnly('1.1.1.1');
+    expect(service.currentState.testResultsDisplay['pingGoogle']?['metrics']['host'], '1.1.1.1');
+    service.dispose();
   });
 
   group('DiagnosticoService', () {

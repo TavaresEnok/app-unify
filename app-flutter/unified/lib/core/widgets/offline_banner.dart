@@ -1,47 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../providers/connectivity_provider.dart';
 
 class OfflineBanner extends ConsumerWidget {
   const OfflineBanner({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isOnline = ref.watch(isOnlineProvider);
-
-    // Use red for error state
-    final backgroundColor = Colors.red.shade700;
-
-    return AnimatedSlide(
-      offset: isOnline ? const Offset(0, -1) : Offset.zero,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutCubic,
-      child: Material(
-        elevation: 8,
-        color: backgroundColor,
-        child: SafeArea(
-          bottom: false,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Sem conexão com a internet',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    final connection = ref.watch(connectivityStatusProvider).valueOrNull;
+    if (connection != ConnectivityResult.none) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+        width: double.infinity,
+        color: colors.error,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(children: [
+          Icon(Icons.wifi_off_outlined, color: colors.onError),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Text(
+                  'Seu celular está sem rede. Ative o Wi-Fi ou os dados móveis para atualizar as informações.',
+                  style: TextStyle(color: colors.onError, height: 1.4))),
+        ]));
   }
 }

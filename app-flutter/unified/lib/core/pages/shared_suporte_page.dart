@@ -1,3 +1,4 @@
+import '../theme/layout_tokens.dart';
 // Layout 02 - Suporte Page
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,7 +57,7 @@ class SuportePage extends ConsumerWidget {
               label: const Text('Está ruim agora? Verificar conexão'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: themePrimary,
-                foregroundColor: Colors.white,
+                foregroundColor: LayoutTokens.foregroundFor(themePrimary),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -133,7 +134,7 @@ class SuportePage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Status da Conexão',
+              'Situação do contrato',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: isLayout03 ? themeTextDark : null,
@@ -171,8 +172,8 @@ class SuportePage extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               isOk
-                  ? 'Sua conexão está funcionando normalmente. Se encontrar problemas, tente nosso diagnóstico.'
-                  : 'Detectamos um problema com sua conexão. Verifique suas faturas ou entre em contato.',
+                  ? 'Seu contrato está ativo. Para verificar a conexão neste celular, inicie um diagnóstico.'
+                  : 'Consulte suas faturas ou fale com seu provedor para entender a situação do contrato.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: isLayout03 ? themeTextGrey : null,
               ),
@@ -197,7 +198,8 @@ class SuportePage extends ConsumerWidget {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themePrimary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: LayoutTokens.foregroundFor(
+                            themePrimary ?? Theme.of(context).primaryColor),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -344,7 +346,8 @@ class SuportePage extends ConsumerWidget {
                 style: isLayout03
                     ? ElevatedButton.styleFrom(
                         backgroundColor: themeSecondary ?? Colors.green,
-                        foregroundColor: Colors.white,
+                        foregroundColor: LayoutTokens.foregroundFor(
+                            themeSecondary ?? Colors.green),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),

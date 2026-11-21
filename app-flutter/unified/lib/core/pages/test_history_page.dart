@@ -2,6 +2,9 @@
 // Displays test history with charts and statistics
 
 import 'package:flutter/material.dart';
+import '../theme/layout_tokens.dart';
+import '../widgets/content_state.dart';
+import 'shared_diagnostico_page.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/test_history.dart';
 import '../services/test_history_service.dart';
@@ -18,6 +21,9 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
   List<TestHistoryEntry> _history = [];
   Map<String, dynamic> _stats = {};
   bool _loading = true;
+  ColorScheme get _colors => Theme.of(context).colorScheme;
+  Color get _text => _colors.onSurface;
+  Color get _muted => _colors.onSurfaceVariant;
 
   @override
   void initState() {
@@ -29,6 +35,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
     setState(() => _loading = true);
     final history = await _historyService.getHistory();
     final stats = await _historyService.getStats();
+    if (!mounted) return;
     setState(() {
       _history = history;
       _stats = stats;
@@ -39,7 +46,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F23),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -53,8 +60,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Limpar Histórico?'),
-                    content:
-                        const Text('Todos os testes salvos serão removidos.'),
+                    content: const Text('Todos os testes salvos serão removidos.'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -95,36 +101,18 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history,
-            size: 80,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhum teste realizado',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.white.withValues(alpha: 0.5),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Execute um diagnóstico para ver o histórico',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white.withValues(alpha: 0.3),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildEmptyState() => ContentState(
+        icon: Icons.history,
+        title: 'Você ainda não fez nenhum teste',
+        message:
+            'Verifique sua conexão para acompanhar os resultados por aqui.',
+        actionLabel: 'Verificar conexão',
+        onAction: () async {
+          await Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const DiagnosticoPage()));
+          if (mounted) _loadHistory();
+        },
+      );
 
   Widget _buildStatsSection() {
     return Container(
@@ -137,17 +125,18 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF00F5FF).withValues(alpha: 0.2)),
+        border:
+            Border.all(color: const Color(0xFF00F5FF).withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Estatísticas',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: _text,
             ),
           ),
           const SizedBox(height: 16),
@@ -201,6 +190,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
 
   Widget _buildStatItem(
       String label, String value, IconData icon, Color color) {
+    color = LayoutTokens.readable(color, _colors.surface);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -225,7 +215,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.5),
+              color: _muted,
             ),
           ),
         ],
@@ -241,19 +231,19 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: _colors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: _colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Evolução de Velocidade',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: _text,
             ),
           ),
           const SizedBox(height: 20),
@@ -266,7 +256,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                   drawVerticalLine: false,
                   horizontalInterval: 20,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: _colors.outlineVariant,
                     strokeWidth: 1,
                   ),
                 ),
@@ -285,7 +275,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                       getTitlesWidget: (value, meta) => Text(
                         '${value.toInt()}',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: _muted,
                           fontSize: 10,
                         ),
                       ),
@@ -330,12 +320,12 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Testes Recentes',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Colors.white,
+            color: _text,
           ),
         ),
         const SizedBox(height: 12),
@@ -345,19 +335,21 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
   }
 
   Widget _buildHistoryItem(TestHistoryEntry entry) {
-    final scoreColor = entry.healthScore >= 80
-        ? const Color(0xFF10B981)
-        : entry.healthScore >= 60
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFFEF4444);
+    final scoreColor = LayoutTokens.readable(
+        entry.healthScore >= 80
+            ? const Color(0xFF10B981)
+            : entry.healthScore >= 60
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFFEF4444),
+        _colors.surface);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: _colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: _colors.outlineVariant),
       ),
       child: Row(
         children: [
@@ -386,10 +378,10 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
               children: [
                 Text(
                   entry.speedSummary,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: _text,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -398,14 +390,14 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                     Icon(
                       Icons.access_time,
                       size: 12,
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: _muted,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       entry.formattedDate,
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: _muted,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -413,7 +405,7 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                       '🎮 ${entry.testMode}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: _muted,
                       ),
                     ),
                   ],

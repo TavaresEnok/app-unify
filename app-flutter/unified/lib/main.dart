@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // For PlatformDispatcher
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +13,7 @@ import 'core/painel_page.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/pages/onboarding_page.dart';
 import 'core/widgets/rating_prompt_dialog.dart';
+import 'core/widgets/content_state.dart';
 import 'layout_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -29,29 +29,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
-Future<void> _ensureFirebaseSession() async {
-  if (FirebaseAuth.instance.currentUser != null) {
-    return;
-  }
-
-  try {
-    await FirebaseAuth.instance.signInAnonymously();
-    debugPrint('🔐 Firebase Auth anônimo inicializado com sucesso.');
-  } catch (error, stack) {
-    FirebaseCrashlytics.instance.recordError(
-      error,
-      stack,
-      reason: 'anonymous_firebase_auth_bootstrap_failed',
-    );
-    debugPrint('⚠️ Falha ao iniciar sessão anônima no Firebase: $error');
-  }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await _ensureFirebaseSession();
+  // Public provider configuration does not require an anonymous Auth session.
+  // Client authentication starts only when the customer signs in.
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Crashlytics Setup + ErrorWidget customizado para debug
@@ -72,6 +55,16 @@ void main() async {
   // Override ErrorWidget para mostrar o erro REAL em vez de tela cinza/branca
   // Essencial para diagnóstico de crashes em release mode
   ErrorWidget.builder = (FlutterErrorDetails details) {
+    if (!kDebugMode) {
+      return const Material(
+          child: SafeArea(
+              child: ContentState(
+        icon: Icons.error_outline,
+        title: 'Não conseguimos mostrar esta tela',
+        message:
+            'Feche e abra o aplicativo novamente. Se o problema continuar, fale com seu provedor.',
+      )));
+    }
     final message = details.exception.toString();
     final shortMsg =
         message.length > 200 ? '${message.substring(0, 200)}...' : message;
@@ -147,7 +140,7 @@ class AppInitializationWrapper extends ConsumerStatefulWidget {
 
 class _AppInitializationWrapperState
     extends ConsumerState<AppInitializationWrapper> {
-  late final Future<void> _initialization;
+  late Future<void> _initialization;
 
   @override
   void initState() {
@@ -181,7 +174,14 @@ class _AppInitializationWrapperState
       future: _initialization,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return FatalErrorScreen(error: snapshot.error.toString());
+          return FatalErrorScreen(
+              error: snapshot.error.toString(),
+              onRetry: () {
+                final next = _initializeApp();
+                setState(() {
+                  _initialization = next;
+                });
+              });
         }
         if (snapshot.connectionState == ConnectionState.done) {
           return const AuthGate();
@@ -236,7 +236,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     }
 
     if (config.errorMessage != null) {
-      return FatalErrorScreen(error: config.errorMessage!);
+      return FatalErrorScreen(
+          error: config.errorMessage!,
+          onRetry: () =>
+              ref.read(configurationProvider).loadConfig(providerId));
     }
 
     // Mostrar onboarding para novos usuários
@@ -277,28 +280,17 @@ class SplashScreen extends StatelessWidget {
 
 class FatalErrorScreen extends StatelessWidget {
   final String error;
-  const FatalErrorScreen({super.key, required this.error});
-
+  final VoidCallback? onRetry;
+  const FatalErrorScreen({super.key, required this.error, this.onRetry});
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 64),
-              const SizedBox(height: 16),
-              const Text('Erro crítico',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              const SizedBox(height: 8),
-              Text(error, textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+          body: SafeArea(
+              child: ContentState(
+        icon: Icons.cloud_off_outlined,
+        title: 'Não conseguimos iniciar o aplicativo',
+        message:
+            'Verifique sua conexão e tente novamente. Se o problema continuar, fale com seu provedor.',
+        actionLabel: 'Tentar de novo',
+        onAction: onRetry,
+      )));
 }

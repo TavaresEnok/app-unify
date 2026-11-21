@@ -11,11 +11,13 @@ class ConsumoService {
   final String apiUrl;
   final String providerId;
   final String cpfCnpj;
+  final int? contratoId;
 
   ConsumoService({
     required this.apiUrl,
     required this.providerId,
     required this.cpfCnpj,
+    this.contratoId,
   });
 
   /// Busca os dados de consumo na API
@@ -31,6 +33,7 @@ class ConsumoService {
       final requestBody = {
         'cpfCnpj': cpfCnpj,
         'providerId': providerId,
+        if (contratoId != null) 'contratoId': contratoId,
         if (month != null) 'mes': month,
         if (year != null) 'ano': year,
       };
@@ -51,8 +54,9 @@ class ConsumoService {
           .timeout(const Duration(seconds: 30));
 
       final responseData = decodeApiResponse(response,
-          fallback:
-              'Falha ao carregar dados de consumo. Código: ${response.statusCode}')['data'];
+              fallback:
+                  'Falha ao carregar dados de consumo. Código: ${response.statusCode}')[
+          'data'];
       if (responseData is! Map<String, dynamic>) {
         throw ApiException(response.statusCode,
             'Resposta inesperada do servidor. Tente novamente.');

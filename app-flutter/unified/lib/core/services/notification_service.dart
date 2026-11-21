@@ -8,7 +8,9 @@ import '../models/usuario.dart';
 class NotificationService with ChangeNotifier {
   List<InAppNotification> _notifications = [];
   bool _isLoading = true;
-  static const String _storageKey = 'notifications_v1';
+  String? _storageKey;
+  Set<String> _dismissed = {};
+  int _generation = 0;
 
   List<InAppNotification> get notifications => _notifications;
   bool get isLoading => _isLoading;
@@ -19,13 +21,47 @@ class NotificationService with ChangeNotifier {
   List<InAppNotification> get activeNotifications =>
       _notifications.where((n) => !n.isExpired).toList();
 
+  String _accountKey(String providerId, String cpfCnpj) {
+    final account = '$providerId:${cpfCnpj.replaceAll(RegExp(r'\D'), '')}';
+    return 'notifications_v2_${base64Url.encode(utf8.encode(account))}';
+  }
+
+  Future<void> setAccount(String providerId, String cpfCnpj) async {
+    final key = _accountKey(providerId, cpfCnpj);
+    if (_storageKey == key) return;
+    _storageKey = key;
+    _generation++;
+    _notifications = [];
+    _dismissed = {};
+    await loadNotifications();
+  }
+
+  void clearAccount() {
+    _generation++;
+    _storageKey = null;
+    _notifications = [];
+    _dismissed = {};
+    _isLoading = false;
+    notifyListeners();
+  }
+
   Future<void> loadNotifications() async {
+    final key = _storageKey;
+    final generation = _generation;
+    if (key == null) {
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
     _isLoading = true;
     notifyListeners();
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? jsonString = prefs.getString(_storageKey);
+      final String? jsonString = prefs.getString(key);
+      final dismissed = prefs.getStringList('${key}_dismissed') ?? [];
+      if (generation != _generation) return;
+      _dismissed = dismissed.toSet();
 
       if (jsonString != null) {
         final List<dynamic> jsonList = jsonDecode(jsonString);
@@ -34,30 +70,22 @@ class NotificationService with ChangeNotifier {
             .where((n) => !n.isExpired) // Filter expired on load
             .toList();
       } else {
-        // First run: Add Welcome Notification
-        _notifications = [
-          InAppNotification(
-            id: 'welcome_001',
-            type: NotificationType.info,
-            title: 'Bem-vindo!',
-            message:
-                'Obrigado por usar nosso aplicativo. Explore todas as funcionalidades!',
-            createdAt: DateTime.now(),
-            read: false,
-          ),
-        ];
-        await _saveToPrefs();
+        _notifications = [];
       }
     } catch (e) {
       debugPrint('Erro ao carregar notificações: $e');
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (generation == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// Syncs notifications from Firestore (Robust Fallback)
   Future<void> syncRemoteNotifications(Usuario user, String providerId) async {
+    if (_storageKey != _accountKey(providerId, user.cpfCnpj)) return;
+    final generation = _generation;
     try {
       // 1. Fetch recent notifications (last 7 days to avoid fetching excessively)
       final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
@@ -81,6 +109,8 @@ class NotificationService with ChangeNotifier {
           .limit(50)
           .get();
 
+      if (generation != _generation) return;
+
       final allDocs = [...cpfQuery.docs, ...providerQuery.docs];
       // Deduplicate by ID
       final uniqueDocs = {for (var d in allDocs) d.id: d}.values;
@@ -96,7 +126,9 @@ class NotificationService with ChangeNotifier {
         if (timestamp != null && timestamp.isBefore(sevenDaysAgo)) continue;
 
         // Check if we already have this notification
-        if (_notifications.any((n) => n.id == nId)) continue;
+        if (_dismissed.contains(nId) || _notifications.any((n) => n.id == nId)) {
+          continue;
+        }
 
         // --- FILTERING LOGIC ---
         bool shouldShow = false;
@@ -178,12 +210,15 @@ class NotificationService with ChangeNotifier {
   }
 
   void deleteNotification(String id) {
+    if (_storageKey == null) return;
+    _dismissed.add(id);
     _notifications.removeWhere((n) => n.id == id);
     notifyListeners();
     _saveToPrefs();
   }
 
   Future<void> addNotification(InAppNotification notification) async {
+    if (_storageKey == null || _dismissed.contains(notification.id)) return;
     if (_notifications.any((n) => n.id == notification.id)) {
       return; // Avoid duplicates
     }
@@ -193,10 +228,14 @@ class NotificationService with ChangeNotifier {
   }
 
   Future<void> _saveToPrefs() async {
+    final key = _storageKey;
+    if (key == null) return;
+    final jsonList = _notifications.map((n) => n.toJson()).toList();
+    final dismissed = _dismissed.toList();
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonList = _notifications.map((n) => n.toJson()).toList();
-      await prefs.setString(_storageKey, jsonEncode(jsonList));
+      await prefs.setString(key, jsonEncode(jsonList));
+      await prefs.setStringList('${key}_dismissed', dismissed);
     } catch (e) {
       debugPrint('Erro ao salvar notificações: $e');
     }

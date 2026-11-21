@@ -21,6 +21,7 @@ final financeiroServiceProvider =
     apiUrl: '${config.apiUrl}/get-invoices',
     cpfCnpjUnformatted: usuario.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), ''),
     providerId: config.id,
+    contratoId: usuario.contratoId,
   );
 });
 
@@ -45,27 +46,42 @@ class FinanceiroProvider with ChangeNotifier {
   /// construção — lançar no builder vira erro não tratado na árvore de widgets.
   final FinanceiroService? _financeiroService;
 
+  bool _disposed = false;
+  Future<void>? _fetch;
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   FinanceiroState _state = FinanceiroState.idle;
   List<Fatura> _invoices = [];
   Map<int, double> _monthlyTotals = {};
   String _errorMessage = '';
+  int _incompleteInvoices = 0;
 
   FinanceiroState get state => _state;
   List<Fatura> get invoices => _invoices;
   Map<int, double> get monthlyTotals => _monthlyTotals;
   String get errorMessage => _errorMessage;
+  int get incompleteInvoices => _incompleteInvoices;
 
   /// Faturas pendentes (não pagas)
   List<Fatura> get pendingInvoices =>
-      _invoices.where((f) => !f.isPago).toList();
+      invoices.where((f) => !f.isPago).toList();
 
   /// Faturas pagas
-  List<Fatura> get paidInvoices => _invoices.where((f) => f.isPago).toList();
+  List<Fatura> get paidInvoices => invoices.where((f) => f.isPago).toList();
 
   FinanceiroProvider(this._financeiroService);
 
   /// Carrega as faturas do servidor
-  Future<void> fetchHistory() async {
+  Future<void> fetchHistory() {
+    if (_disposed) return Future.value();
+    return _fetch ??= _loadHistory().whenComplete(() => _fetch = null);
+  }
+
+  Future<void> _loadHistory() async {
     final service = _financeiroService;
     if (service == null) {
       _errorMessage =
@@ -80,7 +96,21 @@ class FinanceiroProvider with ChangeNotifier {
 
     try {
       final rawInvoices = await service.fetchInvoices();
-      _invoices = rawInvoices.map((json) => Fatura.fromJson(json)).toList();
+      if (_disposed) return;
+      final validInvoices = <Fatura>[];
+      var incompleteInvoices = 0;
+      for (final rawInvoice in rawInvoices) {
+        try {
+          if (rawInvoice is! Map<String, dynamic>) {
+            throw const FormatException('Fatura inválida');
+          }
+          validInvoices.add(Fatura.fromJson(rawInvoice));
+        } on FormatException {
+          incompleteInvoices++;
+        }
+      }
+      _invoices = validInvoices;
+      _incompleteInvoices = incompleteInvoices;
 
       // Ordena as faturas da mais recente para a mais antiga
       _invoices.sort((a, b) => b.vencimento.compareTo(a.vencimento));
@@ -92,7 +122,7 @@ class FinanceiroProvider with ChangeNotifier {
       _errorMessage = e.toString().replaceFirst("Exception: ", "");
       _state = FinanceiroState.error;
     } finally {
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -119,8 +149,8 @@ class FinanceiroProvider with ChangeNotifier {
     if (service == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text(
-                'Sessão indisponível. Entre novamente e tente de novo.')),
+            content:
+                Text('Sessão indisponível. Entre novamente e tente de novo.')),
       );
       return;
     }
@@ -139,7 +169,7 @@ class FinanceiroProvider with ChangeNotifier {
           builder: (ctx) => AlertDialog(
             title: const Text("✅ Sucesso!"),
             content: const Text(
-                "Desbloqueio de confiança realizado.\nSua conexão será reativada em até 5 minutos.\n\nLembre-se de pagar a fatura em até 48h para evitar novo bloqueio."),
+                "Solicitação de liberação realizada. As condições e o prazo são definidos pelo seu provedor."),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx), child: const Text("OK"))

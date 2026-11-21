@@ -2,8 +2,16 @@ import 'package:fl_chart/fl_chart.dart';
 
 enum TestStatus { pending, running, success, error }
 
+enum DiagnosticRunMode { quick, complete, speed }
+
+enum TestAvailability { available, unsupported, permissionRequired }
+
 class DiagnosticoState {
   final bool isTesting;
+  final bool wasInterrupted;
+  final DiagnosticRunMode runMode;
+  final DateTime? startedAt;
+  final DateTime? finishedAt;
   final String geralStatusMessage;
   final Map<String, Map<String, dynamic>> testResultsDisplay;
   final double? speedTestPingLatency;
@@ -20,6 +28,10 @@ class DiagnosticoState {
 
   DiagnosticoState({
     required this.isTesting,
+    this.wasInterrupted = false,
+    this.runMode = DiagnosticRunMode.complete,
+    this.startedAt,
+    this.finishedAt,
     required this.geralStatusMessage,
     required this.testResultsDisplay,
     this.speedTestPingLatency,
@@ -36,8 +48,18 @@ class DiagnosticoState {
   factory DiagnosticoState.initial() {
     return DiagnosticoState(
       isTesting: false,
-      geralStatusMessage: "Pronto para iniciar o diagnóstico completo.",
+      geralStatusMessage: "Vamos verificar sua conexão?",
       testResultsDisplay: {
+        'onuInfo': {
+          'status': TestStatus.pending,
+          'result': null,
+          'label': 'Sinal da fibra (ONU)'
+        },
+        'traceroute': {
+          'status': TestStatus.pending,
+          'result': null,
+          'label': 'Traceroute — rota do servidor'
+        },
         'deviceInfo': {
           'status': TestStatus.pending,
           'result': null,
@@ -94,6 +116,10 @@ class DiagnosticoState {
 
   DiagnosticoState copyWith({
     bool? isTesting,
+    bool? wasInterrupted,
+    DiagnosticRunMode? runMode,
+    DateTime? startedAt,
+    DateTime? finishedAt,
     String? geralStatusMessage,
     Map<String, Map<String, dynamic>>? testResultsDisplay,
     double? speedTestPingLatency,
@@ -108,6 +134,10 @@ class DiagnosticoState {
   }) {
     return DiagnosticoState(
       isTesting: isTesting ?? this.isTesting,
+      wasInterrupted: wasInterrupted ?? this.wasInterrupted,
+      runMode: runMode ?? this.runMode,
+      startedAt: startedAt ?? this.startedAt,
+      finishedAt: finishedAt ?? this.finishedAt,
       geralStatusMessage: geralStatusMessage ?? this.geralStatusMessage,
       testResultsDisplay: testResultsDisplay ?? this.testResultsDisplay,
       speedTestPingLatency: speedTestPingLatency ?? this.speedTestPingLatency,

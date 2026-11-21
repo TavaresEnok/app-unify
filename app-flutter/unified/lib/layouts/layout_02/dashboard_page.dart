@@ -1,3 +1,4 @@
+import '../../core/utils/app_formatters.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -168,7 +169,8 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
           }
         },
         items: const [
-          BottomNavItem(icon: Icons.home_rounded, label: 'Home', route: 'home'),
+          BottomNavItem(
+              icon: Icons.home_rounded, label: 'Início', route: 'home'),
           BottomNavItem(
               icon: Icons.receipt_long_rounded,
               label: 'Faturas',
@@ -295,8 +297,8 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
       borderRadius: BorderRadius.circular(24),
       boxShadow: [
         BoxShadow(
-          color:
-              Colors.black.withValues(alpha: 0.2), // Generic shadow for dynamic color
+          color: Colors.black
+              .withValues(alpha: 0.2), // Generic shadow for dynamic color
           blurRadius: 24,
           offset: const Offset(0, 12),
         ),
@@ -364,7 +366,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                     Row(
                       children: [
                         Text(
-                          isOnline ? 'Conexão Ativa' : 'Sem Conexão',
+                          isOnline ? 'Contrato ativo' : 'Consulte seu contrato',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -392,7 +394,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                             ),
                           ),
                           child: Text(
-                            isOnline ? 'Online' : 'Offline',
+                            isOnline ? 'Ativo' : 'Consultar',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -431,8 +433,8 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(18),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1), width: 1),
             ),
             child: Row(
               children: [
@@ -464,7 +466,7 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                 Expanded(
                   child: _buildPlanIndicator(
                     'Valor',
-                    'R\$ ${widget.billAmount.toStringAsFixed(0)}',
+                    AppFormatters.currency(widget.billAmount),
                     '',
                     Icons.payments_rounded,
                     Layout02Theme.green,
@@ -546,7 +548,8 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.6)),
+          style: TextStyle(
+              fontSize: 10, color: Colors.white.withValues(alpha: 0.6)),
         ),
       ],
     );
@@ -821,7 +824,8 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)
           ],
         ),
         child: Column(
@@ -1030,7 +1034,10 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [secondary, secondary.withValues(alpha: 0.7)],
+                              colors: [
+                                secondary,
+                                secondary.withValues(alpha: 0.7)
+                              ],
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -1106,7 +1113,8 @@ class _ProviderDashboardPageState extends ConsumerState<ProviderDashboardPage> {
                         color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2), width: 2),
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 2),
                       ),
                       child: const Icon(Icons.person_rounded,
                           color: Colors.white, size: 40),

@@ -102,7 +102,8 @@ function createApp(options = {}) {
         try {
             await revalidate('spawn'); // before logo download or private build output
             fs.mkdirSync(path.dirname(logo), { recursive: true, mode: 0o700 });
-            await logos.download(logoUrl, logo);
+            try { await logos.download(logoUrl, logo); }
+            catch { return fail(422, 'logo-download-failed'); }
             await revalidate('spawn'); // accepted then revoked must not spawn
             const args = [config.APK_SCRIPT_PATH || path.join(root, 'scripts/build/generate-apk.py'),
                 '--id', providerId, '--nome', appName, '--logo', logo, '--output', staging,

@@ -22,18 +22,27 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
   }
 
   Future<Usuario?> _loadUser() async {
-    return await _repository.loadUserFromStorage();
+    final user = await _repository.loadUserFromStorage();
+    final config = ref.read(configurationProvider).providerConfig;
+    if (user != null && config != null) {
+      await ref.read(notificationProvider).setAccount(config.id, user.cpfCnpj);
+    } else {
+      ref.read(notificationProvider).clearAccount();
+    }
+    return user;
   }
 
-  Future<void> login(String cpf, ProviderConfig config, {String password = ''}) async {
+  Future<void> login(String cpf, ProviderConfig config) async {
     // DO NOT set state = const AsyncValue.loading() here!
     // It causes AuthGate to unmount the LoginPage, destroying local state and hiding errors.
     try {
       // 1. Authenticate with API
-      final user = await _repository.performLoginApi(cpf, config, password: password);
+      final user = await _repository.performLoginApi(cpf, config);
 
       // 2. Save locally
       await _repository.saveUserLocally(user, config.id);
+
+      await ref.read(notificationProvider).setAccount(config.id, user.cpfCnpj);
 
       // 3. Update state
       state = AsyncValue.data(user);
@@ -45,6 +54,7 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
   Future<void> logout() async {
     final currentUser = state.value;
     state = const AsyncValue.loading();
+    ref.read(notificationProvider).clearAccount();
     try {
       await _repository.logout(currentUser);
       state = const AsyncValue.data(null);
@@ -66,8 +76,7 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
 
       // We don't set state to loading to avoid flickering UI,
       // just update when data arrives.
-      final updatedUser =
-          await _repository.refreshUser(currentUser, config);
+      final updatedUser = await _repository.refreshUser(currentUser, config);
 
       // Preserve some local-only fields if any (auth tokens are handled inside repository)
 

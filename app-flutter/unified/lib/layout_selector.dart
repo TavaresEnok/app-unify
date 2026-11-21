@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
 import 'core/services/diagnostico_service.dart';
-import 'core/models/layout_registry.dart';
 
-// Imports dos Dashboards (diferentes por layout)
-import 'layouts/layout_02/dashboard_page.dart' as l02;
-import 'layouts/layout_03/dashboard_page.dart' as l03;
-import 'layouts/layout_04/dashboard_page.dart' as l04;
-import 'layouts/layout_04/pages/speed_test_page.dart' as l04_speed;
-import 'layouts/layout_05/dashboard_page.dart' as l05;
-import 'layouts/layout_06/dashboard_page.dart' as l06;
+import 'core/pages/customer/customer_home_page.dart';
 
 // Imports dos Logins (diferentes por layout)
 
@@ -21,7 +14,6 @@ import 'core/pages/shared_suporte_page.dart' as shared_sup;
 import 'core/pages/shared_diagnostico_page.dart' as shared_diag;
 import 'core/pages/shared_consumo_page.dart' as shared_cons;
 import 'core/pages/shared_meu_ip_page.dart' as shared_ip;
-import 'core/pages/shared_speed_test_page.dart' as shared_speed;
 import 'core/pages/shared_traceroute_page.dart' as shared_trace;
 
 // Layout 03 implementações próprias (Wifi)
@@ -61,106 +53,8 @@ class LayoutSelector {
     Color? actionColor,
     Future<void> Function()? onRefresh,
   }) {
-    switch (LayoutRegistry.normalize(layoutType)) {
-      case 'layout_02':
-        return l02.ProviderDashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          menuItems: menuItems,
-          customCardBg: customCardBg,
-          customCardText: customCardText,
-          invoiceColor: invoiceColor,
-          actionColor: actionColor,
-        );
-
-      case 'layout_03':
-        return l03.DashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-        );
-
-      case 'layout_04':
-        return l04.DashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          menuItems: menuItems,
-          onRefresh: onRefresh,
-        );
-
-      case 'layout_05':
-        return l05.DashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          onRefresh: onRefresh,
-        );
-
-      case 'layout_06':
-        return l06.DashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          onRefresh: onRefresh,
-        );
-
-      default:
-        // Default to Layout 02 if unknown
-        return l02.ProviderDashboardPage(
-          customerName: customerName,
-          planName: planName,
-          connectionStatus: connectionStatus,
-          billAmount: billAmount,
-          billDueDate: billDueDate,
-          usedGb: usedGb,
-          totalGb: totalGb,
-          downloadMbps: downloadMbps,
-          uploadMbps: uploadMbps,
-          onNavigate: onNavigate,
-          menuItems: menuItems,
-          customCardBg: customCardBg,
-          customCardText: customCardText,
-          invoiceColor: invoiceColor,
-          actionColor: actionColor,
-        );
-    }
+    return CustomerHomePage(
+        layoutType: layoutType, onNavigate: onNavigate, onRefresh: onRefresh);
   }
 
   /// Retorna o widget de Login correto para o layout especificado
@@ -241,13 +135,7 @@ class LayoutSelector {
     required DiagnosticoService diagnosticoService,
     required VoidCallback onBack,
   }) {
-    switch (layoutType) {
-      case 'layout_04':
-        return const l04_speed.Layout06SpeedTestPage();
-
-      default:
-        return const shared_speed.SharedSpeedTestPage();
-    }
+    return const shared_diag.DiagnosticoPage(speedOnly: true);
   }
 
   static Widget getTraceRoutePage({required String layoutType}) {
@@ -255,13 +143,15 @@ class LayoutSelector {
   }
 
   /// Retorna o widget de FAQ - COMPARTILHADO entre layouts
-  static Widget getFaqPage({required String layoutType}) {
-    return const shared_faq.FaqPage();
+  static Widget getFaqPage(
+      {required String layoutType, ValueChanged<String>? onNavigate}) {
+    return shared_faq.FaqPage(onNavigate: onNavigate);
   }
 
   /// Retorna o widget de Contrato - COMPARTILHADO entre layouts
-  static Widget getContratoPage({required String layoutType}) {
-    return const shared_cont.ContratoPage();
+  static Widget getContratoPage(
+      {required String layoutType, ValueChanged<String>? onNavigate}) {
+    return shared_cont.ContratoPage(onNavigate: onNavigate);
   }
 
   /// Retorna o widget de Notificações - COMPARTILHADO
@@ -290,28 +180,28 @@ class LayoutSelector {
   static const List<Map<String, String>> availableLayouts = [
     {
       'id': 'layout_02',
-      'name': 'Minimalista',
-      'description': 'Cards brancos, ações rápidas'
+      'name': 'Histórico na folha',
+      'description': 'Fatura no topo e serviços na folha'
     },
     {
       'id': 'layout_03',
-      'name': 'Neo Digital',
-      'description': 'Estilo futurista com efeitos neon e vidro'
+      'name': 'Dock de serviços',
+      'description': 'Serviços em destaque'
     },
     {
       'id': 'layout_04',
-      'name': 'Premium Dark',
-      'description': 'Fintech-style com Cyan/Teal'
+      'name': 'Blocos escuros',
+      'description': 'Fatura e serviços em blocos'
     },
     {
       'id': 'layout_05',
-      'name': 'Cyber Neon',
-      'description': 'Futurista dark com grid animado e efeitos neon'
+      'name': 'Faixa e fatura',
+      'description': 'Faixa de marca e cartão da fatura'
     },
     {
       'id': 'layout_06',
-      'name': 'Clean Dark',
-      'description': 'Elegante escuro com gráfico de uso e design limpo'
+      'name': 'Topo centralizado',
+      'description': 'Identidade centralizada e resumo da conta'
     },
   ];
 }

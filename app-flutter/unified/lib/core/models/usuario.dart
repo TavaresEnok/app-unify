@@ -4,6 +4,7 @@ class Usuario {
   final String senha;
   final String plano;
   final String status;
+  final String? contractStatus;
   final String valorFatura;
   final String vencimentoFatura;
   final String? email;
@@ -15,6 +16,7 @@ class Usuario {
     required this.senha,
     required this.plano,
     required this.status,
+    this.contractStatus,
     required this.valorFatura,
     required this.vencimentoFatura,
     this.email,
@@ -28,6 +30,7 @@ class Usuario {
       senha: json['senha'] as String,
       plano: json['plano'] as String,
       status: json['status'] as String,
+      contractStatus: json['contractStatus'] as String?,
       valorFatura: json['valorFatura'] as String,
       vencimentoFatura: json['vencimentoFatura'] as String,
       email: json['email'] as String?,
@@ -42,10 +45,20 @@ class Usuario {
       'senha': senha,
       'plano': plano,
       'status': status,
+      'contractStatus': contractStatus,
       'valorFatura': valorFatura,
       'vencimentoFatura': vencimentoFatura,
       'email': email,
       'contratoId': contratoId,
     };
+  }
+
+  /// A situação contratual é independente do estado online do equipamento.
+  /// Sessões antigas podem conter a situação no campo status.
+  bool get isSuspended {
+    final value =
+        (contractStatus?.trim().isNotEmpty == true ? contractStatus! : status)
+            .toLowerCase();
+    return RegExp(r'suspens|bloquead|bloqueio|cortad').hasMatch(value);
   }
 }

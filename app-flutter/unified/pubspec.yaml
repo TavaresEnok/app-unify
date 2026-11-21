@@ -46,6 +46,7 @@ dependencies:
   flutter_secure_storage: ^9.2.2
 
   # UI & UTILITÁRIOS
+  flutter_native_splash: ^2.4.7
   shimmer: ^3.0.0
   intl: ^0.19.0
   fl_chart: ^0.68.0
@@ -71,15 +72,67 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  flutter_native_splash: ^2.4.7
   flutter_launcher_icons: ^0.14.4
   build_runner: ^2.4.6
   mockito: ^5.4.4
 
   battery_plus_platform_interface: any
   connectivity_plus_platform_interface: any
+  url_launcher_platform_interface: ^2.3.2
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
     - assets/banners/
+  # Fontes do layout aprovado (layout-app/vibe-5-definitivas.html). Licença OFL
+  # em assets/fonts/OFL-*.txt. O Flutter não aplica FontWeight ao eixo wght de
+  # fonte variável: as famílias estáticas servem o texto comum (FontWeight) e as
+  # famílias *Var recebem o peso exato do layout (650, 750, 780) por
+  # FontVariation em lib/core/vibe/vibe_text.dart.
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-400.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-500.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-600.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-700.ttf
+          weight: 700
+        - asset: assets/fonts/PlusJakartaSans-800.ttf
+          weight: 800
+    - family: PlusJakartaSansVar
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora-400.ttf
+          weight: 400
+        - asset: assets/fonts/Sora-500.ttf
+          weight: 500
+        - asset: assets/fonts/Sora-600.ttf
+          weight: 600
+        - asset: assets/fonts/Sora-700.ttf
+          weight: 700
+        - asset: assets/fonts/Sora-800.ttf
+          weight: 800
+    - family: SoraVar
+      fonts:
+        - asset: assets/fonts/Sora-Variable.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
+    - family: DMMono
+      fonts:
+        - asset: assets/fonts/DMMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMMono-Medium.ttf
+          weight: 500

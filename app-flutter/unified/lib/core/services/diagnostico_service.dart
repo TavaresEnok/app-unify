@@ -1,11 +1,10 @@
-import 'api_response.dart';
+import 'traceroute_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/diagnostico_state.dart';
 import '../models/provider_config.dart';
@@ -21,6 +20,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:network_tools/network_tools.dart';
 import 'onu_wifi_service.dart';
+
+part 'diagnostic_ping.dart';
+part 'diagnostic_runs.dart';
 
 /// Abstração para permitir o mock de Ping em testes
 abstract class PingFactory {
@@ -56,12 +58,43 @@ abstract interface class LocalNetworkScanner {
 }
 
 class NetworkToolsLocalScanner implements LocalNetworkScanner {
+  void Function()? _cancel;
+  void cancel() => _cancel?.call();
+
   @override
   Future<int> countActiveHosts(String subnet) async {
-    final hosts = await HostScannerService.instance
-        .getAllPingableDevices(subnet)
-        .toList();
-    return hosts.length;
+    final completer = Completer<int>();
+    var count = 0;
+    final subscription =
+        HostScannerService.instance.getAllPingableDevices(subnet).listen(
+      (_) => count++,
+      onDone: () {
+        if (!completer.isCompleted) completer.complete(count);
+      },
+      onError: (Object error) {
+        if (!completer.isCompleted) completer.completeError(error);
+      },
+    );
+    void cancel() {
+      if (!completer.isCompleted) {
+        completer.completeError(StateError('Varredura interrompida.'));
+      }
+    }
+
+    _cancel = cancel;
+    final timer = Timer(const Duration(seconds: 10), () {
+      if (!completer.isCompleted) {
+        completer
+            .completeError(TimeoutException('A rede não respondeu a tempo.'));
+      }
+    });
+    try {
+      return await completer.future;
+    } finally {
+      timer.cancel();
+      await subscription.cancel();
+      _cancel = null;
+    }
   }
 }
 
@@ -69,6 +102,10 @@ class DiagnosticoService {
   final ProviderConfig providerConfig;
   final BuildContext? context;
   DiagnosticoState get currentState => _currentState;
+  bool get canStart =>
+      !_executionActive &&
+      !_currentState.isTesting &&
+      !_streamController.isClosed;
 
   @visibleForTesting
   void setTestingState(bool isTesting) {
@@ -77,6 +114,9 @@ class DiagnosticoService {
 
   final OnuWifiService? onuService;
   final http.Client client;
+  final bool _ownsClient;
+  bool _executionActive = false;
+  void Function()? _cancelPing;
   final NetworkInfo _networkInfo;
   final Connectivity _connectivity;
   final Battery _battery;
@@ -117,6 +157,7 @@ class DiagnosticoService {
     PackageInfo? packageInfo,
     PingFactory? pingFactory,
   })  : client = client ?? http.Client(),
+        _ownsClient = client == null,
         _networkInfo = networkInfo ?? NetworkInfo(),
         _connectivity = connectivity ?? Connectivity(),
         _battery = battery ?? Battery(),
@@ -131,6 +172,7 @@ class DiagnosticoService {
   void dispose() {
     stopAllTests();
     _streamController.close();
+    if (_ownsClient) client.close();
   }
 
   void _updateStatus(String message) {
@@ -148,8 +190,9 @@ class DiagnosticoService {
     TestStatus status,
     dynamic result, {
     Map<String, dynamic>? metrics,
+    TestAvailability availability = TestAvailability.available,
   }) {
-    if (_streamController.isClosed) return;
+    if (_streamController.isClosed || !_currentState.isTesting) return;
     final newResults = Map<String, Map<String, dynamic>>.from(
       _currentState.testResultsDisplay,
     );
@@ -157,6 +200,9 @@ class DiagnosticoService {
       ...?newResults[key],
       'status': status,
       'result': result,
+      'availability': availability.name,
+      if (status == TestStatus.success || status == TestStatus.error)
+        'measuredAt': DateTime.now().toIso8601String(),
       if (metrics != null) 'metrics': metrics,
     };
     if (key == 'wifiInfo' && status == TestStatus.success) {
@@ -210,12 +256,17 @@ class DiagnosticoService {
   }
 
   void stopAllTests() {
+    if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
+    _cancelPing?.call();
+    _cancelPing = null;
     internetSpeedTest.cancelTest();
     _realtimeUpdateTimer?.cancel();
     _realtimeUpdateTimer = null;
     if (_currentState.isTesting) {
       _currentState = _currentState.copyWith(
         isTesting: false,
+        finishedAt: DateTime.now(),
+        wasInterrupted: true,
         geralStatusMessage: "Diagnóstico interrompido pelo usuário.",
       );
       if (!_streamController.isClosed) _streamController.add(_currentState);
@@ -309,126 +360,6 @@ class DiagnosticoService {
   }
 
   @visibleForTesting
-  Future<void> runPingTest(
-    String host,
-    String key, {
-    int count = 5,
-    bool discardFirst = false,
-  }) async {
-    if (!_currentState.isTesting) return;
-    _updateTestState(key, TestStatus.running, "Iniciando...");
-
-    final completer = Completer<void>();
-    final latencies = <int>[];
-    int packetsReceived = 0;
-    StreamSubscription<PingData>? subscription;
-
-    // Se discardFirst for true, pedimos 1 pacote extra para compensar
-    final int totalCount = discardFirst ? count + 1 : count;
-
-    final ping = _pingFactory.create(
-      host,
-      count: totalCount,
-      timeout: const Duration(seconds: 2),
-      interval: const Duration(seconds: 1),
-    );
-
-    int currentIndex = 0;
-
-    subscription = ping.stream.listen(
-      (PingData data) {
-        if (data.response != null) {
-          final isFirst = currentIndex == 0;
-          currentIndex++;
-
-          if (discardFirst && isFirst) return;
-
-          packetsReceived++;
-          final time = data.response!.time?.inMilliseconds;
-          if (time != null) latencies.add(time);
-        }
-      },
-      onDone: () {
-        int packetsLost = count - packetsReceived;
-        if (packetsLost < 0) packetsLost = 0;
-        double lossPercentage = (packetsLost / count) * 100;
-
-        if (!completer.isCompleted) {
-          if (latencies.isEmpty) {
-            _updateTestState(
-              key,
-              TestStatus.error,
-              'Host inacessível\nPerda: 100%',
-              metrics: {
-                'host': host,
-                'reachable': false,
-                'lossPercent': 100.0,
-                'packetsSent': count,
-                'packetsReceived': 0,
-              },
-            );
-          } else {
-            int avgLatency =
-                (latencies.reduce((a, b) => a + b) / latencies.length).round();
-            double jitter = 0.0;
-            if (latencies.length > 1) {
-              int totalDiff = 0;
-              for (int i = 0; i < latencies.length - 1; i++) {
-                totalDiff += (latencies[i] - latencies[i + 1]).abs();
-              }
-              jitter = totalDiff / (latencies.length - 1);
-            }
-            final sorted = [...latencies]..sort();
-            _updateTestState(
-              key,
-              TestStatus.success,
-              'Latência: ${avgLatency}ms\nJitter: ${jitter.toStringAsFixed(1)}ms\nPerda: ${lossPercentage.toStringAsFixed(0)}%',
-              metrics: {
-                'host': host,
-                'reachable': true,
-                'latencyMs': avgLatency.toDouble(),
-                'jitterMs': double.parse(jitter.toStringAsFixed(1)),
-                'lossPercent': double.parse(lossPercentage.toStringAsFixed(0)),
-                'minMs': sorted.first.toDouble(),
-                'maxMs': sorted.last.toDouble(),
-                'packetsSent': count,
-                'packetsReceived': packetsReceived,
-              },
-            );
-          }
-          completer.complete();
-        }
-        subscription?.cancel();
-      },
-      onError: (e) {
-        if (!completer.isCompleted) {
-          _updateTestState(
-            key,
-            TestStatus.error,
-            'Erro no Ping: ${e.toString()}',
-          );
-          completer.complete();
-        }
-        subscription?.cancel();
-      },
-    );
-
-    // Timeout de segurança
-    Future.delayed(Duration(seconds: (totalCount * 2) + 5), () {
-      if (!completer.isCompleted) {
-        subscription?.cancel();
-        _updateTestState(
-          key,
-          TestStatus.error,
-          'Erro: Teste de ping expirou (Timeout)',
-        );
-        completer.complete();
-      }
-    });
-
-    return completer.future;
-  }
-
   @visibleForTesting
   Future<void> runDeviceInfoTest() async {
     if (!_currentState.isTesting) return;
@@ -627,31 +558,11 @@ class DiagnosticoService {
     const target = '8.8.8.8';
 
     try {
-      // Usa o servidor para executar traceroute real
-      final apiUri = Uri.parse(providerConfig.apiUrl);
-      final baseUrl = '${apiUri.scheme}://${apiUri.host}:${apiUri.port}';
-      final url = '$baseUrl/diagnostic/traceroute';
-      String? token;
-      try {
-        token = await FirebaseAuth.instance.currentUser?.getIdToken();
-      } catch (_) {}
+      final trace =
+          await TracerouteService(client).run(providerConfig.apiUrl, target);
+      final hopsData = trace.hops;
 
-      final response = await client
-          .post(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              if (token != null) 'Authorization': 'Bearer $token',
-            },
-            body: json.encode({'target': target, 'maxHops': 15}),
-          )
-          .timeout(const Duration(seconds: 35));
-
-      final data = decodeApiResponse(response,
-          fallback: 'Erro no servidor (${response.statusCode})');
-      final hopsData = data['data']?['hops'] as List<dynamic>?;
-
-      if (hopsData != null && hopsData.isNotEmpty) {
+      if (hopsData.isNotEmpty) {
         List<String> hops = [];
         for (final hop in hopsData) {
           final hopNum = hop['hop'];
@@ -659,7 +570,12 @@ class DiagnosticoService {
           final time = hop['time'] ?? '*';
           hops.add("$hopNum: $ip ($time)");
         }
-        _updateTestState('traceroute', TestStatus.success, hops.join('\n'));
+        _updateTestState('traceroute', TestStatus.success, hops.join('\n'),
+            metrics: {
+              'origin': 'server',
+              'reached': trace.reached,
+              'timedOut': trace.timedOut
+            });
       } else {
         _updateTestState(
           'traceroute',
@@ -731,7 +647,8 @@ class DiagnosticoService {
 
       try {
         final stopwatch = Stopwatch()..start();
-        await InternetAddress.lookup('google.com');
+        await InternetAddress.lookup('google.com')
+            .timeout(const Duration(seconds: 3));
         stopwatch.stop();
         dnsTimeMs = stopwatch.elapsedMilliseconds;
       } catch (_) {
@@ -781,7 +698,7 @@ class DiagnosticoService {
         'dns': dnsServers,
         'dnsTime': dnsTimeMs,
         'channel': remoteChannel ?? 'N/A',
-        'security': remoteSecurity ?? 'WPA2-PSK', // Default assumption
+        'security': remoteSecurity ?? 'N/A',
         'display': resultString // Legacy string support
       };
 
@@ -840,7 +757,8 @@ class DiagnosticoService {
       final apiUri = Uri.parse(providerConfig.apiUrl);
       if (apiUri.host.isNotEmpty) {
         // Caminho público estável, independente da porta interna.
-        defaultSpeedTestUrl = '${apiUri.scheme}://${apiUri.authority}/speedtest';
+        defaultSpeedTestUrl =
+            '${apiUri.scheme}://${apiUri.authority}/speedtest';
       }
     } catch (_) {
       // Ignore parse error, stick to librespeed
@@ -863,13 +781,17 @@ class DiagnosticoService {
     String serverLimitNote = '';
     try {
       final base = Uri.parse(customUrl);
-      final capabilitiesUrl = base.replace(path: '${base.path.replaceAll(RegExp(r"/+$"), "")}/capabilities', query: '');
-      final response = await client.get(capabilitiesUrl).timeout(const Duration(seconds: 3));
+      final capabilitiesUrl = base.replace(
+          path: '${base.path.replaceAll(RegExp(r"/+$"), "")}/capabilities',
+          query: '');
+      final response =
+          await client.get(capabilitiesUrl).timeout(const Duration(seconds: 3));
       final capabilities = jsonDecode(response.body);
       if (capabilities is Map && capabilities['maxMbps'] is num) {
-        serverLimitNote = '\nServidor compartilhado: até ${capabilities["maxMbps"]} Mbps. O resultado não comprova a velocidade total do plano.';
+        serverLimitNote =
+            '\nServidor compartilhado: até ${capabilities["maxMbps"]} Mbps. O resultado não comprova a velocidade total do plano.';
       }
-    } catch (_) { /* Servidores externos podem não publicar capacidades. */ }
+    } catch (_) {/* Servidores externos podem não publicar capacidades. */}
     final completer = Completer<void>();
     _downloadHistoryCounter = 0;
     _uploadHistoryCounter = 0;
@@ -923,6 +845,9 @@ class DiagnosticoService {
       // 1. Timer de segurança apenas (60s para garantir que complete todo o teste)
       maxDurationTimer = Timer(const Duration(seconds: 60), () {
         if (!completer.isCompleted && _currentState.isTesting) {
+          if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
+          _cancelPing?.call();
+          _cancelPing = null;
           internetSpeedTest.cancelTest();
           // Se temos dados, usar como resultado final
           if (_customPeakDownloadMbps > 0) {
@@ -948,6 +873,9 @@ class DiagnosticoService {
         fileSizeInBytes: 5000000, // 5MB - Teste rápido
         onStarted: () {
           if (!_currentState.isTesting) {
+            if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
+            _cancelPing?.call();
+            _cancelPing = null;
             internetSpeedTest.cancelTest();
             return;
           }
@@ -997,6 +925,7 @@ class DiagnosticoService {
             );
             if (rate > _customPeakDownloadMbps) _customPeakDownloadMbps = rate;
             final newHistory = List<FlSpot>.from(_currentState.downloadHistory);
+            if (newHistory.length >= 120) newHistory.removeAt(0);
             newHistory.add(FlSpot(_downloadHistoryCounter.toDouble(), rate));
             _downloadHistoryCounter++;
             _currentState = _currentState.copyWith(
@@ -1009,6 +938,7 @@ class DiagnosticoService {
             );
             if (rate > _customPeakUploadMbps) _customPeakUploadMbps = rate;
             final newHistory = List<FlSpot>.from(_currentState.uploadHistory);
+            if (newHistory.length >= 120) newHistory.removeAt(0);
             newHistory.add(FlSpot(_uploadHistoryCounter.toDouble(), rate));
             _uploadHistoryCounter++;
             _currentState = _currentState.copyWith(
@@ -1072,6 +1002,9 @@ class DiagnosticoService {
     try {
       safeguardTimer = Timer(const Duration(seconds: 45), () {
         if (!completer.isCompleted && _currentState.isTesting) {
+          if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
+          _cancelPing?.call();
+          _cancelPing = null;
           internetSpeedTest.cancelTest();
           _updateTestState(
             'speedTestFast',
@@ -1086,6 +1019,9 @@ class DiagnosticoService {
         fileSizeInBytes: 5000000, // 5MB - Teste rápido
         onStarted: () {
           if (!_currentState.isTesting) {
+            if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
+            _cancelPing?.call();
+            _cancelPing = null;
             internetSpeedTest.cancelTest();
             return;
           }
@@ -1117,6 +1053,9 @@ class DiagnosticoService {
           safeguardTimer?.cancel();
           safeguardTimer = Timer(const Duration(seconds: 20), () {
             if (!completer.isCompleted && _currentState.isTesting) {
+              if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
+              _cancelPing?.call();
+              _cancelPing = null;
               internetSpeedTest.cancelTest();
               _updateTestState(
                 'speedTestFast',
@@ -1135,6 +1074,7 @@ class DiagnosticoService {
             final newHistory = List<FlSpot>.from(
               _currentState.fastDownloadHistory,
             );
+            if (newHistory.length >= 120) newHistory.removeAt(0);
             newHistory.add(
               FlSpot(_fastDownloadHistoryCounter.toDouble(), rate),
             );
@@ -1151,6 +1091,7 @@ class DiagnosticoService {
             final newHistory = List<FlSpot>.from(
               _currentState.fastUploadHistory,
             );
+            if (newHistory.length >= 120) newHistory.removeAt(0);
             newHistory.add(FlSpot(_fastUploadHistoryCounter.toDouble(), rate));
             _fastUploadHistoryCounter++;
             _currentState = _currentState.copyWith(
@@ -1182,201 +1123,5 @@ class DiagnosticoService {
     }
 
     return completer.future;
-  }
-
-  Future<void> runAllTests() async {
-    if (_currentState.isTesting) return;
-    _currentState = DiagnosticoState.initial().copyWith(
-      isTesting: true,
-      geralStatusMessage: "Iniciando diagnóstico...",
-    );
-    _streamController.add(_currentState);
-
-    try {
-      _updateStatus("Verificando informações do dispositivo...");
-      await runDeviceInfoTest();
-
-      // Novo teste ONU
-      if (onuService != null) {
-        _updateStatus("Verificando sinal da Fibra (ONU)...");
-        await runOnuTest();
-      }
-
-      await runBatteryTest();
-      if (!_currentState.isTesting) return;
-
-      bool hasPermission = false;
-      if (_isWifiConnected) {
-        _updateStatus("Solicitando permissão de localização...");
-        hasPermission = await _requestLocationPermission();
-        if (!_currentState.isTesting) return;
-        if (!hasPermission) {
-          _updateTestState(
-            'wifiInfo',
-            TestStatus.error,
-            'Permissão de localização negada.',
-          );
-          _updateTestState(
-            'pingGateway',
-            TestStatus.error,
-            'Requer info WiFi (permissão negada).',
-          );
-        }
-      } else {
-        _updateTestState(
-          'wifiInfo',
-          TestStatus.error,
-          'Não conectado ao WiFi.',
-        );
-        _updateTestState(
-          'pingGateway',
-          TestStatus.error,
-          'Não conectado ao WiFi.',
-        );
-      }
-
-      _updateStatus("Verificando Conectividade e IP (IPv4/IPv6)...");
-      await runIpTest();
-      if (!_currentState.isTesting) return;
-
-      _updateStatus("Testando ping para Google...");
-      // 10 pings, keep all for Google
-      await runPingTest('8.8.8.8', 'pingGoogle', count: 10);
-      if (!_currentState.isTesting) return;
-
-      _updateStatus("Testando ping para Cloudflare...");
-      // 10 pings, keep all for Cloudflare
-      await runPingTest('1.1.1.1', 'pingCloudflare', count: 10);
-
-      if (!_currentState.isTesting) return;
-
-      if (hasPermission && _isWifiConnected) {
-        _updateStatus("Verificando informações de WiFi e DNS...");
-        await runWifiTest();
-
-        _updateStatus("Escaneando Rede Local (LAN)...");
-        await runLanScanTest();
-
-        if (!_currentState.isTesting) return;
-        if (_currentState.testResultsDisplay['wifiInfo']?['status'] ==
-            TestStatus.success) {
-          await runPingGatewayTest();
-          if (!_currentState.isTesting) return;
-        }
-      }
-
-      // Traceroute test
-      await runTracerouteTest();
-      if (!_currentState.isTesting) return;
-
-      await runSpeedTestCustom();
-      if (!_currentState.isTesting) return;
-
-      await runSpeedTestFastCom();
-      if (!_currentState.isTesting) return;
-
-      if (_currentState.isTesting) {
-        bool anyError = _currentState.testResultsDisplay.entries.any(
-          (entry) => entry.value['status'] == TestStatus.error,
-        );
-        _updateStatus(
-          anyError
-              ? "Diagnóstico concluído com erros."
-              : "Diagnóstico concluído.",
-        );
-      }
-    } catch (e) {
-      if (_currentState.isTesting) {
-        _updateStatus("Ocorreu um erro inesperado durante o diagnóstico.");
-      }
-    } finally {
-      if (_currentState.isTesting) {
-        _currentState = _currentState.copyWith(isTesting: false);
-        _streamController.add(_currentState);
-      }
-    }
-  }
-
-  /// Verificação RÁPIDA (~10-15s) para o momento "minha internet está ruim".
-  ///
-  /// Roda só o subconjunto que decide o veredito — sinal da fibra (ONU), ping ao
-  /// roteador e ping externo (+ Wi-Fi quando disponível). Deixa de fora o que é
-  /// lento/pesado: varredura de LAN, traceroute e os dois testes de velocidade.
-  /// O objetivo é entregar um diagnóstico acionável em segundos, não um laudo
-  /// completo — este continua disponível via [runAllTests].
-  Future<void> runQuickCheck() async {
-    if (_currentState.isTesting) return;
-    _currentState = DiagnosticoState.initial().copyWith(
-      isTesting: true,
-      geralStatusMessage: "Verificação rápida...",
-    );
-    _streamController.add(_currentState);
-
-    try {
-      await runDeviceInfoTest();
-      if (!_currentState.isTesting) return;
-
-      if (onuService != null) {
-        _updateStatus("Verificando sinal da fibra...");
-        await runOnuTest();
-        if (!_currentState.isTesting) return;
-      }
-
-      if (_isWifiConnected && await _requestLocationPermission()) {
-        if (!_currentState.isTesting) return;
-        _updateStatus("Verificando o Wi-Fi...");
-        await runWifiTest();
-        if (_currentState.testResultsDisplay['wifiInfo']?['status'] ==
-            TestStatus.success) {
-          _updateStatus("Testando o roteador...");
-          await runPingGatewayTest();
-          if (!_currentState.isTesting) return;
-        }
-      }
-
-      _updateStatus("Testando o acesso à internet...");
-      // Poucos pacotes: rápido o bastante para o veredito, sem prender o usuário.
-      await runPingTest('8.8.8.8', 'pingGoogle', count: 4);
-      if (!_currentState.isTesting) return;
-
-      _updateStatus("Verificação concluída.");
-    } catch (e) {
-      if (_currentState.isTesting) {
-        _updateStatus("Ocorreu um erro na verificação rápida.");
-      }
-    } finally {
-      if (_currentState.isTesting) {
-        _currentState = _currentState.copyWith(isTesting: false);
-        _streamController.add(_currentState);
-      }
-    }
-  }
-
-  Future<void> runSpeedTestsOnly() async {
-    if (_currentState.isTesting) return;
-    _currentState = DiagnosticoState.initial().copyWith(
-      isTesting: true,
-      geralStatusMessage: "Iniciando teste de velocidade...",
-    );
-    _streamController.add(_currentState);
-
-    try {
-      await runSpeedTestCustom();
-      if (!_currentState.isTesting) return;
-
-      await runSpeedTestFastCom();
-      if (!_currentState.isTesting) return;
-
-      _updateStatus("Teste de velocidade concluído.");
-    } catch (e) {
-      if (_currentState.isTesting) {
-        _updateStatus("Ocorreu um erro durante o teste.");
-      }
-    } finally {
-      if (_currentState.isTesting) {
-        _currentState = _currentState.copyWith(isTesting: false);
-        _streamController.add(_currentState);
-      }
-    }
   }
 }

@@ -1,3 +1,4 @@
+import '../../core/utils/app_formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'widgets/glass_card.dart';
@@ -46,18 +47,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
     final theme = Theme.of(context);
     final primaryColor = theme.primaryColor;
-    final secondaryColor = theme.colorScheme.secondary;
     final surfaceColor = theme.cardColor;
     final textPrimary = theme.textTheme.bodyLarge?.color ?? Colors.white;
     final textSecondary = theme.textTheme.bodyMedium?.color ?? Colors.grey;
     final borderColor = theme.dividerColor;
-
-    // Create dynamic gradient
-    final dynamicGradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [primaryColor, secondaryColor],
-    );
 
     return Column(
       children: [
@@ -179,7 +172,8 @@ class _DashboardPageState extends State<DashboardPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          gradient: dynamicGradient,
+                          color: surfaceColor,
+                          border: Border.all(color: borderColor),
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
@@ -195,10 +189,10 @@ class _DashboardPageState extends State<DashboardPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Próxima Fatura',
                                   style: TextStyle(
-                                    color: Colors.black54,
+                                    color: textSecondary,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -213,9 +207,9 @@ class _DashboardPageState extends State<DashboardPage> {
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    widget.connectionStatus,
-                                    style: const TextStyle(
-                                      color: Colors.black87,
+                                    'Ver fatura',
+                                    style: TextStyle(
+                                      color: textPrimary,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -225,9 +219,9 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'R\$ ${widget.billAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Colors.black,
+                              AppFormatters.currency(widget.billAmount),
+                              style: TextStyle(
+                                color: textPrimary,
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -1,
@@ -236,8 +230,8 @@ class _DashboardPageState extends State<DashboardPage> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(Icons.calendar_today_rounded,
-                                    size: 14, color: Colors.black54),
+                                Icon(Icons.calendar_today_rounded,
+                                    size: 14, color: textSecondary),
                                 const SizedBox(width: 6),
                                 Text(
                                   remainingDays >= 0
@@ -245,7 +239,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                       : 'Vencida há ${remainingDays.abs()} dias',
                                   style: TextStyle(
                                     color: remainingDays >= 0
-                                        ? Colors.black54
+                                        ? textSecondary
                                         : Colors.red[900],
                                     fontSize: 14,
                                     fontWeight: remainingDays < 0

@@ -13,6 +13,23 @@ void main() {
       expect(config.config.themeColor, '#111111');
     });
 
+    test('preserves logo framing and bounds invalid numeric settings', () {
+      final config = ProviderConfigNormalizer.fromFirestore({
+        'logoUrl': 'https://example.test/logo.png',
+        'logoFraming': {
+          'shape': 'wide',
+          'fit': 'cover',
+          'zoom': 6,
+          'x': -7,
+          'y': 35
+        },
+      }, 'provider-1')
+          .config;
+      expect(config.logoUrl, 'https://example.test/logo.png');
+      expect(config.logoFraming.toJson(),
+          {'shape': 'wide', 'fit': 'cover', 'zoom': 3, 'x': 0, 'y': 35});
+    });
+
     test('uses safe defaults for malformed documents', () {
       final config = ProviderConfigNormalizer.fromFirestore({
         'layoutType': 'unknown',
@@ -20,7 +37,7 @@ void main() {
         'faq': 'invalid',
       }, 'provider-1');
       expect(config.layoutType, 'layout_06');
-      expect(config.config.themeColor, '#673AB7');
+      expect(config.config.themeColor, '#2456C9');
       expect(config.config.faq, isEmpty);
     });
   });

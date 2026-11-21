@@ -1,3 +1,5 @@
+import '../../core/utils/app_formatters.dart';
+import '../../core/theme/layout_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -273,7 +275,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      isOnline ? 'Conectado' : 'Desconectado',
+                      isOnline ? 'Contrato ativo' : widget.connectionStatus,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -333,7 +335,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    isOnline ? 'Conectado' : 'Offline',
+                    isOnline ? 'Ativo' : 'Consultar',
                     style: const TextStyle(
                         fontSize: 11, color: Layout03Theme.textMedium),
                   ),
@@ -429,7 +431,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   'Por apenas + R\$ 30/mês',
                   style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85), fontSize: 12),
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 12),
                 ),
               ],
             ),
@@ -440,8 +443,8 @@ class _DashboardPageState extends State<DashboardPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.15),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.3), width: 2),
             ),
             child: const Icon(Icons.rocket_launch_rounded,
                 size: 26, color: Colors.white),
@@ -497,7 +500,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   'Equipe sempre disponível',
                   style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85), fontSize: 12),
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 12),
                 ),
               ],
             ),
@@ -508,8 +512,8 @@ class _DashboardPageState extends State<DashboardPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.15),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.3), width: 2),
             ),
             child: const Icon(Icons.headset_mic_rounded,
                 size: 26, color: Colors.white),
@@ -643,7 +647,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Expanded(
               child: _buildInvoiceCard(
                 _getMonthName(widget.billDueDate.month),
-                'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
+                AppFormatters.currency(widget.billAmount),
                 '${widget.billDueDate.day}/${widget.billDueDate.month}',
                 isPending ? 'Pendente' : 'Vencida',
                 isPending ? Layout03Theme.warning : Layout03Theme.error,
@@ -656,7 +660,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 _getMonthName(widget.billDueDate.month - 1 == 0
                     ? 12
                     : widget.billDueDate.month - 1),
-                'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
+                AppFormatters.currency(widget.billAmount),
                 '${widget.billDueDate.day}/${widget.billDueDate.month - 1 == 0 ? 12 : widget.billDueDate.month - 1}',
                 'Pago',
                 Layout03Theme.success,
@@ -676,6 +680,7 @@ class _DashboardPageState extends State<DashboardPage> {
     Color statusColor, {
     bool isPending = false,
   }) {
+    statusColor = LayoutTokens.readable(statusColor, Layout03Theme.neuBase);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -737,12 +742,12 @@ class _DashboardPageState extends State<DashboardPage> {
               Row(
                 children: [
                   const Icon(Icons.event_rounded,
-                      size: 10, color: Layout03Theme.textLight),
+                      size: 10, color: Layout03Theme.textMedium),
                   const SizedBox(width: 3),
                   Text(
                     'Venc: $due',
                     style: const TextStyle(
-                        fontSize: 9, color: Layout03Theme.textLight),
+                        fontSize: 9, color: Layout03Theme.textMedium),
                   ),
                 ],
               ),
@@ -781,8 +786,12 @@ class _DashboardPageState extends State<DashboardPage> {
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildNavbar() {
     final items = [
-      {'icon': Icons.home_rounded, 'label': 'Home', 'route': 'home'},
-      {'icon': Icons.speed_rounded, 'label': 'Speed', 'route': 'speed_test'},
+      {'icon': Icons.home_rounded, 'label': 'Início', 'route': 'home'},
+      {
+        'icon': Icons.speed_rounded,
+        'label': 'Velocidade',
+        'route': 'speed_test'
+      },
       {
         'icon': Icons.receipt_long_rounded,
         'label': 'Faturas',

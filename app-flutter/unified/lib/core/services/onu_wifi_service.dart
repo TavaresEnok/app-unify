@@ -1,3 +1,4 @@
+import 'api_endpoint.dart';
 // ARQUIVO: lib/core/services/onu_wifi_service.dart
 // DESCRIÇÃO: Serviço para buscar sinal da ONU e gerenciar WiFi via SGP/TR069
 
@@ -154,6 +155,7 @@ class OnuWifiService {
   final String? contrato;
   final String providerId;
   final http.Client client;
+  final bool _ownsClient;
 
   OnuWifiService({
     required this.apiUrl,
@@ -161,24 +163,15 @@ class OnuWifiService {
     this.contrato,
     required this.providerId,
     http.Client? client,
-  }) : client = client ?? http.Client();
+  }) : client = client ?? http.Client(), _ownsClient = client == null;
+
+  void dispose() { if (_ownsClient) client.close(); }
 
   /// Helper to get base proxy URL
-  String get _baseUrl {
-    // Remove trailing slash and any path like /get-invoices
-    String base = apiUrl.trim();
-    // If URL ends with a path like /get-invoices, remove it
-    final uri = Uri.tryParse(base);
-    if (uri != null) {
-      return '${uri.scheme}://${uri.host}:${uri.port}';
-    }
-    // Fallback: remove trailing slash
-    return base.replaceAll(RegExp(r'/$'), '');
-  }
 
   /// Busca dados da ONU (sinal, temperatura, etc)
   Future<OnuData> fetchOnuSignal() async {
-    final url = '$_baseUrl/diagnostic/onu-signal';
+    final url = apiEndpoint(apiUrl, 'diagnostic/onu-signal').toString();
     if (kDebugMode) debugPrint('[ONU-Service] Iniciando consulta de sinal.');
 
     try {
@@ -229,7 +222,7 @@ class OnuWifiService {
 
   /// Lista redes WiFi do CPE/Roteador
   Future<List<WifiNetwork>> fetchWifiNetworks() async {
-    final url = '$_baseUrl/cpe/wifi/list';
+    final url = apiEndpoint(apiUrl, 'cpe/wifi/list').toString();
     if (kDebugMode) debugPrint('[WiFi-Service] Consultando redes.');
 
     try {
@@ -286,7 +279,7 @@ class OnuWifiService {
     required String ssid,
     required String password,
   }) async {
-    final url = '$_baseUrl/cpe/wifi/update';
+    final url = apiEndpoint(apiUrl, 'cpe/wifi/update').toString();
     if (kDebugMode) debugPrint('[WiFi-Service] Atualizando configuracao.');
 
     try {

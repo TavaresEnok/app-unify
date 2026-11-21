@@ -17,8 +17,8 @@ class Layout03Theme {
 
   // TEXT - Soft grays, never pure black
   static const Color textDark = Color(0xFF4A5568);
-  static const Color textMedium = Color(0xFF718096);
-  static const Color textLight = Color(0xFFA0AEC0);
+  static const Color textMedium = Color(0xFF475569);
+  static const Color textLight = Color(0xFF475569);
   static const Color textGrey = textMedium;
   static const Color textWhite = Colors.white;
 

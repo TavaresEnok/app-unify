@@ -75,8 +75,8 @@ class ThemeColors {
 
   factory ThemeColors.fromJson(Map<String, dynamic> json) {
     return ThemeColors(
-      primary: _parseColor(json['primary'], const Color(0xFF673AB7)),
-      secondary: _parseColor(json['secondary'], const Color(0xFF9575CD)),
+      primary: _parseColor(json['primary'], const Color(0xFF2456C9)),
+      secondary: _parseColor(json['secondary'], const Color(0xFF2456C9)),
       background: _parseColor(json['background'], const Color(0xFF0F172A)),
       surface: _parseColor(json['surface'], const Color(0xFF1E293B)),
       error: _parseColor(json['error'], const Color(0xFFEF4444)),
@@ -111,8 +111,8 @@ class ThemeColors {
   }
 
   static const ThemeColors defaultColors = ThemeColors(
-    primary: Color(0xFF673AB7),
-    secondary: Color(0xFF9575CD),
+    primary: Color(0xFF2456C9),
+    secondary: Color(0xFF2456C9),
     background: Color(0xFF0F172A),
     surface: Color(0xFF1E293B),
     error: Color(0xFFEF4444),

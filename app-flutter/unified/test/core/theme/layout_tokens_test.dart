@@ -32,13 +32,39 @@ void main() {
       expect(LayoutTokens.of('layout_02').textPrimary, isNot(Colors.white));
     });
 
-    test('mantém os valores originais do SharedThemeHelper (sem mudar o visual)', () {
+    test(
+        'mantém os valores originais do SharedThemeHelper (sem mudar o visual)',
+        () {
       // Ancora alguns valores conhecidos para travar regressão de cor.
       expect(LayoutTokens.of('layout_02').primary, const Color(0xFF3182CE));
       expect(LayoutTokens.of('layout_02').background, const Color(0xFFF7FAFC));
       expect(LayoutTokens.of('layout_04').primary, const Color(0xFF0891B2));
       expect(LayoutTokens.of('layout_05').background, const Color(0xFF050810));
       expect(LayoutTokens.of('layout_06').primary, const Color(0xFF00BCD4));
+    });
+
+    test('cada layout aceita modo claro e escuro preservando a cor da marca',
+        () {
+      const brand = Color(0xFFFC46AA);
+      for (final layout in [
+        'layout_02',
+        'layout_03',
+        'layout_04',
+        'layout_05',
+        'layout_06'
+      ]) {
+        final base = LayoutTokens.of(layout).withPrimary(brand);
+        final light = base.withBrightness(Brightness.light);
+        final dark = base.withBrightness(Brightness.dark);
+        expect(light.isDark, isFalse, reason: layout);
+        expect(dark.isDark, isTrue, reason: layout);
+        expect(light.primary, brand, reason: layout);
+        expect(dark.primary, brand, reason: layout);
+        expect(LayoutTokens.contrast(light.textPrimary, light.background),
+            greaterThanOrEqualTo(4.5));
+        expect(LayoutTokens.contrast(dark.textPrimary, dark.background),
+            greaterThanOrEqualTo(4.5));
+      }
     });
 
     test('cardDecoration escolhe estilo por layout', () {

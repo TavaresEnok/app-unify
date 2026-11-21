@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Brightness, Color, ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import '../services/notification_service.dart';
@@ -25,8 +26,16 @@ final configurationProvider =
 /// Tokens de design resolvidos do layout do provedor. Fonte única de aparência
 /// para telas novas: `ref.watch(layoutTokensProvider)`.
 final layoutTokensProvider = Provider<LayoutTokens>((ref) {
-  final layoutType = ref.watch(configurationProvider).providerConfig?.layoutType;
-  return LayoutTokens.of(layoutType);
+  final config = ref.watch(configurationProvider).providerConfig;
+  final themeMode = ref.watch(themeProvider).themeMode;
+  final tokens = LayoutTokens.of(config?.layoutType).withBrightness(
+    themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light,
+  );
+  final value = config?.config.themeColor.replaceFirst('#', '');
+  final branded = value != null && RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(value)
+      ? tokens.withPrimary(Color(0xFF000000 | int.parse(value, radix: 16)))
+      : tokens;
+  return config == null ? branded : branded.withProviderColors(config.config);
 });
 
 // --- REPOSITORIES ---
@@ -65,6 +74,19 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
 
     try {
       ThemeConfig config;
+      final tokens = LayoutTokens.of(providerConfig.layoutType);
+      String hex(Color color) =>
+          '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+      final defaults = <String, dynamic>{
+        'background': hex(tokens.background),
+        'surface': hex(tokens.card),
+        'textPrimary': hex(tokens.textPrimary),
+        'textSecondary': hex(tokens.textSecondary),
+        'quickActionsCardColor': hex(tokens.card),
+        'quickActionsTextColor': hex(tokens.textPrimary),
+        'otherCardsColor': hex(tokens.card),
+        'otherCardsTextColor': hex(tokens.textPrimary),
+      };
 
       // Se temos um tema definido no formato completo, usamos ele
       // Se temos um tema definido no formato completo, usamos ele,
@@ -87,7 +109,10 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
         if (!effectiveThemeMap.containsKey('colors')) {
           effectiveThemeMap['colors'] = <String, dynamic>{};
         }
-        var colorsMap = Map<String, dynamic>.from(effectiveThemeMap['colors']);
+        var colorsMap = {
+          ...defaults,
+          ...Map<String, dynamic>.from(effectiveThemeMap['colors'])
+        };
 
         // Garante estrutura effects
         if (!effectiveThemeMap.containsKey('effects')) {
@@ -99,7 +124,7 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
         // Overrides
         // Primary and Secondary colors from Admin config
         colorsMap['primary'] = configColors.themeColor;
-              if (configColors.secondaryColor != null) {
+        if (configColors.secondaryColor != null) {
           colorsMap['secondary'] = configColors.secondaryColor;
         }
         if (configColors.backgroundColor != null) {
@@ -163,6 +188,7 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
 
         config = ThemeConfig.fromJson({
           'colors': {
+            ...defaults,
             'primary': themeColor,
             'secondary': secondaryColor,
             if (cardColor != null) 'surface': cardColor,
@@ -185,7 +211,7 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
             'background': backgroundColor ??
                 (configColors.other?.useBackgroundImage == true
                     ? '#00000000' // If using bg image, transparent
-                    : '#0F172A'),
+                    : hex(tokens.background)),
           },
           // [NEW] Map icon color if present, otherwise default to primary
           if (iconColor != null)
@@ -205,7 +231,7 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
     } catch (e) {
       debugPrint('⚠️ Erro ao atualizar tema via Provider: $e');
     }
-  });
+  }, fireImmediately: true);
 
   return themeNotifer;
 });

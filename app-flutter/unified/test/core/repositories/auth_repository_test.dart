@@ -29,7 +29,10 @@ void main() {
     final repository = AuthRepository(
       client: MockClient((request) async {
         expect(request.url.toString(), 'https://api.test/check-cpf');
-        expect(jsonDecode(request.body)['providerId'], 'test-provider');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['providerId'], 'test-provider');
+        expect(body['cpf'], '12345678900');
+        expect(body.containsKey('senha'), isFalse);
         return http.Response(
           jsonEncode({'nome': 'Cliente', 'status': 'Bloqueado'}),
           200,

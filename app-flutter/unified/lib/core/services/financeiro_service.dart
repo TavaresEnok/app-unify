@@ -11,11 +11,13 @@ class FinanceiroService {
   final String apiUrl;
   final String cpfCnpjUnformatted;
   final String providerId;
+  final int? contratoId;
 
   FinanceiroService({
     required this.apiUrl,
     required this.cpfCnpjUnformatted,
     required this.providerId,
+    this.contratoId,
   });
 
   /// Busca as faturas do cliente
@@ -28,6 +30,7 @@ class FinanceiroService {
       final requestBody = {
         'cpfCnpj': cpfCnpjUnformatted,
         'providerId': providerId,
+        if (contratoId != null) 'contratoId': contratoId,
       };
 
       final response = await http
@@ -39,7 +42,8 @@ class FinanceiroService {
           .timeout(const Duration(seconds: 60));
 
       final responseBody = decodeApiResponse(response,
-          fallback: 'Falha ao carregar faturas. Código: ${response.statusCode}');
+          fallback:
+              'Falha ao carregar faturas. Código: ${response.statusCode}');
       final responseData = responseBody['data'];
       return responseData is List ? responseData : [];
     } on TimeoutException {
@@ -52,14 +56,23 @@ class FinanceiroService {
     }
   }
 
-  /// Solicita desbloqueio por confiança
-  Future<bool> solicitarDesbloqueioConfianca() async {
+  Future<bool>? _unlockRequest;
+
+  /// Reutiliza o pedido enquanto a solicitação anterior estiver em andamento.
+  Future<bool> solicitarDesbloqueioConfianca() {
+    return _unlockRequest ??= _requestUnlock().whenComplete(() {
+      _unlockRequest = null;
+    });
+  }
+
+  Future<bool> _requestUnlock() async {
     try {
       final unlockUrl = apiUrl.replaceAll('get-invoices', 'unlock-trust');
 
       final requestBody = {
         'cpfCnpj': cpfCnpjUnformatted,
         'providerId': providerId,
+        if (contratoId != null) 'contratoId': contratoId,
       };
 
       final response = await http
@@ -71,7 +84,8 @@ class FinanceiroService {
           .timeout(const Duration(seconds: 30));
 
       decodeApiResponse(response,
-          fallback: 'Não foi possível realizar o desbloqueio. Tente novamente.');
+          fallback:
+              'Não foi possível realizar o desbloqueio. Tente novamente.');
       return true;
     } catch (e) {
       throw Exception(

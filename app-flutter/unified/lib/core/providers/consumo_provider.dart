@@ -23,11 +23,12 @@ class ConsumoState {
     Map<String, dynamic>? data,
     int? selectedMonth,
     int? selectedYear,
+    bool clearData = false,
   }) {
     return ConsumoState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
-      data: data ?? this.data,
+      data: clearData ? null : data ?? this.data,
       selectedMonth: selectedMonth ?? this.selectedMonth,
       selectedYear: selectedYear ?? this.selectedYear,
     );
@@ -36,6 +37,7 @@ class ConsumoState {
 
 class ConsumoViewModel extends StateNotifier<ConsumoState> {
   final ConsumoService? _service;
+  int _requestNumber = 0;
 
   ConsumoViewModel(this._service)
       : super(ConsumoState(
@@ -51,15 +53,20 @@ class ConsumoViewModel extends StateNotifier<ConsumoState> {
       return;
     }
 
+    final requestNumber = ++_requestNumber;
+    final month = state.selectedMonth;
+    final year = state.selectedYear;
     state = state.copyWith(isLoading: true, error: null);
 
     try {
       final result = await _service.fetchConsumptionData(
-        month: state.selectedMonth,
-        year: state.selectedYear,
+        month: month,
+        year: year,
       );
+      if (!mounted || requestNumber != _requestNumber) return;
       state = state.copyWith(isLoading: false, data: result);
     } catch (e) {
+      if (!mounted || requestNumber != _requestNumber) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -67,7 +74,8 @@ class ConsumoViewModel extends StateNotifier<ConsumoState> {
   void changeMonth(int month, int year) {
     if (state.selectedMonth == month && state.selectedYear == year) return;
 
-    state = state.copyWith(selectedMonth: month, selectedYear: year);
+    state = state.copyWith(
+        selectedMonth: month, selectedYear: year, clearData: true);
     loadData();
   }
 }
@@ -91,6 +99,7 @@ final consumoViewModelProvider =
     apiUrl: '$baseApiUrl/get-consumption-data',
     providerId: providerConfig.id,
     cpfCnpj: usuario.cpfCnpj,
+    contratoId: usuario.contratoId,
   );
 
   return ConsumoViewModel(service);

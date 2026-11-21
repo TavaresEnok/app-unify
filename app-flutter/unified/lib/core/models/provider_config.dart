@@ -8,9 +8,9 @@ class ProviderConfig {
   final String name;
   final String apiUrl;
   final String
-      layoutType; // NOVO: Tipo de layout (layout_02, layout_03, layout_06, layout_07)
+  layoutType; // NOVO: Tipo de layout (layout_02, layout_03, layout_06, layout_07)
   final String?
-      diagnosticStyle; // Estilo de página de diagnóstico (diagnostic_02, diagnostic_03, etc.)
+  diagnosticStyle; // Estilo de página de diagnóstico (diagnostic_02, diagnostic_03, etc.)
   final ConfigSection config;
   final FeaturesSection features;
   final MenuConfig menuConfig;
@@ -41,15 +41,18 @@ class ProviderConfig {
     final isLoopback =
         host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
     if (uri.scheme == 'http' && !isLoopback) {
-      const enforceHttps =
-          bool.fromEnvironment('ENFORCE_HTTPS', defaultValue: false);
+      const enforceHttps = bool.fromEnvironment(
+        'ENFORCE_HTTPS',
+        defaultValue: false,
+      );
       if (enforceHttps) {
         return uri.replace(scheme: 'https').toString();
       }
       if (kReleaseMode) {
         debugPrint(
-            '[SECURITY] apiUrl usa HTTP em claro em release: $host. '
-            'Habilite TLS e ENFORCE_HTTPS.');
+          '[SECURITY] apiUrl usa HTTP em claro em release: $host. '
+          'Habilite TLS e ENFORCE_HTTPS.',
+        );
       }
     }
     return url;
@@ -78,8 +81,9 @@ class ProviderConfig {
 
     String? rootApiUrl = json['apiUrl'] as String?;
     String? configApiUrl = legacyConfig['apiUrl'] as String?;
-    String? finalApiUrl =
-        rootApiUrl?.isNotEmpty == true ? rootApiUrl : configApiUrl;
+    String? finalApiUrl = rootApiUrl?.isNotEmpty == true
+        ? rootApiUrl
+        : configApiUrl;
 
     // apiUrl: quando a configuração vem da API pública, é a URL que respondeu
     // (ConfigurationProvider a preenche); no fallback do Firestore, é o campo
@@ -100,10 +104,12 @@ class ProviderConfig {
     }
     effectiveApiUrl = _validateApiUrl(effectiveApiUrl);
 
-    final integrationsMap = (json['integrations'] ??
-            legacyConfig['integrations']) as Map<String, dynamic>? ??
+    final integrationsMap =
+        (json['integrations'] ?? legacyConfig['integrations'])
+            as Map<String, dynamic>? ??
         {};
-    var providerName = json['name'] as String? ??
+    var providerName =
+        json['name'] as String? ??
         integrationsMap['appName'] as String? ??
         'Provedor';
 
@@ -130,7 +136,7 @@ class ProviderConfig {
       diagnosticStyle: diagnosticStyle,
       config: ConfigSection.fromJson(combinedConfig, fallbackSgpUrl),
       features: FeaturesSection.fromJson(
-        json['features'] as Map<String, dynamic>? ?? {},
+        combinedConfig['features'] as Map<String, dynamic>? ?? {},
       ),
       menuConfig: MenuConfig.fromJson(
         json['menuConfig'] as Map<String, dynamic>? ?? {},
@@ -173,12 +179,14 @@ class ConfigSection {
   final String? otherCardsColor; // [NEW] Other Cards Color
   final String? otherCardsTextColor; // [NEW] Other Cards Text Color
   final String logoUrl;
+  final LogoFraming logoFraming;
   final String loginQuote;
   final SgpIntegration integrations;
   final List<FaqItem> faq;
   final List<TipItem> tips;
   final List<SupportContactItem> supportContacts;
   final List<dynamic> imageCarousel;
+  final PromotionsConfig promotions;
   final OtherSettings? other;
   final Map<String, dynamic> strings;
 
@@ -198,12 +206,14 @@ class ConfigSection {
     this.otherCardsColor, // [NEW]
     this.otherCardsTextColor, // [NEW]
     required this.logoUrl,
+    this.logoFraming = const LogoFraming(),
     required this.loginQuote,
     required this.integrations,
     required this.faq,
     required this.tips,
     required this.supportContacts,
     required this.imageCarousel,
+    this.promotions = const PromotionsConfig(),
     this.other,
     this.strings = const {},
   });
@@ -219,7 +229,7 @@ class ConfigSection {
     final stringsMap = json['strings'] as Map<String, dynamic>? ?? {};
 
     return ConfigSection(
-      themeColor: json['themeColor'] as String? ?? '#1E6FF8',
+      themeColor: json['themeColor'] as String? ?? '#2456C9',
       secondaryColor: json['secondaryColor'] as String?,
       textColor: json['textColor'] as String?,
       invoiceColor: json['invoiceColor'] as String?,
@@ -234,6 +244,7 @@ class ConfigSection {
       otherCardsColor: json['otherCardsColor'] as String?, // [NEW]
       otherCardsTextColor: json['otherCardsTextColor'] as String?, // [NEW]
       logoUrl: json['logoUrl'] as String? ?? '',
+      logoFraming: LogoFraming.fromJson(json['logoFraming']),
       loginQuote: json['loginQuote'] as String? ?? 'Acesse sua conta.',
       integrations: SgpIntegration.fromJson(
         json['integrations'] as Map<String, dynamic>? ?? {},
@@ -251,6 +262,7 @@ class ConfigSection {
           )
           .toList(),
       imageCarousel: carouselList,
+      promotions: PromotionsConfig.fromJson(json['promotions']),
       other: json['other'] != null
           ? OtherSettings.fromJson(json['other'] as Map<String, dynamic>)
           : null,
@@ -275,16 +287,170 @@ class ConfigSection {
       'otherCardsColor': otherCardsColor, // [NEW]
       'otherCardsTextColor': otherCardsTextColor, // [NEW]
       'logoUrl': logoUrl,
+      'logoFraming': logoFraming.toJson(),
       'loginQuote': loginQuote,
       'integrations': integrations.toJson(),
       'faq': faq.map((e) => e.toJson()).toList(),
       'tips': tips.map((e) => e.toJson()).toList(),
       'supportContacts': supportContacts.map((e) => e.toJson()).toList(),
       'imageCarousel': imageCarousel,
+      'promotions': promotions.toJson(),
       'other': other?.toJson(),
       'strings': strings,
     };
   }
+}
+
+@immutable
+class LogoFraming {
+  final String shape;
+  final String fit;
+  final double zoom;
+  final double x;
+  final double y;
+
+  const LogoFraming({
+    this.shape = 'circle',
+    this.fit = 'contain',
+    this.zoom = 1,
+    this.x = 50,
+    this.y = 50,
+  });
+
+  factory LogoFraming.fromJson(Object? value) {
+    final map = value is Map ? value : const {};
+    double number(String key, double fallback, double min, double max) {
+      final entry = map[key];
+      return entry is num && entry.isFinite
+          ? entry.clamp(min, max).toDouble()
+          : fallback;
+    }
+
+    return LogoFraming(
+      shape: switch (map['shape']) {
+        'rounded' => 'rounded',
+        'wide' => 'wide',
+        _ => 'circle',
+      },
+      fit: map['fit'] == 'cover' ? 'cover' : 'contain',
+      zoom: number('zoom', 1, 1, 3),
+      x: number('x', 50, 0, 100),
+      y: number('y', 50, 0, 100),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'shape': shape,
+    'fit': fit,
+    'zoom': zoom,
+    'x': x,
+    'y': y,
+  };
+}
+
+@immutable
+class Promotion {
+  final String id;
+  final String title;
+  final String description;
+  final String imageUrl;
+  final String link;
+  final String badge;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool active;
+  final bool showCountdown;
+
+  const Promotion({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.imageUrl,
+    required this.link,
+    required this.badge,
+    this.startDate,
+    this.endDate,
+    this.active = true,
+    this.showCountdown = false,
+  });
+
+  factory Promotion.fromJson(Map<String, dynamic> json) {
+    DateTime? date(dynamic value) =>
+        value is String ? DateTime.tryParse(value) : null;
+    return Promotion(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      imageUrl: json['imageUrl']?.toString() ?? '',
+      link: json['link']?.toString() ?? '',
+      badge: json['badge']?.toString() ?? '',
+      startDate: date(json['startDate']),
+      endDate: date(json['endDate']),
+      active:
+          json['active'] != false &&
+          !const {'draft', 'expired'}.contains(json['status']),
+      showCountdown: json['showCountdown'] == true,
+    );
+  }
+
+  bool isActiveAt(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final start = startDate == null
+        ? null
+        : DateTime(startDate!.year, startDate!.month, startDate!.day);
+    final end = endDate == null
+        ? null
+        : DateTime(endDate!.year, endDate!.month, endDate!.day);
+    return active &&
+        title.trim().isNotEmpty &&
+        (start == null || !today.isBefore(start)) &&
+        (end == null || !today.isAfter(end));
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'description': description,
+    'imageUrl': imageUrl,
+    'link': link,
+    'badge': badge,
+    'startDate': startDate?.toIso8601String(),
+    'endDate': endDate?.toIso8601String(),
+    'active': active,
+    'showCountdown': showCountdown,
+  };
+}
+
+@immutable
+class PromotionsConfig {
+  final bool enabled;
+  final List<Promotion> items;
+  const PromotionsConfig({this.enabled = false, this.items = const []});
+
+  factory PromotionsConfig.fromJson(dynamic value) {
+    if (value is! Map) return const PromotionsConfig();
+    final items = value['items'];
+    return PromotionsConfig(
+      enabled: value['enabled'] == true,
+      items: items is List
+          ? items
+                .whereType<Map>()
+                .map(
+                  (item) => Promotion.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .toList()
+          : const [],
+    );
+  }
+
+  List<Promotion> get activePromotions => enabled
+      ? items.where((item) => item.isActiveAt(DateTime.now())).toList()
+      : const [];
+
+  Map<String, dynamic> toJson() => {
+    'enabled': enabled,
+    'items': items.map((item) => item.toJson()).toList(),
+  };
 }
 
 @immutable
@@ -322,11 +488,13 @@ class OtherSettings {
 
 @immutable
 class FeaturesSection {
+  final bool invoices;
   final bool consumption;
   final bool support;
   final bool? useDynamicDashboard;
 
   const FeaturesSection({
+    this.invoices = true,
     required this.consumption,
     required this.support,
     this.useDynamicDashboard,
@@ -334,6 +502,7 @@ class FeaturesSection {
 
   factory FeaturesSection.fromJson(Map<String, dynamic> json) {
     return FeaturesSection(
+      invoices: json['invoices'] as bool? ?? true,
       consumption: json['consumption'] as bool? ?? true,
       support: json['support'] as bool? ?? true,
       useDynamicDashboard: json['useDynamicDashboard'] as bool?,
@@ -342,6 +511,7 @@ class FeaturesSection {
 
   Map<String, dynamic> toJson() {
     return {
+      'invoices': invoices,
       'consumption': consumption,
       'support': support,
       'useDynamicDashboard': useDynamicDashboard,
@@ -381,10 +551,7 @@ class MenuConfig {
 class SgpIntegration {
   const SgpIntegration();
 
-  factory SgpIntegration.fromJson(
-    Map<String, dynamic> _, [
-    String __ = '',
-  ]) {
+  factory SgpIntegration.fromJson(Map<String, dynamic> _, [String __ = '']) {
     return const SgpIntegration();
   }
 

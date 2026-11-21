@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/theme_config.dart';
+import '../theme/layout_tokens.dart';
 
 class DynamicThemeProvider with ChangeNotifier {
   ThemeData _lightTheme;
   ThemeData _darkTheme;
-  ThemeMode _themeMode = ThemeMode.system;
+  static const _preferenceKey = 'theme_mode';
+  ThemeMode _themeMode = ThemeMode.light;
+  bool _disposed = false;
+  bool _changedByUser = false;
   ThemeConfig _currentConfig;
 
   DynamicThemeProvider()
       : _currentConfig = ThemeConfig.defaultTheme,
         _lightTheme = _buildTheme(ThemeConfig.defaultTheme, Brightness.light),
         _darkTheme = _buildTheme(ThemeConfig.defaultTheme, Brightness.dark) {
-    // Force Light Mode as default initially
-    _themeMode = ThemeMode.light;
+    _loadPreference();
   }
 
   ThemeData get lightTheme => _lightTheme;
@@ -24,33 +27,48 @@ class DynamicThemeProvider with ChangeNotifier {
   void updateFromConfig(ThemeConfig config, {String? layoutType}) {
     _currentConfig = config;
 
-    // Todos os layouts usam o _buildTheme padrão
-    // Layouts dark (04, 05, 06) têm seus próprios backgrounds no dashboard_page
-    _lightTheme = _buildTheme(config, Brightness.light);
-    _darkTheme = _buildTheme(config, Brightness.dark);
-
-    // Atualiza o modo do tema baseado na config
-    if (config.darkMode.enabled) {
-      switch (config.darkMode.defaultMode) {
-        case 'light':
-          _themeMode = ThemeMode.light;
-          break;
-        case 'dark':
-          _themeMode = ThemeMode.dark;
-          break;
-        default:
-          _themeMode = ThemeMode.light;
-      }
-    } else {
-      _themeMode = ThemeMode.light;
-    }
+    final tokens =
+        LayoutTokens.of(layoutType).withPrimary(config.colors.primary);
+    _lightTheme = tokens.withBrightness(Brightness.light).themeData(
+          base: _buildTheme(config, Brightness.light),
+        );
+    _darkTheme = tokens.withBrightness(Brightness.dark).themeData(
+          base: _buildTheme(config, Brightness.dark),
+        );
 
     notifyListeners();
   }
 
-  void setThemeMode(ThemeMode mode) {
-    _themeMode = mode;
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_preferenceKey);
+      if (_disposed || _changedByUser) return;
+      if (saved == ThemeMode.dark.toString()) {
+        _themeMode = ThemeMode.dark;
+        notifyListeners();
+      }
+    } catch (_) {
+      // The default appearance is available even if local storage fails.
+    }
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _changedByUser = true;
+    _themeMode = mode == ThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_preferenceKey, _themeMode.toString());
+    } catch (_) {
+      // Keep the selection active for this session if saving fails.
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   static ThemeData _buildTheme(ThemeConfig config, Brightness brightness) {
@@ -74,8 +92,10 @@ class DynamicThemeProvider with ChangeNotifier {
     final background = colors.background;
     final surface = colors.surface;
 
-    final textPrimary = colors.textPrimary; // Trust config
-    final textSecondary = colors.textSecondary; // Trust config
+    final textPrimary =
+        LayoutTokens.readable(colors.textPrimary, background); // Trust config
+    final textSecondary =
+        LayoutTokens.readable(colors.textSecondary, background); // Trust config
 
     // Typography setup
     final textTheme =
@@ -96,17 +116,30 @@ class DynamicThemeProvider with ChangeNotifier {
       colorScheme: ColorScheme(
         brightness: brightness,
         primary: primary,
-        onPrimary: Colors.white,
+        onPrimary: LayoutTokens.foregroundFor(primary),
         secondary: secondary,
-        onSecondary: Colors.white,
+        onSecondary: LayoutTokens.foregroundFor(secondary),
         error: colors.error,
-        onError: Colors.white,
+        onError: LayoutTokens.foregroundFor(colors.error),
         surface: surface,
-        onSurface: textPrimary,
+        onSurface: LayoutTokens.readable(colors.textPrimary, surface),
         surfaceContainerLowest: background,
-        onSurfaceVariant: textPrimary,
+        onSurfaceVariant: LayoutTokens.readable(colors.textSecondary, surface),
       ),
 
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
+        foregroundColor: textPrimary,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
+        elevation: 0,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: LayoutTokens.foregroundFor(primary),
+        minimumSize: const Size(48, 48),
+      )),
       // Typography
       textTheme: textTheme,
       fontFamily: config.typography.fontFamily,
@@ -147,7 +180,7 @@ class DynamicThemeProvider with ChangeNotifier {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: Colors.white,
+          foregroundColor: LayoutTokens.foregroundFor(primary),
           padding: EdgeInsets.symmetric(
             horizontal: config.spacing.lg,
             vertical: config.spacing.md,
@@ -163,48 +196,36 @@ class DynamicThemeProvider with ChangeNotifier {
 
   static TextTheme _buildTextTheme(
       ThemeTypography config, Color primaryColor, Color textSecondaryColor) {
-    try {
-      return GoogleFonts.getTextTheme(
-        config.fontFamily,
-        TextTheme(
-          displayLarge: TextStyle(
-            fontSize: config.fontSizes['h1'],
-            fontWeight: FontWeight.bold,
-            color: primaryColor,
-          ),
-          headlineMedium: TextStyle(
-            fontSize: config.fontSizes['h2'],
-            fontWeight: FontWeight.w600,
-            color: primaryColor,
-          ),
-          titleLarge: TextStyle(
-            fontSize: config.fontSizes['h3'],
-            fontWeight: FontWeight.w600,
-            color: primaryColor,
-          ),
-          bodyLarge: TextStyle(
-            fontSize: config.fontSizes['body'],
-            color: primaryColor,
-          ),
-          bodyMedium: TextStyle(
-            fontSize: config.fontSizes['body'],
-            color: textSecondaryColor,
-          ),
-          labelSmall: TextStyle(
-            fontSize: config.fontSizes['caption'],
-            color: textSecondaryColor,
-          ),
-        ),
-      );
-    } catch (e) {
-      // Fallback se a fonte não carregar ou não existir
-      debugPrint('Erro ao carregar fonte ${config.fontFamily}: $e');
-      return TextTheme(
-        displayLarge:
-            TextStyle(fontSize: config.fontSizes['h1'], color: primaryColor),
-        bodyLarge:
-            TextStyle(fontSize: config.fontSizes['body'], color: primaryColor),
-      );
-    }
+    // Use installed/bundled fonts with the platform fallback. Creating the
+    // application theme must not start network requests for font files.
+    return TextTheme(
+      displayLarge: TextStyle(
+        fontSize: config.fontSizes['h1'],
+        fontWeight: FontWeight.bold,
+        color: primaryColor,
+      ),
+      headlineMedium: TextStyle(
+        fontSize: config.fontSizes['h2'],
+        fontWeight: FontWeight.w600,
+        color: primaryColor,
+      ),
+      titleLarge: TextStyle(
+        fontSize: config.fontSizes['h3'],
+        fontWeight: FontWeight.w600,
+        color: primaryColor,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: config.fontSizes['body'],
+        color: primaryColor,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: config.fontSizes['body'],
+        color: textSecondaryColor,
+      ),
+      labelSmall: TextStyle(
+        fontSize: config.fontSizes['caption'],
+        color: textSecondaryColor,
+      ),
+    ).apply(fontFamily: config.fontFamily);
   }
 }

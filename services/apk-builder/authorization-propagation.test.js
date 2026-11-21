@@ -41,7 +41,7 @@ async function fixture(t, { dedicatedStore = false } = {}) {
     const app = createApp({ config, jobs, disableRateLimit: true, fetch: authority,
         copyArtifact: (...args) => state.copyArtifact ? state.copyArtifact(...args) : fs.copyFileSync(...args),
         publishLink: (...args) => state.publishLink ? state.publishLink(...args) : fs.linkSync(...args),
-        logos: { download: async (_url, file) => { state.downloads++; fs.writeFileSync(file, 'synthetic logo'); if (state.revokeAfterLogo) state.access = state.revokeAfterLogo === 'outage' ? 'outage' : 'revoked'; } },
+        logos: { download: async (_url, file) => { state.downloads++; if (state.logoFailure) throw Error('HTTP 403'); fs.writeFileSync(file, 'synthetic logo'); if (state.revokeAfterLogo) state.access = state.revokeAfterLogo === 'outage' ? 'outage' : 'revoked'; } },
         spawn: (_cmd, args, options) => {
             state.spawns++; state.env = options.env; state.args = args;
             const child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough(); child.kill = () => { setImmediate(() => child.emit('close', 1)); };
@@ -72,6 +72,15 @@ module.exports = { fixture, row, registry };
 // The same HTTP harness is imported by the Functions suite. Register Node tests
 // only when this file is the test entrypoint, avoiding duplicate suite execution.
 if (require.main === module) {
+    test('an inaccessible logo is a preparation error, without spawning or publication', async t => {
+        const f = await fixture(t); f.state.logoFailure = true;
+        const response = await f.post();
+        assert.equal(response.status, 422);
+        assert.deepEqual(await response.json(), { success: false, error: 'logo-download-failed' });
+        assert.equal(f.state.spawns, 0);
+        assert.equal(fs.existsSync(f.config.APK_OUTPUT_DIR), false);
+        assert.equal([...f.jobs.jobs.values()][0].error, 'logo-download-failed');
+    });
     test('authority unavailability stays 503 before request/download/spawn/publication', async t => {
         const f = await fixture(t);
         for (const failure of [503, 500, 'transport', 'timeout', 'invalid-json', 'invalid-body']) {

@@ -5,7 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/provider_config.dart';
 import '../models/usuario.dart';
 import '../providers/providers.dart';
-import '../theme/layout_tokens.dart';
+import '../vibe/vibe_home_parts.dart' show VibeLogo;
+import '../vibe/vibe_icon.dart';
+import '../vibe/vibe_page_parts.dart';
+import '../vibe/vibe_text.dart';
+import '../vibe/vibe_tokens.dart';
 
 /// Login ÚNICO, temático via [LayoutTokens].
 ///
@@ -23,24 +27,20 @@ class UnifiedLoginPage extends ConsumerStatefulWidget {
 
 class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
   final _cpfController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _focus = FocusNode();
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void dispose() {
     _cpfController.dispose();
-    _passwordController.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin(ProviderConfig? config) async {
     if (_cpfController.text.trim().isEmpty) {
       setState(() => _errorMessage = 'Por favor, digite seu CPF ou CNPJ.');
-      return;
-    }
-    if (_passwordController.text.isEmpty) {
-      setState(() => _errorMessage = 'Digite a senha da central do assinante.');
       return;
     }
     if (config == null) {
@@ -56,11 +56,13 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
     try {
       await ref
           .read(authNotifierProvider.notifier)
-          .login(_cpfController.text.trim(), config, password: _passwordController.text);
+          .login(_cpfController.text.trim(), config);
       // Sucesso: o AuthGate navega automaticamente.
     } catch (_) {
       if (mounted) {
-        setState(() => _errorMessage = 'CPF não encontrado ou erro de conexão.');
+        setState(
+          () => _errorMessage = 'CPF não encontrado ou erro de conexão.',
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -81,69 +83,73 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
 
     final tokens = ref.watch(layoutTokensProvider);
     final config = ref.watch(configurationProvider).providerConfig;
+    final theme = tokens.themeData(base: Theme.of(context));
+    final t = theme.extension<VibeTokens>()!;
+    final name = config?.name.trim() ?? '';
 
-    return Scaffold(
-      backgroundColor: tokens.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _logo(tokens, config),
-                  const SizedBox(height: 40),
-                  Text(
-                    'Bem-vindo de volta',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: tokens.textPrimary,
-                    ),
+    // Entrada (`PG.login` do layout aprovado): marca, título, o campo de
+    // CPF ou CNPJ e o botão. A central do assinante entra só pelo documento.
+    return Theme(
+      data: theme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: t.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        child: Scaffold(
+          backgroundColor: t.bg,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 34),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: VibeLogo(
+                            name: name.isEmpty ? 'Central' : name,
+                            logoUrl: config?.config.logoUrl),
+                      ),
+                      const SizedBox(height: 30),
+                      Semantics(
+                        header: true,
+                        child: Text('Entrar',
+                            style: vibeText(t, 24, 800, letterSpacingEm: -.02)),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                          'Use o CPF ou CNPJ do titular para acessar a Central do Assinante.',
+                          style: vibeText(t, 14.5, 500,
+                              color: t.mut, height: 1.5)),
+                      const SizedBox(height: 20),
+                      Text('CPF ou CNPJ', style: vibeText(t, 13, 650)),
+                      const SizedBox(height: 6),
+                      _cpfField(t),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 10),
+                        VibeErrorLine(_errorMessage!),
+                      ],
+                      const SizedBox(height: 24),
+                      VibePageButton(
+                        label: _isLoading
+                            ? 'Entrando…'
+                            : _errorMessage != null
+                                ? 'Tentar novamente'
+                                : 'Entrar',
+                        onPressed:
+                            _isLoading ? null : () => _handleLogin(config),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                          name.isEmpty
+                              ? 'Dificuldade para entrar? Procure o seu provedor pelos canais de atendimento.'
+                              : 'Dificuldade para entrar? Procure a $name pelos canais de atendimento.',
+                          textAlign: TextAlign.center,
+                          style: vibeText(t, 12.5, 500,
+                              color: t.mut, height: 1.5)),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Acesse sua área de cliente para gerenciar faturas e serviços.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: tokens.textSecondary),
-                  ),
-                  const SizedBox(height: 40),
-                  _label('CPF / CNPJ', tokens),
-                  const SizedBox(height: 8),
-                  _cpfField(tokens),
-                  const SizedBox(height: 20),
-                  _label('Senha da central do assinante', tokens),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    autofillHints: const [AutofillHints.password],
-                    style: TextStyle(color: tokens.textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Sua senha',
-                      prefixIcon: Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (_) { if (!_isLoading) _handleLogin(config); },
-                  ),
-                  const SizedBox(height: 24),
-                  _loginButton(tokens, config),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 20),
-                    _errorBox(tokens, _errorMessage!),
-                  ],
-                  const SizedBox(height: 36),
-                  Text(
-                    'Precisa de ajuda? Fale com o suporte do seu provedor.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12.5, color: tokens.textSecondary),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -152,118 +158,48 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
     );
   }
 
-  Widget _logo(LayoutTokens tokens, ProviderConfig? config) {
-    final logoUrl = config?.config.logoUrl ?? '';
-    return Center(
-      child: Container(
-        height: 100,
-        width: 100,
+  /// Campo do documento (`.g-in`): ícone, borda de 1,5 e foco na cor da marca.
+  Widget _cpfField(VibeTokens t) {
+    return AnimatedBuilder(
+      animation: _focus,
+      builder: (context, _) => Container(
+        height: 48,
+        padding: const EdgeInsets.only(left: 14, right: 6),
         decoration: BoxDecoration(
-          color: tokens.primary.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
+          color: t.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: _focus.hasFocus ? t.ac : t.line,
+              width: _focus.hasFocus ? 2 : 1.5),
         ),
-        alignment: Alignment.center,
-        child: logoUrl.isNotEmpty
-            ? Padding(
-                padding: const EdgeInsets.all(20),
-                child: Image.network(
-                  logoUrl,
-                  errorBuilder: (_, __, ___) =>
-                      Icon(Icons.wifi, size: 40, color: tokens.primary),
-                ),
-              )
-            : Icon(Icons.wifi, size: 40, color: tokens.primary),
-      ),
-    );
-  }
-
-  Widget _label(String text, LayoutTokens tokens) => Text(
-        text,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: tokens.textPrimary,
-        ),
-      );
-
-  Widget _cpfField(LayoutTokens tokens) {
-    final fieldColor = tokens.isNeumorphic
-        ? tokens.background
-        : (tokens.isDark ? tokens.card : Colors.white);
-    return Container(
-      decoration: BoxDecoration(
-        color: fieldColor,
-        borderRadius: BorderRadius.circular(tokens.radius),
-        border: Border.all(color: tokens.border),
-      ),
-      child: TextField(
-        controller: _cpfController,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: tokens.textPrimary,
-        ),
-        decoration: InputDecoration(
-          hintText: '000.000.000-00',
-          hintStyle: TextStyle(color: tokens.textSecondary.withValues(alpha: 0.6)),
-          prefixIcon: Icon(Icons.person_outline_rounded, color: tokens.textSecondary),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(18),
-        ),
-        onSubmitted: (_) {
-          if (!_isLoading) {
-            _handleLogin(ref.read(configurationProvider).providerConfig);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _loginButton(LayoutTokens tokens, ProviderConfig? config) {
-    return SizedBox(
-      height: 54,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : () => _handleLogin(config),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: tokens.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radius),
-          ),
-        ),
-        child: _isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              )
-            : const Text('Acessar conta',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-
-  Widget _errorBox(LayoutTokens tokens, String message) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: tokens.error.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: tokens.error, size: 20),
-          const SizedBox(width: 10),
+        child: Row(children: [
+          VibeIcon('user', size: 16, color: t.mut),
+          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: tokens.error, fontWeight: FontWeight.w500),
+            child: TextField(
+              controller: _cpfController,
+              focusNode: _focus,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.go,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: vibeText(t, 15, 500),
+              decoration: InputDecoration(
+                filled: false,
+                isCollapsed: true,
+                hintText: '000.000.000-00',
+                hintStyle: vibeText(t, 15, 500, color: t.mut),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+              onSubmitted: (_) {
+                if (!_isLoading) {
+                  _handleLogin(ref.read(configurationProvider).providerConfig);
+                }
+              },
             ),
           ),
-        ],
+        ]),
       ),
     );
   }

@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--api-url', help='URL pública da API (https) gravada no app para carregar a configuração do provedor')
 
     args = parser.parse_args()
+    arm64_only = args.format == 'apk' or args.arm64
     check_identity(args.identity_registry, args.id, args.nome, args.package)
     if not args.version_code or not args.version_code.isdigit() or not re.fullmatch(r'[a-zA-Z0-9_-]{1,100}', args.build_id):
         raise ValueError('invalid-build-identity')
@@ -350,14 +351,11 @@ flutter_launcher_icons:
         print("   Splash config updated.")
         
         # Regenerate splash screen
-        try:
-            run_command('dart run flutter_native_splash:create --path=flutter_native_splash.yaml', build_dir)
-            print("   ✅ Splash screen generated with provider logo!")
-        except Exception as e:
-            print(f"   ⚠️ Warning: Splash generation failed: {e}")
+        run_command('dart run flutter_native_splash:create --path=flutter_native_splash.yaml', build_dir)
+        print("   ✅ Splash screen generated with provider logo!")
 
         # 5. Build
-        print(f"Starting {args.format.upper()} Build (Obfuscated: {args.obfuscate}, ARM64 Only: {args.arm64})...")
+        print(f"Starting {args.format.upper()} Build (Obfuscated: {args.obfuscate}, ARM64 Only: {arm64_only})...")
         print(f"Package: {args.package or 'DEFAULT'}")
         
         # Explicitly update local.properties to force version code
@@ -441,7 +439,7 @@ flutter_launcher_icons:
             print(f"🌐 API pública gravada no app: {api_url}")
 
         # Optimization: ARM64-v8a Only
-        if args.arm64:
+        if arm64_only:
              build_cmd += " --target-platform android-arm64"
              print("🚀 Optimization Enabled: Building for ARM64 only (Small size)")
 

@@ -1,3 +1,4 @@
+import '../../core/utils/app_formatters.dart';
 // Layout 06 Dashboard - Clean Dark Theme (Versão Completa)
 // Design elegante e moderno com todos os elementos premium
 
@@ -227,7 +228,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
               ),
               const SizedBox(height: 2),
               Text(
-                'Cliente Premium desde 2022',
+                'Área do cliente',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 12,
@@ -366,7 +367,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          isOnline ? 'Conectado' : 'Desconectado',
+                          isOnline ? 'Contrato ativo' : widget.connectionStatus,
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 17,
@@ -775,7 +776,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll('.', ',')}',
+                      AppFormatters.currency(widget.billAmount),
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,

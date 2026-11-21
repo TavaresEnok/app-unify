@@ -1,3 +1,4 @@
+import '../../core/utils/app_formatters.dart';
 // Layout 05 Dashboard - Cyber Neon Theme
 // Design futurista com Speed Test Gauge, Network Map, e animações
 
@@ -485,7 +486,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              isOnline ? 'Online' : 'Offline',
+                              isOnline ? 'Contrato ativo' : widget.connectionStatus,
                               style: TextStyle(
                                 color: isOnline
                                     ? Layout05Theme.success
@@ -495,7 +496,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                               ),
                             ),
                             const Spacer(),
-                            Text('Há 45 dias',
+                            Text('Contrato',
                                 style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.4),
                                     fontSize: 11)),
@@ -504,7 +505,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                         const SizedBox(height: 8),
                         Text(
                           isOnline
-                              ? 'Conexão estável e ultrarrápida'
+                              ? 'Consulte os testes da sua conexão'
                               : 'Verificando conexão...',
                           style: const TextStyle(
                               color: Colors.white,
@@ -512,7 +513,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                               fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
-                        Text('Última verificação: agora',
+                        Text('Inicie uma verificação para avaliar a rede.',
                             style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.4),
                                 fontSize: 12)),
@@ -816,7 +817,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         'icon': Icons.receipt_long_rounded,
         'color': Layout05Theme.primary,
         'subtitle':
-            'R\$ ${widget.billAmount.toStringAsFixed(2).replaceAll(".", ",")}',
+            AppFormatters.currency(widget.billAmount),
         'route': 'invoices'
       },
       {
@@ -837,7 +838,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         'label': 'Meu\nRoteador',
         'icon': Icons.router_rounded,
         'color': Layout05Theme.secondary,
-        'subtitle': '2 devices',
+        'subtitle': 'Gerenciar',
         'route': 'wifi'
       },
       {
@@ -934,7 +935,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 105,
+            height: 132 * MediaQuery.textScalerOf(context).scale(1),
             child: ListView(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -1128,7 +1129,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           statusColor = Layout05Theme.accent;
           statusIcon = Icons.wifi;
         } else if (networkState.isWifi) {
-          statusMessage = 'Tudo OK';
+          statusMessage = 'Wi-Fi conectado';
           statusColor = Layout05Theme.success;
           statusIcon = Icons.check_circle;
         } else {

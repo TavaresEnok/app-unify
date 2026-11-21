@@ -43,20 +43,21 @@ class AuthRepository {
         nome: prefs.getString('userName')!,
         plano: prefs.getString('userPlan')!,
         status: prefs.getString('userStatus')!,
+        contractStatus: prefs.getString('userContractStatus'),
         valorFatura: prefs.getString('billValue')!,
         vencimentoFatura: prefs.getString('billDueDate')!,
         contratoId: prefs.getInt('userContratoId'),
+        email: prefs.getString('userEmail'),
       );
     }
     return null;
   }
 
-  Future<Usuario> performLoginApi(String cpf, ProviderConfig config, {String password = ''}) async {
+  Future<Usuario> performLoginApi(String cpf, ProviderConfig config) async {
     final apiUrl = config.apiUrl;
     final requestBody = {
       'cpf': cpf,
       'providerId': config.id,
-      'senha': password,
     };
 
     final url = '$apiUrl/check-cpf';
@@ -107,11 +108,13 @@ class AuthRepository {
       return Usuario(
         cpfCnpj: cpf.replaceAll(RegExp(r'[^0-9]'), ''),
         senha: '',
-        nome: (data['nome']?.toString() ?? 'Cliente').split(' ').first,
-        plano: data['plano']?.toString() ?? 'Plano Básico',
-        status: data['status']?.toString() ?? 'Ativo',
-        valorFatura: data['valorFatura']?.toString() ?? '0,00',
+        nome: data['nome']?.toString() ?? '',
+        plano: data['plano']?.toString() ?? '',
+        status: data['status']?.toString() ?? '',
+        contractStatus: data['contractStatus']?.toString(),
+        valorFatura: data['valorFatura']?.toString() ?? '',
         vencimentoFatura: data['vencimentoFatura']?.toString() ?? '',
+        email: data['email']?.toString(),
         contratoId: data['contratoId'] is int
             ? data['contratoId']
             : int.tryParse(data['contratoId']?.toString() ?? ''),
@@ -127,25 +130,37 @@ class AuthRepository {
   Future<Usuario> refreshUser(Usuario previous, ProviderConfig config) async {
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw Exception('Entre novamente para continuar.');
-    final response = await _client.post(
-      Uri.parse('${config.apiUrl}/getClientData'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      body: jsonEncode({'cpfCnpj': previous.cpfCnpj, 'contratoId': previous.contratoId}),
-    ).timeout(const Duration(seconds: 30));
-    final body = decodeApiResponse(response, fallback: _loginErrorMessage(response));
+    final response = await _client
+        .post(
+          Uri.parse('${config.apiUrl}/getClientData'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token'
+          },
+          body: jsonEncode(
+              {'cpfCnpj': previous.cpfCnpj, 'contratoId': previous.contratoId}),
+        )
+        .timeout(const Duration(seconds: 30));
+    final body =
+        decodeApiResponse(response, fallback: _loginErrorMessage(response));
     final data = body['data'];
     if (data is! Map<String, dynamic>) {
-      throw ApiException(response.statusCode, 'Resposta inesperada do servidor. Tente novamente.');
+      throw ApiException(response.statusCode,
+          'Resposta inesperada do servidor. Tente novamente.');
     }
     return Usuario(
       cpfCnpj: previous.cpfCnpj,
       senha: '',
-      nome: (data['userName']?.toString() ?? previous.nome).split(' ').first,
+      nome: data['userName']?.toString() ?? previous.nome,
       plano: data['userPlan']?.toString() ?? previous.plano,
       status: data['userStatus']?.toString() ?? previous.status,
+      contractStatus:
+          data['contractStatus']?.toString() ?? previous.contractStatus,
       valorFatura: data['billValue']?.toString() ?? previous.valorFatura,
-      vencimentoFatura: data['billDueDate']?.toString() ?? previous.vencimentoFatura,
+      vencimentoFatura:
+          data['billDueDate']?.toString() ?? previous.vencimentoFatura,
       contratoId: previous.contratoId,
+      email: data['email']?.toString() ?? previous.email,
     );
   }
 
@@ -184,6 +199,16 @@ class AuthRepository {
     await prefs.setString('userName', usuario.nome);
     await prefs.setString('userPlan', usuario.plano);
     await prefs.setString('userStatus', usuario.status);
+    if (usuario.contractStatus != null) {
+      await prefs.setString('userContractStatus', usuario.contractStatus!);
+    } else {
+      await prefs.remove('userContractStatus');
+    }
+    if (usuario.email != null) {
+      await prefs.setString('userEmail', usuario.email!);
+    } else {
+      await prefs.remove('userEmail');
+    }
     await prefs.setString('billValue', usuario.valorFatura);
     await prefs.setString('billDueDate', usuario.vencimentoFatura);
 
@@ -192,6 +217,8 @@ class AuthRepository {
 
     if (usuario.contratoId != null) {
       await prefs.setInt('userContratoId', usuario.contratoId!);
+    } else {
+      await prefs.remove('userContratoId');
     }
 
     await _saveDeviceToken(usuario.cpfCnpj, providerId);
