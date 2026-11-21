@@ -10,10 +10,13 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 
 class MainActivity: FlutterActivity() {
+    private var invoicePdfChannel: InvoicePdfChannel? = null
     private val CHANNEL = "br.com.ajust.app_provedor/wifi_info"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        invoicePdfChannel?.dispose()
+        invoicePdfChannel = InvoicePdfChannel(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "getWifiDetails") {
                 val wifiDetails = getWifiDetails()
@@ -26,6 +29,12 @@ class MainActivity: FlutterActivity() {
                 result.notImplemented()
             }
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        invoicePdfChannel?.dispose()
+        invoicePdfChannel = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     private fun getWifiDetails(): Map<String, Any>? {

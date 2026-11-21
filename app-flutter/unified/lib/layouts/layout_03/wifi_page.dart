@@ -1,11 +1,14 @@
-import '../../core/providers/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/services/onu_wifi_service.dart';
+
 import '../../core/controllers/diagnostic_binding.dart';
 import '../../core/controllers/wifi_management_controller.dart';
-import '../../core/widgets/content_state.dart';
+import '../../core/providers/providers.dart';
+import '../../core/services/onu_wifi_service.dart';
+import '../../core/services/subscriber_achievements.dart';
 import '../../core/vibe/vibe_page_parts.dart';
+import '../../core/vibe/vibe_text.dart';
+import '../../core/vibe/vibe_tokens.dart';
 
 class WifiPage extends ConsumerStatefulWidget {
   const WifiPage({super.key});
@@ -15,9 +18,6 @@ class WifiPage extends ConsumerStatefulWidget {
 }
 
 class _WifiPageState extends ConsumerState<WifiPage> {
-  bool _isLoading = true;
-  List<WifiNetwork> _networks = [];
-  String? _errorMessage;
   DiagnosticBinding? _binding;
   WifiManagementController? _controller;
 
@@ -28,25 +28,9 @@ class _WifiPageState extends ConsumerState<WifiPage> {
       _controller?.dispose();
       final controller = WifiManagementController(onu);
       _controller = controller;
-      controller.addListener(() {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = controller.value.isLoading;
-          _networks = controller.value.networks;
-          _errorMessage = controller.value.error;
-        });
-      });
+      if (mounted) setState(() {});
       controller.fetchNetworks();
     });
-  }
-
-  Future<void> _fetchNetworks() async {
-    await _controller?.fetchNetworks();
-  }
-
-  Future<void> _updateWifi(
-      WifiNetwork network, String newSsid, String newPassword) async {
-    await _controller?.updateWifi(context, network.id, newSsid, newPassword);
   }
 
   @override
@@ -56,162 +40,207 @@ class _WifiPageState extends ConsumerState<WifiPage> {
     super.dispose();
   }
 
-  Future<void> _showEditDialog(WifiNetwork network) async {
-    final ssidController = TextEditingController(text: network.ssid);
-    final passwordController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool obscurePassword = true;
-    final values = await showDialog<List<String>>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-          builder: (context, update) => AlertDialog(
-                title: const Text('Alterar rede Wi-Fi'),
-                content: SingleChildScrollView(
-                    child: Form(
-                        key: formKey,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextFormField(
-                                controller: ssidController,
-                                decoration: const InputDecoration(
-                                    labelText: 'Nome da rede'),
-                                validator: (value) =>
-                                    value == null || value.trim().isEmpty
-                                        ? 'Informe o nome da rede.'
-                                        : null),
-                            const SizedBox(height: 20),
-                            TextFormField(
-                                controller: passwordController,
-                                obscureText: obscurePassword,
-                                enableSuggestions: false,
-                                autocorrect: false,
-                                decoration: InputDecoration(
-                                    labelText: 'Nova senha',
-                                    helperText:
-                                        'Deixe em branco para manter a senha atual.',
-                                    helperMaxLines: 2,
-                                    suffixIcon: IconButton(
-                                        tooltip: obscurePassword
-                                            ? 'Mostrar senha'
-                                            : 'Ocultar senha',
-                                        icon: Icon(obscurePassword
-                                            ? Icons.visibility
-                                            : Icons.visibility_off),
-                                        onPressed: () => update(() =>
-                                            obscurePassword =
-                                                !obscurePassword))),
-                                validator: (value) => value != null &&
-                                        value.isNotEmpty &&
-                                        value.length < 8
-                                    ? 'Use pelo menos 8 caracteres.'
-                                    : null),
-                            const SizedBox(height: 20),
-                            const Text(
-                                'Ao alterar a rede, seus aparelhos podem se desconectar. '
-                                'Você precisará conectá-los novamente com os novos dados.'),
-                          ],
-                        ))),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancelar')),
-                  FilledButton(
-                      onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                          Navigator.pop(context, [
-                            ssidController.text.trim(),
-                            passwordController.text
-                          ]);
-                        }
-                      },
-                      child: const Text('Salvar alteração')),
-                ],
-              )),
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authNotifierProvider).valueOrNull;
+    final controller = _controller;
+    final t = VibeTokens.of(context);
+    return VibePageScaffold(
+      title: 'Minha rede Wi-Fi',
+      subtitle: user?.contratoId == null
+          ? 'Redes do contrato'
+          : 'Roteador do contrato ${user!.contratoId}',
+      onBack: Navigator.of(context).canPop()
+          ? () => Navigator.of(context).maybePop()
+          : null,
+      children: [
+        if (controller == null)
+          const Center(child: CircularProgressIndicator())
+        else
+          ValueListenableBuilder<WifiState>(
+              valueListenable: controller,
+              builder: (context, state, _) {
+                if (state.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state.error != null) {
+                  return VibeCard(
+                      child: VibeEmpty(
+                          icon: 'router',
+                          title: 'Não conseguimos consultar sua rede',
+                          text:
+                              'Tente consultar novamente ou fale com seu provedor.',
+                          action: VibePageButton(
+                              label: 'Consultar novamente',
+                              small: true,
+                              expand: false,
+                              onPressed: controller.fetchNetworks)));
+                }
+                if (state.networks.isEmpty) {
+                  return VibeCard(
+                      child: VibeEmpty(
+                          icon: 'router',
+                          title: 'Nenhuma rede disponível',
+                          text:
+                              'O equipamento deste contrato não disponibilizou redes para gerenciamento.',
+                          action: VibePageButton(
+                              label: 'Consultar novamente',
+                              small: true,
+                              expand: false,
+                              onPressed: controller.fetchNetworks)));
+                }
+                return VibeCard(
+                    child: VibeRows(children: [
+                  for (final network in state.networks)
+                    VibeRow(
+                        icon: 'wifi',
+                        title: network.ssid,
+                        subtitle: [
+                          if (network.frequency.isNotEmpty) network.frequency,
+                          if (network.enabled == true) 'Ativada',
+                          if (network.enabled == false) 'Desativada',
+                        ].join(' · '),
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                                builder: (_) => _EditWifiPage(
+                                    network: network,
+                                    controller: controller)))),
+                ]));
+              }),
+        Text(
+            'A senha atual não é exibida. As alterações dependem da integração com o roteador.',
+            style: vibeText(t, 12, 500, color: t.mut, height: 1.4)),
+        VibePageButton(
+            label: 'Consultar novamente',
+            icon: 'g-refresh',
+            ghost: true,
+            onPressed: controller?.fetchNetworks),
+      ],
     );
-    // Dialog widgets finish their exit animation before their controllers go away.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    ssidController.dispose();
-    passwordController.dispose();
-    if (values != null && mounted) {
-      await _updateWifi(network, values[0], values[1]);
+  }
+}
+
+class _EditWifiPage extends ConsumerStatefulWidget {
+  const _EditWifiPage({required this.network, required this.controller});
+  final WifiNetwork network;
+  final WifiManagementController controller;
+
+  @override
+  ConsumerState<_EditWifiPage> createState() => _EditWifiPageState();
+}
+
+class _EditWifiPageState extends ConsumerState<_EditWifiPage> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _ssid;
+  final _password = TextEditingController();
+  bool _show = false;
+  bool _saving = false;
+  bool _sent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ssid = TextEditingController(text: widget.network.ssid);
+  }
+
+  @override
+  void dispose() {
+    _ssid.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving || !_form.currentState!.validate()) return;
+    final user = ref.read(authNotifierProvider).valueOrNull;
+    final config = ref.read(configurationProvider).providerConfig;
+    setState(() {
+      _saving = true;
+      _sent = false;
+    });
+    final success = await widget.controller.updateWifi(
+        context, widget.network.id, _ssid.text.trim(), _password.text);
+    if (success && user != null && config != null) {
+      try {
+        await SubscriberAchievements.record(
+            config.id, user.cpfCnpj, AchievementEvent.wifi);
+      } catch (_) {
+        // A alteração da rede já foi confirmada pelo serviço.
+      }
     }
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _sent = success;
+    });
+    if (success) _password.clear();
   }
 
   @override
   Widget build(BuildContext context) {
-    final tokens = ref.watch(layoutTokensProvider);
-    return Theme(
-        data: tokens.themeData(base: Theme.of(context)),
-        child: Builder(
-          builder: (context) => VibeHeaderPage(
-            title: 'Minha rede Wi-Fi',
-            body: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                    ? ContentState(
-                        icon: Icons.wifi_off_outlined,
-                        title: 'Não conseguimos consultar sua rede',
-                        message:
-                            'Os dados do Wi-Fi não carregaram. Sua internet pode estar '
-                            'funcionando normalmente. Tente consultar novamente.',
-                        actionLabel: 'Tentar de novo',
-                        onAction: _fetchNetworks)
-                    : _networks.isEmpty
-                        ? ContentState(
-                            icon: Icons.router_outlined,
-                            title: 'Nenhuma rede disponível',
-                            message:
-                                'O gerenciamento de Wi-Fi pode não estar disponível para seu '
-                                'equipamento ou contrato. Consulte seu provedor se precisar de ajuda.',
-                            actionLabel: 'Consultar novamente',
-                            onAction: _fetchNetworks)
-                        : RefreshIndicator(
-                            onRefresh: _fetchNetworks,
-                            child: ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _networks.length,
-                              itemBuilder: (context, index) {
-                                final network = _networks[index];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: tokens.cardDecoration,
-                                  child: Padding(
-                                      padding: const EdgeInsets.all(20),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Icon(Icons.wifi,
-                                              color: tokens.textPrimary,
-                                              size: 28),
-                                          const SizedBox(height: 12),
-                                          Text(network.ssid,
-                                              style: TextStyle(
-                                                  color: tokens.textPrimary,
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w700)),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                              '${network.frequency} · ${network.enabled ? 'Rede ativada' : 'Rede desativada'}',
-                                              style: TextStyle(
-                                                  color: tokens.textSecondary)),
-                                          const SizedBox(height: 16),
-                                          OutlinedButton.icon(
-                                              onPressed: () =>
-                                                  _showEditDialog(network),
-                                              icon: const Icon(
-                                                  Icons.edit_outlined),
-                                              label: const Text(
-                                                  'Alterar nome ou senha')),
-                                        ],
-                                      )),
-                                );
-                              },
-                            )),
-          ),
-        ));
+    final t = VibeTokens.of(context);
+    return VibePageScaffold(
+      title: 'Alterar rede Wi-Fi',
+      subtitle: widget.network.ssid,
+      onBack: () => Navigator.of(context).maybePop(),
+      children: [
+        if (_sent)
+          const VibeCard(
+              main: true,
+              child: VibeOkBox(
+                  title: 'Alterações enviadas ao roteador',
+                  text: 'Os aparelhos podem precisar se conectar novamente.')),
+        VibeCard(
+            main: true,
+            child: Form(
+                key: _form,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.network.frequency,
+                          style: vibeText(t, 12, 600, color: t.mut)),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                          controller: _ssid,
+                          maxLength: 32,
+                          decoration: const InputDecoration(
+                              labelText: 'Nome da rede',
+                              prefixIcon: Icon(Icons.wifi)),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                                  ? 'Informe o nome da rede.'
+                                  : null),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                          controller: _password,
+                          obscureText: !_show,
+                          enableSuggestions: false,
+                          autocorrect: false,
+                          decoration: InputDecoration(
+                              labelText: 'Nova senha',
+                              hintText: 'Deixe em branco para manter',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                  tooltip:
+                                      _show ? 'Ocultar senha' : 'Mostrar senha',
+                                  icon: Icon(_show
+                                      ? Icons.visibility_off
+                                      : Icons.visibility),
+                                  onPressed: () =>
+                                      setState(() => _show = !_show))),
+                          validator: (value) => value != null &&
+                                  value.isNotEmpty &&
+                                  value.length < 8
+                              ? 'Use pelo menos 8 caracteres.'
+                              : null),
+                      const SizedBox(height: 12),
+                      Text('A senha precisa ter pelo menos 8 caracteres.',
+                          style: vibeText(t, 12, 500, color: t.mut)),
+                    ]))),
+        VibePageButton(
+            label: _saving ? 'Enviando ao roteador…' : 'Salvar alterações',
+            onPressed: _saving ? null : _save),
+      ],
+    );
   }
 }

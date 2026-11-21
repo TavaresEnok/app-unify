@@ -977,7 +977,7 @@ class VibeDockMasthead extends StatelessWidget {
     final t = VibeTokens.of(context);
     final p = t.dock!;
     final (icon, label) = switch (network) {
-      VibeNetwork.wifi => ('i-wifi', 'Wi-Fi'),
+      VibeNetwork.wifi => ('i-wifi', 'Wi‑Fi'),
       VibeNetwork.mobile => ('i-speed', 'Dados'),
       VibeNetwork.offline => ('i-close', 'Sem rede'),
       VibeNetwork.unknown => ('i-wifi', 'Rede'),
@@ -1022,16 +1022,24 @@ class VibeDockMasthead extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  VibeIcon(icon, size: 16, strokeWidth: 1.7, color: p.onwash),
-                  const SizedBox(width: 4),
-                  Text(label,
-                      style: vibeText(t, 12, 650,
-                          color: p.onwash,
-                          height: 1.14,
-                          letterSpacingEm: -.0175)),
-                ]),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  decoration: BoxDecoration(
+                      color: p.soft, borderRadius: BorderRadius.circular(20)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    VibeIcon(icon, size: 16, strokeWidth: 1.7, color: p.onwash),
+                    const SizedBox(width: 4),
+                    Text(label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: vibeText(t, 12, 650,
+                            color: p.onwash,
+                            height: 1.14,
+                            letterSpacingEm: -.0175)),
+                  ]),
+                ),
               ),
             ),
           ),

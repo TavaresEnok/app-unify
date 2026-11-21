@@ -190,15 +190,21 @@ void main() {
     await tester.pump();
     expect(copied(), 'PIX-A');
     await tester.tap(find.text('Ver boleto'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir documento'));
+    await tester.pumpAndSettle();
     expect(launcher.opened, 'https://example.test/a');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Copiar Pix de fevereiro'));
     await tester.pump();
     await tester.tap(find.text('Copiar Pix de fevereiro'));
     await tester.pump();
     expect(copied(), 'PIX-B');
     await tester.tap(find.text('Boleto'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir documento'));
+    await tester.pumpAndSettle();
     expect(launcher.opened, 'https://example.test/b');
     expect(tester.takeException(), isNull);
   });
@@ -219,7 +225,9 @@ void main() {
     await tester.pump();
     expect(copied(), 'PIX-B');
     await tester.tap(find.text('Ver boleto'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir documento'));
+    await tester.pumpAndSettle();
     expect(launcher.opened, 'https://example.test/b');
   });
 

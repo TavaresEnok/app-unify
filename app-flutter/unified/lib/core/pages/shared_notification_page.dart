@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../models/in_app_notification.dart';
 import '../providers/providers.dart';
+import '../services/subscriber_achievements.dart';
 import '../vibe/vibe_icon.dart';
 import '../vibe/vibe_page_parts.dart';
 import '../vibe/vibe_text.dart';
@@ -53,7 +54,7 @@ class _SharedNotificationPageState
             ghost: true,
             small: true,
             expand: false,
-            onPressed: () => ref.read(notificationProvider).markAllAsRead(),
+            onPressed: () => _markNoticesRead(ref),
           ),
         ));
       }
@@ -71,6 +72,22 @@ class _SharedNotificationPageState
           : null,
       children: children,
     );
+  }
+}
+
+Future<void> _markNoticesRead(WidgetRef ref, {String? id}) async {
+  final service = ref.read(notificationProvider);
+  final user = ref.read(authNotifierProvider).valueOrNull;
+  final providerId = ref.read(configurationProvider).providerConfig?.id;
+  if (id == null) {
+    await service.markAllAsRead();
+  } else {
+    await service.markAsRead(id);
+  }
+  if (user != null && providerId != null && service.unreadCount == 0) {
+    await SubscriberAchievements.record(
+            providerId, user.cpfCnpj, AchievementEvent.noticesRead)
+        .catchError((_) {});
   }
 }
 
@@ -135,7 +152,7 @@ class _NotificationTile extends ConsumerWidget {
         color: t.card,
         child: InkWell(
           onTap: () {
-            if (!item.read) ref.read(notificationProvider).markAsRead(item.id);
+            if (!item.read) _markNoticesRead(ref, id: item.id);
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

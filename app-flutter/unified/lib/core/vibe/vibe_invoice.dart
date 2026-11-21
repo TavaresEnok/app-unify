@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../pages/customer/invoice_document_page.dart';
 
 import '../models/fatura.dart';
 import '../providers/financeiro_provider.dart';
@@ -156,19 +156,6 @@ class VibeInvoiceActions {
     messenger?.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  static Future<void> openBoleto(BuildContext context, Fatura invoice) async {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final uri = Uri.tryParse(invoice.urlBoleto?.trim() ?? '');
-    final valid =
-        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-    try {
-      if (valid && await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        return;
-      }
-    } catch (_) {
-      // A plataforma pode recusar um endereço válido.
-    }
-    messenger?.showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir o boleto.')));
-  }
+  static Future<void> openBoleto(BuildContext context, Fatura invoice) =>
+      openInvoiceDocument(context, invoice);
 }

@@ -33,12 +33,11 @@ void main() {
             home: const DiagnosticHistoryPage())));
     await tester.pumpAndSettle();
     expect(find.text('Verificação concluída'), findsOneWidget);
-    await tester.tap(find.byTooltip('Limpar histórico'));
+    await tester.tap(find.text('Limpar histórico'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Limpar'));
     await tester.pumpAndSettle();
-    expect(
-        find.text('Suas próximas verificações aparecem aqui'), findsOneWidget);
+    expect(find.text('Nenhuma verificação guardada'), findsOneWidget);
     expect(await store.read(), isEmpty);
     expect(tester.takeException(), isNull);
   });

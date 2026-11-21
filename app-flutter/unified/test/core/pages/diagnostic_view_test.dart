@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:app_provedor_unified/core/models/diagnostico_state.dart';
 import 'package:app_provedor_unified/core/widgets/diagnostics/diagnostic_view.dart';
 import 'package:app_provedor_unified/core/theme/layout_tokens.dart';
+import 'package:app_provedor_unified/core/vibe/vibe_page_parts.dart';
+import 'package:app_provedor_unified/core/vibe/vibe_tokens.dart';
 
 void main() {
   testWidgets('advanced tools respect provider capabilities', (tester) async {
@@ -55,5 +57,43 @@ void main() {
                 state: DiagnosticoState.initial(), onQuick: () {}))));
     await tester.scrollUntilVisible(find.text('Verificação rápida'), 120);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('running and incomplete states show actual progress and warning',
+      (tester) async {
+    final base = DiagnosticoState.initial();
+    final results =
+        Map<String, Map<String, dynamic>>.from(base.testResultsDisplay);
+    results['deviceInfo'] = {
+      'label': 'Aparelho',
+      'status': TestStatus.success,
+      'result': 'OK'
+    };
+    results['pingGoogle'] = {
+      'label': 'Ping externo',
+      'status': TestStatus.error
+    };
+    final running = base.copyWith(
+      runMode: DiagnosticRunMode.quick,
+      startedAt: DateTime(2026),
+      isTesting: true,
+      geralStatusMessage: 'Verificando a rede',
+      testResultsDisplay: results,
+    );
+    var cancelled = false;
+    Widget page(DiagnosticoState state) => MaterialApp(
+          home: Scaffold(
+              body: DiagnosticView(
+                  state: state, onCancel: () => cancelled = true)),
+        );
+    await tester.pumpWidget(page(running));
+    expect(find.text('Verificando a rede'), findsOneWidget);
+    expect(find.text('2 de 5 verificações finalizadas'), findsOneWidget);
+    await tester.tap(find.text('Parar'));
+    expect(cancelled, isTrue);
+    await tester.pumpWidget(page(running.copyWith(isTesting: false)));
+    expect(find.text('Algumas verificações ficaram sem resultado'),
+        findsOneWidget);
+    expect(tester.widget<VibeStatusCircle>(find.byType(VibeStatusCircle)).tone,
+        VibeTone.warning);
   });
 }

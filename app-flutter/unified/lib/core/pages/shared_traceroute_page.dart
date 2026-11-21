@@ -6,7 +6,11 @@ import 'package:http/http.dart' as http;
 
 import '../providers/providers.dart';
 import '../services/traceroute_service.dart';
-import '../widgets/customer_ui.dart';
+import '../services/subscriber_achievements.dart';
+import '../vibe/vibe_icon.dart';
+import '../vibe/vibe_page_parts.dart';
+import '../vibe/vibe_text.dart';
+import '../vibe/vibe_tokens.dart';
 
 class SharedTraceRoutePage extends ConsumerStatefulWidget {
   const SharedTraceRoutePage({super.key});
@@ -23,6 +27,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
   int _requestNumber = 0;
   TraceResult? _result;
   String? _message;
+  bool _stopped = false;
 
   @override
   void dispose() {
@@ -38,7 +43,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
     _client = null;
     setState(() {
       _running = false;
-      _message = 'Rastreamento interrompido.';
+      _stopped = true;
     });
   }
 
@@ -52,12 +57,14 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
           : 'Configuração indisponível. Tente novamente.');
       return;
     }
+    final user = ref.read(authNotifierProvider).valueOrNull;
     FocusScope.of(context).unfocus();
     final request = ++_requestNumber;
     final client = http.Client();
     _client = client;
     setState(() {
       _running = true;
+      _stopped = false;
       _result = null;
       _message = null;
     });
@@ -66,12 +73,17 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
       if (!mounted || request != _requestNumber) return;
       setState(() {
         _result = result;
-        _message = result.hops.isEmpty
-            ? 'Nenhum salto retornado.'
-            : result.reached
-                ? 'Destino alcançado em ${result.hops.length} salto(s).'
-                : 'Rota parcial. O destino não confirmou resposta.';
+        if (result.hops.isEmpty) {
+          _message = result.timedOut
+              ? 'O rastreamento demorou demais. Tente novamente.'
+              : 'Nenhum salto retornado.';
+        }
       });
+      if (result.hops.isNotEmpty && user != null) {
+        unawaited(SubscriberAchievements.record(
+                config.id, user.cpfCnpj, AchievementEvent.trace)
+            .catchError((_) {}));
+      }
     } on TimeoutException {
       if (mounted && request == _requestNumber) {
         setState(
@@ -93,59 +105,122 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
 
   @override
   Widget build(BuildContext context) {
-    final hops = _result?.hops ?? [];
-    final colors = Theme.of(context).colorScheme;
-    return CustomerList(children: [
-      CustomerCard(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        TextField(
-            controller: _target,
-            enabled: !_running,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            decoration: const InputDecoration(
-                labelText: 'IP público ou domínio',
-                border: OutlineInputBorder()),
-            onSubmitted: (_) => _start()),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-            onPressed: _running ? _stop : _start,
-            icon: Icon(_running ? Icons.stop : Icons.play_arrow),
-            label: Text(_running ? 'Parar' : 'Iniciar rastreamento')),
-        const SizedBox(height: 12),
-        Text('A rota parte do servidor do provedor.',
-            style: Theme.of(context).textTheme.bodySmall),
-        if (_running) ...[
-          const SizedBox(height: 12),
-          const LinearProgressIndicator()
-        ],
-      ])),
-      if (hops.isNotEmpty) ...[
-        const SizedBox(height: 16),
-        CustomerCard(
-            child: Column(children: [
-          for (var i = 0; i < hops.length; i++)
-            Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(children: [
-                  CircleAvatar(
-                      radius: 15,
-                      backgroundColor: colors.primaryContainer,
-                      child: Text('${hops[i]['hop'] ?? i + 1}',
-                          style: TextStyle(
-                              color: colors.onPrimaryContainer, fontSize: 12))),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: SelectableText(
-                          (hops[i]['ip'] == null || hops[i]['ip'] == '*')
-                              ? 'Sem resposta'
-                              : '${hops[i]['ip']}')),
-                  Text('${hops[i]['time'] ?? '—'}'),
-                ])),
-        ])),
+    final t = VibeTokens.of(context);
+    final config = ref.watch(configurationProvider).providerConfig;
+    final providerName = config?.name.trim();
+    final result = _result;
+    final hops = result?.hops ?? const <Map<String, dynamic>>[];
+    final fieldBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: t.line, width: 1.5),
+    );
+    return VibePageScaffold(
+      title: 'Tracert',
+      subtitle: 'Rota da rede',
+      onBack: Navigator.of(context).canPop()
+          ? () => Navigator.of(context).maybePop()
+          : null,
+      children: [
+        VibeCard(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: VibeGap(gap: 8, children: [
+            Text('IP público ou domínio', style: vibeText(t, 13, 650)),
+            TextField(
+              controller: _target,
+              enabled: !_running,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              textInputAction: TextInputAction.go,
+              style: vibeText(t, 15, 500),
+              decoration: InputDecoration(
+                hintText: 'Ex.: google.com',
+                prefixIcon: Align(
+                  widthFactor: 1.8,
+                  heightFactor: 1,
+                  child: VibeIcon('g-route', size: 16, color: t.mut),
+                ),
+                prefixIconConstraints: const BoxConstraints(minWidth: 38),
+                contentPadding: const EdgeInsets.fromLTRB(0, 12, 10, 12),
+                border: fieldBorder,
+                enabledBorder: fieldBorder,
+                disabledBorder: fieldBorder,
+                focusedBorder: fieldBorder.copyWith(
+                    borderSide: BorderSide(color: t.ac, width: 2)),
+              ),
+              onSubmitted: (_) => _start(),
+            ),
+            if (_message != null) VibeErrorLine(_message!),
+            VibePageButton(
+              label: _running ? 'Parar' : 'Iniciar rastreamento',
+              icon: _running ? 'g-stop' : 'g-play',
+              ghost: _running,
+              onPressed: _running ? _stop : _start,
+            ),
+            VibeNote(providerName?.isNotEmpty == true
+                ? 'A rota parte do servidor de $providerName.'
+                : 'A rota parte do servidor do provedor.'),
+            if (_running)
+              LinearProgressIndicator(color: t.ac, backgroundColor: t.line),
+          ]),
+        ),
+        if (hops.isNotEmpty)
+          VibeCard(
+            child: VibeRows(children: [
+              for (final (index, hop) in hops.indexed)
+                _TraceHop(index: index, hop: hop),
+            ]),
+          ),
+        if (_stopped)
+          const VibeOkBox(
+              title: 'Rastreamento interrompido', strip: true, warning: true)
+        else if (hops.isNotEmpty)
+          VibeOkBox(
+            title: result!.reached
+                ? 'Destino alcançado em ${hops.length} saltos'
+                : 'Rota parcial · ${hops.length} saltos retornados',
+            strip: true,
+            warning: !result.reached,
+          ),
       ],
-      if (_message != null) ...[const SizedBox(height: 16), Text(_message!)],
-    ]);
+    );
+  }
+}
+
+class _TraceHop extends StatelessWidget {
+  const _TraceHop({required this.index, required this.hop});
+
+  final int index;
+  final Map<String, dynamic> hop;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
+    final address = hop['ip']?.toString().trim();
+    final missing = address == null || address.isEmpty || address == '*';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(children: [
+        Container(
+          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          decoration: BoxDecoration(
+              color: t.ac.withValues(alpha: .15), shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: Text('${hop['hop'] ?? index + 1}',
+              style: vibeText(t, 12, 700, color: t.at)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: SelectableText(missing ? 'Sem resposta' : address,
+              style: vibeText(t, 13.5, missing ? 500 : 650,
+                  color: missing ? t.mut : t.ink)),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text('${hop['time'] ?? '—'}',
+              textAlign: TextAlign.end, style: vibeText(t, 13.5, 700)),
+        ),
+      ]),
+    );
   }
 }

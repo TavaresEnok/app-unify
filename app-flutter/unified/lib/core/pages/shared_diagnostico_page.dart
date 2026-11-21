@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -7,13 +8,16 @@ import '../models/diagnostico_state.dart';
 import '../models/diagnostic_presentation.dart';
 import '../navigation/customer_routes.dart';
 import '../providers/providers.dart';
+import '../providers/connectivity_provider.dart';
 import '../providers/customer_capabilities_provider.dart';
 import '../theme/layout_tokens.dart';
 import '../services/diagnostico_service.dart';
 import '../services/diagnostic_history_store.dart';
+import '../services/subscriber_achievements.dart';
 import '../widgets/diagnostics/diagnostic_view.dart';
 import '../../layouts/layout_03/wifi_page.dart';
 import 'shared_ping_page.dart';
+import 'shared_speed_test_page.dart';
 import 'shared_traceroute_page.dart';
 import 'customer/diagnostic_history_page.dart';
 import '../vibe/vibe_page_parts.dart';
@@ -69,7 +73,10 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                       ? 'Iniciar teste de velocidade?'
                       : 'Iniciar diagnóstico completo?'),
                   content: Text(widget.speedOnly
-                      ? 'O teste consome dados. Conecte-se ao Wi-Fi de casa para avaliar sua internet fixa. O resultado é medido neste celular.'
+                      ? ref.read(connectivityStatusProvider).valueOrNull ==
+                              ConnectivityResult.mobile
+                          ? 'Você está usando dados móveis. O teste consome dados e mede a conexão desta operadora. Para avaliar a internet de casa, conecte-se ao Wi-Fi.'
+                          : 'O teste consome dados e mede a conexão deste celular. Para avaliar a internet de casa, conecte-se ao Wi-Fi.'
                       : 'Inclui testes de velocidade, rota e rede local. Pode levar alguns minutos e consumir dados. Conecte-se ao Wi-Fi de casa para avaliar sua internet fixa.'),
                   actions: [
                     TextButton(
@@ -122,6 +129,26 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
           'title': view.title,
           'summary': view.shareText(config.name),
         });
+        final successful = state.testResultsDisplay.values
+            .any((entry) => entry['status'] == TestStatus.success);
+        final speedSuccessful = ['speedTestCustom', 'speedTestFast'].any(
+          (key) =>
+              state.testResultsDisplay[key]?['status'] == TestStatus.success,
+        );
+        if (successful && user.cpfCnpj.isNotEmpty) {
+          try {
+            if (state.runMode != DiagnosticRunMode.speed) {
+              await SubscriberAchievements.record(
+                  config.id, user.cpfCnpj, AchievementEvent.diagnostic);
+            }
+            if (speedSuccessful) {
+              await SubscriberAchievements.record(
+                  config.id, user.cpfCnpj, AchievementEvent.speed);
+            }
+          } catch (_) {
+            // The saved diagnostic is still available if achievement storage fails.
+          }
+        }
       } catch (_) {
         _savedRuns.remove(id);
         if (mounted) {
@@ -137,6 +164,18 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     final service = _service;
     service?.stopAllTests();
     if (service != null) await _save(service.currentState);
+  }
+
+  Future<void> _copySummary(DiagnosticoState state) async {
+    final name =
+        ref.read(configurationProvider).providerConfig?.name ?? 'Seu provedor';
+    final summary = DiagnosticPresentation(state).shareText(name);
+    await Clipboard.setData(ClipboardData(text: summary));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resumo copiado.')),
+      );
+    }
   }
 
   Future<void> _share(DiagnosticoState state) async {
@@ -263,44 +302,57 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   subtitle: widget.speedOnly
                       ? 'Download e upload'
                       : 'Verificar conexão',
-                  body: DiagnosticView(
-                    state: state,
-                    onQuick: _service?.canStart != true ? null : () => _start(),
-                    onComplete: _service?.canStart != true
-                        ? null
-                        : () => _start(complete: true),
-                    onCancel: _cancel,
-                    onShare: () => _share(state),
-                    toolEnabled: enabled,
-                    onHistory: !enabled('history')
-                        ? null
-                        : () => pushCustomerPage<void>(context,
-                            route: 'history',
-                            page: const DiagnosticHistoryPage()),
-                    onTool: (route) {
-                      final currentConfig =
-                          ref.read(configurationProvider).providerConfig;
-                      if (currentConfig == null ||
-                          !CustomerRoutes.enabled(currentConfig, route) ||
-                          (route == 'wifi' &&
-                              ref
-                                      .read(wifiManagementAvailableProvider)
-                                      .valueOrNull !=
-                                  true)) {
-                        return;
-                      }
-                      pushCustomerPage<void>(context,
-                          route: route,
-                          page: switch (route) {
-                            'wifi' => const WifiPage(),
-                            'ping' => const SharedPingPage(),
-                            _ => const VibeHeaderPage(
-                                title: 'Tracert',
-                                subtitle: 'Rota da rede',
-                                body: SharedTraceRoutePage()),
-                          });
-                    },
-                  )),
+                  body: widget.speedOnly
+                      ? SpeedTestView(
+                          state: state,
+                          onStart: _service?.canStart != true
+                              ? null
+                              : () => _start(),
+                          onStop: _cancel,
+                          onShare: () => _share(state),
+                        )
+                      : DiagnosticView(
+                          state: state,
+                          onQuick: _service?.canStart != true
+                              ? null
+                              : () => _start(),
+                          onComplete: _service?.canStart != true
+                              ? null
+                              : () => _start(complete: true),
+                          onCancel: _cancel,
+                          onShare: () => _share(state),
+                          onCopy: () => _copySummary(state),
+                          toolEnabled: enabled,
+                          onHistory: !enabled('history')
+                              ? null
+                              : () => pushCustomerPage<void>(context,
+                                  route: 'history',
+                                  page: const DiagnosticHistoryPage()),
+                          onTool: (route) {
+                            final currentConfig =
+                                ref.read(configurationProvider).providerConfig;
+                            if (currentConfig == null ||
+                                !CustomerRoutes.enabled(currentConfig, route) ||
+                                (route == 'wifi' &&
+                                    ref
+                                            .read(
+                                                wifiManagementAvailableProvider)
+                                            .valueOrNull !=
+                                        true)) {
+                              return;
+                            }
+                            pushCustomerPage<void>(context,
+                                route: route,
+                                page: switch (route) {
+                                  'wifi' => const WifiPage(),
+                                  'ping' => const SharedPingPage(),
+                                  _ => const VibeHeaderPage(
+                                      title: 'Tracert',
+                                      subtitle: 'Rota da rede',
+                                      body: SharedTraceRoutePage()),
+                                });
+                          },
+                        )),
             );
           },
         ));

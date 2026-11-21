@@ -200,10 +200,46 @@ class VibeNextInvoiceCard extends StatelessWidget {
           VibeAmount(view.invoice.valor, size: 22, color: t.ink),
         ]),
         const SizedBox(height: 10),
-        Row(children: [
-          Expanded(child: pay),
-          if (boleto != null) ...[const SizedBox(width: 10), boleto],
-        ]),
+        LayoutBuilder(builder: (context, constraints) {
+          if (boleto == null) return pay;
+          final scaler = MediaQuery.textScalerOf(context);
+          double textWidth(String text) {
+            final painter = TextPainter(
+              text: TextSpan(
+                  text: text, style: vibeText(t, 13, 700, height: 1.1)),
+              textDirection: Directionality.of(context),
+              textScaler: scaler,
+              maxLines: 1,
+            )..layout();
+            return painter.width;
+          }
+
+          final boletoWidth = textWidth('Boleto') + 20 + 6 + 24;
+          final pixWidth =
+              constraints.maxWidth - boletoWidth - 10 - 20 - 6 - 24;
+          final pixText = TextPainter(
+            text: TextSpan(
+                text: 'Copiar Pix de ${view.month}',
+                style: vibeText(t, 13, 700, height: 1.1)),
+            textDirection: Directionality.of(context),
+            textScaler: scaler,
+            maxLines: 2,
+          )..layout(maxWidth: pixWidth.clamp(0, double.infinity));
+          if (pixText.didExceedMaxLines) {
+            return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  pay,
+                  const SizedBox(height: 8),
+                  boleto,
+                ]);
+          }
+          return Row(children: [
+            Expanded(child: pay),
+            const SizedBox(width: 10),
+            boleto
+          ]);
+        }),
       ]),
     );
   }

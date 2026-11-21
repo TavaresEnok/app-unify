@@ -40,9 +40,9 @@ class WifiManagementController extends ValueNotifier<WifiState> {
     }
   }
 
-  Future<void> updateWifi(
+  Future<bool> updateWifi(
       BuildContext context, String wifiId, String ssid, String password) async {
-    if (_disposed || _updating || _service == null) return;
+    if (_disposed || _updating || _service == null) return false;
     _updating = true;
     _publish(WifiState(isLoading: true, networks: value.networks));
     try {
@@ -53,7 +53,7 @@ class WifiManagementController extends ValueNotifier<WifiState> {
       if (!updated) {
         throw StateError('O equipamento não confirmou a alteração.');
       }
-      if (_disposed) return;
+      if (_disposed) return false;
       await fetchNetworks();
       if (context.mounted && !_disposed) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -61,6 +61,7 @@ class WifiManagementController extends ValueNotifier<WifiState> {
                 ? 'Wi-Fi atualizado com sucesso!'
                 : 'Alteração enviada. Não foi possível atualizar a lista; consulte novamente.')));
       }
+      return true;
     } catch (e) {
       _publish(WifiState(error: e.toString(), networks: value.networks));
       if (context.mounted && !_disposed) {
@@ -68,6 +69,7 @@ class WifiManagementController extends ValueNotifier<WifiState> {
             content: Text(
                 'Não conseguimos confirmar a alteração do Wi-Fi. Consulte a rede novamente antes de tentar alterar.')));
       }
+      return false;
     } finally {
       _updating = false;
     }

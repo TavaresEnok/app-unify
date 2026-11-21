@@ -10,6 +10,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../models/usuario.dart';
 import '../models/provider_config.dart';
+import '../services/subscriber_achievements.dart';
 
 class AuthRepository {
   // Opções endurecidas: no Android usa EncryptedSharedPreferences (em vez do
@@ -190,6 +191,12 @@ class AuthRepository {
 
   Future<void> saveUserLocally(Usuario usuario, String providerId) async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      await SubscriberAchievements.record(
+          providerId, usuario.cpfCnpj, AchievementEvent.firstAccess);
+    } catch (_) {
+      // A persistência das conquistas não impede o acesso à conta.
+    }
 
     // NÃO persistimos a senha central do SGP (M11): o login é mantido pela
     // sessão do Firebase, e a senha não é usada em nenhum fluxo. Guardá-la em
@@ -241,14 +248,12 @@ class AuthRepository {
 
     final prefs = await SharedPreferences.getInstance();
     // Preserva flags que não são da sessão do usuário
-    final onboardingDone = prefs.getBool('onboarding_completed');
-    final themeChoice = prefs.getString('theme_preference');
-    await prefs.clear();
-    if (onboardingDone != null) {
-      await prefs.setBool('onboarding_completed', onboardingDone);
-    }
-    if (themeChoice != null) {
-      await prefs.setString('theme_preference', themeChoice);
+    for (final key in prefs.getKeys()) {
+      if (key != 'onboarding_completed' &&
+          key != 'theme_preference' &&
+          !key.startsWith(SubscriberAchievements.prefix)) {
+        await prefs.remove(key);
+      }
     }
 
     // Limpa credenciais do secure storage (senha + biometria)

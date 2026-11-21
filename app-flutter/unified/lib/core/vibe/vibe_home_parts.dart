@@ -283,7 +283,7 @@ class VibeConnectionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
     final (icon, label, tone) = switch (network) {
-      VibeNetwork.wifi => ('wifi', 'Celular no Wi-Fi', VibeTone.ok),
+      VibeNetwork.wifi => ('wifi', 'Celular no Wi‑Fi', VibeTone.ok),
       VibeNetwork.mobile => (
           'cell',
           'Celular nos dados móveis',
@@ -687,7 +687,12 @@ class VibeServiceRail extends StatelessWidget {
                       Text(item.label,
                           textAlign: TextAlign.center,
                           maxLines: 2,
-                          style: vibeText(t, 12, 600, color: fg, height: 1.2)),
+                          style: const TextStyle(
+                                  inherit: false,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.2)
+                              .copyWith(color: fg)),
                     ]),
                   ),
                 ),

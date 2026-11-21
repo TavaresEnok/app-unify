@@ -80,12 +80,30 @@ void main() {
       expect(find.byType(DiagnosticoPage), findsOneWidget);
       expect(find.text('Verificação rápida'), findsOneWidget);
       expect(find.text('Diagnóstico completo'), findsOneWidget);
+      expect(find.byType(DiagnosticView), findsOneWidget);
+      expect(find.textContaining('A verificação consulta o seu celular'),
+          findsOneWidget);
+      final initial = DiagnosticoState.initial();
+      final results =
+          Map<String, Map<String, dynamic>>.from(initial.testResultsDisplay);
+      results['deviceInfo'] = {
+        'label': 'Informações do Dispositivo',
+        'status': TestStatus.success,
+        'result': 'Informação disponível',
+      };
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: DiagnosticView(
+          state: initial.copyWith(
+              startedAt: DateTime(2026), testResultsDisplay: results),
+        )),
+      ));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Seu celular'), 160,
           scrollable: find.byType(Scrollable).first);
       expect(find.text('Seu celular'), findsOneWidget);
-      expect(find.byType(DiagnosticView), findsOneWidget);
       expect(DiagnosticPresentation.groups.expand((g) => g.keys).toSet(),
-          DiagnosticoState.initial().testResultsDisplay.keys.toSet());
+          initial.testResultsDisplay.keys.toSet());
       expect(tester.takeException(), isNull);
     });
   }

@@ -539,16 +539,21 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
           button: true,
           label: label,
           excludeSemantics: true,
-          child: InkWell(
-            onTap: () => setState(
-                () => _offer = (index + delta + promos.length) % promos.length),
-            borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
-              width: 44,
-              height: 44,
-              child: Center(
-                  child:
-                      VibeIcon(icon, size: 16, strokeWidth: 1.7, color: p.ink)),
+          child: Material(
+            color: p.card,
+            shape: CircleBorder(side: BorderSide(color: p.hair)),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => setState(() =>
+                  _offer = (index + delta + promos.length) % promos.length),
+              customBorder: const CircleBorder(),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                    child: VibeIcon(icon,
+                        size: 16, strokeWidth: 1.7, color: p.ink)),
+              ),
             ),
           ),
         );

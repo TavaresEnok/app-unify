@@ -1,247 +1,164 @@
-// Achievements Page
-// Displays all achievements with unlock status
-
 import 'package:flutter/material.dart';
-import '../theme/layout_tokens.dart';
-import '../models/achievement.dart';
-import '../services/achievement_service.dart';
-import '../vibe/vibe_page_parts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AchievementsPage extends StatefulWidget {
+import '../providers/financeiro_provider.dart';
+import '../providers/providers.dart';
+import '../services/subscriber_achievements.dart';
+import '../vibe/vibe_icon.dart';
+import '../vibe/vibe_page_parts.dart';
+import '../vibe/vibe_text.dart';
+import '../vibe/vibe_tokens.dart';
+
+class AchievementsPage extends ConsumerStatefulWidget {
   const AchievementsPage({super.key});
 
   @override
-  State<AchievementsPage> createState() => _AchievementsPageState();
+  ConsumerState<AchievementsPage> createState() => _AchievementsPageState();
 }
 
-class _AchievementsPageState extends State<AchievementsPage> {
-  final AchievementService _service = AchievementService();
-  List<Achievement> _achievements = [];
-  int _unlockedCount = 0;
-  bool _loading = true;
-  ColorScheme get _colors => Theme.of(context).colorScheme;
-  Color get _text => _colors.onSurface;
-  Color get _muted => _colors.onSurfaceVariant;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAchievements();
-  }
-
-  Future<void> _loadAchievements() async {
-    setState(() => _loading = true);
-    final achievements = await _service.getAllAchievements();
-    final count = await _service.getUnlockedCount();
-    if (!mounted) return;
-    setState(() {
-      _achievements = achievements;
-      _unlockedCount = count;
-      _loading = false;
-    });
-  }
+class _AchievementsPageState extends ConsumerState<AchievementsPage> {
+  String? _identity;
+  Future<Map<String, DateTime>>? _events;
 
   @override
   Widget build(BuildContext context) {
-    return VibeHeaderPage(
-      title: 'Conquistas',
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 16),
-                _buildAchievementsList(),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildHeader() {
-    final progress = _achievements.isNotEmpty
-        ? (_unlockedCount / _achievements.length * 100).round()
-        : 0;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _colors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _colors.primary.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: _colors.primary.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.emoji_events,
-                  color:
-                      LayoutTokens.readable(_colors.primary, _colors.surface),
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$_unlockedCount de ${_achievements.length}',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: LayoutTokens.readable(
-                            _colors.primary, _colors.surface),
-                      ),
-                    ),
-                    Text(
-                      'Conquistas desbloqueadas',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: _muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    final config = ref.watch(configurationProvider).providerConfig;
+    final user = ref.watch(authNotifierProvider).valueOrNull;
+    final identity = '${config?.id}:${user?.cpfCnpj}';
+    if (_identity != identity && config != null && user != null) {
+      _identity = identity;
+      _events = SubscriberAchievements.load(config.id, user.cpfCnpj);
+    }
+    final finance = ref.watch(financeiroViewModelProvider);
+    final onTime = finance.invoices.where((invoice) {
+          final paid = invoice.dataPagamento;
+          if (!invoice.isPago || paid == null) return false;
+          return !DateTime(paid.year, paid.month, paid.day).isAfter(DateTime(
+              invoice.vencimento.year,
+              invoice.vencimento.month,
+              invoice.vencimento.day));
+        }).length >=
+        3;
+    return FutureBuilder<Map<String, DateTime>>(
+      future: _events,
+      builder: (context, snapshot) {
+        final events = snapshot.data ?? {};
+        final first = events[AchievementEvent.firstAccess.name];
+        final veteran = first != null &&
+            !DateTime.now()
+                .isBefore(DateTime(first.year + 1, first.month, first.day));
+        final badges = <(String, String, String, bool)>[
+          ('g-star', 'Primeiro acesso', 'Entrou no app', user != null),
+          (
+            'pulse',
+            'Detetive da rede',
+            'Fez uma verificação',
+            events.containsKey(AchievementEvent.diagnostic.name)
+          ),
+          (
+            'gauge',
+            'Velocista',
+            'Fez um teste de velocidade',
+            events.containsKey(AchievementEvent.speed.name)
+          ),
+          ('check', 'Em dia', 'Pagou 3 faturas no prazo', onTime),
+          (
+            'wifi',
+            'Wi-Fi sob controle',
+            'Alterou a rede',
+            events.containsKey(AchievementEvent.wifi.name)
+          ),
+          (
+            'g-route',
+            'Explorador',
+            'Usou a rota da rede',
+            events.containsKey(AchievementEvent.trace.name)
+          ),
+          (
+            'bell',
+            'Bem informado',
+            'Leu todos os avisos',
+            events.containsKey(AchievementEvent.noticesRead.name)
+          ),
+          ('g-trophy', 'Veterano', 'Um ano de assinatura no app', veteran),
+        ];
+        final count = badges.where((item) => item.$4).length;
+        final t = VibeTokens.of(context);
+        return VibePageScaffold(
+          title: 'Conquistas',
+          subtitle: '$count de ${badges.length}',
+          onBack: Navigator.of(context).canPop()
+              ? () => Navigator.of(context).maybePop()
+              : null,
+          children: [
+            if (snapshot.connectionState == ConnectionState.waiting)
+              const Center(child: CircularProgressIndicator())
+            else ...[
+              VibeCard(
+                  main: true,
+                  child: Column(children: [
+                    Row(children: [
+                      Expanded(
+                          child: Text('Seu progresso',
+                              style: vibeText(t, 14, 700))),
+                      Text('${(count / badges.length * 100).round()}%',
+                          style: vibeText(t, 14, 700))
+                    ]),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                            value: count / badges.length,
+                            minHeight: 8,
+                            backgroundColor: t.line,
+                            valueColor: AlwaysStoppedAnimation(t.ac))),
+                  ])),
+              LayoutBuilder(builder: (context, constraints) {
+                final single = constraints.maxWidth < 250 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.4;
+                final width = single
+                    ? constraints.maxWidth
+                    : (constraints.maxWidth - 10) / 2;
+                return Wrap(spacing: 10, runSpacing: 10, children: [
+                  for (final badge in badges)
+                    SizedBox(width: width, child: _Badge(item: badge)),
+                ]);
+              }),
             ],
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress / 100,
-              minHeight: 8,
-              backgroundColor: _colors.outlineVariant,
-              valueColor: AlwaysStoppedAnimation(_colors.primary),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$progress% concluído',
-            style: TextStyle(
-              fontSize: 12,
-              color: _muted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAchievementsList() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final singleColumn = constraints.maxWidth < 260 ||
-            MediaQuery.textScalerOf(context).scale(1) > 1.5;
-        final width = singleColumn
-            ? constraints.maxWidth
-            : (constraints.maxWidth - 12) / 2;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: _achievements
-              .map((achievement) => SizedBox(
-                    width: width,
-                    child: _buildAchievementCard(achievement),
-                  ))
-              .toList(),
+          ],
         );
       },
     );
   }
+}
 
-  Widget _buildAchievementCard(Achievement achievement) {
-    final isUnlocked = achievement.isUnlocked;
+class _Badge extends StatelessWidget {
+  const _Badge({required this.item});
+  final (String, String, String, bool) item;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _colors.outlineVariant,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+  @override
+  Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
+    return VibeCard(
+        main: true,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: isUnlocked
-                  ? achievement.color.withValues(alpha: 0.2)
-                  : _colors.surface,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              achievement.icon,
-              color: isUnlocked
-                  ? LayoutTokens.readable(achievement.color, _colors.surface)
-                  : _muted,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            achievement.title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: isUnlocked ? _text : _muted,
-            ),
-          ),
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: item.$4
+                      ? t.ac.withValues(alpha: .15)
+                      : t.ink.withValues(alpha: .05),
+                  borderRadius: BorderRadius.circular(14)),
+              child:
+                  VibeIcon(item.$1, color: item.$4 ? t.at : t.mut, size: 22)),
+          const SizedBox(height: 10),
+          Text(item.$2,
+              style: vibeText(t, 14, 750, color: item.$4 ? t.ink : t.mut)),
           const SizedBox(height: 4),
-          Text(
-            achievement.description,
-            style: TextStyle(
-              fontSize: 12,
-              color: isUnlocked ? _muted : _muted,
-            ),
-          ),
-          if (isUnlocked && achievement.unlockedAt != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  size: 14,
-                  color:
-                      LayoutTokens.readable(achievement.color, _colors.surface),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDate(achievement.unlockedAt!),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: LayoutTokens.readable(
-                        achievement.color, _colors.surface),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m atrás';
-    if (diff.inHours < 24) return '${diff.inHours}h atrás';
-    if (diff.inDays < 7) return '${diff.inDays}d atrás';
-    return '${date.day}/${date.month}/${date.year}';
+          Text(item.$4 ? item.$3 : 'Ainda não registrada',
+              style: vibeText(t, 12, 500, color: t.mut)),
+        ]));
   }
 }

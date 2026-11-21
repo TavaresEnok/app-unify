@@ -1,134 +1,151 @@
 import 'package:flutter/material.dart';
+
 import '../../models/diagnostico_state.dart';
 import '../../models/diagnostic_presentation.dart';
-import '../customer_ui.dart';
+import '../../vibe/vibe_page_parts.dart';
+import '../../vibe/vibe_text.dart';
+import '../../vibe/vibe_tokens.dart';
 import 'measurement_card.dart';
-import 'speed_measurement_card.dart';
 
-/// Stateless presentation can be exercised with the same states used by the engine.
+/// Presentation of the actual diagnostic state, shared by each visual style.
 class DiagnosticView extends StatelessWidget {
   final DiagnosticoState state;
-  final VoidCallback? onQuick, onComplete, onCancel, onShare, onHistory;
+  final VoidCallback? onQuick, onComplete, onCancel, onShare, onCopy, onHistory;
   final ValueChanged<String>? onTool;
   final bool Function(String)? toolEnabled;
-  const DiagnosticView(
-      {super.key,
-      required this.state,
-      this.onQuick,
-      this.onComplete,
-      this.onCancel,
-      this.onShare,
-      this.onHistory,
-      this.onTool,
-      this.toolEnabled});
+
+  const DiagnosticView({
+    super.key,
+    required this.state,
+    this.onQuick,
+    this.onComplete,
+    this.onCancel,
+    this.onShare,
+    this.onCopy,
+    this.onHistory,
+    this.onTool,
+    this.toolEnabled,
+  });
 
   @override
   Widget build(BuildContext context) {
     final view = DiagnosticPresentation(state);
-    final colors = Theme.of(context).colorScheme;
+    final t = VibeTokens.of(context);
     final speedOnly = state.runMode == DiagnosticRunMode.speed;
-    return CustomerList(children: [
-      CustomerCard(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(
-            state.isTesting
-                ? Icons.wifi_find
-                : view.hasResults
-                    ? Icons.fact_check_outlined
-                    : Icons.wifi_find_rounded,
-            size: 36,
-            color: colors.onSurface),
-        const SizedBox(height: 16),
-        Text(
-            speedOnly && !view.hasResults && !state.isTesting
-                ? 'Qual velocidade chega a este celular?'
-                : view.title,
-            style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: colors.onSurface,
-                height: 1.2)),
-        const SizedBox(height: 12),
-        Text(
-            speedOnly && !view.hasResults && !state.isTesting
-                ? 'O resultado depende do sinal, do aparelho e de outros usos da rede. Um teste por Wi-Fi não mede, sozinho, a entrega do plano por cabo.'
-                : view.description,
-            style: TextStyle(color: colors.onSurfaceVariant, height: 1.5)),
-        const SizedBox(height: 20),
-        if (state.isTesting) ...[
-          Semantics(liveRegion: true, child: Text(state.geralStatusMessage)),
-          const SizedBox(height: 12),
-          LinearProgressIndicator(value: view.progress),
-          const SizedBox(height: 8),
-          Text(
-              '${view.completed} de ${view.plannedKeys.length} verificações finalizadas',
-              style: TextStyle(color: colors.onSurfaceVariant)),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-              onPressed: onCancel,
-              icon: const Icon(Icons.stop_circle_outlined),
-              label: const Text('Interromper verificação')),
-        ] else ...[
-          SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                  onPressed: onQuick,
-                  icon: const Icon(Icons.bolt),
-                  label: Text(speedOnly
-                      ? (view.hasResults ? 'Testar de novo' : 'Iniciar teste')
-                      : view.hasResults
-                          ? 'Verificar de novo'
-                          : 'Verificação rápida'),
-                  style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16)))),
-          const SizedBox(height: 8),
-          if (!speedOnly)
-            OutlinedButton.icon(
-                onPressed: onComplete,
-                icon: const Icon(Icons.checklist_outlined),
-                label: const Text('Diagnóstico completo')),
-          if (view.hasResults)
-            TextButton.icon(
-                onPressed: onShare,
-                icon: const Icon(Icons.ios_share),
-                label: const Text('Compartilhar resumo')),
-        ],
-      ])),
-      if (!speedOnly && !view.hasResults && !state.isTesting)
-        Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+    final started =
+        state.startedAt != null || state.wasInterrupted || view.hasResults;
+    final showGroups = started || state.isTesting;
+    final allMeasured = view.plannedKeys.isNotEmpty &&
+        view.plannedKeys
+            .every((key) => view.outcome(key) == DiagnosticOutcome.measured);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
+      children: [
+        if (!showGroups) ...[
+          VibeCard(
+            main: true,
             child: Text(
-                'A verificação rápida não mede velocidade. O diagnóstico completo usa mais dados e inclui outros testes. '
-                'O app pode solicitar permissão para consultar informações do Wi-Fi.',
-                style: TextStyle(color: colors.onSurfaceVariant, height: 1.5))),
-      const SizedBox(height: 20),
-      CustomerSection(view.hasResults || state.isTesting
-          ? 'O que foi verificado'
-          : 'O que vamos verificar'),
-      if (speedOnly) SpeedMeasurementCard(state: state),
-      for (var index = 0; index < DiagnosticPresentation.groups.length; index++)
-        if (DiagnosticPresentation.groups[index].keys
-            .any(view.plannedKeys.contains)) ...[
-          CustomerCard(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: ExpansionTile(
+              speedOnly
+                  ? 'O resultado é medido neste celular e depende do sinal e dos outros usos da rede.'
+                  : 'A verificação consulta o seu celular, o Wi-Fi, o roteador, a internet e o sinal da fibra quando disponível.',
+              style: vibeText(t, 13.5, 500, color: t.mut, height: 1.5),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (speedOnly)
+            VibePageButton(label: 'Iniciar teste', onPressed: onQuick)
+          else
+            VibeCard(
+              child: VibeRows(children: [
+                VibeRow(
+                  icon: 'bolt',
+                  title: 'Verificação rápida',
+                  subtitle:
+                      'Celular, Wi-Fi, roteador, ping e fibra quando disponíveis',
+                  onTap: onQuick,
+                ),
+                VibeRow(
+                  icon: 'g-shield',
+                  title: 'Diagnóstico completo',
+                  subtitle: 'Inclui rota, equipamentos e velocidade',
+                  onTap: onComplete,
+                ),
+              ]),
+            ),
+        ] else ...[
+          if (state.isTesting)
+            VibeCard(
+              main: true,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(state.geralStatusMessage,
+                          style: vibeText(t, 15, 700)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                        '${view.completed} de ${view.plannedKeys.length} verificações finalizadas',
+                        style: vibeText(t, 12.5, 500, color: t.mut)),
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(value: view.progress),
+                    const SizedBox(height: 14),
+                    VibePageButton(
+                        label: 'Parar',
+                        ghost: true,
+                        small: true,
+                        expand: false,
+                        onPressed: onCancel),
+                  ]),
+            )
+          else
+            VibeCard(
+              main: true,
+              center: true,
+              child: Column(children: [
+                VibeStatusCircle(
+                  icon:
+                      state.wasInterrupted || !allMeasured ? 'alert' : 'check',
+                  tone: state.wasInterrupted || !allMeasured
+                      ? VibeTone.warning
+                      : VibeTone.ok,
+                ),
+                const SizedBox(height: 12),
+                Text(view.title,
+                    textAlign: TextAlign.center, style: vibeText(t, 18, 750)),
+                const SizedBox(height: 8),
+                Text(view.description,
+                    textAlign: TextAlign.center,
+                    style: vibeText(t, 13.5, 500, color: t.mut, height: 1.45)),
+              ]),
+            ),
+          const SizedBox(height: 12),
+          for (var index = 0;
+              index < DiagnosticPresentation.groups.length;
+              index++)
+            if (DiagnosticPresentation.groups[index].keys
+                .any(view.plannedKeys.contains)) ...[
+              VibeCard(
+                child: ExpansionTile(
                   key: PageStorageKey('group-$index'),
+                  initiallyExpanded: !state.isTesting,
                   tilePadding: EdgeInsets.zero,
                   leading: Icon(
                       const [
                         Icons.phone_android_outlined,
                         Icons.wifi,
                         Icons.router_outlined,
-                        Icons.public
+                        Icons.public,
                       ][index],
-                      color: colors.onSurface),
+                      color: t.at),
                   title: Text(DiagnosticPresentation.groups[index].title,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(!state.isTesting && !view.hasResults
-                      ? DiagnosticPresentation.groups[index].description
-                      : DiagnosticPresentation.label(view
-                          .groupOutcome(DiagnosticPresentation.groups[index]))),
+                      style: vibeText(t, 14, 700)),
+                  subtitle: Text(
+                    DiagnosticPresentation.label(view
+                        .groupOutcome(DiagnosticPresentation.groups[index])),
+                    style: vibeText(t, 12.5, 500, color: t.mut),
+                  ),
                   children: [
                     for (final key in DiagnosticPresentation.groups[index].keys)
                       if (view.plannedKeys.contains(key))
@@ -137,43 +154,69 @@ class DiagnosticView extends StatelessWidget {
                             measurement:
                                 state.testResultsDisplay[key] ?? const {},
                             isTesting: state.isTesting),
-                    if (state.runMode == DiagnosticRunMode.quick)
-                      Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Text(
-                              'Alguns testes ficam disponíveis apenas no diagnóstico completo.',
-                              style:
-                                  TextStyle(color: colors.onSurfaceVariant))),
-                  ])),
-          const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          if (!state.isTesting) ...[
+            VibeTwo(
+              VibePageButton(
+                  label: 'Copiar resumo',
+                  icon: 'copy',
+                  ghost: true,
+                  onPressed: onCopy),
+              VibePageButton(
+                  label: 'Compartilhar',
+                  icon: 'share',
+                  ghost: true,
+                  onPressed: onShare),
+            ),
+            const SizedBox(height: 12),
+            VibePageButton(label: 'Verificar de novo', onPressed: onQuick),
+            if (!speedOnly) ...[
+              const SizedBox(height: 8),
+              VibePageButton(
+                  label: 'Diagnóstico completo',
+                  ghost: true,
+                  onPressed: onComplete),
+            ],
+            if (onHistory != null) ...[
+              const SizedBox(height: 8),
+              VibePageButton(
+                  label: 'Ver histórico', ghost: true, onPressed: onHistory),
+            ],
+            const SizedBox(height: 12),
+            const VibeNote(
+                'O resumo não leva CPF, senha, nome da rede nem IP.'),
+          ],
         ],
-      if (!speedOnly) SpeedMeasurementCard(state: state),
-      if (view.hasResults && !state.isTesting && onHistory != null)
-        OutlinedButton.icon(
-            onPressed: onHistory,
-            icon: const Icon(Icons.history),
-            label: const Text('Ver histórico')),
-      const SizedBox(height: 12),
-      ExpansionTile(
-          title: const Text('Outras ferramentas'),
-          subtitle: const Text('Rede Wi-Fi, ping e rota'),
-          children: [
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final item in [
-                ('wifi', 'Minha rede Wi-Fi', Icons.router_outlined),
-                ('ping', 'Ping', Icons.network_ping),
-                ('trace_route', 'Rota da rede', Icons.route)
-              ])
-                if (toolEnabled?.call(item.$1) ?? true)
-                  OutlinedButton.icon(
-                      onPressed: state.isTesting || onTool == null
-                          ? null
-                          : () => onTool!(item.$1),
-                      icon: Icon(item.$3),
-                      label: Text(item.$2)),
-            ]),
-            const SizedBox(height: 16),
-          ]),
-    ]);
+        if (!speedOnly) ...[
+          const SizedBox(height: 12),
+          VibeCard(
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: Text('Outras ferramentas', style: vibeText(t, 14, 700)),
+              subtitle: Text('Rede Wi-Fi, ping e rota',
+                  style: vibeText(t, 12.5, 500, color: t.mut)),
+              children: [
+                for (final item in [
+                  ('wifi', 'Minha rede Wi-Fi', 'router'),
+                  ('ping', 'Ping', 'pulse'),
+                  ('trace_route', 'Rota da rede', 'g-route'),
+                ])
+                  if (toolEnabled?.call(item.$1) ?? true)
+                    VibeRow(
+                        icon: item.$3,
+                        title: item.$2,
+                        onTap: state.isTesting || onTool == null
+                            ? null
+                            : () => onTool!(item.$1)),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }

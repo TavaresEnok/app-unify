@@ -223,7 +223,7 @@ class _MainInvoice extends StatelessWidget {
               warning: true,
               title: 'Dados de pagamento indisponíveis. Consulte o suporte.'),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 9),
         identical(primary, details) ? details : VibeTwo(primary, details),
         if (links.isNotEmpty) ...[
           const SizedBox(height: 10),

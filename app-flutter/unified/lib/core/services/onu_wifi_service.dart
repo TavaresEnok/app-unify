@@ -118,7 +118,7 @@ class WifiNetwork {
   final String id;
   final String ssid;
   final String frequency; // 2.4GHz ou 5GHz
-  final bool enabled;
+  final bool? enabled;
   final String? password;
   final String? channel;
   final String? security;
@@ -137,8 +137,12 @@ class WifiNetwork {
     return WifiNetwork(
       id: json['id']?.toString() ?? '',
       ssid: json['ssid'] ?? json['nome'] ?? '',
-      frequency: json['frequency'] ?? json['frequencia'] ?? '2.4GHz',
-      enabled: json['enabled'] ?? json['ativo'] ?? true,
+      frequency: (json['frequency'] ?? json['frequencia'])?.toString() ?? '',
+      enabled: switch (json['enabled'] ?? json['ativo']) {
+        true || 1 || '1' => true,
+        false || 0 || '0' => false,
+        _ => null,
+      },
       password: json['password'] ?? json['senha'],
       channel: json['channel']?.toString() ?? json['canal']?.toString(),
       security: json['security'] ??

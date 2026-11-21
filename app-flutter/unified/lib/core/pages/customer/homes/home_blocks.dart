@@ -238,7 +238,18 @@ class _PromoLine extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(children: [
-              VibeIcon('gift', size: 22, color: t.at),
+              if (promo.imageUrl.trim().isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(promo.imageUrl,
+                      width: 42,
+                      height: 42,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          VibeIcon('gift', size: 22, color: t.at)),
+                )
+              else
+                VibeIcon('gift', size: 22, color: t.at),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

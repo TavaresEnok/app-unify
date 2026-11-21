@@ -160,7 +160,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           'Tracert',
           'Rota da rede',
           LayoutSelector.getTraceRoutePage(layoutType: layout),
-          false
+          true
         ),
       'my_ip' => (
           'Meu IP',
@@ -170,9 +170,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         ),
       'internet_usage' => (
           'Consumo',
-          _planSubtitle(' · sem limite'),
+          null,
           LayoutSelector.getConsumoPage(layoutType: layout),
-          false
+          true
         ),
       'contract' => (
           'Meu contrato',
@@ -222,11 +222,6 @@ class _PainelPageState extends ConsumerState<PainelPage> {
   /// [CustomerShellScope] que ele mesmo cria, então empilha direto aqui.
   Future<void> _push(String route, Widget page) => Navigator.of(context)
       .push(MaterialPageRoute<void>(builder: (_) => _frame(route, page)));
-
-  String? _planSubtitle(String suffix) {
-    final plan = ref.read(authNotifierProvider).valueOrNull?.plano.trim() ?? '';
-    return plan.isEmpty ? null : '$plan$suffix';
-  }
 
   /// Faixa de status: na cor da marca no Início dos layouts de topo
   /// colorido, na cor do fundo nas demais telas.
