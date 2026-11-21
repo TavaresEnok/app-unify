@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Timestamp } from "firebase/firestore";
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Search, MessageSquareOff, Trash2, ChevronRight } from 'lucide-react';
@@ -13,50 +12,31 @@ import { Button } from '@/components/ui/button';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { usePanelPage } from '@/hooks/usePanelPage';
+import { PageControls } from '@/components/PageControls';
 
 interface Ticket {
     id: string;
     subject: string;
     providerName: string;
     status: 'Aberto' | 'Em Andamento' | 'Fechado';
-    updatedAt?: Timestamp;
+    updatedAt?: string;
 }
 
 export default function AdminTicketsPage() {
     const navigate = useNavigate();
-    const { user, userRole } = useAuth();
+    const { user } = useAuth();
     const { callFunction } = useApi();
-    const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [loading, setLoading] = useState(true);
+    const page = usePanelPage<Ticket>('/admin/tickets/page');
+    const { data: tickets, loading } = page;
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('Todos');
-
-    const fetchTickets = useCallback(async () => {
-        if (userRole !== 'superAdmin' || !user) {
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const result = await callFunction('GET_ALL_TICKETS', {});
-            setTickets(result as Ticket[]);
-        } catch (error) {
-            console.error("Falha ao carregar tickets", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [userRole, user, callFunction]);
-
-    useEffect(() => {
-        void fetchTickets();
-    }, [fetchTickets]);
 
     const handleDelete = async (ticketId: string) => {
         if (!user) return;
         try {
             await callFunction('DELETE_TICKET', { ticketId });
-            setTickets(prevTickets => prevTickets.filter(t => t.id !== ticketId));
+            page.reload();
         } catch (error) {
             console.error("Falha ao apagar ticket", error);
         }
@@ -72,13 +52,14 @@ export default function AdminTicketsPage() {
 
     const formatUpdatedAt = (ticket: Ticket) => {
         if (!ticket.updatedAt) return 'Data inválida';
-        return format(ticket.updatedAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+        return format(new Date(ticket.updatedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
     };
 
     if (loading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
+    if (page.error) return <div role="alert">{page.error}<Button onClick={page.reload}>Tentar novamente</Button></div>;
     return (
         <DataTable<Ticket>
             title="Suporte da plataforma"
@@ -89,14 +70,14 @@ export default function AdminTicketsPage() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             type="search"
-                            placeholder="Buscar por assunto..."
+                            placeholder="Buscar nesta página..."
                             className="pl-8"
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
                         />
                     </div>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-full sm:w-[170px]"><SelectValue placeholder="Filtrar por status" /></SelectTrigger>
+                        <SelectTrigger className="w-full sm:w-[170px]"><SelectValue placeholder="Status nesta página" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Todos os status</SelectItem>
                             <SelectItem value="Aberto">Aberto</SelectItem>
@@ -115,6 +96,7 @@ export default function AdminTicketsPage() {
                 { label: "" },
             ]}
             gridTemplate="130px 2.2fr 1.2fr .8fr 1fr 88px"
+            footer={<PageControls page={page} />}
             rows={filteredTickets}
             getRowKey={(ticket) => ticket.id}
             minWidth="920px"

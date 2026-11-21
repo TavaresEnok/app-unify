@@ -1,5 +1,5 @@
 // admin-painel/src/pages/UsersPage.tsx - VERSÃO FINAL MIGRADA
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import EmptyState from '@/components/EmptyState.tsx';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
+import { usePanelPage } from '@/hooks/usePanelPage';
+import { PageControls } from '@/components/PageControls';
 
 interface AdminUser {
     uid: string;
@@ -20,43 +22,19 @@ interface AdminUser {
     providerId?: string;
 }
 
-const ITEMS_PER_PAGE = 10;
+
 
 export default function UsersPage() {
     const { user, userRole } = useAuth();
     const { callFunction } = useApi();
-    const [users, setUsers] = useState<AdminUser[]>([]);
-    const [loading, setLoading] = useState(true);
+    const page = usePanelPage<AdminUser>('/admin/users/page');
+    const { data: users, loading, reload: fetchUsers } = page;
     const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-
-    const fetchUsers = useCallback(async () => {
-        if (userRole !== 'superAdmin' || !user) {
-            setLoading(false);
-            return;
-        }
-        setLoading(true);
-        try {
-            const result = await callFunction('LIST_ADMIN_USERS', {});
-            setUsers(result);
-        } catch (error) {
-            console.error("Falha ao carregar utilizadores", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [userRole, user, callFunction]);
-
-    useEffect(() => {
-        void fetchUsers();
-    }, [fetchUsers]);
 
     const filteredUsers = useMemo(() => users.filter(u =>
         u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.providerId?.toLowerCase().includes(searchTerm.toLowerCase())
     ), [users, searchTerm]);
-
-    const pageCount = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-    const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const handleDelete = async (userToDelete: AdminUser) => {
         if (!user) return;
@@ -69,6 +47,7 @@ export default function UsersPage() {
     };
 
     if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin" /></div>;
+    if (page.error) return <div role="alert">{page.error}<Button onClick={fetchUsers}>Tentar novamente</Button></div>;
     if (userRole !== 'superAdmin') return <Card><CardHeader><CardTitle>Acesso Negado</CardTitle></CardHeader></Card>;
 
     return (
@@ -81,10 +60,10 @@ export default function UsersPage() {
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="search"
-                                placeholder="Pesquisar por email ou ID..."
+                                placeholder="Buscar nesta página..."
                                 className="pl-8 w-full"
                                 value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                onChange={(e) => { setSearchTerm(e.target.value); }}
                             />
                         </div>
                         <SetSuperAdminDialog onUpdate={fetchUsers} /> {/* <-- ADICIONADO */}
@@ -100,7 +79,7 @@ export default function UsersPage() {
                 { label: "" },
             ]}
             gridTemplate="2fr 1.1fr 1fr .9fr .8fr 52px"
-            rows={paginatedUsers}
+            rows={filteredUsers}
             getRowKey={(adminUser) => adminUser.uid}
             minWidth="880px"
             empty={(
@@ -136,15 +115,7 @@ export default function UsersPage() {
                                 </div>
                             </div>
             )}
-            footer={filteredUsers.length > 0 && (
-                <div className="flex items-center justify-between">
-                    <span className="text-[12px] text-[#98A1B1]">Exibindo {paginatedUsers.length} de {filteredUsers.length} utilizadores</span>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
-                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount || pageCount === 0}>Próxima</Button>
-                    </div>
-                </div>
-            )}
+            footer={<PageControls page={page} />}
         />
     );
 }

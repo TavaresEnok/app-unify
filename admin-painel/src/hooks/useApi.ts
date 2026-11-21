@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 import type { FunctionRequestPayloadMap, FunctionRequestType, FunctionResultMap } from '@/shared/contracts';
 import { fetchDashboard } from '@/shared/api/dashboard';
+import { clearPanelReads, readPanel } from '@/shared/api/panelHttp';
 
 export function useApi() {
   const { user, userRole, providerId: authProviderId } = useAuth();
@@ -28,6 +29,8 @@ export function useApi() {
           : undefined;
         if (type === 'GET_PROVIDER_DASHBOARD_DATA' && !providerId) throw new Error('Provedor não identificado.');
         result = await fetchDashboard(user, providerId || undefined) as FunctionResultMap[T];
+      } else if (type === 'LIST_ADMIN_USERS') {
+        result = (await readPanel<{ data: unknown }>('/admin/users')).data as FunctionResultMap[T];
       } else {
         const [{ db }, { callFunctionRequest }] = await Promise.all([
           import('@/firebase/config'), import('@/shared/api/functionRequests'),
@@ -38,6 +41,7 @@ export function useApi() {
           providerId: authProviderId,
           forceProviderScope: userRole === "providerAdmin",
         });
+        if (!type.startsWith('GET_') && !type.startsWith('LIST_')) clearPanelReads();
       }
       if (!options.silent && !type.startsWith("GET_") && !type.startsWith("LIST_") && !(type === "SGP_API_PROXY" && ["get", "get_single", "status"].includes(String((payload as { action?: string }).action)))) {
         const message = typeof result === "object" && result && "message" in result

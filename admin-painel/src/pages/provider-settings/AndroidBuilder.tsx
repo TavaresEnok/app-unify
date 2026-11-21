@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import { publicDownloadUrl, runtimeConfig } from '@/shared/config/runtime';
 import { getErrorMessage } from '@/shared/errors';
+import BuildConfirmationDialog from '@/components/BuildConfirmationDialog';
+import { confirmBuildSession, needsBuildConfirmation } from '@/shared/firebase/buildSession';
 
 interface BuildResult {
     success: boolean;
@@ -92,6 +94,7 @@ export default function AndroidBuilderPage() {
     const settings = useSettings();
     const [loading, setLoading] = useState(false);
     const [lastResult, setLastResult] = useState<BuildResult | null>(null);
+    const [pendingFormat, setPendingFormat] = useState<'apk' | 'aab' | null>(null);
 
     // --- SAFETY CHECK (CRITICAL) ---
     // Handle undefined context or missing provider data gracefully
@@ -134,8 +137,8 @@ export default function AndroidBuilderPage() {
         }
 
         // Validate Requirements
-        const appName = providerData?.details?.appName || providerData?.name;
-        const logoUrl = providerData?.logoUrl;
+        const appName = providerData.name;
+        const logoUrl = settings.config.logoUrl?.trim();
 
         if (!logoUrl) {
             toast.error("O provedor não tem uma Logo configurada.", {
@@ -151,6 +154,11 @@ export default function AndroidBuilderPage() {
             if (!user) {
                 throw new Error("Usuário não autenticado");
             }
+            if (await needsBuildConfirmation(user)) {
+                setPendingFormat(format);
+                return;
+            }
+            await settings.saveConfig();
             const token = await user.getIdToken();
 
             const response = await fetch(`${runtimeConfig.apkBuilderBaseUrl}/generate-apk`, {
@@ -171,7 +179,15 @@ export default function AndroidBuilderPage() {
             let result = await parseBuildResponse(response);
 
             if (!response.ok || !result.success) {
-                throw new Error(result.error || `HTTP ${response.status}`);
+                if (response.status === 403 && result.error === 'build-authorization-denied' && await needsBuildConfirmation(user)) {
+                    setPendingFormat(format);
+                    return;
+                }
+                throw new Error(result.error === 'logo-download-failed'
+                    ? 'Não foi possível baixar a logo. Verifique se a URL permite acesso público e tente novamente.'
+                    : result.error === 'build-authorization-denied'
+                        ? 'Esta conta não tem autorização para gerar aplicativos. Verifique o acesso de gerente.'
+                        : result.error || `HTTP ${response.status}`);
             }
             if (response.status === 202 && result.jobId) {
                 toast.info(`${format.toUpperCase()} em geração`, {
@@ -203,6 +219,17 @@ export default function AndroidBuilderPage() {
             description="Gere versões do aplicativo para teste (APK) ou para loja (AAB)."
             icon={Smartphone}
         >
+            {pendingFormat && user && <BuildConfirmationDialog
+                email={user.email || ''}
+                format={pendingFormat}
+                onCancel={() => setPendingFormat(null)}
+                onConfirm={async password => {
+                    await confirmBuildSession(user, password);
+                    const format = pendingFormat;
+                    setPendingFormat(null);
+                    void handleGenerateApk(format);
+                }}
+            />}
 
             {window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:') && (
                 <Alert variant="destructive" className="bg-amber-500/10 text-amber-600 border-amber-500/50 dark:text-amber-400">
@@ -226,35 +253,29 @@ export default function AndroidBuilderPage() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Nome do Aplicativo</label>
+                            <label htmlFor="build-app-name" className="text-sm font-medium">Nome do Aplicativo</label>
                             <div className="flex gap-2">
                                 <Input
-                                    value={settings.config?.details?.appName || settings.config?.name || ''}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        settings.setConfig((prev) => ({
-                                            ...prev,
-                                            details: { ...(prev.details || {}), appName: val }
-                                        }));
-                                    }}
-                                    placeholder="Ex: Minha Net"
+                                    id="build-app-name"
+                                    value={providerData.name || ''}
+                                    readOnly
                                 />
                             </div>
-                            <p className="text-xs text-muted-foreground">Nome que aparecerá instalado no celular.</p>
+                            <p className="text-xs text-muted-foreground">Nome que aparecerá instalado no celular, definido no cadastro do provedor.</p>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Logo do App (Icone)</label>
+                            <label htmlFor="build-logo-url" className="text-sm font-medium">Logo do App (Ícone)</label>
                             <div className="flex gap-2">
                                 <div className="flex-1">
                                     <Input
-                                        value={settings.config?.details?.logoUrl || settings.config?.logoUrl || ''}
+                                        id="build-logo-url"
+                                        value={settings.config.logoUrl || ''}
                                         onChange={(e) => {
                                             const val = e.target.value;
                                             settings.setConfig((prev) => ({
                                                 ...prev,
-                                                details: { ...(prev.details || {}), logoUrl: val },
-                                                logoUrl: val // Sync root for backward compatibility
+                                                logoUrl: val
                                             }));
                                         }}
                                         placeholder="URL da Logo ou Upload..."
@@ -339,8 +360,7 @@ export default function AndroidBuilderPage() {
                                                             // Update State
                                                             settings.setConfig((prev) => ({
                                                                 ...prev,
-                                                                logoUrl: data.url,
-                                                                details: { ...(prev.details || {}), logoUrl: data.url }
+                                                                logoUrl: data.url
                                                             }));
 
                                                             toast.success("Logo processada e enviada com sucesso!", { id: toastId });
@@ -386,8 +406,11 @@ export default function AndroidBuilderPage() {
                         <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => void settings.saveConfig()}
-                            disabled={settings.isSaving}
+                            onClick={async () => {
+                                try { await settings.saveConfig(); }
+                                catch { /* SettingsContext displays the save error. */ }
+                            }}
+                            disabled={settings.isSaving || loading}
                         >
                             {settings.isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
                             Salvar Configurações
@@ -396,10 +419,10 @@ export default function AndroidBuilderPage() {
 
                     <div className="p-3 bg-muted rounded-md text-xs truncate">
                         <span className="font-semibold block mb-1 text-sm">Status da Logo:</span>
-                        {providerData?.logoUrl ? (
+                        {settings.config.logoUrl ? (
                             <div className="flex items-center text-green-600 gap-2">
                                 <CheckCircle className="h-4 w-4" /> Configurada
-                                <img src={providerData.logoUrl} className="h-6 w-6 object-contain ml-2 bg-white/10 rounded" />
+                                <img src={settings.config.logoUrl} alt="Logo do aplicativo" className="h-6 w-6 object-contain ml-2 bg-white/10 rounded" />
                             </div>
                         ) : (
                             <span className="text-destructive flex items-center gap-1">
@@ -417,7 +440,7 @@ export default function AndroidBuilderPage() {
                         <Button
                             variant="outline"
                             onClick={() => handleGenerateApk('apk')}
-                            disabled={loading || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
+                            disabled={loading || settings.isSaving || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
                             className="w-full sm:w-auto"
                         >
                             {loading ? (
@@ -430,7 +453,7 @@ export default function AndroidBuilderPage() {
 
                         <Button
                             onClick={() => handleGenerateApk('aab')}
-                            disabled={loading || !providerData?.logoUrl || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
+                            disabled={loading || settings.isSaving || !settings.config.logoUrl || (window.location.protocol === 'https:' && runtimeConfig.apkBuilderBaseUrl.startsWith('http:'))}
                             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                         >
                             {loading ? (

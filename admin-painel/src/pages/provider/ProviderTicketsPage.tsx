@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Loader2, MessageSquare, Search, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -8,50 +7,22 @@ import AddTicketDialog from '@/components/AddTicketDialog';
 import EmptyState from '@/components/EmptyState';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
-import { useApi } from '@/hooks/useApi';
-import { getErrorMessage } from '@/shared/errors';
+import { usePanelPage } from '@/hooks/usePanelPage';
+import { PageControls } from '@/components/PageControls';
 
 interface Ticket {
     id: string;
     subject: string;
     createdBy: string;
     status: 'Aberto' | 'Em Andamento' | 'Fechado';
-    updatedAt: { seconds: number; nanoseconds: number };
+    updatedAt: string;
 }
 
 export default function ProviderTicketsPage() {
     const navigate = useNavigate();
-    const { providerId } = useAuth();
-    const { callFunction } = useApi();
-    const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const page = usePanelPage<Ticket>('/admin/tickets/page');
+    const { data: tickets, loading, error, reload: loadTickets } = page;
     const [searchTerm, setSearchTerm] = useState('');
-
-    const loadTickets = useCallback(async () => {
-        if (!providerId) {
-            setError("Provider ID não encontrado");
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            const result = await callFunction('GET_PROVIDER_TICKETS', { providerId });
-            setTickets(result as unknown as Ticket[]);
-        } catch (err) {
-            console.error("Erro ao carregar tickets:", err);
-            setError(getErrorMessage(err, "Erro desconhecido"));
-        } finally {
-            setLoading(false);
-        }
-    }, [providerId, callFunction]);
-
-    // Carrega apenas uma vez quando o providerId está disponível
-    useEffect(() => {
-        if (providerId) void loadTickets();
-    }, [providerId, loadTickets]);
 
     const filteredTickets = tickets.filter(t =>
         t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -72,7 +43,7 @@ export default function ProviderTicketsPage() {
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="search"
-                                placeholder="Pesquisar..."
+                                placeholder="Buscar nesta página..."
                                 className="pl-8 w-full"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -90,6 +61,7 @@ export default function ProviderTicketsPage() {
                 { label: "" },
             ]}
             gridTemplate="130px 2.2fr 1.2fr .8fr 1fr 32px"
+            footer={<PageControls page={page} />}
             rows={!loading && !error ? filteredTickets : []}
             getRowKey={(ticket) => ticket.id}
             minWidth="900px"
@@ -126,7 +98,7 @@ export default function ProviderTicketsPage() {
                                 <span className="truncate text-[12.5px] text-[#4A5364]">{ticket.createdBy}</span>
                     <StatusBadge status="Média" tone="gray" />
                                 <span className="font-mono text-[11.5px] text-[#687181]">
-                                        {ticket.updatedAt ? new Date(ticket.updatedAt.seconds * 1000).toLocaleString('pt-BR') : 'N/A'}
+                                        {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString('pt-BR') : 'N/A'}
                                 </span>
                                 <ChevronRight className="h-3.5 w-3.5 justify-self-end text-[#B9C0CC]" />
                             </button>

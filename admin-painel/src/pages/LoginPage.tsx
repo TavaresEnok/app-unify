@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { preloadDashboardPages } from '@/app/dashboardPreload';
 import { startLoginTiming } from '@/shared/api/panelTiming';
@@ -14,6 +14,7 @@ import { startLoginTiming } from '@/shared/api/panelTiming';
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [failedAttempts, setFailedAttempts] = useState(0);
     const [lockedUntil, setLockedUntil] = useState<number | null>(null);
@@ -169,6 +170,7 @@ export default function LoginPage() {
                             <Input
                                 id="email"
                                 type="email"
+                                autoComplete="username"
                                 placeholder="voce@empresa.com.br"
                                 required
                                 value={email}
@@ -184,15 +186,31 @@ export default function LoginPage() {
                                     Esqueceu a senha?
                                 </button>
                             </div>
-                            <Input
-                                id="password"
-                                type="password"
-                                placeholder="••••••••"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                disabled={isLoading || isLocked}
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    autoComplete="current-password"
+                                    className="pr-12"
+                                    placeholder="••••••••"
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    disabled={isLoading || isLocked}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="absolute inset-y-0 right-0 w-11 px-0"
+                                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                                    aria-controls="password"
+                                    aria-pressed={showPassword}
+                                    onClick={() => setShowPassword(value => !value)}
+                                    disabled={isLoading || isLocked}
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                                </Button>
+                            </div>
                         </div>
 
                         {isLocked && (

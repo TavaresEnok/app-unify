@@ -1,10 +1,9 @@
 import type { Unsubscribe } from "firebase/firestore";
 import { subscribeProvider } from "@/features/providers/providerService";
-import { auth, db } from "@/firebase/config";
 import type { ProviderConfig } from "@/shared/contracts";
 import { fromFirestoreProviderConfig, toFirestoreProviderConfig } from "@/features/provider-settings/normalizers";
 import { publicProviderData } from "@/features/provider-settings/configBoundary";
-import { callFunctionRequest } from "@/shared/api/functionRequests";
+import { panelRequest, clearPanelReads } from "@/shared/api/panelHttp";
 
 export interface ProviderSettingsSnapshot {
   config: ProviderConfig;
@@ -21,8 +20,7 @@ export async function subscribeProviderSettings(
   }, onError);
 }
 export async function saveProviderSettings(providerId: string, config: ProviderConfig): Promise<void> {
-  if (!auth.currentUser) throw new Error("Sessão necessária.");
   const { publicConfig } = toFirestoreProviderConfig(config);
-  await callFunctionRequest(db, "UPDATE_PROVIDER_CONFIG", { providerId, config: publicConfig },
-    { requesterUid: auth.currentUser.uid });
+  await panelRequest(`/admin/providers/${encodeURIComponent(providerId)}/config`, { method: 'PATCH', body: publicConfig });
+  clearPanelReads();
 }

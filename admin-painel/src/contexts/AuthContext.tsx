@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { fetchDashboard, clearDashboardPrefetch } from '@/shared/api/dashboard';
 import { preloadDashboardPages } from '@/app/dashboardPreload';
 import { markPanelAuthReady } from '@/shared/api/panelTiming';
+import { resetPanelSession } from '@/shared/api/panelHttp';
 
 interface AuthContextType {
     user: User | null;
@@ -26,6 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // token é renovado, então mudanças de custom claims (ex.: revogação de
         // superAdmin) refletem no cliente sem exigir novo login.
         let version = 0;
+        let sessionKey: string | null = null;
         const refreshedLegacySessions = new Set<string>();
         const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
             const currentVersion = ++version;
@@ -40,6 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const claimedProviderId = typeof tokenResult.claims.providerId === 'string'
                         ? tokenResult.claims.providerId
                         : null;
+                    const nextSessionKey = JSON.stringify([currentUser.uid, tokenResult.claims.auth_time, tokenResult.claims.role, claimedProviderId, tokenResult.claims.superAdmin === true]);
+                    if (sessionKey !== nextSessionKey) { resetPanelSession(); sessionKey = nextSessionKey; }
 
                     setUser(currentUser);
                     if (tokenResult.claims.superAdmin === true) {
@@ -68,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         });
                     }
                 } else {
+                    resetPanelSession(); sessionKey = null;
                     clearDashboardPrefetch();
                     setUser(null);
                     setUserRole(null);
@@ -76,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch (error) {
                 if (currentVersion !== version) return;
                 console.error('[AuthContext] Falha ao validar a sessão.', error);
+                resetPanelSession(); sessionKey = null;
                 setUser(null);
                 setUserRole(null);
                 setProviderId(null);
