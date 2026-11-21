@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:app_provedor_unified/core/pages/shared_contrato_page.dart';
 import 'package:app_provedor_unified/core/pages/shared_meu_ip_page.dart';
 import 'package:app_provedor_unified/core/pages/unified_login_page.dart';
 import 'package:app_provedor_unified/core/widgets/diagnostics/diagnostic_view.dart';
@@ -28,5 +29,12 @@ void main() {
         '192.168.0.1 · 8.8.8.8');
     expect(formatDiagnosticValue('WiFi'), 'Wi-Fi');
     expect(formatDiagnosticValue('v1.0.9 (Build 10)'), 'v1.0.9 (Build 10)');
+  });
+
+  test('vencimento do contrato vira o dia do mês em qualquer formato', () {
+    expect(ContratoPage.dueDay('Vence em 6/11/2026'), 'Todo dia 6');
+    expect(ContratoPage.dueDay('20/11/2026'), 'Todo dia 20');
+    expect(ContratoPage.dueDay('2026-11-06'), 'Todo dia 6');
+    expect(ContratoPage.dueDay('Mensal'), 'Mensal');
   });
 }

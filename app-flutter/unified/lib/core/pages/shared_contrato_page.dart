@@ -22,10 +22,12 @@ class ContratoPage extends ConsumerWidget {
   }
 
   /// O contrato vence todo mês no mesmo dia: "20/11/2026" → "Todo dia 20".
-  String _dueDay(String value) {
-    final match =
-        RegExp(r'^\s*(\d{1,2})/\d{1,2}(/\d{2,4})?\s*$').firstMatch(value) ??
-            RegExp(r'^\s*\d{4}-\d{2}-(\d{2})').firstMatch(value);
+  /// O contrato vence todo mês no mesmo dia: "20/11/2026", "Vence em
+  /// 6/11/2026" ou "2026-11-06" viram "Todo dia 20" / "Todo dia 6".
+  static String dueDay(String value) {
+    final match = RegExp(r'(?<!\d)(\d{1,2})/\d{1,2}(?:/\d{2,4})?(?!\d)')
+            .firstMatch(value) ??
+        RegExp(r'\d{4}-\d{2}-(\d{2})').firstMatch(value);
     final day = int.tryParse(match?.group(1) ?? '');
     return day == null || day < 1 || day > 31 ? value.trim() : 'Todo dia $day';
   }
@@ -75,7 +77,7 @@ class ContratoPage extends ConsumerWidget {
             if (hasAmount)
               VibeKv('Valor mensal', AppFormatters.currency(user.valorFatura)),
             if (user.vencimentoFatura.trim().isNotEmpty)
-              VibeKv('Vencimento', _dueDay(user.vencimentoFatura)),
+              VibeKv('Vencimento', dueDay(user.vencimentoFatura)),
             if (name.isNotEmpty) VibeKv('Provedor', name),
           ]),
         ),
