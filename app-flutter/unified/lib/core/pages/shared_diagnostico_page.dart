@@ -8,9 +8,9 @@ import '../models/diagnostico_state.dart';
 import '../models/diagnostic_presentation.dart';
 import '../navigation/customer_routes.dart';
 import '../providers/providers.dart';
+import '../providers/history_count_provider.dart';
 import '../providers/connectivity_provider.dart';
 import '../providers/customer_capabilities_provider.dart';
-import '../theme/layout_tokens.dart';
 import '../services/diagnostico_service.dart';
 import '../services/diagnostic_history_store.dart';
 import '../services/subscriber_achievements.dart';
@@ -21,6 +21,8 @@ import 'shared_speed_test_page.dart';
 import 'shared_traceroute_page.dart';
 import 'customer/diagnostic_history_page.dart';
 import '../vibe/vibe_page_parts.dart';
+import '../vibe/vibe_text.dart';
+import '../vibe/vibe_tokens.dart';
 import '../navigation/customer_shell_scope.dart';
 
 /// All configured diagnostic IDs resolve to this journey and provider palette.
@@ -66,28 +68,18 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   Future<void> _start({bool complete = false}) async {
     if (!(_binding?.ensureReady() ?? false)) return;
     if (complete || widget.speedOnly) {
-      final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-                  title: Text(widget.speedOnly
-                      ? 'Iniciar teste de velocidade?'
-                      : 'Iniciar diagnóstico completo?'),
-                  content: Text(widget.speedOnly
-                      ? ref.read(connectivityStatusProvider).valueOrNull ==
-                              ConnectivityResult.mobile
-                          ? 'Você está usando dados móveis. O teste consome dados e mede a conexão desta operadora. Para avaliar a internet de casa, conecte-se ao Wi-Fi.'
-                          : 'O teste consome dados e mede a conexão deste celular. Para avaliar a internet de casa, conecte-se ao Wi-Fi.'
-                      : 'Inclui testes de velocidade, rota e rede local. Pode levar alguns minutos e consumir dados. Conecte-se ao Wi-Fi de casa para avaliar sua internet fixa.'),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Agora não')),
-                    FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: Text(widget.speedOnly
-                            ? 'Iniciar teste'
-                            : 'Iniciar diagnóstico'))
-                  ]));
+      final confirmed = await showVibeConfirm(context,
+          title: widget.speedOnly
+              ? 'O teste usa dados'
+              : 'Iniciar diagnóstico completo?',
+          message: widget.speedOnly
+              ? ref.read(connectivityStatusProvider).valueOrNull ==
+                      ConnectivityResult.mobile
+                  ? 'Você está nos dados móveis. O teste consome dados do seu plano de celular e mede a operadora, não a fibra de casa.'
+                  : 'O teste consome dados e mede a conexão deste celular. Para avaliar a internet de casa, fique no Wi-Fi.'
+              : 'Inclui velocidade, rota e rede local. Pode levar alguns minutos e consumir dados. Fique no Wi-Fi de casa para avaliar a sua fibra.',
+          confirmLabel: 'Iniciar',
+          cancelLabel: 'Cancelar');
       if (confirmed != true ||
           !mounted ||
           !(_binding?.ensureReady() ?? false)) {
@@ -127,8 +119,10 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               DateTime.now().toIso8601String(),
           'mode': state.runMode.name,
           'title': view.title,
+          'tone': view.tone,
           'summary': view.shareText(config.name),
         });
+        ref.invalidate(diagnosticHistoryCountProvider);
         final successful = state.testResultsDisplay.values
             .any((entry) => entry['status'] == TestStatus.success);
         final speedSuccessful = ['speedTestCustom', 'speedTestFast'].any(
@@ -185,72 +179,100 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
-        showDragHandle: true,
-        builder: (context) => SafeArea(
-                child: FractionallySizedBox(
-              heightFactor: .85,
+        backgroundColor: Colors.transparent,
+        builder: (sheet) {
+          final t = VibeTokens.of(sheet);
+          return Container(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(sheet).height * .85),
+            decoration: BoxDecoration(
+                color: t.card,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24))),
+            child: SafeArea(
+              top: false,
               child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text('Compartilhar resumo',
-                            style: TextStyle(
-                                fontSize: 24, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 12),
-                        const Text(
-                            'Confira o conteúdo abaixo. O resumo não inclui CPF, senhas, IP, nome da rede ou endereços dos aparelhos.'),
-                        const SizedBox(height: 16),
-                        Expanded(
-                            child: SingleChildScrollView(
-                                child: SelectableText(summary))),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                            icon: const Icon(Icons.ios_share),
-                            label: const Text('Escolher onde compartilhar'),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                                color: t.ink.withValues(alpha: .18),
+                                borderRadius: BorderRadius.circular(2))),
+                      ),
+                      const SizedBox(height: 16),
+                      Semantics(
+                        header: true,
+                        child: Text('Compartilhar resumo',
+                            style: vibeText(t, 19, 800, letterSpacingEm: -.01)),
+                      ),
+                      const SizedBox(height: 6),
+                      Text('O resumo não leva CPF, senha, nome da rede nem IP.',
+                          style:
+                              vibeText(t, 13, 500, color: t.mut, height: 1.45)),
+                      const SizedBox(height: 12),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                              color: t.ink.withValues(alpha: .06),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: SingleChildScrollView(
+                              child: SelectableText(summary,
+                                  style:
+                                      vibeMono(t.ink).copyWith(height: 1.55))),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      VibeTwo(
+                        VibePageButton(
+                            label: 'Copiar',
+                            icon: 'copy',
+                            ghost: true,
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                  ClipboardData(text: summary));
+                              if (sheet.mounted) {
+                                ScaffoldMessenger.of(sheet).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Resumo copiado.')));
+                              }
+                            }),
+                        VibePageButton(
+                            label: 'Enviar',
+                            icon: 'share',
                             onPressed: () async {
                               try {
                                 await Share.share(summary);
                               } catch (_) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                if (sheet.mounted) {
+                                  ScaffoldMessenger.of(sheet).showSnackBar(
                                       const SnackBar(
                                           content: Text(
                                               'Não conseguimos abrir o compartilhamento. Você pode copiar o resumo.')));
                                 }
                               }
                             }),
-                        TextButton.icon(
-                            icon: const Icon(Icons.copy_outlined),
-                            label: const Text('Copiar resumo'),
-                            onPressed: () async {
-                              await Clipboard.setData(
-                                  ClipboardData(text: summary));
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Resumo copiado.')));
-                              }
-                            }),
-                      ])),
-            )));
+                      ),
+                    ]),
+              ),
+            ),
+          );
+        });
   }
 
   Future<void> _leave() async {
-    final yes = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: const Text('Interromper e voltar?'),
-                content: const Text(
-                    'Os resultados já obtidos serão mantidos no histórico.'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Continuar verificando')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Interromper'))
-                ]));
+    final yes = await showVibeConfirm(context,
+        title: 'Interromper e voltar?',
+        message: 'Os resultados já obtidos ficam guardados no histórico.',
+        confirmLabel: 'Interromper',
+        cancelLabel: 'Continuar');
     if (yes != true || !mounted) return;
     await _cancel();
     if (!mounted) return;
@@ -262,13 +284,9 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final activeTokens = ref.watch(layoutTokensProvider);
-    final tokens = widget.appearance == null
-        ? activeTokens
-        : LayoutTokens.of(widget.appearance)
-            .withPrimary(activeTokens.primary)
-            .withBrightness(
-                activeTokens.isDark ? Brightness.dark : Brightness.light);
+    // O diagnóstico usa sempre o layout ativo do app: os estilos antigos por
+    // tela ([appearance]) trocavam o cabeçalho e as cores no meio da jornada.
+    final tokens = ref.watch(layoutTokensProvider);
     final config = ref.watch(configurationProvider).providerConfig;
     final wifiAvailable =
         ref.watch(wifiManagementAvailableProvider).valueOrNull == true;

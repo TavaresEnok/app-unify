@@ -58,7 +58,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Minha rede Wi-Fi'),
           menu && available ? findsOneWidget : findsNothing);
-      expect(find.text('Ping'), findsOneWidget);
+      expect(find.text('Teste de ping'), findsOneWidget);
     });
   }
 

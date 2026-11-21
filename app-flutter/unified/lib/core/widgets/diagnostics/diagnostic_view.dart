@@ -79,20 +79,25 @@ class DiagnosticView extends StatelessWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(state.geralStatusMessage,
-                          style: vibeText(t, 15, 700)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                        '${view.completed} de ${view.plannedKeys.length} verificações finalizadas',
-                        style: vibeText(t, 12.5, 500, color: t.mut)),
+                    Row(children: [
+                      Expanded(
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(state.geralStatusMessage,
+                              style:
+                                  vibeText(t, 14, 800, letterSpacingEm: -.02)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      VibeLabel(
+                          '${(view.completed + 1).clamp(1, view.plannedKeys.length)} de ${view.plannedKeys.length}'),
+                    ]),
                     const SizedBox(height: 10),
-                    LinearProgressIndicator(value: view.progress),
-                    const SizedBox(height: 14),
+                    VibeProgressBar(value: view.progress),
+                    const SizedBox(height: 10),
                     VibePageButton(
                         label: 'Parar',
+                        icon: 'g-stop',
                         ghost: true,
                         small: true,
                         expand: false,
@@ -126,37 +131,11 @@ class DiagnosticView extends StatelessWidget {
               index++)
             if (DiagnosticPresentation.groups[index].keys
                 .any(view.plannedKeys.contains)) ...[
-              VibeCard(
-                child: ExpansionTile(
-                  key: PageStorageKey('group-$index'),
-                  initiallyExpanded: !state.isTesting,
-                  tilePadding: EdgeInsets.zero,
-                  leading: Icon(
-                      const [
-                        Icons.phone_android_outlined,
-                        Icons.wifi,
-                        Icons.router_outlined,
-                        Icons.public,
-                      ][index],
-                      color: t.at),
-                  title: Text(DiagnosticPresentation.groups[index].title,
-                      style: vibeText(t, 14, 700)),
-                  subtitle: Text(
-                    DiagnosticPresentation.label(view
-                        .groupOutcome(DiagnosticPresentation.groups[index])),
-                    style: vibeText(t, 12.5, 500, color: t.mut),
-                  ),
-                  children: [
-                    for (final key in DiagnosticPresentation.groups[index].keys)
-                      if (view.plannedKeys.contains(key))
-                        MeasurementCard(
-                            testKey: key,
-                            measurement:
-                                state.testResultsDisplay[key] ?? const {},
-                            isTesting: state.isTesting),
-                  ],
-                ),
-              ),
+              DiagnosticGroupCard(
+                  key: ValueKey('group-$index'),
+                  group: DiagnosticPresentation.groups[index],
+                  icon: const ['cell', 'wifi', 'router', 'globe'][index],
+                  view: view),
               const SizedBox(height: 12),
             ],
           if (!state.isTesting) ...[
@@ -193,30 +172,245 @@ class DiagnosticView extends StatelessWidget {
         ],
         if (!speedOnly) ...[
           const SizedBox(height: 12),
-          VibeCard(
-            child: ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              title: Text('Outras ferramentas', style: vibeText(t, 14, 700)),
-              subtitle: Text('Rede Wi-Fi, ping e rota',
-                  style: vibeText(t, 12.5, 500, color: t.mut)),
-              children: [
-                for (final item in [
-                  ('wifi', 'Minha rede Wi-Fi', 'router'),
-                  ('ping', 'Ping', 'pulse'),
-                  ('trace_route', 'Rota da rede', 'g-route'),
-                ])
-                  if (toolEnabled?.call(item.$1) ?? true)
-                    VibeRow(
-                        icon: item.$3,
-                        title: item.$2,
-                        onTap: state.isTesting || onTool == null
-                            ? null
-                            : () => onTool!(item.$1)),
-              ],
-            ),
+          _Tools(
+            items: [
+              for (final item in const [
+                ('wifi', 'Minha rede Wi-Fi', 'router'),
+                ('ping', 'Teste de ping', 'pulse'),
+                ('trace_route', 'Rota da rede', 'g-route'),
+              ])
+                if (toolEnabled?.call(item.$1) ?? true) item,
+            ],
+            onTool: state.isTesting ? null : onTool,
           ),
         ],
       ],
+    );
+  }
+}
+
+/// "Outras ferramentas": linha que abre os atalhos (`data-a="tog"`).
+class _Tools extends StatefulWidget {
+  const _Tools({required this.items, required this.onTool});
+  final List<(String, String, String)> items;
+  final ValueChanged<String>? onTool;
+
+  @override
+  State<_Tools> createState() => _ToolsState();
+}
+
+class _ToolsState extends State<_Tools> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.items.isEmpty) return const SizedBox.shrink();
+    return VibeCard(
+      child: VibeRows(children: [
+        Semantics(
+          expanded: _open,
+          child: VibeRow(
+            icon: 'gear',
+            plainIcon: true,
+            title: 'Outras ferramentas',
+            subtitle: widget.items.map((item) => item.$2).join(', '),
+            trailing: VibeChevron(open: _open),
+            onTap: () => setState(() => _open = !_open),
+          ),
+        ),
+        if (_open)
+          for (final item in widget.items)
+            VibeRow(
+                icon: item.$3,
+                title: item.$2,
+                onTap: widget.onTool == null
+                    ? null
+                    : () => widget.onTool!(item.$1)),
+      ]),
+    );
+  }
+}
+
+/// Grupo do diagnóstico (`.g-row` + `.g-kv`): quantas verificações já
+/// terminaram, a cor do pior resultado e, aberto, cada valor medido.
+class DiagnosticGroupCard extends StatefulWidget {
+  const DiagnosticGroupCard(
+      {super.key, required this.group, required this.icon, required this.view});
+  final DiagnosticGroup group;
+  final String icon;
+  final DiagnosticPresentation view;
+
+  @override
+  State<DiagnosticGroupCard> createState() => _DiagnosticGroupCardState();
+}
+
+class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
+  bool? _open;
+
+  static const _names = {
+    'deviceInfo': 'Celular',
+    'batteryInfo': 'Bateria',
+    'wifiInfo': 'Wi-Fi',
+    'pingGateway': 'Resposta do roteador',
+    'lanScan': 'Dispositivos na rede',
+    'onuInfo': 'Sinal da fibra',
+    'publicIp': 'IP público',
+    'pingGoogle': 'Ping Google',
+    'pingCloudflare': 'Ping Cloudflare',
+    'traceroute': 'Rota pelo servidor',
+    'speedTestCustom': 'Velocidade no provedor',
+    'speedTestFast': 'Velocidade de referência',
+  };
+
+  static const _renames = {
+    'SSID': 'Rede',
+    'Força do Sinal': 'Força do sinal',
+    'IP Dispositivo': 'IP local',
+    'Gateway (Roteador)': 'Roteador',
+    'Conexão': 'Tipo de rede',
+    'Dispositivo': 'Modelo',
+    'Versão OS': 'Sistema',
+    'Versão do App': 'Versão do app',
+    'Nível': 'Bateria',
+    'Estado': 'Energia',
+    'Dispositivos encontrados': 'Dispositivos na rede',
+    'Freq': 'Frequência do roteador',
+  };
+
+  static VibeTone? _tone(DiagnosticOutcome outcome) => switch (outcome) {
+        DiagnosticOutcome.measured => VibeTone.ok,
+        DiagnosticOutcome.attention => VibeTone.warning,
+        _ => null,
+      };
+
+  /// Linhas de uma verificação: os valores medidos, um por linha, ou o
+  /// motivo de não haver valor.
+  List<VibeKv> _lines(String key) {
+    final view = widget.view;
+    final entry = view.state.testResultsDisplay[key] ?? const {};
+    final name = _names[key] ?? entry['label']?.toString() ?? key;
+    final outcome = view.outcome(key);
+    final dot = VibeDot(_tone(outcome));
+    switch (outcome) {
+      case DiagnosticOutcome.running:
+        return [VibeKv(name, 'Verificando…', muted: true)];
+      case DiagnosticOutcome.notVerified:
+        return [
+          VibeKv(name, view.state.isTesting ? 'Aguardando' : 'Não medido',
+              muted: true)
+        ];
+      case DiagnosticOutcome.permissionRequired:
+        return [VibeKv(name, 'Permita a localização para ler', leading: dot)];
+      case DiagnosticOutcome.unavailable:
+        return [VibeKv(name, 'Exige estar no Wi-Fi', leading: dot)];
+      case DiagnosticOutcome.inconclusive:
+        return [VibeKv(name, 'Sem resultado', leading: dot)];
+      case DiagnosticOutcome.measured:
+      case DiagnosticOutcome.attention:
+        break;
+    }
+    final metrics = entry['metrics'];
+    if (key.startsWith('ping') &&
+        metrics is Map &&
+        metrics['latencyMs'] is num) {
+      final latency = metrics['latencyMs'] as num;
+      final loss = metrics['lossPercent'];
+      return [
+        VibeKv(
+            name,
+            '${latency.toStringAsFixed(latency == latency.roundToDouble() ? 0 : 1)} ms'
+            '${loss is num && loss > 0 ? ', ${loss.round()}% de perda' : ''}',
+            leading: dot),
+      ];
+    }
+    if (key == 'traceroute') {
+      final hops = '${entry['result'] ?? ''}'
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .length;
+      final reached = metrics is Map && metrics['reached'] == true;
+      return [
+        VibeKv(
+            name,
+            '$hops ${hops == 1 ? 'salto' : 'saltos'}, '
+            '${reached ? 'destino alcançado' : 'rota parcial'}',
+            leading: VibeDot(reached ? VibeTone.ok : VibeTone.warning)),
+      ];
+    }
+    final suffix = switch (key) {
+      'speedTestCustom' => ' no provedor',
+      'speedTestFast' => ' de referência',
+      _ => '',
+    };
+    final lines = <VibeKv>[];
+    for (final raw
+        in MeasurementCard.displayResult(entry['result']).split('\n')) {
+      final line = raw.replaceAll('⚠️', '').trim();
+      // Os dados do roteador remoto repetem os do celular.
+      if (line.startsWith('[')) break;
+      final cut = line.indexOf(': ');
+      if (line.isEmpty || cut <= 0) continue;
+      final label = line.substring(0, cut).trim();
+      final value = line.substring(cut + 2).trim();
+      if (label == 'BSSID' ||
+          value.isEmpty ||
+          const ['N/A', 'Indisponível', 'null', 'Desconhecido']
+              .contains(value)) {
+        continue;
+      }
+      lines.add(VibeKv(
+          '${_renames[label] ?? label}$suffix', value == 'true' ? 'Sim' : value,
+          leading: dot));
+    }
+    return lines.isEmpty
+        ? [VibeKv(name, 'Dados obtidos', leading: dot)]
+        : lines;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final view = widget.view;
+    final keys = widget.group.keys.where(view.plannedKeys.contains).toList();
+    final done = keys
+        .where((key) => const [
+              DiagnosticOutcome.measured,
+              DiagnosticOutcome.attention,
+              DiagnosticOutcome.inconclusive,
+              DiagnosticOutcome.unavailable,
+              DiagnosticOutcome.permissionRequired,
+            ].contains(view.outcome(key)))
+        .length;
+    final outcomes = keys.map(view.outcome).toList();
+    final tone = outcomes.contains(DiagnosticOutcome.attention)
+        ? VibeTone.warning
+        : outcomes.contains(DiagnosticOutcome.measured)
+            ? (outcomes.every((value) => value == DiagnosticOutcome.measured)
+                ? VibeTone.ok
+                : VibeTone.warning)
+            : null;
+    final open = _open ?? !view.state.isTesting;
+    return VibeCard(
+      child: VibeRows(children: [
+        Semantics(
+          expanded: open,
+          child: VibeRow(
+            icon: widget.icon,
+            title: widget.group.title,
+            subtitle: done == 0
+                ? (view.state.isTesting ? 'Aguardando' : 'Não medido')
+                : '$done de ${keys.length} '
+                    '${keys.length == 1 ? 'verificado' : 'verificados'}',
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              VibeDot(tone),
+              const SizedBox(width: 12),
+              VibeChevron(open: open),
+            ]),
+            onTap: () => setState(() => _open = !open),
+          ),
+        ),
+        if (open)
+          for (final key in keys) ..._lines(key),
+      ]),
     );
   }
 }

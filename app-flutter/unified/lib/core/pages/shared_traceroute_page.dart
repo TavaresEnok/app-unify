@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 import '../providers/providers.dart';
 import '../services/traceroute_service.dart';
 import '../services/subscriber_achievements.dart';
-import '../vibe/vibe_icon.dart';
 import '../vibe/vibe_page_parts.dart';
 import '../vibe/vibe_text.dart';
 import '../vibe/vibe_tokens.dart';
@@ -105,15 +104,10 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
     final config = ref.watch(configurationProvider).providerConfig;
     final providerName = config?.name.trim();
     final result = _result;
     final hops = result?.hops ?? const <Map<String, dynamic>>[];
-    final fieldBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: t.line, width: 1.5),
-    );
     return VibePageScaffold(
       title: 'Tracert',
       subtitle: 'Rota da rede',
@@ -124,29 +118,14 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
         VibeCard(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           child: VibeGap(gap: 8, children: [
-            Text('IP público ou domínio', style: vibeText(t, 13, 650)),
-            TextField(
+            VibeField(
+              label: 'IP público ou domínio',
+              icon: 'g-route',
+              hint: 'Ex.: google.com',
               controller: _target,
               enabled: !_running,
               keyboardType: TextInputType.url,
-              autocorrect: false,
               textInputAction: TextInputAction.go,
-              style: vibeText(t, 15, 500),
-              decoration: InputDecoration(
-                hintText: 'Ex.: google.com',
-                prefixIcon: Align(
-                  widthFactor: 1.8,
-                  heightFactor: 1,
-                  child: VibeIcon('g-route', size: 16, color: t.mut),
-                ),
-                prefixIconConstraints: const BoxConstraints(minWidth: 38),
-                contentPadding: const EdgeInsets.fromLTRB(0, 12, 10, 12),
-                border: fieldBorder,
-                enabledBorder: fieldBorder,
-                disabledBorder: fieldBorder,
-                focusedBorder: fieldBorder.copyWith(
-                    borderSide: BorderSide(color: t.ac, width: 2)),
-              ),
               onSubmitted: (_) => _start(),
             ),
             if (_message != null) VibeErrorLine(_message!),
@@ -159,8 +138,7 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
             VibeNote(providerName?.isNotEmpty == true
                 ? 'A rota parte do servidor de $providerName.'
                 : 'A rota parte do servidor do provedor.'),
-            if (_running)
-              LinearProgressIndicator(color: t.ac, backgroundColor: t.line),
+            if (_running) const VibeProgressBar(),
           ]),
         ),
         if (hops.isNotEmpty)

@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../providers/providers.dart';
+import '../vibe/vibe_icon.dart';
+import '../vibe/vibe_page_parts.dart';
+import '../vibe/vibe_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Dialog de avaliação do app
@@ -65,12 +72,14 @@ class _RatingPromptDialogState extends State<RatingPromptDialog> {
       await prefs.setBool('rating_never_show', true);
       if (mounted) Navigator.pop(context);
 
-      // Abrir Play Store (substitua pelo package name real)
-      const playStoreUrl =
-          'https://play.google.com/store/apps/details?id=com.provedor.app';
-      if (await canLaunchUrl(Uri.parse(playStoreUrl))) {
-        await launchUrl(Uri.parse(playStoreUrl),
+      // A página do próprio app na loja, pelo identificador instalado.
+      try {
+        final package = (await PackageInfo.fromPlatform()).packageName;
+        await launchUrl(
+            Uri.parse('https://play.google.com/store/apps/details?id=$package'),
             mode: LaunchMode.externalApplication);
+      } catch (_) {
+        // Sem loja disponível, a nota fica só registrada como dada.
       }
     } else if (_selectedRating > 0) {
       // Avaliação negativa - agradecer e não mostrar mais
@@ -79,9 +88,7 @@ class _RatingPromptDialogState extends State<RatingPromptDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Obrigado pelo feedback! Vamos melhorar.'),
-            backgroundColor: Colors.green,
-          ),
+              content: Text('Obrigado pela avaliação. Vamos melhorar.')),
         );
       }
     }
@@ -98,120 +105,87 @@ class _RatingPromptDialogState extends State<RatingPromptDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Emoji animado
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 500),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: child,
-                );
-              },
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFEF3C7),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text('⭐', style: TextStyle(fontSize: 40)),
-                ),
+  Widget build(BuildContext context) => Consumer(builder: (context, ref, _) {
+        final t = ref.watch(layoutTokensProvider).vibe;
+        final rated = _selectedRating > 0;
+        return Dialog(
+          backgroundColor: t.card,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.all(24),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(t.rad < 14 ? 14 : t.rad)),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    color: t.ac, borderRadius: BorderRadius.circular(18)),
+                child: VibeIcon('g-star', size: 26, color: t.on),
               ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Gostando do App?',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 14),
+              Semantics(
+                header: true,
+                child: Text('Está gostando do app?',
+                    textAlign: TextAlign.center,
+                    style: vibeText(t, 19, 800, letterSpacingEm: -.01)),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Sua avaliação nos ajuda a melhorar!',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            // Stars rating
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedRating = index + 1),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      index < _selectedRating
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      size: 44,
-                      color: index < _selectedRating
-                          ? const Color(0xFFFBBF24)
-                          : Colors.grey[300],
+              const SizedBox(height: 6),
+              Text('Sua nota ajuda a melhorar o atendimento pelo app.',
+                  textAlign: TextAlign.center,
+                  style: vibeText(t, 13.5, 500, color: t.mut, height: 1.45)),
+              const SizedBox(height: 16),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                for (var star = 1; star <= 5; star++)
+                  Semantics(
+                    button: true,
+                    selected: star == _selectedRating,
+                    label: '$star ${star == 1 ? 'estrela' : 'estrelas'}',
+                    excludeSemantics: true,
+                    child: InkResponse(
+                      radius: 26,
+                      onTap: () => setState(() => _selectedRating = star),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: star <= _selectedRating
+                                  ? const Color(0xFFFEF0C7)
+                                  : t.ink.withValues(alpha: .07),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: VibeIcon('g-star',
+                                size: 20,
+                                color: star <= _selectedRating
+                                    ? const Color(0xFFB54708)
+                                    : t.mut),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 24),
-            // Submit button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _selectedRating > 0 ? _submitRating : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Enviar Avaliação',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+              ]),
+              const SizedBox(height: 18),
+              VibePageButton(
+                  label: 'Enviar avaliação',
+                  onPressed: rated ? _submitRating : null),
+              const SizedBox(height: 8),
+              VibeTwo(
+                VibePageButton(
+                    label: 'Depois', ghost: true, onPressed: _remindLater),
+                VibePageButton(
+                    label: 'Não mostrar', ghost: true, onPressed: _neverShow),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: _remindLater,
-                  child: Text(
-                    'Depois',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                TextButton(
-                  onPressed: _neverShow,
-                  child: Text(
-                    'Não mostrar',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+            ]),
+          ),
+        );
+      });
 }

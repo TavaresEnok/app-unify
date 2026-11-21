@@ -37,6 +37,7 @@ class VibeSheetHome extends ConsumerWidget {
               child: VibeLogo(
                   name: data.providerName,
                   logoUrl: data.logoUrl,
+                  height: 36,
                   onBrand: true),
             ),
           ),

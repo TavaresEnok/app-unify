@@ -90,7 +90,21 @@ class VibeTokens extends ThemeExtension<VibeTokens> {
     bool dark = false,
   }) {
     final id = normalize(layout);
-    final ac = Color(0xFF000000 | (brand.toARGB32() & 0xFFFFFF));
+    var ac = Color(0xFF000000 | (brand.toARGB32() & 0xFFFFFF));
+    // Marca de tom médio (como #0891B2, contraste 3,7 com branco): a
+    // superfície é levemente aprofundada até o texto branco ficar legível,
+    // preservando o matiz. O protótipo só usa texto branco sobre a marca;
+    // marcas claras de verdade (rosa, ciano) seguem a regra de texto escuro.
+    final whiteContrast = vibeContrast(Colors.white, ac);
+    if (whiteContrast < 4.5 && whiteContrast >= 3.3) {
+      for (var i = 1; i <= 20; i++) {
+        final deeper = vibeMix(ac, Colors.black, i * .02);
+        if (vibeContrast(Colors.white, deeper) >= 4.5) {
+          ac = deeper;
+          break;
+        }
+      }
+    }
     // Texto sobre a marca: branco quando é legível; senão o tom escuro da
     // própria marca (como `--on:#301025` no rosa da galeria) ou preto.
     final onCandidates = [
@@ -162,6 +176,10 @@ class VibeTokens extends ThemeExtension<VibeTokens> {
       dock: p,
     );
   }
+
+  /// "Wi-Fi" sem quebra de linha no meio. A Sora não tem o hífen sem quebra
+  /// (U+2011) e trocaria de fonte nesse caractere, então fica o hífen comum.
+  String get wifi => fontFamily == 'Sora' ? 'Wi-Fi' : 'Wi\u2011Fi';
 
   /// Fundo translúcido de selos, sino, avatar e botões sobre a marca.
   Color overlayOnBrand([double light = .18]) => on == Colors.white

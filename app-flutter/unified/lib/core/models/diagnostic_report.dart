@@ -63,8 +63,10 @@ class DiagnosticReport {
       wifi: WifiMetrics.fromEntry(d['wifiInfo']),
       onu: OnuMetrics.fromEntry(d['onuInfo']),
       device: DeviceMetrics.fromEntries(d['deviceInfo'], d['batteryInfo']),
-      gatewayPing: PingMetrics.fromEntry(d['pingGateway'], fallbackHost: 'Roteador'),
-      googlePing: PingMetrics.fromEntry(d['pingGoogle'], fallbackHost: '8.8.8.8'),
+      gatewayPing:
+          PingMetrics.fromEntry(d['pingGateway'], fallbackHost: 'Roteador'),
+      googlePing:
+          PingMetrics.fromEntry(d['pingGoogle'], fallbackHost: '8.8.8.8'),
       cloudflarePing:
           PingMetrics.fromEntry(d['pingCloudflare'], fallbackHost: '1.1.1.1'),
       speed: SpeedMetrics.fromState(state),
@@ -217,7 +219,8 @@ class PingMetrics {
       reachable: latency != null,
       latencyMs: latency,
       jitterMs: _labelledDouble(text, 'Jitter'),
-      lossPercent: _labelledDouble(text, 'Perda') ?? (latency == null ? 100 : 0),
+      lossPercent:
+          _labelledDouble(text, 'Perda') ?? (latency == null ? 100 : 0),
     );
   }
 
@@ -423,7 +426,8 @@ class DeviceMetrics {
     if (text == null && batteryEntry == null) return null;
 
     final batteryRaw = batteryEntry?['result'];
-    final battery = batteryRaw is Map ? Map<String, dynamic>.from(batteryRaw) : null;
+    final battery =
+        batteryRaw is Map ? Map<String, dynamic>.from(batteryRaw) : null;
 
     return DeviceMetrics(
       model: _labelled(text, 'Dispositivo'),

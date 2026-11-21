@@ -19,7 +19,8 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color fallbackBorder = borderColor ?? Colors.white.withValues(alpha: 0.08);
+    final Color fallbackBorder =
+        borderColor ?? Colors.white.withValues(alpha: 0.08);
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(

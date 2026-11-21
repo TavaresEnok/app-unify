@@ -16,8 +16,7 @@ class ProviderIncident {
     this.area,
   });
 
-  factory ProviderIncident.fromDoc(
-      DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory ProviderIncident.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
     return ProviderIncident(
       id: doc.id,

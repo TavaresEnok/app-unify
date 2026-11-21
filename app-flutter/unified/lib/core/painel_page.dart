@@ -120,7 +120,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           'Ofertas',
           'Do seu provedor',
           const PromotionsPage(),
-          false
+          true
         ),
       'services' => (
           'Todos os serviços',
@@ -166,7 +166,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           'Meu IP',
           'IP público e localização',
           LayoutSelector.getMeuIpPage(layoutType: layout),
-          false
+          true
         ),
       'internet_usage' => (
           'Consumo',
@@ -179,7 +179,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           'Somente consulta',
           LayoutSelector.getContratoPage(
               layoutType: layout, onNavigate: _navigate),
-          false
+          true
         ),
       'notifications' => (
           'Notificações',
@@ -191,7 +191,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
           'Perguntas frequentes',
           config.name.isEmpty ? null : 'Respostas da ${config.name}',
           LayoutSelector.getFaqPage(layoutType: layout, onNavigate: _navigate),
-          false
+          true
         ),
       'history' => (
           'Histórico de verificações',
@@ -308,7 +308,15 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     // A consulta da rede alimenta o Início e a marca da tela Dock.
     ref.watch(connectivityStatusProvider);
     if (user == null || config == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const ColoredBox(
+          color: Colors.white,
+          child: Center(
+              child: SizedBox(
+                  width: 96,
+                  child: LinearProgressIndicator(
+                      minHeight: 3,
+                      color: Color(0xFF18202C),
+                      backgroundColor: Color(0x1A18202C)))));
     }
     final theme = tokens.themeData(base: Theme.of(context));
     final t = theme.extension<VibeTokens>()!;

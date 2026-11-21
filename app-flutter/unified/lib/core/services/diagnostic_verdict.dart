@@ -99,9 +99,8 @@ class DiagnosticVerdictEngine {
 
     findings.sort((a, b) => b.severity.index.compareTo(a.severity.index));
 
-    final severity = findings.isEmpty
-        ? VerdictSeverity.ok
-        : findings.first.severity;
+    final severity =
+        findings.isEmpty ? VerdictSeverity.ok : findings.first.severity;
 
     final needsProvider = findings.any((f) =>
         f.severity != VerdictSeverity.ok &&
@@ -325,8 +324,9 @@ class DiagnosticVerdictEngine {
 
     // Wi-Fi fraco explica velocidade baixa sem que haja problema no plano.
     final weakWifi = (r.wifi?.signalDbm ?? 0) <= _wifiWeak;
-    final severity =
-        ratio < _speedBadRatio && !weakWifi ? VerdictSeverity.critical : VerdictSeverity.attention;
+    final severity = ratio < _speedBadRatio && !weakWifi
+        ? VerdictSeverity.critical
+        : VerdictSeverity.attention;
 
     out.add(VerdictFinding(
       severity: severity,
@@ -349,14 +349,12 @@ class DiagnosticVerdictEngine {
       case VerdictSeverity.attention:
         return 'Encontramos pontos de atenção';
       case VerdictSeverity.critical:
-        return findings.isEmpty
-            ? 'Problema detectado'
-            : findings.first.title;
+        return findings.isEmpty ? 'Problema detectado' : findings.first.title;
     }
   }
 
-  String _summary(
-      DiagnosticReport r, VerdictSeverity severity, List<VerdictFinding> findings) {
+  String _summary(DiagnosticReport r, VerdictSeverity severity,
+      List<VerdictFinding> findings) {
     if (severity == VerdictSeverity.ok) {
       final speed = r.speed;
       if (speed != null) {

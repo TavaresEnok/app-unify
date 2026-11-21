@@ -52,10 +52,9 @@ class TroubleshooterCard extends StatelessWidget {
         _safeResultString(state.testResultsDisplay['wifiInfo']?['result']);
     final pingResult =
         _safeResultString(state.testResultsDisplay['pingGateway']?['result']);
-    final batteryResult =
-        state.testResultsDisplay['batteryInfo']?['displayText'] as String? ??
-            _safeResultString(
-                state.testResultsDisplay['batteryInfo']?['result']);
+    final batteryResult = state.testResultsDisplay['batteryInfo']
+            ?['displayText'] as String? ??
+        _safeResultString(state.testResultsDisplay['batteryInfo']?['result']);
     final lanResult =
         _safeResultString(state.testResultsDisplay['lanScan']?['result']);
 

@@ -44,7 +44,8 @@ class InvoiceDetailPage extends ConsumerWidget {
     final finance = ref.watch(financeiroViewModelProvider);
     final current = finance.state == FinanceiroState.success &&
         finance.invoices.any((item) => _sameInvoice(item, invoice));
-    final plan = ref.watch(authNotifierProvider).valueOrNull?.plano.trim();
+    final plan =
+        AppFormatters.label(ref.watch(authNotifierProvider).valueOrNull?.plano);
     final view = VibeInvoiceView(invoice);
     final year = DateFormat('yyyy').format(invoice.vencimento);
     VoidCallback? when(VoidCallback action) => current ? action : null;
@@ -72,7 +73,7 @@ class InvoiceDetailPage extends ConsumerWidget {
         ),
         VibeCard(
           child: VibeKvList([
-            if (plan != null && plan.isNotEmpty) VibeKv('Plano', plan),
+            if (plan.isNotEmpty) VibeKv('Plano', plan),
             VibeKv('Referência', '${view.monthTitle} de $year'),
             VibeKv('Número', invoice.numero),
             VibeKv('Vencimento', AppFormatters.date(invoice.vencimento)),

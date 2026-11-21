@@ -8,6 +8,7 @@ import '../providers/providers.dart';
 import '../vibe/vibe_page_parts.dart';
 import '../vibe/vibe_text.dart';
 import '../vibe/vibe_tokens.dart';
+import '../utils/app_formatters.dart';
 
 class ConsumoPage extends ConsumerWidget {
   const ConsumoPage({super.key});
@@ -16,7 +17,8 @@ class ConsumoPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(consumoViewModelProvider);
     final controller = ref.read(consumoViewModelProvider.notifier);
-    final plan = ref.watch(authNotifierProvider).valueOrNull?.plano.trim();
+    final plan =
+        AppFormatters.label(ref.watch(authNotifierProvider).valueOrNull?.plano);
     final now = DateTime.now();
     final selectedMonth = DateTime(state.selectedYear, state.selectedMonth);
     final currentMonth =
@@ -43,7 +45,7 @@ class ConsumoPage extends ConsumerWidget {
 
     return VibePageScaffold(
       title: 'Consumo',
-      subtitle: plan?.isNotEmpty == true ? plan : null,
+      subtitle: plan.isNotEmpty ? plan : null,
       onBack: Navigator.of(context).canPop()
           ? () => Navigator.of(context).maybePop()
           : null,
@@ -57,10 +59,7 @@ class ConsumoPage extends ConsumerWidget {
               controller.changeMonth(month.month, month.year),
         ),
         if (state.isLoading)
-          const Padding(
-            padding: EdgeInsets.all(26),
-            child: Center(child: CircularProgressIndicator()),
-          )
+          const VibeLoading(blocks: 1, label: 'Carregando consumo')
         else if (state.error != null)
           VibeCard(
             child: VibeEmpty(
@@ -91,7 +90,7 @@ class ConsumoPage extends ConsumerWidget {
                 VibeLabel(
                     'Total em ${DateFormat.MMMM('pt_BR').format(selectedMonth)}'
                     '${currentMonth ? ' até hoje' : ''}'),
-                VibeBigText('${_gb.format(total)} GB'),
+                VibeBigText('${_total(total)} GB'),
                 const SizedBox(height: 10),
                 if (entries.isEmpty)
                   const VibeNote(
@@ -102,7 +101,7 @@ class ConsumoPage extends ConsumerWidget {
             ),
           ),
           const VibeNote(
-              'Dias sem dados informados não significam consumo zero.'),
+              'Este é o histórico informado pelo provedor. Dias sem dados não significam consumo zero.'),
         ],
       ],
     );
@@ -111,6 +110,12 @@ class ConsumoPage extends ConsumerWidget {
 
 final _gb =
     NumberFormat.decimalPatternDigits(locale: 'pt_BR', decimalDigits: 2);
+
+/// Total do mês como no layout: "214 GB", com uma casa só quando existe.
+String _total(double gb) => NumberFormat.decimalPatternDigits(
+        locale: 'pt_BR',
+        decimalDigits: gb >= 100 || gb == gb.roundToDouble() ? 0 : 1)
+    .format(gb);
 
 double? _validAmount(Object? value) {
   final amount = value is num ? value.toDouble() : double.tryParse('$value');
@@ -159,9 +164,9 @@ class _Months extends StatelessWidget {
                         child: Center(
                           child: ExcludeSemantics(
                             child: Text(
-                              DateFormat.MMM('pt_BR')
+                              toBeginningOfSentenceCase(DateFormat.MMM('pt_BR')
                                   .format(month)
-                                  .replaceAll('.', ''),
+                                  .replaceAll('.', '')),
                               textAlign: TextAlign.center,
                               style: vibeText(t, 13, 650,
                                   color: month == selected ? t.on : t.ink),

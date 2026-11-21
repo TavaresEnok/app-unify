@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Recoverable empty/error content; technical exceptions stay out of the UI.
+import '../vibe/vibe_controls.dart';
+import '../vibe/vibe_tokens.dart';
+
+/// Estado recuperável de uma tela (sem dados, erro, recurso indisponível),
+/// com as peças do layout aprovado. Detalhes técnicos ficam fora da tela.
 class ContentState extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -15,31 +19,33 @@ class ContentState extends StatelessWidget {
       this.actionLabel,
       this.onAction});
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Center(
-        child: SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 48, color: colors.onSurfaceVariant),
-          const SizedBox(height: 20),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          Text(message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: colors.onSurfaceVariant, fontSize: 16, height: 1.5)),
-          if (onAction != null && actionLabel != null) ...[
-            const SizedBox(height: 24),
-            FilledButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
-        ]),
-      ),
-    ));
+  /// Ícone de traço do layout equivalente ao ícone pedido.
+  static String _glyph(IconData icon) {
+    if (icon == Icons.cloud_off_outlined ||
+        icon == Icons.wifi_off ||
+        icon == Icons.wifi_off_outlined) {
+      return 'alert';
+    }
+    if (icon == Icons.error_outline) return 'alert';
+    if (icon == Icons.history) return 'clock';
+    if (icon == Icons.person_outline) return 'user';
+    if (icon == Icons.receipt_long_outlined) return 'file';
+    if (icon == Icons.support_agent) return 'chat';
+    return 'info';
   }
+
+  @override
+  Widget build(BuildContext context) => VibeStatePanel(
+        icon: _glyph(icon),
+        title: title,
+        message: message,
+        actionLabel: actionLabel,
+        onAction: onAction,
+        tone: icon == Icons.error_outline ||
+                icon == Icons.cloud_off_outlined ||
+                icon == Icons.wifi_off ||
+                icon == Icons.wifi_off_outlined
+            ? VibeTone.warning
+            : VibeTone.neutral,
+      );
 }

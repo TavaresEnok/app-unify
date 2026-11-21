@@ -19,10 +19,10 @@ void main() {
     await tester.scrollUntilVisible(find.text('Outras ferramentas'), 220);
     await tester.tap(find.text('Outras ferramentas'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Ping'));
+    await tester.ensureVisible(find.text('Teste de ping'));
     await tester.pumpAndSettle();
     expect(find.text('Minha rede Wi-Fi'), findsNothing);
-    await tester.tap(find.text('Ping'));
+    await tester.tap(find.text('Teste de ping'));
     expect(selected, 'ping');
   });
   testWidgets(
@@ -87,7 +87,7 @@ void main() {
         );
     await tester.pumpWidget(page(running));
     expect(find.text('Verificando a rede'), findsOneWidget);
-    expect(find.text('2 de 5 verificações finalizadas'), findsOneWidget);
+    expect(find.text('3 de 5'), findsOneWidget);
     await tester.tap(find.text('Parar'));
     expect(cancelled, isTrue);
     await tester.pumpWidget(page(running.copyWith(isTesting: false)));

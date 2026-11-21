@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'vibe_home_parts.dart' show VibeNetwork;
+export 'vibe_controls.dart';
 import 'vibe_icon.dart';
+import 'vibe_logo.dart';
 import 'vibe_text.dart';
 import 'vibe_tokens.dart';
 
@@ -387,11 +389,15 @@ class VibeRow extends StatelessWidget {
 
 /// Rótulo e valor (`.g-kv`).
 class VibeKv extends StatelessWidget {
-  const VibeKv(this.label, this.value, {super.key, this.leading});
+  const VibeKv(this.label, this.value,
+      {super.key, this.leading, this.muted = false});
 
   final String label;
   final String value;
   final Widget? leading;
+
+  /// Valor ainda sem medição (`.g-kv em`): cinza e sem peso.
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
@@ -399,14 +405,22 @@ class VibeKv extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: vibeText(t, 13.5, 500, color: t.mut)),
+        // O rótulo ocupa até 45% da linha; o valor fica com o restante,
+        // alinhado à direita.
+        ConstrainedBox(
+            constraints:
+                BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .4),
+            child: Text(label, style: vibeText(t, 13.5, 500, color: t.mut))),
         const SizedBox(width: 12),
         Expanded(
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             if (leading != null) ...[leading!, const SizedBox(width: 6)],
             Flexible(
                 child: Text(value,
-                    textAlign: TextAlign.right, style: vibeText(t, 13.5, 650))),
+                    textAlign: TextAlign.right,
+                    style: muted
+                        ? vibeText(t, 13.5, 500, color: t.mut)
+                        : vibeText(t, 13.5, 650))),
           ]),
         ),
       ]),
@@ -614,10 +628,13 @@ class VibePageChip extends StatelessWidget {
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      alignment: Alignment.center,
       decoration:
           BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-      child: Text(label, style: vibeText(t, 12, 700, color: fg, height: 1.1)),
+      // `widthFactor: 1`: o selo fica do tamanho do texto, sem esticar.
+      child: Center(
+          widthFactor: 1,
+          child: Text(label,
+              style: vibeText(t, 12, 700, color: fg, height: 1.1))),
     );
   }
 }
@@ -712,9 +729,15 @@ class VibePageAmount extends StatelessWidget {
       child: Text.rich(
         TextSpan(children: [
           TextSpan(
-              text: 'R\$ ',
+              text: 'R\$',
               style: vibeText(t, size * .42, 700,
                   height: 1, letterSpacingEm: -.03 / .42)),
+          // O espaço fica no tamanho do valor, como no protótipo
+          // (`<small>R$</small> 99`): é ele que separa o cifrão.
+          TextSpan(
+              text: ' ',
+              style: vibeText(t, size * .55, 800,
+                  height: 1, letterSpacingEm: -.03)),
           TextSpan(
               text: whole,
               style: vibeText(t, size, 800, height: 1, letterSpacingEm: -.03)),
@@ -977,12 +1000,11 @@ class VibeDockMasthead extends StatelessWidget {
     final t = VibeTokens.of(context);
     final p = t.dock!;
     final (icon, label) = switch (network) {
-      VibeNetwork.wifi => ('i-wifi', 'Wi‑Fi'),
+      VibeNetwork.wifi => ('i-wifi', t.wifi),
       VibeNetwork.mobile => ('i-speed', 'Dados'),
       VibeNetwork.offline => ('i-close', 'Sem rede'),
       VibeNetwork.unknown => ('i-wifi', 'Rede'),
     };
-    final url = logoUrl?.trim() ?? '';
     final word = providerName.trim().isEmpty ? '' : providerName.trim();
     return Container(
       color: p.base,
@@ -994,18 +1016,14 @@ class VibeDockMasthead extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (url.isNotEmpty)
-                  ConstrainedBox(
-                    constraints:
-                        const BoxConstraints(maxHeight: 26, maxWidth: 150),
-                    child: Image.network(url,
-                        height: 24,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.centerLeft,
-                        errorBuilder: (_, __, ___) => _word(t, p, word)),
-                  )
-                else
-                  _word(t, p, word),
+                VibeLogo(
+                  name: word,
+                  logoUrl: logoUrl,
+                  height: 26,
+                  maxWidth: 150,
+                  background: p.base,
+                  fallback: _word(t, p, word),
+                ),
                 Text(subtitle,
                     style: vibeText(t, 12, 550, color: p.ink, height: 1.12)),
               ]),

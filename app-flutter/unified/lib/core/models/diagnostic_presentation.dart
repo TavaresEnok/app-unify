@@ -113,6 +113,21 @@ class DiagnosticPresentation {
                   : completed < plannedKeys.length
                       ? 'Verificação parcial'
                       : 'Verificação concluída';
+
+  /// Resumo em uma cor para o histórico: tudo medido, algo a conferir ou
+  /// nada medido.
+  String get tone {
+    final outcomes = plannedKeys.map(outcome).toList();
+    if (!outcomes.contains(DiagnosticOutcome.measured) &&
+        !outcomes.contains(DiagnosticOutcome.attention)) {
+      return 'mut';
+    }
+    return state.wasInterrupted ||
+            outcomes.any((value) => value != DiagnosticOutcome.measured)
+        ? 'wa'
+        : 'ok';
+  }
+
   String get description => !hasResults && !state.isTesting
       ? 'Comece pela verificação rápida. O diagnóstico completo acrescenta velocidade, rota e rede local.'
       : state.isTesting

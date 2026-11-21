@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
+import '../../providers/history_count_provider.dart';
 import '../../providers/customer_capabilities_provider.dart';
 import '../../providers/network_state_provider.dart';
 import '../../navigation/customer_routes.dart';
 import '../../vibe/vibe_icon.dart';
 import '../../vibe/vibe_page_parts.dart';
 import '../../vibe/vibe_tokens.dart';
+import '../../utils/app_formatters.dart';
 
 /// Conexão (`PG.conexao` do layout aprovado): a rede do celular com o
 /// atalho para verificar, os testes e as ferramentas avançadas.
@@ -80,7 +82,8 @@ class _ConnectionHubPageState extends ConsumerState<ConnectionHubPage> {
         VibeRow(
             icon: 'clock',
             title: 'Histórico de verificações',
-            subtitle: 'Resultados salvos neste aparelho',
+            subtitle: diagnosticHistoryLabel(
+                ref.watch(diagnosticHistoryCountProvider).valueOrNull),
             onTap: () => go('history')),
       if (wifiAvailable && can('wifi'))
         VibeRow(
@@ -112,8 +115,9 @@ class _ConnectionHubPageState extends ConsumerState<ConnectionHubPage> {
     final t = VibeTokens.of(context);
     return VibePageScaffold(
       title: 'Conexão',
-      subtitle:
-          user?.plano.trim().isNotEmpty == true ? user!.plano.trim() : null,
+      subtitle: user?.plano.trim().isNotEmpty == true
+          ? AppFormatters.label(user!.plano)
+          : null,
       children: [
         VibeCard(
           main: true,

@@ -8,9 +8,9 @@ class ProviderConfig {
   final String name;
   final String apiUrl;
   final String
-  layoutType; // NOVO: Tipo de layout (layout_02, layout_03, layout_06, layout_07)
+      layoutType; // NOVO: Tipo de layout (layout_02, layout_03, layout_06, layout_07)
   final String?
-  diagnosticStyle; // Estilo de página de diagnóstico (diagnostic_02, diagnostic_03, etc.)
+      diagnosticStyle; // Estilo de página de diagnóstico (diagnostic_02, diagnostic_03, etc.)
   final ConfigSection config;
   final FeaturesSection features;
   final MenuConfig menuConfig;
@@ -81,9 +81,8 @@ class ProviderConfig {
 
     String? rootApiUrl = json['apiUrl'] as String?;
     String? configApiUrl = legacyConfig['apiUrl'] as String?;
-    String? finalApiUrl = rootApiUrl?.isNotEmpty == true
-        ? rootApiUrl
-        : configApiUrl;
+    String? finalApiUrl =
+        rootApiUrl?.isNotEmpty == true ? rootApiUrl : configApiUrl;
 
     // apiUrl: quando a configuração vem da API pública, é a URL que respondeu
     // (ConfigurationProvider a preenche); no fallback do Firestore, é o campo
@@ -104,12 +103,10 @@ class ProviderConfig {
     }
     effectiveApiUrl = _validateApiUrl(effectiveApiUrl);
 
-    final integrationsMap =
-        (json['integrations'] ?? legacyConfig['integrations'])
-            as Map<String, dynamic>? ??
+    final integrationsMap = (json['integrations'] ??
+            legacyConfig['integrations']) as Map<String, dynamic>? ??
         {};
-    var providerName =
-        json['name'] as String? ??
+    var providerName = json['name'] as String? ??
         integrationsMap['appName'] as String? ??
         'Provedor';
 
@@ -340,12 +337,12 @@ class LogoFraming {
   }
 
   Map<String, dynamic> toJson() => {
-    'shape': shape,
-    'fit': fit,
-    'zoom': zoom,
-    'x': x,
-    'y': y,
-  };
+        'shape': shape,
+        'fit': fit,
+        'zoom': zoom,
+        'x': x,
+        'y': y,
+      };
 }
 
 @immutable
@@ -386,8 +383,7 @@ class Promotion {
       badge: json['badge']?.toString() ?? '',
       startDate: date(json['startDate']),
       endDate: date(json['endDate']),
-      active:
-          json['active'] != false &&
+      active: json['active'] != false &&
           !const {'draft', 'expired'}.contains(json['status']),
       showCountdown: json['showCountdown'] == true,
     );
@@ -408,17 +404,17 @@ class Promotion {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'imageUrl': imageUrl,
-    'link': link,
-    'badge': badge,
-    'startDate': startDate?.toIso8601String(),
-    'endDate': endDate?.toIso8601String(),
-    'active': active,
-    'showCountdown': showCountdown,
-  };
+        'id': id,
+        'title': title,
+        'description': description,
+        'imageUrl': imageUrl,
+        'link': link,
+        'badge': badge,
+        'startDate': startDate?.toIso8601String(),
+        'endDate': endDate?.toIso8601String(),
+        'active': active,
+        'showCountdown': showCountdown,
+      };
 }
 
 @immutable
@@ -434,11 +430,11 @@ class PromotionsConfig {
       enabled: value['enabled'] == true,
       items: items is List
           ? items
-                .whereType<Map>()
-                .map(
-                  (item) => Promotion.fromJson(Map<String, dynamic>.from(item)),
-                )
-                .toList()
+              .whereType<Map>()
+              .map(
+                (item) => Promotion.fromJson(Map<String, dynamic>.from(item)),
+              )
+              .toList()
           : const [],
     );
   }
@@ -448,9 +444,9 @@ class PromotionsConfig {
       : const [];
 
   Map<String, dynamic> toJson() => {
-    'enabled': enabled,
-    'items': items.map((item) => item.toJson()).toList(),
-  };
+        'enabled': enabled,
+        'items': items.map((item) => item.toJson()).toList(),
+      };
 }
 
 @immutable

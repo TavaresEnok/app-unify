@@ -498,20 +498,26 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
           button: true,
           label: label,
           excludeSemantics: true,
-          child: Material(
-            color: p.card,
-            shape: CircleBorder(side: BorderSide(color: p.hair)),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => setState(() =>
-                  _offer = (index + delta + promos.length) % promos.length),
-              customBorder: const CircleBorder(),
-              child: SizedBox(
-                width: 44,
-                height: 44,
-                child: Center(
-                    child: VibeIcon(icon,
-                        size: 16, strokeWidth: 1.7, color: p.ink)),
+          // Área de toque de 44 px em volta do círculo de 27 px do desenho.
+          child: InkResponse(
+            radius: 22,
+            onTap: () => setState(
+                () => _offer = (index + delta + promos.length) % promos.length),
+            child: SizedBox(
+              width: 38,
+              height: 44,
+              child: Center(
+                child: Container(
+                  width: 27,
+                  height: 27,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: p.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: p.hair)),
+                  child:
+                      VibeIcon(icon, size: 14, strokeWidth: 1.7, color: p.ink),
+                ),
               ),
             ),
           ),
@@ -534,6 +540,7 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
             Text('${index + 1} de ${promos.length}',
                 style: vibeText(t, 12, 500,
                     color: p.muted, letterSpacingEm: -.0175)),
+            const SizedBox(width: 4),
             step(-1, 'i-left', 'Oferta anterior'),
             step(1, 'i-right', 'Próxima oferta'),
           ],

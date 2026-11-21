@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/vibe/vibe_logo.dart';
 import 'dart:ui'; // For PlatformDispatcher
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -265,6 +266,8 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   }
 }
 
+/// Abertura do app: a marca do provedor sobre branco, na mesma posição da
+/// tela de abertura nativa, com uma barra fina enquanto os dados carregam.
 class SplashScreen extends StatelessWidget {
   final Color backgroundColor;
   const SplashScreen({super.key, this.backgroundColor = Colors.white});
@@ -273,7 +276,33 @@ class SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: const Center(child: CircularProgressIndicator()),
+      body: Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          VibeLogo(
+            name: '',
+            image: const AssetImage('assets/images/logo_splash.png'),
+            height: 72,
+            maxWidth: 220,
+            background: backgroundColor,
+            fallback: const SizedBox(height: 72),
+          ),
+          const SizedBox(height: 28),
+          Semantics(
+            label: 'Carregando',
+            child: SizedBox(
+              width: 96,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: const LinearProgressIndicator(
+                  minHeight: 3,
+                  color: Color(0xFF18202C),
+                  backgroundColor: Color(0x1A18202C),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }

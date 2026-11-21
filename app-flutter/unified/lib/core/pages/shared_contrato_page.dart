@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
 import '../utils/app_formatters.dart';
-import '../widgets/customer_ui.dart';
-import '../widgets/content_state.dart';
+import '../vibe/vibe_page_parts.dart';
 
+/// Meu contrato (`PG.contrato` do layout aprovado): dados somente para
+/// consulta e o caminho para falar com o provedor.
 class ContratoPage extends ConsumerWidget {
   final ValueChanged<String>? onNavigate;
   const ContratoPage({super.key, this.onNavigate});
@@ -20,59 +21,75 @@ class ContratoPage extends ConsumerWidget {
     return 'Não informado';
   }
 
+  /// O contrato vence todo mês no mesmo dia: "20/11/2026" → "Todo dia 20".
+  String _dueDay(String value) {
+    final match =
+        RegExp(r'^\s*(\d{1,2})/\d{1,2}(/\d{2,4})?\s*$').firstMatch(value) ??
+            RegExp(r'^\s*\d{4}-\d{2}-(\d{2})').firstMatch(value);
+    final day = int.tryParse(match?.group(1) ?? '');
+    return day == null || day < 1 || day > 31 ? value.trim() : 'Todo dia $day';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(configurationProvider).providerConfig;
     final user = ref.watch(authNotifierProvider).valueOrNull;
+    final navigator = Navigator.of(context);
+    final back = navigator.canPop() ? () => navigator.maybePop() : null;
+    final name = config?.name.trim() ?? '';
     if (user == null) {
-      return const ContentState(
-          icon: Icons.person_outline,
-          title: 'Dados do contrato indisponíveis',
-          message: 'Entre novamente para consultar seu contrato.');
+      return VibePageScaffold(
+        title: 'Meu contrato',
+        subtitle: 'Somente consulta',
+        onBack: back,
+        children: const [
+          VibeCard(
+            child: VibeEmpty(
+                icon: 'user',
+                title: 'Dados do contrato indisponíveis',
+                text: 'Entre novamente para consultar seu contrato.'),
+          ),
+        ],
+      );
     }
-    Widget row(String label, String value) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(
-                child: Text(label,
-                    style: TextStyle(
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant))),
-            const SizedBox(width: 12),
-            Expanded(
-                child: Text(value.isEmpty ? 'Não informado' : value,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(fontWeight: FontWeight.w600))),
+    String shown(String value) =>
+        value.trim().isEmpty ? 'Não informado' : value;
+    final hasAmount = user.valorFatura.trim().isNotEmpty &&
+        user.valorFatura
+            .replaceAll(RegExp(r'[^0-9]'), '')
+            .contains(RegExp(r'[1-9]'));
+    final cnpj = user.cpfCnpj.replaceAll(RegExp(r'[^0-9]'), '').length == 14;
+    return VibePageScaffold(
+      title: 'Meu contrato',
+      subtitle: 'Somente consulta',
+      onBack: back,
+      children: [
+        VibeCard(
+          child: VibeKvList([
+            VibeKv('Titular', shown(AppFormatters.personName(user.nome))),
+            VibeKv(cnpj ? 'CNPJ' : 'CPF', _maskedDocument(user.cpfCnpj)),
+            VibeKv('Plano', shown(AppFormatters.label(user.plano))),
+            VibeKv('Situação', shown(user.contractStatus ?? '')),
+            if (user.contratoId != null)
+              VibeKv('Contrato', '${user.contratoId}'),
+            if (hasAmount)
+              VibeKv('Valor mensal', AppFormatters.currency(user.valorFatura)),
+            if (user.vencimentoFatura.trim().isNotEmpty)
+              VibeKv('Vencimento', _dueDay(user.vencimentoFatura)),
+            if (name.isNotEmpty) VibeKv('Provedor', name),
           ]),
-        );
-    return CustomerList(children: [
-      CustomerCard(
-          child: Column(children: [
-        row('Titular', user.nome),
-        row('CPF/CNPJ', _maskedDocument(user.cpfCnpj)),
-        row('Plano', user.plano),
-        row('Situação', user.contractStatus ?? ''),
-        if (user.contratoId != null) row('Contrato', '${user.contratoId}'),
-        if (user.valorFatura.trim().isNotEmpty &&
-            user.valorFatura
-                .replaceAll(RegExp(r'[^0-9]'), '')
-                .contains(RegExp(r'[1-9]')))
-          row('Valor informado', AppFormatters.currency(user.valorFatura)),
-        if (user.vencimentoFatura.trim().isNotEmpty)
-          row('Vencimento', user.vencimentoFatura),
-        if (config != null) row('Provedor', config.name),
-      ])),
-      if (onNavigate != null) ...[
-        const SizedBox(height: 16),
-        Text(
-            'Para alterar dados de cadastro ou trocar de plano, fale com seu provedor.',
-            style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 12),
-        OutlinedButton(
-            onPressed: () => onNavigate!('support'),
-            child: const Text('Falar com o suporte')),
+        ),
+        if (onNavigate != null) ...[
+          VibeNote(name.isEmpty
+              ? 'Para alterar dados de cadastro ou trocar de plano, fale com o seu provedor.'
+              : 'Para alterar dados de cadastro ou trocar de plano, fale com a $name.'),
+          VibePageButton(
+              label:
+                  name.isEmpty ? 'Falar com o provedor' : 'Falar com a $name',
+              ghost: true,
+              onPressed: () => onNavigate!('support')),
+        ],
       ],
-    ]);
+    );
   }
 }

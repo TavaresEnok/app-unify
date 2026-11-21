@@ -24,6 +24,7 @@ class PromotionsPage extends ConsumerWidget {
         const <Promotion>[];
     return VibePageScaffold(
       title: 'Ofertas',
+      subtitle: 'Do seu provedor',
       onBack: Navigator.of(context).canPop()
           ? () => Navigator.of(context).maybePop()
           : null,
@@ -102,10 +103,15 @@ class PromotionDetailsPage extends ConsumerWidget {
               else
                 _offerIcon(t),
               const SizedBox(height: 14),
-              if (promotion.badge.isNotEmpty)
-                Text(promotion.badge, style: vibeText(t, 12, 700, color: t.at)),
+              if (promotion.badge.isNotEmpty) ...[
+                Center(
+                    child: VibePageChip(
+                        label: promotion.badge, tone: VibeTone.neutral)),
+                const SizedBox(height: 8),
+              ],
               Text(promotion.title,
-                  textAlign: TextAlign.center, style: vibeText(t, 20, 800)),
+                  textAlign: TextAlign.center,
+                  style: vibeText(t, 19, 800, letterSpacingEm: -.01)),
               if (promotion.description.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(promotion.description,
@@ -130,18 +136,17 @@ class PromotionDetailsPage extends ConsumerWidget {
                   message:
                       'Olá! Tenho interesse na oferta ${promotion.title}.'))
         else
-          Text('Entre em contato com seu provedor para saber mais.',
-              style: vibeText(t, 13, 500, color: t.mut)),
+          const VibeNote('Fale com o seu provedor para saber mais.',
+              center: true),
       ],
     );
   }
 
   Widget _offerIcon(VibeTokens t) => Container(
-      width: 86,
-      height: 86,
+      width: 84,
+      height: 84,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-          color: t.ac.withValues(alpha: .12),
-          borderRadius: BorderRadius.circular(24)),
-      child: VibeIcon('gift', color: t.at, size: 42));
+      decoration:
+          BoxDecoration(color: t.hero, borderRadius: BorderRadius.circular(24)),
+      child: VibeIcon('gift', color: t.hx, size: 38));
 }

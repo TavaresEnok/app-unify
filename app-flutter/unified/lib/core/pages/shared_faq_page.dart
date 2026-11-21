@@ -1,74 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
-import '../widgets/customer_ui.dart';
+import '../vibe/vibe_page_parts.dart';
+import '../vibe/vibe_text.dart';
+import '../vibe/vibe_tokens.dart';
 
-class FaqPage extends ConsumerWidget {
+/// Perguntas frequentes (`PG.faq` do layout aprovado): perguntas em um
+/// cartão, cada uma abrindo a sua resposta.
+class FaqPage extends ConsumerStatefulWidget {
   final ValueChanged<String>? onNavigate;
   const FaqPage({super.key, this.onNavigate});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FaqPage> createState() => _FaqPageState();
+}
+
+class _FaqPageState extends ConsumerState<FaqPage> {
+  final _open = <int>{};
+
+  static const _defaults = <(String, String)>[
+    (
+      'Como pago a fatura pelo Pix?',
+      'Em Faturas, toque em Copiar Pix, abra o app do seu banco e cole o código na opção Pix copia e cola.'
+    ),
+    (
+      'Paguei e a internet não voltou. E agora?',
+      'A confirmação depende do meio de pagamento e do provedor. Consulte a liberação por confiança em Faturas ou fale com o atendimento.'
+    ),
+    (
+      'O que é a liberação por confiança?',
+      'Com a fatura vencida, você pode pedir a liberação temporária da internet enquanto o pagamento é confirmado, conforme as regras da sua conta.'
+    ),
+    (
+      'Como mudo a senha do Wi-Fi?',
+      'Se o seu roteador estiver integrado ao app, use Minha rede Wi-Fi em Conexão. Se não estiver, fale com o suporte.'
+    ),
+    (
+      'A internet está lenta. O que faço?',
+      'Rode a Verificar conexão. Ela mostra se o problema está no celular, no Wi-Fi, no roteador ou na fibra.'
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
     final config = ref.watch(configurationProvider);
+    final name = config.providerConfig?.name.trim() ?? '';
     final questions = config.providerConfig?.config.faq ?? [];
-    if (config.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (config.errorMessage != null) {
-      return Center(
-          child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(config.errorMessage!)));
-    }
     final entries = questions.isNotEmpty
         ? questions.map((q) => (q.question, q.answer)).toList()
-        : <(String, String)>[
-            (
-              'Como pago a fatura pelo Pix?',
-              'Em Faturas, selecione a mensalidade, copie o código Pix disponível e cole no aplicativo do seu banco.'
-            ),
-            (
-              'Paguei e a internet ainda não voltou. O que faço?',
-              'A confirmação depende do meio de pagamento e do provedor. Consulte as opções de liberação disponíveis em Faturas ou fale com o atendimento.'
-            ),
-            (
-              'O que é a liberação por confiança?',
-              'Quando disponível para sua fatura, esta opção permite solicitar a liberação temporária enquanto o pagamento é processado.'
-            ),
-            (
-              'Como altero o Wi-Fi?',
-              'Se o roteador estiver integrado ao aplicativo, abra Minha rede Wi-Fi em Conexão. Caso contrário, fale com o suporte.'
-            ),
-            (
-              'Minha internet está lenta. O que faço?',
-              'Use Verificar conexão para consultar os resultados dos testes disponíveis.'
-            ),
-          ];
-    return CustomerList(children: [
-      CustomerCard(
-          padding: EdgeInsets.zero,
-          child: Column(children: [
-            for (var i = 0; i < entries.length; i++) ...[
-              if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
-              ExpansionTile(
-                title: Text(entries[i].$1,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-                children: [
-                  Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(entries[i].$2))
-                ],
-              ),
-            ],
-          ])),
-      if (onNavigate != null) ...[
-        const SizedBox(height: 16),
-        OutlinedButton(
-            onPressed: () => onNavigate!('support'),
-            child: Text(
-                'Ainda com dúvida? Fale com ${config.providerConfig?.name ?? 'o suporte'}')),
+        : _defaults;
+    final navigator = Navigator.of(context);
+    return VibePageScaffold(
+      title: 'Perguntas frequentes',
+      subtitle: name.isEmpty ? 'Respostas rápidas' : 'Respostas da $name',
+      onBack: navigator.canPop() ? () => navigator.maybePop() : null,
+      children: [
+        if (config.isLoading && config.providerConfig == null)
+          const VibeLoading(label: 'Carregando perguntas')
+        else
+          VibeCard(
+            child: VibeRows(children: [
+              for (var i = 0; i < entries.length; i++)
+                Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Semantics(
+                        expanded: _open.contains(i),
+                        child: VibeRow(
+                          title: entries[i].$1,
+                          trailing: VibeChevron(open: _open.contains(i)),
+                          onTap: () => setState(() => _open.contains(i)
+                              ? _open.remove(i)
+                              : _open.add(i)),
+                        ),
+                      ),
+                      if (_open.contains(i))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(entries[i].$2,
+                              style: vibeText(t, 13, 500,
+                                  color: t.mut, height: 1.5)),
+                        ),
+                    ]),
+            ]),
+          ),
+        if (widget.onNavigate != null)
+          VibePageButton(
+              label: name.isEmpty || name.length > 8
+                  ? 'Ainda com dúvida? Fale com a gente'
+                  : 'Ainda com dúvida? Fale com a $name',
+              ghost: true,
+              onPressed: () => widget.onNavigate!('support')),
       ],
-    ]);
+    );
   }
 }

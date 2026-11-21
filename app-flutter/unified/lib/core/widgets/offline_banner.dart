@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../providers/connectivity_provider.dart';
+import '../vibe/vibe_icon.dart';
+import '../vibe/vibe_text.dart';
+import '../vibe/vibe_tokens.dart';
 
 class OfflineBanner extends ConsumerWidget {
   const OfflineBanner({super.key});
@@ -9,18 +12,26 @@ class OfflineBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final connection = ref.watch(connectivityStatusProvider).valueOrNull;
     if (connection != ConnectivityResult.none) return const SizedBox.shrink();
-    final colors = Theme.of(context).colorScheme;
-    return Container(
+    // Faixa escura como o aviso flutuante do protótipo (`.toast`), acima
+    // da barra de navegação.
+    final t = VibeTokens.of(context);
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: Container(
         width: double.infinity,
-        color: colors.error,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        color: const Color(0xFF141821),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(children: [
-          Icon(Icons.wifi_off_outlined, color: colors.onError),
-          const SizedBox(width: 12),
+          const VibeIcon('alert', size: 18, color: Color(0xFFFBBF4C)),
+          const SizedBox(width: 10),
           Expanded(
-              child: Text(
-                  'Seu celular está sem rede. Ative o Wi-Fi ou os dados móveis para atualizar as informações.',
-                  style: TextStyle(color: colors.onError, height: 1.4))),
-        ]));
+            child: Text(
+                'Celular sem rede. As informações podem estar desatualizadas.',
+                style: vibeText(t, 13, 600, color: Colors.white)),
+          ),
+        ]),
+      ),
+    );
   }
 }

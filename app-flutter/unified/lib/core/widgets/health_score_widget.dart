@@ -69,7 +69,8 @@ class HealthScoreWidget extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: score.color.withValues(alpha: 0.3), width: 1.5),
+        border:
+            Border.all(color: score.color.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Column(
         children: [

@@ -60,7 +60,8 @@ class _TestHistoryPageState extends State<TestHistoryPage> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Limpar Histórico?'),
-                    content: const Text('Todos os testes salvos serão removidos.'),
+                    content:
+                        const Text('Todos os testes salvos serão removidos.'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),

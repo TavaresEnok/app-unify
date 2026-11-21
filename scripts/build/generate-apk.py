@@ -338,11 +338,13 @@ flutter_launcher_icons:
         
         # Update flutter_native_splash.yaml to use provider logo
         splash_config_path = os.path.join(build_dir, 'flutter_native_splash.yaml')
+        # Fundo branco: a logo dos provedores costuma ter fundo branco ou
+        # transparente, e o app continua a abertura sobre branco (SplashScreen).
         splash_config_content = """flutter_native_splash:
-  color: "#0F172A"
+  color: "#FFFFFF"
   image: assets/images/logo_splash.png
   android_12:
-    color: "#0F172A"
+    color: "#FFFFFF"
     image: assets/images/logo_splash.png
   web: false
 """

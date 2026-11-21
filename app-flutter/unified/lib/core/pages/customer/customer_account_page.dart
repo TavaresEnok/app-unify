@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/providers.dart';
+import '../../providers/history_count_provider.dart';
 import '../../navigation/customer_routes.dart';
 import '../../vibe/vibe_icon.dart';
 import '../../vibe/vibe_page_parts.dart';
 import '../../vibe/vibe_text.dart';
 import '../../vibe/vibe_tokens.dart';
+import '../../utils/app_formatters.dart';
 
 /// Minha conta (`PG.conta` do layout aprovado): assinante, contrato,
 /// avisos, histórico, serviços do provedor e saída da conta.
@@ -44,7 +46,7 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
         : (names.first.characters.first +
                 (names.length > 1 ? names.last.characters.first : ''))
             .toUpperCase();
-    final plan = user?.plano.trim() ?? '';
+    final plan = AppFormatters.label(user?.plano);
     final contract = user?.contratoId;
     final suspended = user?.isSuspended == true;
     final status = user?.contractStatus?.trim();
@@ -83,7 +85,8 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
         VibeRow(
             icon: 'clock',
             title: 'Histórico de verificações',
-            subtitle: 'Resultados salvos neste aparelho',
+            subtitle: diagnosticHistoryLabel(
+                ref.watch(diagnosticHistoryCountProvider).valueOrNull),
             onTap: () => go('history')),
       if (can('achievements'))
         VibeRow(
@@ -115,7 +118,10 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user?.nome ?? 'Minha conta',
+                    Text(
+                        user == null
+                            ? 'Minha conta'
+                            : AppFormatters.personName(user.nome),
                         style: vibeText(t, 16, 700)),
                     if (plan.isNotEmpty || contract != null)
                       Text(

@@ -7,8 +7,6 @@ import '../../core/providers/providers.dart';
 import '../../core/services/onu_wifi_service.dart';
 import '../../core/services/subscriber_achievements.dart';
 import '../../core/vibe/vibe_page_parts.dart';
-import '../../core/vibe/vibe_text.dart';
-import '../../core/vibe/vibe_tokens.dart';
 
 class WifiPage extends ConsumerStatefulWidget {
   const WifiPage({super.key});
@@ -44,7 +42,6 @@ class _WifiPageState extends ConsumerState<WifiPage> {
   Widget build(BuildContext context) {
     final user = ref.watch(authNotifierProvider).valueOrNull;
     final controller = _controller;
-    final t = VibeTokens.of(context);
     return VibePageScaffold(
       title: 'Minha rede Wi-Fi',
       subtitle: user?.contratoId == null
@@ -55,13 +52,14 @@ class _WifiPageState extends ConsumerState<WifiPage> {
           : null,
       children: [
         if (controller == null)
-          const Center(child: CircularProgressIndicator())
+          const VibeLoading(blocks: 2, label: 'Consultando o roteador')
         else
           ValueListenableBuilder<WifiState>(
               valueListenable: controller,
               builder: (context, state, _) {
                 if (state.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const VibeLoading(
+                      blocks: 2, label: 'Consultando o roteador');
                 }
                 if (state.error != null) {
                   return VibeCard(
@@ -107,9 +105,8 @@ class _WifiPageState extends ConsumerState<WifiPage> {
                                     controller: controller)))),
                 ]));
               }),
-        Text(
-            'A senha atual não é exibida. As alterações dependem da integração com o roteador.',
-            style: vibeText(t, 12, 500, color: t.mut, height: 1.4)),
+        const VibeNote(
+            'A senha atual não é exibida. As alterações dependem da integração com o roteador.'),
         VibePageButton(
             label: 'Consultar novamente',
             icon: 'g-refresh',
@@ -130,10 +127,9 @@ class _EditWifiPage extends ConsumerStatefulWidget {
 }
 
 class _EditWifiPageState extends ConsumerState<_EditWifiPage> {
-  final _form = GlobalKey<FormState>();
   late final TextEditingController _ssid;
   final _password = TextEditingController();
-  bool _show = false;
+  String? _error;
   bool _saving = false;
   bool _sent = false;
 
@@ -151,7 +147,14 @@ class _EditWifiPageState extends ConsumerState<_EditWifiPage> {
   }
 
   Future<void> _save() async {
-    if (_saving || !_form.currentState!.validate()) return;
+    if (_saving) return;
+    final error = _ssid.text.trim().isEmpty
+        ? 'Informe o nome da rede.'
+        : _password.text.isNotEmpty && _password.text.length < 8
+            ? 'A senha precisa ter pelo menos 8 caracteres.'
+            : null;
+    setState(() => _error = error);
+    if (error != null) return;
     final user = ref.read(authNotifierProvider).valueOrNull;
     final config = ref.read(configurationProvider).providerConfig;
     setState(() {
@@ -178,7 +181,6 @@ class _EditWifiPageState extends ConsumerState<_EditWifiPage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
     return VibePageScaffold(
       title: 'Alterar rede Wi-Fi',
       subtitle: widget.network.ssid,
@@ -191,52 +193,36 @@ class _EditWifiPageState extends ConsumerState<_EditWifiPage> {
                   title: 'Alterações enviadas ao roteador',
                   text: 'Os aparelhos podem precisar se conectar novamente.')),
         VibeCard(
-            main: true,
-            child: Form(
-                key: _form,
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.network.frequency,
-                          style: vibeText(t, 12, 600, color: t.mut)),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                          controller: _ssid,
-                          maxLength: 32,
-                          decoration: const InputDecoration(
-                              labelText: 'Nome da rede',
-                              prefixIcon: Icon(Icons.wifi)),
-                          validator: (value) =>
-                              value == null || value.trim().isEmpty
-                                  ? 'Informe o nome da rede.'
-                                  : null),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                          controller: _password,
-                          obscureText: !_show,
-                          enableSuggestions: false,
-                          autocorrect: false,
-                          decoration: InputDecoration(
-                              labelText: 'Nova senha',
-                              hintText: 'Deixe em branco para manter',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                  tooltip:
-                                      _show ? 'Ocultar senha' : 'Mostrar senha',
-                                  icon: Icon(_show
-                                      ? Icons.visibility_off
-                                      : Icons.visibility),
-                                  onPressed: () =>
-                                      setState(() => _show = !_show))),
-                          validator: (value) => value != null &&
-                                  value.isNotEmpty &&
-                                  value.length < 8
-                              ? 'Use pelo menos 8 caracteres.'
-                              : null),
-                      const SizedBox(height: 12),
-                      Text('A senha precisa ter pelo menos 8 caracteres.',
-                          style: vibeText(t, 12, 500, color: t.mut)),
-                    ]))),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+              if (widget.network.frequency.isNotEmpty) ...[
+                VibeLabel(widget.network.frequency),
+                const SizedBox(height: 10),
+              ],
+              VibeField(
+                  label: 'Nome da rede',
+                  icon: 'wifi',
+                  controller: _ssid,
+                  maxLength: 32,
+                  enabled: !_saving,
+                  textInputAction: TextInputAction.next),
+              const SizedBox(height: 12),
+              VibeField(
+                  label: 'Nova senha',
+                  icon: 'lock',
+                  hint: 'Deixe em branco para manter',
+                  controller: _password,
+                  obscure: true,
+                  enabled: !_saving,
+                  onSubmitted: (_) => _save()),
+              const SizedBox(height: 10),
+              const VibeNote('A senha precisa ter pelo menos 8 caracteres.'),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Semantics(liveRegion: true, child: VibeErrorLine(_error!)),
+              ],
+            ])),
         VibePageButton(
             label: _saving ? 'Enviando ao roteador…' : 'Salvar alterações',
             onPressed: _saving ? null : _save),

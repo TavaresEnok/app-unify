@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -168,8 +167,8 @@ class DiagnosticReportService {
       verdict: verdict,
       reportUrl: reportUrl,
     );
-    final uri = Uri.parse(
-        'https://wa.me/$number?text=${Uri.encodeComponent(text)}');
+    final uri =
+        Uri.parse('https://wa.me/$number?text=${Uri.encodeComponent(text)}');
 
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       throw ReportDeliveryException(
@@ -216,7 +215,8 @@ class DiagnosticReportService {
       ..writeln('Relatório completo (PDF): $reportUrl');
 
     final requestId = _firestore.collection('function_requests').doc().id;
-    final requestRef = _firestore.collection('function_requests').doc(requestId);
+    final requestRef =
+        _firestore.collection('function_requests').doc(requestId);
     final responseRef =
         _firestore.collection('function_responses').doc(requestId);
 

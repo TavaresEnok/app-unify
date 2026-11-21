@@ -8,6 +8,7 @@ import 'package:app_provedor_unified/core/theme/layout_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:app_provedor_unified/core/vibe/vibe_tokens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TestConfiguration extends ConfigurationProvider {
@@ -114,14 +115,18 @@ void main() {
           reason: entry.key);
     }
   });
-  testWidgets('configured card color is rendered in its matching mode',
+  testWidgets('cores antigas do painel não alteram o layout aprovado',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
+    // Valores como os que o painel antigo gravava: fundo, cartão e textos
+    // fora do desenho. Só a cor da marca pode chegar à tela.
     final config = ProviderConfigNormalizer.fromFirestore({
       'layoutType': 'layout_02',
-      'backgroundColor': '#F0EAE2',
+      'themeColor': '#137650',
+      'backgroundColor': '#FDB8FF',
       'cardColor': '#EADDCF',
-      'textColor': '#25190E',
+      'textColor': '#EDEDED',
+      'textSecondaryColor': '#CBD5E1',
     }, 'test');
     final container = ProviderContainer(overrides: [
       configurationProvider.overrideWith((_) => TestConfiguration(config)),
@@ -136,21 +141,27 @@ void main() {
               )),
     ));
     await tester.pumpAndSettle();
+    final theme = Theme.of(tester.element(find.byType(CustomerCard)));
+    final v = theme.extension<VibeTokens>()!;
+    expect(v.ac, const Color(0xFF137650));
+    expect(v.bg, const Color(0xFFF5F6F9));
+    expect(v.card, Colors.white);
+    expect(v.ink, const Color(0xFF18202C));
+    expect(v.mut, const Color(0xFF596577));
+    expect(theme.scaffoldBackgroundColor, v.bg);
     final card = tester.widget<Container>(find
         .descendant(
           of: find.byType(CustomerCard),
           matching: find.byType(Container),
         )
         .first);
-    expect((card.decoration! as BoxDecoration).color, const Color(0xFFEADDCF));
-    expect(container.read(layoutTokensProvider).background,
-        const Color(0xFFF0EAE2));
+    expect((card.decoration! as BoxDecoration).color, Colors.white);
     await container.read(themeProvider).setThemeMode(ThemeMode.dark);
     await tester.pumpAndSettle();
-    final dark = container.read(layoutTokensProvider);
-    expect(dark.background, isNot(const Color(0xFFF0EAE2)));
-    expect(dark.card, isNot(const Color(0xFFEADDCF)));
-    expect(LayoutTokens.contrast(dark.textPrimary, dark.card),
+    final dark = container.read(layoutTokensProvider).vibe;
+    expect(dark.bg, const Color(0xFF101319));
+    expect(dark.card, const Color(0xFF1C2029));
+    expect(LayoutTokens.contrast(dark.ink, dark.card),
         greaterThanOrEqualTo(4.5));
   });
 }

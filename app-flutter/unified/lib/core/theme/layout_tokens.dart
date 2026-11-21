@@ -197,31 +197,14 @@ class LayoutTokens {
   }
 
   /// Tokens do layout aprovado (layout-app/vibe-5-definitivas.html) para a
-  /// cor da marca e a aparência atuais. Fundo, cartão e textos configurados
-  /// pelo provedor substituem os do layout; sem configuração, valem os do
-  /// protótipo.
-  VibeTokens get vibe {
-    final base =
-        VibeTokens.resolve(layout: layoutType, brand: primary, dark: isDark);
-    final standard = LayoutTokens.of(layoutType)
-        .withPrimary(primary)
-        .withBrightness(isDark ? Brightness.dark : Brightness.light);
-    // Valores quase iguais aos do layout (como os padrões gravados pelo
-    // painel, #F4F5F8 e #172033) contam como o próprio layout.
-    Color? custom(Color value, Color reference) {
-      final close = (value.r - reference.r).abs() * 255 <= 8 &&
-          (value.g - reference.g).abs() * 255 <= 8 &&
-          (value.b - reference.b).abs() * 255 <= 8;
-      return close ? null : value;
-    }
-
-    return base.copyWith(
-      bg: custom(background, standard.background),
-      card: custom(card, standard.card),
-      ink: custom(cardText ?? textPrimary, standard.textPrimary),
-      mut: custom(textSecondary, standard.textSecondary),
-    );
-  }
+  /// cor da marca e a aparência atuais.
+  ///
+  /// O desenho aprovado define fundo, cartões e textos: só a cor da marca e
+  /// o modo claro ou escuro variam, como na galeria do protótipo. As cores
+  /// avulsas gravadas pelo painel antigo (fundo, cartão, texto) não entram
+  /// aqui, porque descaracterizam o layout e quebram a hierarquia de texto.
+  VibeTokens get vibe =>
+      VibeTokens.resolve(layout: layoutType, brand: primary, dark: isDark);
 
   /// Componentes Material com a tipografia, as cores e os raios do layout
   /// aprovado, para que as telas comuns sigam o mesmo desenho.

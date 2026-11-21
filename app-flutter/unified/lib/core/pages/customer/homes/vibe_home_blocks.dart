@@ -211,7 +211,9 @@ class VibeNextInvoiceCard extends StatelessWidget {
               textScaler: scaler,
               maxLines: 1,
             )..layout();
-            return painter.width;
+            final width = painter.width;
+            painter.dispose();
+            return width;
           }
 
           final boletoWidth = textWidth('Boleto') + 20 + 6 + 24;
@@ -225,7 +227,9 @@ class VibeNextInvoiceCard extends StatelessWidget {
             textScaler: scaler,
             maxLines: 2,
           )..layout(maxWidth: pixWidth.clamp(0, double.infinity));
-          if (pixText.didExceedMaxLines) {
+          final mustStack = pixText.didExceedMaxLines;
+          pixText.dispose();
+          if (mustStack) {
             return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

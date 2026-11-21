@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../utils/app_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../models/in_app_notification.dart';
 import '../providers/providers.dart';
 import '../services/subscriber_achievements.dart';
@@ -196,8 +196,7 @@ class _NotificationTile extends ConsumerWidget {
                           style: vibeText(t, 12.5, 500,
                               color: t.mut, height: 1.4)),
                       const SizedBox(height: 4),
-                      Text(
-                          DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt),
+                      Text(AppFormatters.when(item.createdAt),
                           style: vibeText(t, 11.5, 500, color: t.mut)),
                     ]),
               ),

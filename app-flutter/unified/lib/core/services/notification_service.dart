@@ -126,7 +126,8 @@ class NotificationService with ChangeNotifier {
         if (timestamp != null && timestamp.isBefore(sevenDaysAgo)) continue;
 
         // Check if we already have this notification
-        if (_dismissed.contains(nId) || _notifications.any((n) => n.id == nId)) {
+        if (_dismissed.contains(nId) ||
+            _notifications.any((n) => n.id == nId)) {
           continue;
         }
 

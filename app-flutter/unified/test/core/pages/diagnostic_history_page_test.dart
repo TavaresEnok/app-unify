@@ -32,7 +32,7 @@ void main() {
             theme: LayoutTokens.of('layout_06').themeData(),
             home: const DiagnosticHistoryPage())));
     await tester.pumpAndSettle();
-    expect(find.text('Verificação concluída'), findsOneWidget);
+    expect(find.textContaining('Verificação concluída'), findsOneWidget);
     await tester.tap(find.text('Limpar histórico'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Limpar'));

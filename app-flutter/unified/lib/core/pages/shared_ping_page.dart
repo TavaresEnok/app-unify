@@ -8,7 +8,6 @@ import '../controllers/diagnostic_binding.dart';
 import '../models/diagnostico_state.dart';
 import '../services/diagnostico_service.dart';
 import '../vibe/vibe_page_parts.dart';
-import '../vibe/vibe_text.dart';
 import '../vibe/vibe_tokens.dart';
 
 class SharedPingPage extends ConsumerStatefulWidget {
@@ -80,7 +79,6 @@ class _SharedPingPageState extends ConsumerState<SharedPingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
     final result = _state.testResultsDisplay['pingGoogle'];
     final metrics = result?['metrics'];
     final responses = metrics is Map && metrics['responses'] is List
@@ -91,70 +89,59 @@ class _SharedPingPageState extends ConsumerState<SharedPingPage> {
     String format(dynamic value, String unit) => value is num
         ? '${value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1)}$unit'
         : '—';
-    return VibeHeaderPage(
+    final navigator = Navigator.of(context);
+    return VibePageScaffold(
       title: 'Teste de ping',
       subtitle: 'Cinco pacotes',
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      onBack: navigator.canPop() ? () => navigator.maybePop() : null,
+      children: [
         VibeCard(
-            main: true,
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('IP ou domínio', style: vibeText(t, 13, 650)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _target,
-                    enabled: !_state.isTesting,
-                    autocorrect: false,
-                    keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.public),
-                        border: OutlineInputBorder()),
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _start(),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(spacing: 8, runSpacing: 4, children: [
-                    for (final preset in [
-                      ('Google', '8.8.8.8'),
-                      ('Cloudflare', '1.1.1.1'),
-                      if (_gateway != null) ('Roteador', _gateway!)
-                    ])
-                      ChoiceChip(
-                        label: Text(preset.$1),
-                        selected: _target.text.trim() == preset.$2,
-                        onSelected: _state.isTesting
-                            ? null
-                            : (_) => setState(() => _target.text = preset.$2),
-                      ),
-                  ]),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    VibeErrorLine(_error!.replaceFirst('FormatException: ', ''))
-                  ],
-                  const SizedBox(height: 12),
-                  VibePageButton(
-                    icon: _state.isTesting ? 'g-stop' : 'g-play',
-                    label: _state.isTesting ? 'Parar' : 'Iniciar',
-                    ghost: _state.isTesting,
-                    onPressed: _service == null
-                        ? null
-                        : _state.isTesting
-                            ? () => _service?.stopAllTests()
-                            : _start,
-                  ),
-                ])),
-        if (responses.isNotEmpty || _state.isTesting) ...[
-          const SizedBox(height: 12),
+              VibeField(
+                label: 'IP ou domínio',
+                icon: 'globe',
+                controller: _target,
+                enabled: !_state.isTesting,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.go,
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _start(),
+              ),
+              const SizedBox(height: 10),
+              VibeChoiceChips<String>(
+                options: [
+                  ('8.8.8.8', 'Google'),
+                  ('1.1.1.1', 'Cloudflare'),
+                  if (_gateway != null) (_gateway!, 'Roteador'),
+                ],
+                selected: _target.text.trim(),
+                enabled: !_state.isTesting,
+                onSelected: (host) => setState(() => _target.text = host),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                VibeErrorLine(_error!.replaceFirst('FormatException: ', ''))
+              ],
+              const SizedBox(height: 10),
+              VibePageButton(
+                icon: _state.isTesting ? 'g-stop' : 'g-play',
+                label: _state.isTesting ? 'Parar' : 'Iniciar',
+                ghost: _state.isTesting,
+                onPressed: _service == null
+                    ? null
+                    : _state.isTesting
+                        ? () => _service?.stopAllTests()
+                        : _start,
+              ),
+            ])),
+        if (responses.isNotEmpty || _state.isTesting)
           PingPacketResults(responses: responses, running: _state.isTesting),
-        ],
-        if (!_state.isTesting && result?['status'] == TestStatus.error) ...[
-          const SizedBox(height: 12),
+        if (!_state.isTesting && result?['status'] == TestStatus.error)
           VibeErrorLine(result?['result']?.toString() ??
               'Não foi possível executar o ping.'),
-        ],
-        if (measured) ...[
-          const SizedBox(height: 12),
+        if (measured)
           VibeCard(
               child: VibeKvList([
             VibeKv('Latência média', format(summary['latencyMs'], ' ms')),
@@ -167,15 +154,10 @@ class _SharedPingPageState extends ConsumerState<SharedPingPage> {
                     : '—'),
             VibeKv('Perda de pacotes', format(summary['lossPercent'], '%')),
           ])),
-        ],
-        if (_state.wasInterrupted) ...[
-          const SizedBox(height: 12),
-          const VibeNote('Teste interrompido.')
-        ],
-        const SizedBox(height: 12),
+        if (_state.wasInterrupted) const VibeNote('Teste interrompido.'),
         const VibeNote(
-            'Alguns destinos bloqueiam ICMP. A ausência de resposta ao ping, sozinha, não comprova falta de internet.'),
-      ]),
+            'Alguns destinos não respondem a ping. Ficar sem resposta, sozinho, não comprova falta de internet.'),
+      ],
     );
   }
 }
@@ -198,7 +180,11 @@ class PingPacketResults extends StatelessWidget {
             responses[index]['timeout'] == true
                 ? 'Tempo esgotado'
                 : '${responses[index]['timeMs']} ms',
+            leading: VibeDot(responses[index]['timeout'] == true
+                ? VibeTone.bad
+                : VibeTone.ok),
           ),
-        if (running) const VibeKv('Próximo pacote', 'Enviando…'),
+        if (running)
+          VibeKv('Pacote ${responses.length + 1}', 'Enviando…', muted: true),
       ]));
 }

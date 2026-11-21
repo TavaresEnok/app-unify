@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'vibe_icon.dart';
+export 'vibe_logo.dart';
 import 'vibe_text.dart';
 import 'vibe_tokens.dart';
 
@@ -283,7 +284,7 @@ class VibeConnectionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
     final (icon, label, tone) = switch (network) {
-      VibeNetwork.wifi => ('wifi', 'Celular no Wi‑Fi', VibeTone.ok),
+      VibeNetwork.wifi => ('wifi', 'Celular no ${t.wifi}', VibeTone.ok),
       VibeNetwork.mobile => (
           'cell',
           'Celular nos dados móveis',
@@ -497,61 +498,6 @@ class VibeProfileHeader extends StatelessWidget {
         VibeBell(onTap: onBell!, unread: unread, onBrand: onBrand),
       ],
     ]);
-  }
-}
-
-/// Marca do provedor: logotipo enviado ou a inicial e o nome (`.lg`).
-class VibeLogo extends StatelessWidget {
-  const VibeLogo(
-      {super.key, required this.name, this.logoUrl, this.onBrand = false});
-
-  final String name;
-  final String? logoUrl;
-  final bool onBrand;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
-    final mark = Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-          color: onBrand ? Colors.white : t.ac,
-          borderRadius: BorderRadius.circular(9)),
-      alignment: Alignment.center,
-      child: Text(name.isEmpty ? '?' : name.characters.first.toUpperCase(),
-          style: vibeText(t, 16, 800,
-              color: onBrand ? t.whiteButtonText : t.on, height: 1)),
-    );
-    final word = Flexible(
-        child: Text(name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: vibeText(t, 20, 800,
-                color: onBrand ? t.on : t.ink,
-                height: 1,
-                letterSpacingEm: -.04)));
-    final url = logoUrl?.trim() ?? '';
-    return Semantics(
-      label: name,
-      excludeSemantics: true,
-      child: url.isEmpty
-          ? Row(mainAxisSize: MainAxisSize.min, children: [
-              mark,
-              const SizedBox(width: 8),
-              word,
-            ])
-          : ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 160, maxHeight: 34),
-              child: Image.network(url,
-                  height: 30,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.centerLeft,
-                  errorBuilder: (_, __, ___) => Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [mark, const SizedBox(width: 8), word])),
-            ),
-    );
   }
 }
 

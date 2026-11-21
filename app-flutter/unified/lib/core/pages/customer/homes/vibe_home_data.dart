@@ -12,8 +12,10 @@ import '../../../providers/financeiro_provider.dart';
 import '../../../providers/providers.dart';
 import '../../../vibe/vibe_home_parts.dart';
 import '../../../vibe/vibe_invoice.dart';
+import '../../../vibe/vibe_tokens.dart';
 import '../../invoice_detail_page.dart';
 import '../promotions_page.dart';
+import '../../../utils/app_formatters.dart';
 
 /// Dados do Início compartilhados pelos cinco layouts aprovados.
 class VibeHomeData {
@@ -84,7 +86,7 @@ class VibeHomeData {
     return (first + last).toUpperCase();
   }
 
-  String get plan => user?.plano.trim() ?? '';
+  String get plan => AppFormatters.label(user?.plano);
   String get providerName => config?.name.trim() ?? '';
   String? get logoUrl => config?.config.logoUrl;
 
@@ -156,7 +158,8 @@ class VibeHomeData {
     route('account', 'Minha conta', 'user');
     route('achievements', 'Conquistas', 'g-trophy');
     if (promotions.isNotEmpty) route('promotions', 'Ofertas', 'gift');
-    if (wifiAvailable) route('wifi', 'Meu Wi‑Fi', 'wifi');
+    if (wifiAvailable)
+      route('wifi', 'Meu ${VibeTokens.of(context).wifi}', 'wifi');
     return items;
   }
 

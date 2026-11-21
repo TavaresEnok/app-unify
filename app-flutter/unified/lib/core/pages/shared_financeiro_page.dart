@@ -35,7 +35,8 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     final ready = finance.state == FinanceiroState.success;
     final subtitle = [
       if (user?.contratoId != null) 'Contrato ${user!.contratoId}',
-      if (user?.plano.trim().isNotEmpty == true) user!.plano.trim(),
+      if (user?.plano.trim().isNotEmpty == true)
+        AppFormatters.label(user!.plano),
     ].join(' · ');
 
     final children = <Widget>[

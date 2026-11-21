@@ -107,11 +107,13 @@ class PdfGeneratorService {
     DiagnosticVerdict verdict, {
     Uint8List? providerLogo,
   }) async {
-    final bytes = await buildPdfBytes(report, verdict, providerLogo: providerLogo);
+    final bytes =
+        await buildPdfBytes(report, verdict, providerLogo: providerLogo);
     final file = await writeToTempFile(bytes, report);
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Relatório de diagnóstico de rede — ${_formatDate(report.generatedAt)}',
+      text:
+          'Relatório de diagnóstico de rede — ${_formatDate(report.generatedAt)}',
     );
   }
 
@@ -198,12 +200,12 @@ class PdfGeneratorService {
           pw.Expanded(child: _infoCell('CPF/CNPJ', c.maskedDocument)),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _infoCell(
-                  'Contrato', c.contractId?.toString() ?? '---')),
+              child: _infoCell('Contrato', c.contractId?.toString() ?? '---')),
         ]),
         pw.SizedBox(height: 8),
         pw.Row(children: [
-          pw.Expanded(flex: 2, child: _infoCell('Plano contratado', c.planName)),
+          pw.Expanded(
+              flex: 2, child: _infoCell('Plano contratado', c.planName)),
           pw.SizedBox(width: 8),
           pw.Expanded(
               child: _infoCell(
@@ -290,9 +292,7 @@ class PdfGeneratorService {
           pw.SizedBox(height: 3),
           pw.Text('O que fazer: ${f.recommendation}',
               style: pw.TextStyle(
-                  fontSize: 8.5,
-                  color: _grey,
-                  fontStyle: pw.FontStyle.italic)),
+                  fontSize: 8.5, color: _grey, fontStyle: pw.FontStyle.italic)),
         ],
       ),
     );
@@ -398,8 +398,9 @@ class PdfGeneratorService {
   pw.Widget _speedCard(DiagnosticReport r) {
     final s = r.speed!;
     final contracted = r.customer.contractedDownloadMbps;
-    final ratio =
-        contracted == null || contracted <= 0 ? null : s.downloadMbps / contracted;
+    final ratio = contracted == null || contracted <= 0
+        ? null
+        : s.downloadMbps / contracted;
 
     return _card(
       title: 'VELOCIDADE DE INTERNET',
@@ -408,17 +409,23 @@ class PdfGeneratorService {
       child: pw.Column(children: [
         pw.Row(children: [
           pw.Expanded(
-              child: _metricBox('Download',
-                  '${s.downloadMbps.toStringAsFixed(1)} Mbps', _speedColor(s.downloadMbps))),
+              child: _metricBox(
+                  'Download',
+                  '${s.downloadMbps.toStringAsFixed(1)} Mbps',
+                  _speedColor(s.downloadMbps))),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _metricBox('Upload',
-                  '${s.uploadMbps.toStringAsFixed(1)} Mbps', _speedColor(s.uploadMbps * 2))),
+              child: _metricBox(
+                  'Upload',
+                  '${s.uploadMbps.toStringAsFixed(1)} Mbps',
+                  _speedColor(s.uploadMbps * 2))),
           pw.SizedBox(width: 8),
           pw.Expanded(
               child: _metricBox(
                   'Ping (Servidor)',
-                  s.pingMs == null ? '---' : '${s.pingMs!.toStringAsFixed(0)} ms',
+                  s.pingMs == null
+                      ? '---'
+                      : '${s.pingMs!.toStringAsFixed(0)} ms',
                   _pingColor(s.pingMs ?? 0))),
         ]),
         if (ratio != null) ...[
@@ -539,9 +546,8 @@ class PdfGeneratorService {
     final rxColor = rx == null
         ? _grey
         : (rx >= -20 ? _green : (rx >= -25 ? _yellow : _red));
-    final txColor = tx == null
-        ? _grey
-        : (tx >= 1 ? _green : (tx >= 0 ? _yellow : _red));
+    final txColor =
+        tx == null ? _grey : (tx >= 1 ? _green : (tx >= 0 ? _yellow : _red));
 
     return _card(
       title: 'FIBRA ÓPTICA / ONU',
@@ -550,22 +556,29 @@ class PdfGeneratorService {
       child: pw.Column(children: [
         pw.Row(children: [
           pw.Expanded(
-              child: _metricBox(
-                  'Status', o.status, o.isOnline ? _green : _red)),
+              child:
+                  _metricBox('Status', o.status, o.isOnline ? _green : _red)),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _metricBox('Qualidade', o.signalQuality,
-                  o.signalQuality.contains('Exc') || o.signalQuality.contains('Boa')
+              child: _metricBox(
+                  'Qualidade',
+                  o.signalQuality,
+                  o.signalQuality.contains('Exc') ||
+                          o.signalQuality.contains('Boa')
                       ? _green
                       : _yellow)),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _metricBox('Sinal RX',
-                  rx == null ? '---' : '${rx.toStringAsFixed(1)} dBm', rxColor)),
+              child: _metricBox(
+                  'Sinal RX',
+                  rx == null ? '---' : '${rx.toStringAsFixed(1)} dBm',
+                  rxColor)),
           pw.SizedBox(width: 8),
           pw.Expanded(
-              child: _metricBox('Sinal TX',
-                  tx == null ? '---' : '${tx.toStringAsFixed(1)} dBm', txColor)),
+              child: _metricBox(
+                  'Sinal TX',
+                  tx == null ? '---' : '${tx.toStringAsFixed(1)} dBm',
+                  txColor)),
         ]),
         pw.SizedBox(height: 8),
         pw.Row(children: [

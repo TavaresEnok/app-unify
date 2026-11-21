@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../navigation/customer_shell_scope.dart';
 import '../../providers/providers.dart';
+import '../../providers/history_count_provider.dart';
 import '../../services/diagnostic_history_store.dart';
 import '../../utils/app_formatters.dart';
 import '../../vibe/vibe_page_parts.dart';
@@ -21,6 +22,7 @@ class DiagnosticHistoryPage extends ConsumerStatefulWidget {
 class _DiagnosticHistoryPageState extends ConsumerState<DiagnosticHistoryPage> {
   late Future<List<Map<String, dynamic>>> _history;
   DiagnosticHistoryStore? _store;
+  final _open = <String>{};
   bool _confirmClear = false;
   bool _clearing = false;
 
@@ -48,6 +50,7 @@ class _DiagnosticHistoryPageState extends ConsumerState<DiagnosticHistoryPage> {
     setState(() => _clearing = true);
     try {
       await _store?.clear();
+      ref.invalidate(diagnosticHistoryCountProvider);
       if (mounted) {
         setState(() {
           _confirmClear = false;
@@ -77,7 +80,9 @@ class _DiagnosticHistoryPageState extends ConsumerState<DiagnosticHistoryPage> {
           title: 'Histórico de verificações',
           subtitle: '${items.length} de 20',
           body: snapshot.connectionState != ConnectionState.done
-              ? const Center(child: CircularProgressIndicator())
+              ? ListView(
+                  padding: const EdgeInsets.all(14),
+                  children: const [VibeLoading(label: 'Carregando histórico')])
               : snapshot.hasError
                   ? ListView(padding: const EdgeInsets.all(14), children: [
                       VibeCard(
@@ -118,41 +123,9 @@ class _DiagnosticHistoryPageState extends ConsumerState<DiagnosticHistoryPage> {
                           )
                         else ...[
                           VibeCard(
-                            child: Column(children: [
-                              for (var index = 0;
-                                  index < items.length;
-                                  index++) ...[
-                                if (index > 0)
-                                  Divider(height: 1, color: t.line),
-                                ExpansionTile(
-                                  key: PageStorageKey('history-$index'),
-                                  tilePadding: EdgeInsets.zero,
-                                  leading: Icon(
-                                      items[index]['mode'] == 'speed'
-                                          ? Icons.speed_outlined
-                                          : Icons.monitor_heart_outlined,
-                                      color: t.at),
-                                  title: Text(
-                                      items[index]['title']?.toString() ??
-                                          'Verificação',
-                                      style: vibeText(t, 14, 700)),
-                                  subtitle: Text(
-                                      '${_mode(items[index]['mode'])} · ${_date(items[index]['date'])}',
-                                      style:
-                                          vibeText(t, 12.5, 500, color: t.mut)),
-                                  childrenPadding:
-                                      const EdgeInsets.only(bottom: 14),
-                                  expandedCrossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    SelectableText(
-                                        items[index]['summary']?.toString() ??
-                                            'Resumo indisponível.',
-                                        style: vibeText(t, 13, 500,
-                                            color: t.ink, height: 1.5))
-                                  ],
-                                ),
-                              ],
+                            child: VibeRows(children: [
+                              for (var index = 0; index < items.length; index++)
+                                _entry(t, index, items[index]),
                             ]),
                           ),
                           const SizedBox(height: 12),
@@ -202,16 +175,53 @@ class _DiagnosticHistoryPageState extends ConsumerState<DiagnosticHistoryPage> {
     );
   }
 
-  String _mode(dynamic mode) => switch (mode) {
-        'quick' => 'Rápida',
-        'speed' => 'Velocidade',
-        _ => 'Completa',
-      };
-
-  String _date(dynamic raw) {
-    final value = DateTime.tryParse(raw?.toString() ?? '')?.toLocal();
-    return value == null
-        ? 'Horário não informado'
-        : '${AppFormatters.date(value)} às ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+  /// Registro (`.g-row` + `.g-pre`): tipo, quando e resultado; ao tocar,
+  /// abre o resumo guardado.
+  Widget _entry(VibeTokens t, int index, Map<String, dynamic> item) {
+    final id = item['id']?.toString() ?? '$index';
+    final open = _open.contains(id);
+    final date = DateTime.tryParse(item['date']?.toString() ?? '');
+    final title = item['title']?.toString() ?? '';
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Semantics(
+        expanded: open,
+        child: VibeRow(
+          icon: item['mode'] == 'speed' ? 'gauge' : 'pulse',
+          title: _mode(item['mode']),
+          subtitle: [
+            date == null ? 'Horário não informado' : AppFormatters.when(date),
+            if (title.isNotEmpty) title,
+          ].join(' · '),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            VibeDot(switch (item['tone']) {
+              'ok' => VibeTone.ok,
+              'wa' => VibeTone.warning,
+              'bad' => VibeTone.bad,
+              _ => null,
+            }),
+            const SizedBox(width: 12),
+            VibeChevron(open: open),
+          ]),
+          onTap: () => setState(() => open ? _open.remove(id) : _open.add(id)),
+        ),
+      ),
+      if (open)
+        Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+              color: t.ink.withValues(alpha: .06),
+              borderRadius: BorderRadius.circular(10)),
+          child: SelectableText(
+              item['summary']?.toString() ?? 'Resumo indisponível.',
+              style: vibeMono(t.ink).copyWith(height: 1.55)),
+        ),
+    ]);
   }
+
+  String _mode(dynamic mode) => switch (mode) {
+        'quick' => 'Verificação rápida',
+        'speed' => 'Teste de velocidade',
+        _ => 'Diagnóstico completo',
+      };
 }

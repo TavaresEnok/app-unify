@@ -191,12 +191,7 @@ class _InvoiceDocumentPageState extends ConsumerState<InvoiceDocumentPage> {
               title:
                   'Os dados da fatura mudaram. Volte e abra o documento novamente.')
         else if (_loading)
-          const VibeCard(
-              main: true,
-              child: Center(
-                  child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: CircularProgressIndicator())))
+          const VibeLoading(blocks: 2, label: 'Abrindo o documento')
         else if (_unavailable || _image == null)
           const VibeCard(
               main: true,
@@ -213,18 +208,19 @@ class _InvoiceDocumentPageState extends ConsumerState<InvoiceDocumentPage> {
                 child: Image.memory(_image!, fit: BoxFit.contain),
               )),
           if (_pageCount > 1)
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              IconButton(
-                  tooltip: 'Página anterior',
-                  onPressed: _page > 0 ? () => _render(_page - 1) : null,
-                  icon: const Icon(Icons.chevron_left)),
-              Text('${_page + 1} / $_pageCount'),
-              IconButton(
-                  tooltip: 'Próxima página',
+            VibeTwo(
+              VibePageButton(
+                  label: 'Anterior',
+                  ghost: true,
+                  small: true,
+                  onPressed: _page > 0 ? () => _render(_page - 1) : null),
+              VibePageButton(
+                  label: 'Próxima (${_page + 1} de $_pageCount)',
+                  ghost: true,
+                  small: true,
                   onPressed:
-                      _page + 1 < _pageCount ? () => _render(_page + 1) : null,
-                  icon: const Icon(Icons.chevron_right)),
-            ]),
+                      _page + 1 < _pageCount ? () => _render(_page + 1) : null),
+            ),
         ],
         if (view.hasLine)
           VibePageButton(

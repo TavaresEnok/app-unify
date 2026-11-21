@@ -167,9 +167,12 @@ class OnuWifiService {
     this.contrato,
     required this.providerId,
     http.Client? client,
-  }) : client = client ?? http.Client(), _ownsClient = client == null;
+  })  : client = client ?? http.Client(),
+        _ownsClient = client == null;
 
-  void dispose() { if (_ownsClient) client.close(); }
+  void dispose() {
+    if (_ownsClient) client.close();
+  }
 
   /// Helper to get base proxy URL
 

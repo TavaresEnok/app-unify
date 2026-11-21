@@ -40,7 +40,8 @@ Map<String, dynamic> decodeApiResponse(
   final status = response.statusCode;
   if (status >= 200 && status < 300) {
     if (body is Map<String, dynamic>) return body;
-    throw ApiException(status, 'Resposta inesperada do servidor. Tente novamente.');
+    throw ApiException(
+        status, 'Resposta inesperada do servidor. Tente novamente.');
   }
   if (status == 401 && authenticated) {
     ApiSession.onUnauthorized?.call();

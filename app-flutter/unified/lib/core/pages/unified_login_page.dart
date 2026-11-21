@@ -108,7 +108,8 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                         alignment: Alignment.centerLeft,
                         child: VibeLogo(
                             name: name.isEmpty ? 'Central' : name,
-                            logoUrl: config?.config.logoUrl),
+                            logoUrl: config?.config.logoUrl,
+                            height: 44),
                       ),
                       const SizedBox(height: 30),
                       Semantics(

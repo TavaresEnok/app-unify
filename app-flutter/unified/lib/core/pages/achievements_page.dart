@@ -92,7 +92,7 @@ class _AchievementsPageState extends ConsumerState<AchievementsPage> {
               : null,
           children: [
             if (snapshot.connectionState == ConnectionState.waiting)
-              const Center(child: CircularProgressIndicator())
+              const VibeLoading(label: 'Carregando conquistas')
             else ...[
               VibeCard(
                   main: true,
@@ -100,26 +100,22 @@ class _AchievementsPageState extends ConsumerState<AchievementsPage> {
                     Row(children: [
                       Expanded(
                           child: Text('Seu progresso',
-                              style: vibeText(t, 14, 700))),
+                              style:
+                                  vibeText(t, 14, 800, letterSpacingEm: -.02))),
                       Text('${(count / badges.length * 100).round()}%',
-                          style: vibeText(t, 14, 700))
+                          style: vibeText(t, 14, 800, letterSpacingEm: -.02))
                     ]),
                     const SizedBox(height: 10),
-                    ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                            value: count / badges.length,
-                            minHeight: 8,
-                            backgroundColor: t.line,
-                            valueColor: AlwaysStoppedAnimation(t.ac))),
+                    VibeProgressBar(value: count / badges.length),
+                    const SizedBox(height: 2),
                   ])),
               LayoutBuilder(builder: (context, constraints) {
                 final single = constraints.maxWidth < 250 ||
                     MediaQuery.textScalerOf(context).scale(1) > 1.4;
                 final width = single
                     ? constraints.maxWidth
-                    : (constraints.maxWidth - 10) / 2;
-                return Wrap(spacing: 10, runSpacing: 10, children: [
+                    : (constraints.maxWidth - 8) / 2;
+                return Wrap(spacing: 8, runSpacing: 8, children: [
                   for (final badge in badges)
                     SizedBox(width: width, child: _Badge(item: badge)),
                 ]);
@@ -132,6 +128,8 @@ class _AchievementsPageState extends ConsumerState<AchievementsPage> {
   }
 }
 
+/// Selo (`.g-bdg`): conquistado, o ícone vai na cor da marca; os demais
+/// ficam em cinza.
 class _Badge extends StatelessWidget {
   const _Badge({required this.item});
   final (String, String, String, bool) item;
@@ -139,26 +137,35 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
-    return VibeCard(
-        main: true,
+    final earned = item.$4;
+    return Semantics(
+      label:
+          '${item.$2}. ${earned ? 'Conquistada. ${item.$3}' : 'Ainda não registrada'}',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: t.card,
+          borderRadius: BorderRadius.circular(t.rad - 2 < 10 ? 10 : t.rad - 2),
+          border: Border.all(color: t.line),
+        ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                  color: item.$4
-                      ? t.ac.withValues(alpha: .15)
-                      : t.ink.withValues(alpha: .05),
-                  borderRadius: BorderRadius.circular(14)),
-              child:
-                  VibeIcon(item.$1, color: item.$4 ? t.at : t.mut, size: 22)),
-          const SizedBox(height: 10),
+                  color: earned ? t.ac : t.ink.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(12)),
+              child: VibeIcon(item.$1, color: earned ? t.on : t.mut, size: 20)),
+          const SizedBox(height: 6),
           Text(item.$2,
-              style: vibeText(t, 14, 750, color: item.$4 ? t.ink : t.mut)),
-          const SizedBox(height: 4),
-          Text(item.$4 ? item.$3 : 'Ainda não registrada',
-              style: vibeText(t, 12, 500, color: t.mut)),
-        ]));
+              style: vibeText(t, 13.5, 700, color: earned ? t.ink : t.mut)),
+          const SizedBox(height: 6),
+          Text(earned ? item.$3 : 'Ainda não registrada',
+              style: vibeText(t, 12, 500, color: t.mut, height: 1.35)),
+        ]),
+      ),
+    );
   }
 }

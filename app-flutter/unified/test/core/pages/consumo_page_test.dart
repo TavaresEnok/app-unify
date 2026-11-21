@@ -67,7 +67,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('12,50 GB'), findsOneWidget);
+    expect(find.text('12,5 GB'), findsOneWidget);
     expect(find.text('Fibra 500 Mega'), findsOneWidget);
     expect(find.textContaining('sem limite'), findsNothing);
     final chart = tester.widget<BarChart>(find.byType(BarChart));

@@ -67,8 +67,7 @@ class FinanceiroProvider with ChangeNotifier {
   int get incompleteInvoices => _incompleteInvoices;
 
   /// Faturas pendentes (não pagas)
-  List<Fatura> get pendingInvoices =>
-      invoices.where((f) => !f.isPago).toList();
+  List<Fatura> get pendingInvoices => invoices.where((f) => !f.isPago).toList();
 
   /// Faturas pagas
   List<Fatura> get paidInvoices => invoices.where((f) => f.isPago).toList();
@@ -167,7 +166,7 @@ class FinanceiroProvider with ChangeNotifier {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text("✅ Sucesso!"),
+            title: const Text("Pedido enviado"),
             content: const Text(
                 "Solicitação de liberação realizada. As condições e o prazo são definidos pelo seu provedor."),
             actions: [

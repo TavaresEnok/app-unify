@@ -27,7 +27,8 @@ Future<void> showDiagnosticReportSheet(
   final user = ref.read(authNotifierProvider).value;
 
   if (config == null || user == null) {
-    _snack(context, 'Não foi possível montar o relatório: sessão indisponível.');
+    _snack(
+        context, 'Não foi possível montar o relatório: sessão indisponível.');
     return;
   }
 
@@ -235,7 +236,8 @@ class _ReportSheetState extends State<_ReportSheet> {
                                   Container(
                                     width: 6,
                                     height: 6,
-                                    margin: const EdgeInsets.only(top: 6, right: 8),
+                                    margin:
+                                        const EdgeInsets.only(top: 6, right: 8),
                                     decoration: BoxDecoration(
                                       color: _severityColor(f.severity, theme),
                                       shape: BoxShape.circle,
@@ -249,7 +251,8 @@ class _ReportSheetState extends State<_ReportSheet> {
                                         Text(f.title,
                                             style: theme.textTheme.bodyMedium
                                                 ?.copyWith(
-                                                    fontWeight: FontWeight.w600)),
+                                                    fontWeight:
+                                                        FontWeight.w600)),
                                         Text(f.recommendation,
                                             style: theme.textTheme.bodySmall),
                                       ],
@@ -466,8 +469,7 @@ Future<Uint8List?> fetchProviderLogo(String? logoUrl) async {
   final uri = Uri.tryParse(logoUrl);
   if (uri == null || !uri.isScheme('https')) return null;
   try {
-    final response =
-        await http.get(uri).timeout(const Duration(seconds: 6));
+    final response = await http.get(uri).timeout(const Duration(seconds: 6));
     if (response.statusCode != 200) return null;
     if (response.bodyBytes.length > 2 * 1024 * 1024) return null;
     return response.bodyBytes;
