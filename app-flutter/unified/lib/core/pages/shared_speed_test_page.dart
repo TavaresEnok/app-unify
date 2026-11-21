@@ -49,27 +49,40 @@ class SpeedTestView extends ConsumerWidget {
     final activeExternal = externalStatus == TestStatus.running;
     final uploadPhase = state.isTesting &&
         state.geralStatusMessage.toLowerCase().contains('upload');
-    final displayDownload = customMeasured
+    final customDownloadMeasured =
+        customStatus == TestStatus.success || state.downloadHistory.isNotEmpty;
+    final externalDownloadMeasured = externalStatus == TestStatus.success ||
+        state.fastDownloadHistory.isNotEmpty;
+    final displayDownload = customDownloadMeasured
         ? state.customDownloadResultMbps
-        : externalMeasured
+        : externalDownloadMeasured
             ? state.fastDownloadResultMbps
             : null;
-    final displayUpload = customMeasured
-        ? (customStatus == TestStatus.success || state.uploadHistory.isNotEmpty
+    final displayUpload =
+        customStatus == TestStatus.success || state.uploadHistory.isNotEmpty
             ? state.customUploadResultMbps
-            : null)
-        : externalMeasured &&
-                (externalStatus == TestStatus.success ||
-                    state.fastUploadHistory.isNotEmpty)
-            ? state.fastUploadResultMbps
-            : null;
-    final gaugeValue = state.isTesting && activeExternal
-        ? (uploadPhase
-            ? state.fastUploadResultMbps
-            : state.fastDownloadResultMbps)
-        : uploadPhase
-            ? state.customUploadResultMbps
-            : displayDownload ?? 0;
+            : externalStatus == TestStatus.success ||
+                    state.fastUploadHistory.isNotEmpty
+                ? state.fastUploadResultMbps
+                : null;
+    final double? gaugeValue;
+    if (!state.isTesting) {
+      gaugeValue = state.startedAt == null ? 0 : displayDownload;
+    } else if (activeExternal) {
+      gaugeValue = uploadPhase
+          ? (state.fastUploadHistory.isNotEmpty
+              ? state.fastUploadResultMbps
+              : null)
+          : (state.fastDownloadHistory.isNotEmpty
+              ? state.fastDownloadResultMbps
+              : null);
+    } else {
+      gaugeValue = uploadPhase
+          ? (state.uploadHistory.isNotEmpty
+              ? state.customUploadResultMbps
+              : null)
+          : displayDownload;
+    }
 
     return ListView(padding: const EdgeInsets.all(16), children: [
       if (offline && !state.isTesting && !hasMeasurement)
@@ -201,19 +214,22 @@ class _SpeedValue extends StatelessWidget {
 
 class _SpeedGauge extends StatelessWidget {
   const _SpeedGauge({required this.value, required this.label});
-  final double value;
+  final double? value;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
-    final ceiling = value > 500
+    final measuredValue = value ?? 0;
+    final ceiling = measuredValue > 500
         ? 1000.0
-        : value > 100
+        : measuredValue > 100
             ? 500.0
             : 100.0;
     return Semantics(
-        label: '${value.toStringAsFixed(1)} megabits por segundo de $label',
+        label: value == null
+            ? 'Medição de $label indisponível'
+            : '${value!.toStringAsFixed(1)} megabits por segundo de $label',
         child: SizedBox(
           width: 220,
           height: 145,
@@ -221,13 +237,14 @@ class _SpeedGauge extends StatelessWidget {
             Positioned.fill(
                 child: CustomPaint(
                     painter: _GaugePainter(
-                        progress: (value / ceiling).clamp(0, 1),
+                        progress: (measuredValue / ceiling).clamp(0, 1),
                         track: t.line,
                         color: t.ac))),
             Positioned(
                 bottom: 10,
                 child: Column(children: [
-                  Text(value.toStringAsFixed(0), style: vibeText(t, 38, 800)),
+                  Text(value?.toStringAsFixed(0) ?? '—',
+                      style: vibeText(t, 38, 800)),
                   Text('Mbps · $label',
                       style: vibeText(t, 12, 500, color: t.mut)),
                 ])),

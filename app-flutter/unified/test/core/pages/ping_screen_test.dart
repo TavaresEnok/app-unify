@@ -14,6 +14,20 @@ class NoSession extends AuthNotifier {
 }
 
 void main() {
+  testWidgets('timeout nativo aparece associado ao pacote real',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(
+            body: PingPacketResults(
+      responses: [
+        {'sequence': 2, 'timeout': true}
+      ],
+      running: false,
+    ))));
+    expect(find.text('Pacote 2'), findsOneWidget);
+    expect(find.text('Tempo esgotado'), findsOneWidget);
+  });
+
   testWidgets(
       'destinos rápidos preenchem o campo e a tela cabe com texto ampliado',
       (tester) async {

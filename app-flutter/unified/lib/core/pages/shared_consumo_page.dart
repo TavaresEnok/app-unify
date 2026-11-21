@@ -197,7 +197,12 @@ class _DailyChart extends StatelessWidget {
           child: LayoutBuilder(builder: (context, constraints) {
             final width = (constraints.maxWidth / lastDay * .7).clamp(1.0, 8.0);
             return Semantics(
-              label: 'Uso diário, ${entries.length} dias informados',
+              label: 'Uso diário',
+              value: [
+                for (var day = 1; day <= lastDay; day++)
+                  if (entries.containsKey(day))
+                    'Dia $day, ${_gb.format(entries[day]!)} gigabytes',
+              ].join('. '),
               child: BarChart(BarChartData(
                 alignment: BarChartAlignment.spaceAround,
                 maxY: maxGb > 0 ? maxGb * 1.08 : 1,

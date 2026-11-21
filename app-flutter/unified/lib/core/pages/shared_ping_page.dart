@@ -146,13 +146,12 @@ class _SharedPingPageState extends ConsumerState<SharedPingPage> {
                 ])),
         if (responses.isNotEmpty || _state.isTesting) ...[
           const SizedBox(height: 12),
-          VibeCard(
-              child: VibeKvList([
-            for (var index = 0; index < responses.length; index++)
-              VibeKv('Resposta ${responses[index]['sequence'] ?? index + 1}',
-                  '${responses[index]['timeMs']} ms'),
-            if (_state.isTesting) const VibeKv('Próximo pacote', 'Enviando…'),
-          ])),
+          PingPacketResults(responses: responses, running: _state.isTesting),
+        ],
+        if (!_state.isTesting && result?['status'] == TestStatus.error) ...[
+          const SizedBox(height: 12),
+          VibeErrorLine(result?['result']?.toString() ??
+              'Não foi possível executar o ping.'),
         ],
         if (measured) ...[
           const SizedBox(height: 12),
@@ -168,11 +167,6 @@ class _SharedPingPageState extends ConsumerState<SharedPingPage> {
                     : '—'),
             VibeKv('Perda de pacotes', format(summary['lossPercent'], '%')),
           ])),
-        ] else if (!_state.isTesting &&
-            result?['status'] == TestStatus.error) ...[
-          const SizedBox(height: 12),
-          VibeErrorLine(result?['result']?.toString() ??
-              'Não foi possível executar o ping.'),
         ],
         if (_state.wasInterrupted) ...[
           const SizedBox(height: 12),
@@ -184,4 +178,27 @@ class _SharedPingPageState extends ConsumerState<SharedPingPage> {
       ]),
     );
   }
+}
+
+/// Displays only packets reported by the native ping process.
+class PingPacketResults extends StatelessWidget {
+  const PingPacketResults(
+      {super.key, required this.responses, required this.running});
+  final List<Map> responses;
+  final bool running;
+
+  @override
+  Widget build(BuildContext context) => VibeCard(
+          child: VibeKvList([
+        for (var index = 0; index < responses.length; index++)
+          VibeKv(
+            responses[index]['sequence'] == null
+                ? 'Resposta ${index + 1}'
+                : 'Pacote ${responses[index]['sequence']}',
+            responses[index]['timeout'] == true
+                ? 'Tempo esgotado'
+                : '${responses[index]['timeMs']} ms',
+          ),
+        if (running) const VibeKv('Próximo pacote', 'Enviando…'),
+      ]));
 }

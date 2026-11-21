@@ -84,9 +84,14 @@ void main() {
     );
   });
 
-  test('standalone ping cancels the native process and permits a fresh run', () async {
+  test('standalone ping cancels the native process and permits a fresh run',
+      () async {
     final stream = StreamController<PingData>();
-    when(mockPingFactory.create(any, count: anyNamed('count'), timeout: anyNamed('timeout'), interval: anyNamed('interval'))).thenReturn(mockPing);
+    when(mockPingFactory.create(any,
+            count: anyNamed('count'),
+            timeout: anyNamed('timeout'),
+            interval: anyNamed('interval')))
+        .thenReturn(mockPing);
     when(mockPing.stream).thenAnswer((_) => stream.stream);
     final run = service.runPingOnly('8.8.8.8');
     expect(service.currentState.isTesting, isTrue);
@@ -97,7 +102,52 @@ void main() {
     await stream.close();
     when(mockPing.stream).thenAnswer((_) => const Stream.empty());
     await service.runPingOnly('1.1.1.1');
-    expect(service.currentState.testResultsDisplay['pingGoogle']?['metrics']['host'], '1.1.1.1');
+    expect(
+        service.currentState.testResultsDisplay['pingGoogle']?['metrics']
+            ['host'],
+        '1.1.1.1');
+    service.dispose();
+  });
+
+  test('unknown host não inventa contagem de pacotes ou perda', () async {
+    when(mockPingFactory.create(any,
+            count: anyNamed('count'),
+            timeout: anyNamed('timeout'),
+            interval: anyNamed('interval')))
+        .thenReturn(mockPing);
+    when(mockPing.stream).thenAnswer((_) => Stream.fromIterable([
+          const PingData(error: PingError(ErrorType.unknownHost)),
+        ]));
+    await service.runPingOnly('nao-existe.invalid');
+    final result = service.currentState.testResultsDisplay['pingGoogle']!;
+    expect(result['status'], TestStatus.error);
+    expect(result['result'], contains('domínio'));
+    expect(result['metrics']['lossPercent'], isNull);
+    expect(result['metrics']['packetsSent'], isNull);
+    service.dispose();
+  });
+
+  test('timeout explícito mantém sequência e resumo nativo', () async {
+    when(mockPingFactory.create(any,
+            count: anyNamed('count'),
+            timeout: anyNamed('timeout'),
+            interval: anyNamed('interval')))
+        .thenReturn(mockPing);
+    when(mockPing.stream).thenAnswer((_) => Stream.fromIterable([
+          const PingData(
+              response: PingResponse(seq: 1, time: Duration(milliseconds: 12))),
+          const PingData(
+              response: PingResponse(seq: 2),
+              error: PingError(ErrorType.requestTimedOut)),
+          PingData(summary: PingSummary(transmitted: 5, received: 1)),
+        ]));
+    await service.runPingOnly('8.8.8.8');
+    final metrics = service
+        .currentState.testResultsDisplay['pingGoogle']!['metrics'] as Map;
+    expect((metrics['responses'] as List)[1], {'sequence': 2, 'timeout': true});
+    expect(metrics['packetsSent'], 5);
+    expect(metrics['packetsReceived'], 1);
+    expect(metrics['lossPercent'], 80);
     service.dispose();
   });
 

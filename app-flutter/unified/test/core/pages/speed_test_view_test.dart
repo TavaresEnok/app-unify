@@ -81,6 +81,20 @@ void main() {
     expect(shared, isTrue);
   });
 
+  testWidgets('upload parcial não inventa download zero', (tester) async {
+    final state = DiagnosticoState.initial().copyWith(
+      runMode: DiagnosticRunMode.speed,
+      startedAt: DateTime(2026),
+      wasInterrupted: true,
+      customUploadResultMbps: 25,
+      uploadHistory: [const FlSpot(0, 25)],
+    );
+    await showView(tester, state);
+    expect(find.text('25.0 Mbps'), findsOneWidget);
+    expect(find.text('0.0 Mbps'), findsNothing);
+    expect(find.text('—'), findsNWidgets(2));
+  });
+
   testWidgets('interrupção preserva medições e escala de texto',
       (tester) async {
     tester.view.physicalSize = const Size(320, 640);

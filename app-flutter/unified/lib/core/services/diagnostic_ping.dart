@@ -41,6 +41,9 @@ extension DiagnosticPing on DiagnosticoService {
     final latencies = <int>[];
     final responses = <Map<String, dynamic>>[];
     int packetsReceived = 0;
+    int explicitTimeouts = 0;
+    PingSummary? summary;
+    PingError? commandError;
     StreamSubscription<PingData>? subscription;
 
     // Se discardFirst for true, pedimos 1 pacote extra para compensar
@@ -57,74 +60,84 @@ extension DiagnosticPing on DiagnosticoService {
 
     subscription = ping.stream.listen(
       (PingData data) {
-        if (data.response != null) {
-          final isFirst = currentIndex == 0;
-          currentIndex++;
-
-          if (discardFirst && isFirst) return;
-
+        if (data.summary != null) {
+          summary = data.summary;
+          return;
+        }
+        final error = data.error;
+        if (error != null && error.error != ErrorType.requestTimedOut) {
+          commandError = error;
+          return;
+        }
+        if (data.response == null && error == null) return;
+        final isFirst = currentIndex == 0;
+        currentIndex++;
+        if (discardFirst && isFirst) return;
+        if (error?.error == ErrorType.requestTimedOut) {
+          explicitTimeouts++;
+          responses.add({'sequence': data.response?.seq, 'timeout': true});
+        } else if (data.response != null) {
           packetsReceived++;
           final time = data.response!.time?.inMilliseconds;
           if (time != null) {
             latencies.add(time);
             responses.add({'sequence': data.response!.seq, 'timeMs': time});
-            _updateTestState(key, TestStatus.running, 'Recebendo respostas...',
-                metrics: {'host': host, 'responses': List.of(responses)});
           }
         }
+        _updateTestState(key, TestStatus.running, 'Recebendo respostas...',
+            metrics: {'host': host, 'responses': List.of(responses)});
       },
       onDone: () {
-        int packetsLost = count - packetsReceived;
-        if (packetsLost < 0) packetsLost = 0;
-        double lossPercentage = (packetsLost / count) * 100;
-
-        if (!completer.isCompleted) {
-          if (latencies.isEmpty) {
-            _updateTestState(
-              key,
-              TestStatus.error,
-              'Host inacessível\nPerda: 100%',
-              metrics: {
-                'host': host,
-                'responses': List.of(responses),
-                'reachable': false,
-                'lossPercent': 100.0,
-                'packetsSent': count,
-                'packetsReceived': 0,
-              },
-            );
-          } else {
-            int avgLatency =
-                (latencies.reduce((a, b) => a + b) / latencies.length).round();
-            double jitter = 0.0;
-            if (latencies.length > 1) {
-              int totalDiff = 0;
-              for (int i = 0; i < latencies.length - 1; i++) {
-                totalDiff += (latencies[i] - latencies[i + 1]).abs();
-              }
-              jitter = totalDiff / (latencies.length - 1);
-            }
-            final sorted = [...latencies]..sort();
-            _updateTestState(
-              key,
-              TestStatus.success,
-              'Latência: ${avgLatency}ms\nJitter: ${jitter.toStringAsFixed(1)}ms\nPerda: ${lossPercentage.toStringAsFixed(0)}%',
-              metrics: {
-                'host': host,
-                'responses': List.of(responses),
-                'reachable': true,
-                'latencyMs': avgLatency.toDouble(),
-                'jitterMs': double.parse(jitter.toStringAsFixed(1)),
-                'lossPercent': double.parse(lossPercentage.toStringAsFixed(0)),
-                'minMs': sorted.first.toDouble(),
-                'maxMs': sorted.last.toDouble(),
-                'packetsSent': count,
-                'packetsReceived': packetsReceived,
-              },
-            );
+        if (completer.isCompleted) return;
+        final nativeSummary = discardFirst ? null : summary;
+        final sent = nativeSummary?.transmitted ??
+            (packetsReceived + explicitTimeouts == count ? count : null);
+        final received =
+            nativeSummary?.received ?? (sent != null ? packetsReceived : null);
+        final loss = sent != null && sent > 0 && received != null
+            ? ((sent - received).clamp(0, sent) / sent * 100)
+            : null;
+        final metrics = <String, dynamic>{
+          'host': host,
+          'responses': List.of(responses),
+          if (sent != null) 'packetsSent': sent,
+          if (received != null) 'packetsReceived': received,
+          if (loss != null) 'lossPercent': loss,
+        };
+        if (commandError != null) {
+          final message = commandError!.error == ErrorType.unknownHost
+              ? 'Não foi possível encontrar o domínio informado.'
+              : 'Não foi possível executar o ping.';
+          _updateTestState(key, TestStatus.error, message, metrics: metrics);
+        } else if (latencies.isEmpty) {
+          _updateTestState(key, TestStatus.error, 'Host inacessível',
+              metrics: {...metrics, 'reachable': false});
+        } else {
+          final avg =
+              (latencies.reduce((a, b) => a + b) / latencies.length).round();
+          var diff = 0;
+          for (var i = 0; i < latencies.length - 1; i++) {
+            diff += (latencies[i] - latencies[i + 1]).abs();
           }
-          completer.complete();
+          final jitter =
+              latencies.length > 1 ? diff / (latencies.length - 1) : 0.0;
+          final sorted = [...latencies]..sort();
+          _updateTestState(
+            key,
+            TestStatus.success,
+            'Latência: ${avg}ms\nJitter: ${jitter.toStringAsFixed(1)}ms'
+            '${loss == null ? '' : '\nPerda: ${loss.toStringAsFixed(0)}%'}',
+            metrics: {
+              ...metrics,
+              'reachable': true,
+              'latencyMs': avg.toDouble(),
+              'jitterMs': double.parse(jitter.toStringAsFixed(1)),
+              'minMs': sorted.first.toDouble(),
+              'maxMs': sorted.last.toDouble(),
+            },
+          );
         }
+        completer.complete();
         subscription?.cancel();
       },
       onError: (e) {
