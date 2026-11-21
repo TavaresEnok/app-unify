@@ -158,8 +158,9 @@ class VibeHomeData {
     route('account', 'Minha conta', 'user');
     route('achievements', 'Conquistas', 'g-trophy');
     if (promotions.isNotEmpty) route('promotions', 'Ofertas', 'gift');
-    if (wifiAvailable)
+    if (wifiAvailable) {
       route('wifi', 'Meu ${VibeTokens.of(context).wifi}', 'wifi');
+    }
     return items;
   }
 

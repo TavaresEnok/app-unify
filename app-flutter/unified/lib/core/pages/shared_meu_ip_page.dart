@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/connectivity_provider.dart';
 import '../services/meu_ip_service.dart';
+import '../utils/app_formatters.dart';
 import '../vibe/vibe_page_parts.dart';
 import '../vibe/vibe_text.dart';
 import '../vibe/vibe_tokens.dart';
@@ -12,6 +13,9 @@ import '../vibe/vibe_tokens.dart';
 /// Meu IP (`PG.ip` do layout aprovado): o IP público em destaque e os dados
 /// de localização, com os códigos da consulta traduzidos para leitura.
 class MeuIpPage extends ConsumerStatefulWidget {
+  /// Nome do provedor de internet como o assinante o reconhece.
+  static String organization(Object? org) => _MeuIpPageState.organization(org);
+
   const MeuIpPage({super.key});
 
   @override
@@ -95,8 +99,18 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
   }
 
   /// "AS264000 Vibe Telecom" → "Vibe Telecom".
-  static String organization(Object? org) =>
-      (org?.toString() ?? '').replaceFirst(RegExp(r'^AS\d+\s+'), '').trim();
+  /// "AS264000 FLASH NET TELECOMUNICACOES LTDA - ME" → "Flash Net
+  /// Telecomunicacoes": sem número de sistema autônomo nem sufixo societário.
+  static String organization(Object? org) {
+    var value =
+        (org?.toString() ?? '').replaceFirst(RegExp(r'^AS\d+\s+'), '').trim();
+    final legal = RegExp(r'[\s,.-]+(LTDA|ME|EPP|EIRELI|S\.?\s?A\.?|MEI)\.?$',
+        caseSensitive: false);
+    while (legal.hasMatch(value)) {
+      value = value.replaceFirst(legal, '').trim();
+    }
+    return AppFormatters.label(value);
+  }
 
   static String timezone(Object? zone) {
     final value = zone?.toString().trim() ?? '';

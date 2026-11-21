@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/app_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
 import '../../providers/customer_capabilities_provider.dart';
@@ -77,7 +78,8 @@ class CustomerSupportPage extends ConsumerWidget {
           const VibeGroupTitle('Sobre o que você precisa de ajuda?'),
           VibeCard(child: VibeRows(children: topics)),
         ],
-        VibeGroupTitle(name.isEmpty ? 'Fale com o provedor' : 'Fale com $name'),
+        VibeGroupTitle(
+            name.isEmpty ? 'Fale com o provedor' : 'Fale com a $name'),
         if (contacts.isEmpty)
           const VibeCard(
             child: VibeEmpty(
@@ -98,14 +100,7 @@ class CustomerSupportPage extends ConsumerWidget {
                     'email' => 'g-mail',
                     _ => 'globe',
                   },
-                  title: contact.name.isNotEmpty
-                      ? contact.name
-                      : switch (contact.type.toLowerCase()) {
-                          'whatsapp' => 'WhatsApp',
-                          'phone' => 'Telefone',
-                          'email' => 'E-mail',
-                          _ => 'Site',
-                        },
+                  title: _channelTitle(contact.type, contact.name, name),
                   subtitle: contact.type.toLowerCase() == 'whatsapp'
                       ? 'Abre com a mensagem pronta'
                       : contact.value,
@@ -124,4 +119,25 @@ class CustomerSupportPage extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Título do canal como no protótipo ("WhatsApp", "Telefone"). O rótulo
+/// cadastrado pelo provedor só entra quando diz algo a mais, como um setor
+/// ("WhatsApp · Financeiro"); repetir o nome do provedor não ajuda.
+String _channelTitle(String type, String label, String provider) {
+  final kind = switch (type.toLowerCase()) {
+    'whatsapp' => 'WhatsApp',
+    'phone' => 'Telefone',
+    'email' => 'E-mail',
+    _ => 'Site',
+  };
+  String plain(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  final extra = label.trim();
+  final redundant = extra.isEmpty ||
+      plain(extra) == plain(kind) ||
+      plain(provider).contains(plain(extra)) ||
+      plain(extra)
+          .contains(plain(provider).isEmpty ? '\u0000' : plain(provider));
+  return redundant ? kind : '$kind · ${AppFormatters.label(extra)}';
 }

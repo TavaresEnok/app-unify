@@ -15,8 +15,9 @@ Uri apiEndpoint(String configuredUrl, String route) {
     'get-consumption-data',
     'getConsumptionData'
   };
-  if (segments.isNotEmpty && legacyEndpoints.contains(segments.last))
+  if (segments.isNotEmpty && legacyEndpoints.contains(segments.last)) {
     segments.removeLast();
+  }
   return Uri(
       scheme: uri.scheme,
       host: uri.host,

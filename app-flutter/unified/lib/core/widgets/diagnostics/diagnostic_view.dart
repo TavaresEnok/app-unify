@@ -337,6 +337,9 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
             leading: VibeDot(reached ? VibeTone.ok : VibeTone.warning)),
       ];
     }
+    if (key == 'onuInfo' && entry['result'] is Map) {
+      return _fiber(Map<String, dynamic>.from(entry['result'] as Map), dot);
+    }
     final suffix = switch (key) {
       'speedTestCustom' => ' no provedor',
       'speedTestFast' => ' de referência',
@@ -358,13 +361,65 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
               .contains(value)) {
         continue;
       }
-      lines.add(VibeKv(
-          '${_renames[label] ?? label}$suffix', value == 'true' ? 'Sim' : value,
+      lines.add(VibeKv('${_renames[label] ?? label}$suffix',
+          _value(value == 'true' ? 'Sim' : value),
           leading: dot));
     }
     return lines.isEmpty
         ? [VibeKv(name, 'Dados obtidos', leading: dot)]
         : lines;
+  }
+
+  /// Números com ponto decimal passam ao formato brasileiro ("2.5" → "2,5")
+  /// e "WiFi" ganha o hífen.
+  static String _value(String value) => value
+      .replaceAllMapped(RegExp(r'(\d)\.(\d)'), (m) => '${m[1]},${m[2]}')
+      .replaceAll(RegExp(r'\bWi-?Fi\b', caseSensitive: false), 'Wi-Fi');
+
+  static String _number(num value, {int digits = 1}) =>
+      value.toStringAsFixed(digits).replaceAll('.', ',');
+
+  /// O que importa ao assinante sobre a fibra (`dgGroups` do protótipo):
+  /// estado, sinal com avaliação, temperatura e modelo. OLT, slot, PON,
+  /// VLAN e série são dados internos do provedor e ficam de fora.
+  static List<VibeKv> _fiber(Map<String, dynamic> data, Widget dot) {
+    num? number(Object? value) => value is num
+        ? value
+        : num.tryParse('${value ?? ''}'.replaceAll(',', '.'));
+    final online = data['isOnline'];
+    final status = '${data['status'] ?? ''}'.trim();
+    final rx = number(data['rxPower']);
+    final temperature = number(data['temperature']);
+    final model = '${data['model'] ?? ''}'.trim();
+    final (VibeTone tone, String quality) = rx == null
+        ? (VibeTone.neutral, '')
+        : rx >= -25
+            ? (VibeTone.ok, 'bom')
+            : rx >= -27
+                ? (VibeTone.warning, 'no limite')
+                : (VibeTone.bad, 'fraco');
+    return [
+      if (online is bool || status.isNotEmpty)
+        VibeKv(
+            'Estado da ONU',
+            online == true
+                ? 'Online'
+                : online == false
+                    ? 'Offline'
+                    : status,
+            leading: VibeDot(online == false ? VibeTone.bad : VibeTone.ok)),
+      VibeKv(
+          'Sinal óptico',
+          rx == null
+              ? 'Não informado'
+              : '${_number(rx, digits: 1)} dBm, $quality',
+          leading: VibeDot(rx == null ? null : tone),
+          muted: rx == null),
+      if (temperature != null)
+        VibeKv('Temperatura', '${temperature.round()} °C', leading: dot),
+      if (model.isNotEmpty && model != 'null')
+        VibeKv('Modelo', model, leading: dot),
+    ];
   }
 
   @override

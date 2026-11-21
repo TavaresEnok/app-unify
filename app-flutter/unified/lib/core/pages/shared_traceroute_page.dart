@@ -167,6 +167,15 @@ class _SharedTraceRoutePageState extends ConsumerState<SharedTraceRoutePage> {
 class _TraceHop extends StatelessWidget {
   const _TraceHop({required this.index, required this.hop});
 
+  /// "0.069 ms" → "<1 ms"; "30.980 ms" → "31 ms"; "*" → "sem resposta".
+  static String _time(Object? raw) {
+    final text = raw?.toString().trim() ?? '';
+    final match = RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(text);
+    final value = double.tryParse(match?.group(1)?.replaceAll(',', '.') ?? '');
+    if (value == null) return 'sem resposta';
+    return value < 1 ? '<1 ms' : '${value.round()} ms';
+  }
+
   final int index;
   final Map<String, dynamic> hop;
 
@@ -194,10 +203,11 @@ class _TraceHop extends StatelessWidget {
                   color: missing ? t.mut : t.ink)),
         ),
         const SizedBox(width: 10),
-        Flexible(
-          child: Text('${hop['time'] ?? '—'}',
-              textAlign: TextAlign.end, style: vibeText(t, 13.5, 700)),
-        ),
+        Text(_time(hop['time']),
+            textAlign: TextAlign.end,
+            style: missing || _time(hop['time']) == 'sem resposta'
+                ? vibeText(t, 13.5, 500, color: t.mut)
+                : vibeText(t, 13.5, 700)),
       ]),
     );
   }

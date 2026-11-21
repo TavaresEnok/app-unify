@@ -633,8 +633,8 @@ class VibePageChip extends StatelessWidget {
       // `widthFactor: 1`: o selo fica do tamanho do texto, sem esticar.
       child: Center(
           widthFactor: 1,
-          child: Text(label,
-              style: vibeText(t, 12, 700, color: fg, height: 1.1))),
+          child:
+              Text(label, style: vibeText(t, 12, 700, color: fg, height: 1.1))),
     );
   }
 }

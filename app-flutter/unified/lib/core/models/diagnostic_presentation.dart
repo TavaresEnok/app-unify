@@ -112,7 +112,10 @@ class DiagnosticPresentation {
                   ? 'Algumas verificações ficaram sem resultado'
                   : completed < plannedKeys.length
                       ? 'Verificação parcial'
-                      : 'Verificação concluída';
+                      : plannedKeys.every((key) =>
+                              outcome(key) == DiagnosticOutcome.measured)
+                          ? 'Tudo certo com a sua conexão'
+                          : 'Verificação concluída';
 
   /// Resumo em uma cor para o histórico: tudo medido, algo a conferir ou
   /// nada medido.
@@ -148,10 +151,18 @@ class DiagnosticPresentation {
         'publicIp' => 'Consulta externa feita pelo celular',
         _ => 'Medido neste celular',
       };
+  static String _ms(num value) =>
+      value < 1 ? 'menos de 1 ms' : '${value.round()} ms';
+
   String shareText(String providerName) {
     final lines = <String>['Verificação de conexão — $providerName', title];
     final when = state.finishedAt;
-    if (when != null) lines.add('Horário: ${when.toLocal().toIso8601String()}');
+    if (when != null) {
+      final local = when.toLocal();
+      String two(int n) => n.toString().padLeft(2, '0');
+      lines.add('Horário: ${two(local.day)}/${two(local.month)}/${local.year} '
+          'às ${two(local.hour)}:${two(local.minute)}');
+    }
     for (final group in groups) {
       lines.add('${group.title}: ${label(groupOutcome(group))}');
     }
@@ -168,14 +179,15 @@ class DiagnosticPresentation {
           'pingGoogle': 'Resposta externa 1',
           'pingCloudflare': 'Resposta externa 2'
         }[key];
-        lines.add(
-            '$name: latência ${metrics['latencyMs']} ms; perda ${metrics['lossPercent'] ?? 'não informada'}%.');
+        final loss = metrics['lossPercent'];
+        lines.add('$name: latência ${_ms(metrics['latencyMs'] as num)}; '
+            'perda ${loss is num ? '${loss.round()}%' : 'não informada'}.');
       }
     }
     if (state.testResultsDisplay['speedTestCustom']?['status'] ==
         TestStatus.success) {
       lines.add(
-          'Velocidade neste celular: ${state.customDownloadResultMbps.toStringAsFixed(1)} Mbps de download; ${state.customUploadResultMbps.toStringAsFixed(1)} Mbps de upload.');
+          'Velocidade neste celular: ${state.customDownloadResultMbps.round()} Mbps de download; ${state.customUploadResultMbps.round()} Mbps de upload.');
     }
     return lines.join('\n');
   }

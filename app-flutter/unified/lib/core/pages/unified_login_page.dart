@@ -56,7 +56,7 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
     try {
       await ref
           .read(authNotifierProvider.notifier)
-          .login(_cpfController.text.trim(), config);
+          .login(_cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''), config);
       // Sucesso: o AuthGate navega automaticamente.
     } catch (_) {
       if (mounted) {
@@ -182,7 +182,7 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
               focusNode: _focus,
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.go,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              inputFormatters: [CpfCnpjInputFormatter()],
               style: vibeText(t, 15, 500),
               decoration: InputDecoration(
                 filled: false,
@@ -203,5 +203,31 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
         ]),
       ),
     );
+  }
+}
+
+/// Máscara de CPF (000.000.000-00) ou CNPJ (00.000.000/0000-00) enquanto o
+/// assinante digita. A API recebe só os dígitos.
+class CpfCnpjInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final capped = digits.length > 14 ? digits.substring(0, 14) : digits;
+    final buffer = StringBuffer();
+    for (var i = 0; i < capped.length; i++) {
+      if (capped.length <= 11) {
+        if (i == 3 || i == 6) buffer.write('.');
+        if (i == 9) buffer.write('-');
+      } else {
+        if (i == 2 || i == 5) buffer.write('.');
+        if (i == 8) buffer.write('/');
+        if (i == 12) buffer.write('-');
+      }
+      buffer.write(capped[i]);
+    }
+    final text = buffer.toString();
+    return TextEditingValue(
+        text: text, selection: TextSelection.collapsed(offset: text.length));
   }
 }
