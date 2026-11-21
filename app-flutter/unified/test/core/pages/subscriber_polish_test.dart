@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_provedor_unified/core/pages/shared_meu_ip_page.dart';
 import 'package:app_provedor_unified/core/pages/unified_login_page.dart';
+import 'package:app_provedor_unified/core/widgets/diagnostics/diagnostic_view.dart';
 
 TextEditingValue _type(String text) => CpfCnpjInputFormatter()
     .formatEditUpdate(TextEditingValue.empty, TextEditingValue(text: text));
@@ -18,5 +19,14 @@ void main() {
         MeuIpPage.organization('AS264000 FLASH NET TELECOMUNICACOES LTDA - ME'),
         'Flash Net Telecomunicacoes');
     expect(MeuIpPage.organization('Vibe Telecom'), 'Vibe Telecom');
+  });
+
+  test('valores do diagnóstico usam vírgula decimal sem estragar IPs', () {
+    expect(formatDiagnosticValue('2.4 GHz'), '2,4 GHz');
+    expect(formatDiagnosticValue('10.0.2.16'), '10.0.2.16');
+    expect(formatDiagnosticValue('192.168.0.1 · 8.8.8.8'),
+        '192.168.0.1 · 8.8.8.8');
+    expect(formatDiagnosticValue('WiFi'), 'Wi-Fi');
+    expect(formatDiagnosticValue('v1.0.9 (Build 10)'), 'v1.0.9 (Build 10)');
   });
 }

@@ -362,19 +362,13 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
         continue;
       }
       lines.add(VibeKv('${_renames[label] ?? label}$suffix',
-          _value(value == 'true' ? 'Sim' : value),
+          formatDiagnosticValue(value == 'true' ? 'Sim' : value),
           leading: dot));
     }
     return lines.isEmpty
         ? [VibeKv(name, 'Dados obtidos', leading: dot)]
         : lines;
   }
-
-  /// Números com ponto decimal passam ao formato brasileiro ("2.5" → "2,5")
-  /// e "WiFi" ganha o hífen.
-  static String _value(String value) => value
-      .replaceAllMapped(RegExp(r'(\d)\.(\d)'), (m) => '${m[1]},${m[2]}')
-      .replaceAll(RegExp(r'\bWi-?Fi\b', caseSensitive: false), 'Wi-Fi');
 
   static String _number(num value, {int digits = 1}) =>
       value.toStringAsFixed(digits).replaceAll('.', ',');
@@ -417,7 +411,8 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
           muted: rx == null),
       if (temperature != null)
         VibeKv('Temperatura', '${temperature.round()} °C', leading: dot),
-      if (model.isNotEmpty && model != 'null')
+      if (model.isNotEmpty &&
+          !const ['null', 'Desconhecido', 'N/A'].contains(model))
         VibeKv('Modelo', model, leading: dot),
     ];
   }
@@ -469,3 +464,10 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
     );
   }
 }
+
+/// Números com ponto decimal passam ao formato brasileiro ("2.5" → "2,5"),
+/// sem tocar em IPs ("10.0.2.16"), e "WiFi" ganha o hífen.
+String formatDiagnosticValue(String value) => value
+    .replaceAllMapped(
+        RegExp(r'(?<![\d.])(\d+)\.(\d+)(?![\d.])'), (m) => '${m[1]},${m[2]}')
+    .replaceAll(RegExp(r'\bWi-?Fi\b', caseSensitive: false), 'Wi-Fi');
