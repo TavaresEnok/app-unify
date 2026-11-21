@@ -1,4 +1,5 @@
 import 'package:app_provedor_unified/core/models/fatura.dart';
+import 'package:app_provedor_unified/core/pages/customer/homes/home_dock.dart';
 import 'package:app_provedor_unified/core/pages/customer/homes/vibe_home_blocks.dart';
 import 'package:app_provedor_unified/core/vibe/vibe_home_parts.dart';
 import 'package:app_provedor_unified/core/vibe/vibe_invoice.dart';
@@ -31,25 +32,46 @@ void main() {
             data: const MediaQueryData(
                 size: Size(320, 800), textScaler: TextScaler.linear(1.3)),
             child: Scaffold(
-                body: Column(children: [
+                body: SingleChildScrollView(
+                    child: Column(children: [
               VibeDockMasthead(
-                  providerName: 'Provedor',
-                  subtitle: 'Cliente',
+                  providerName: 'Provedor de Internet Veloz',
+                  subtitle: 'Marina Costa · Fibra 500 Mega',
                   initials: 'CL',
                   network: VibeNetwork.wifi,
                   onNetwork: () {},
                   onAccount: () {}),
+              VibeDockShortcuts(items: [
+                VibeShortcut('Faturas', 'file', () {}),
+                VibeShortcut('Suporte', 'chat', () {}),
+                VibeShortcut('Consumo', 'g-chart', () {}),
+                VibeShortcut('Ver todos', 'grid', () {}),
+              ]),
               Padding(
                   padding: const EdgeInsets.all(20),
                   child: VibeNextInvoiceCard(view: view)),
               VibeConnectionPill(network: VibeNetwork.wifi, onTap: () {}),
-            ])))));
+            ]))))));
+    final consumo = tester.renderObject<RenderParagraph>(find.text('Consumo'));
+    expect(
+        consumo.getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: 7)),
+        hasLength(1));
+    final provider =
+        find.textContaining('Provedor de Internet Veloz', findRichText: true);
+    expect(provider, findsOneWidget);
+    expect(tester.renderObject<RenderParagraph>(provider).didExceedMaxLines,
+        isFalse);
     final pix = find.text('Copiar Pix de setembro');
     expect(pix, findsOneWidget);
     expect(
         tester.renderObject<RenderParagraph>(pix).didExceedMaxLines, isFalse);
     expect(find.text('Wi‑Fi'), findsOneWidget);
-    expect(tester.renderObject<RenderParagraph>(find.text('Wi‑Fi')).didExceedMaxLines, isFalse);
+    expect(
+        tester
+            .renderObject<RenderParagraph>(find.text('Wi‑Fi'))
+            .didExceedMaxLines,
+        isFalse);
     expect(tester.takeException(), isNull);
   });
 }

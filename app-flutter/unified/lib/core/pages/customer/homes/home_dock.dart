@@ -482,48 +482,7 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                 color: p.ink, height: 1.25, letterSpacingEm: -.028)),
       ),
       const SizedBox(height: 5),
-      Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-            color: p.card,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: p.hair)),
-        child: Row(children: [
-          for (final item in items)
-            Expanded(
-              child: Semantics(
-                button: true,
-                label: item.label,
-                excludeSemantics: true,
-                child: InkWell(
-                  onTap: item.onTap,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
-                    child: Column(children: [
-                      SizedBox(
-                        width: 34,
-                        height: 34,
-                        child: Center(
-                            child: VibeIcon(item.icon,
-                                size: 21, strokeWidth: 1.7, color: p.mark)),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(item.label,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          style: vibeText(t, 12, 620,
-                              color: p.ink,
-                              height: 1.2,
-                              letterSpacingEm: -.0175)),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-        ]),
-      ),
+      VibeDockShortcuts(items: items),
     ]);
   }
 
@@ -787,5 +746,76 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
         child: InkWell(onTap: onTap, child: row),
       ),
     );
+  }
+}
+
+/// Keeps the four-column dock when labels fit and expands to two columns
+/// when the system font scale would split a service name.
+class VibeDockShortcuts extends StatelessWidget {
+  const VibeDockShortcuts({super.key, required this.items});
+  final List<VibeShortcut> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
+    final p = t.dock!;
+    final style = vibeText(t, 12, 620,
+        color: p.ink, height: 1.2, letterSpacingEm: -.0175);
+    return LayoutBuilder(builder: (context, constraints) {
+      final fourWidth = (constraints.maxWidth - 10) / 4;
+      final fits =
+          items.every((item) => item.label.split(RegExp(r'\s+')).every((word) {
+                final painter = TextPainter(
+                    text: TextSpan(text: word, style: style),
+                    textDirection: Directionality.of(context),
+                    textScaler: MediaQuery.textScalerOf(context),
+                    maxLines: 1)
+                  ..layout();
+                final width = painter.width;
+                painter.dispose();
+                return width + 4 <= fourWidth;
+              }));
+      final columns = fits ? 4 : 2;
+      final width = (constraints.maxWidth - 10) / columns;
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+            color: p.card,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: p.hair)),
+        child: Wrap(children: [
+          for (final item in items)
+            SizedBox(
+                width: width,
+                child: Semantics(
+                  button: true,
+                  label: item.label,
+                  excludeSemantics: true,
+                  child: InkWell(
+                      onTap: item.onTap,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 2, vertical: 5),
+                        child: Column(children: [
+                          SizedBox(
+                              width: 34,
+                              height: 34,
+                              child: Center(
+                                  child: VibeIcon(item.icon,
+                                      size: 21,
+                                      strokeWidth: 1.7,
+                                      color: p.mark))),
+                          const SizedBox(height: 5),
+                          Text(item.label,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              style: style),
+                        ]),
+                      )),
+                )),
+        ]),
+      );
+    });
   }
 }

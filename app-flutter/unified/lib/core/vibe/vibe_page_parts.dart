@@ -1007,8 +1007,6 @@ class VibeDockMasthead extends StatelessWidget {
                 else
                   _word(t, p, word),
                 Text(subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: vibeText(t, 12, 550, color: p.ink, height: 1.12)),
               ]),
         ),
@@ -1103,7 +1101,5 @@ class VibeDockMasthead extends StatelessWidget {
               style: vibeText(t, 23, 700,
                   color: p.mark, height: 1.04, letterSpacingEm: -.1)),
         ]),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
       );
 }
