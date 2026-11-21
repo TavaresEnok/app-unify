@@ -86,7 +86,7 @@ void main() {
                   state: state, onCancel: () => cancelled = true)),
         );
     await tester.pumpWidget(page(running));
-    expect(find.text('Verificando a rede'), findsOneWidget);
+    expect(find.text('Verificando a rede…'), findsOneWidget);
     expect(find.text('3 de 5'), findsOneWidget);
     await tester.tap(find.text('Parar'));
     expect(cancelled, isTrue);

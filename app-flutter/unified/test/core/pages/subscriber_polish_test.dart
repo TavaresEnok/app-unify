@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:app_provedor_unified/core/models/diagnostic_presentation.dart';
 import 'package:app_provedor_unified/core/pages/shared_contrato_page.dart';
 import 'package:app_provedor_unified/core/pages/shared_meu_ip_page.dart';
 import 'package:app_provedor_unified/core/pages/unified_login_page.dart';
@@ -36,5 +37,21 @@ void main() {
     expect(ContratoPage.dueDay('20/11/2026'), 'Todo dia 20');
     expect(ContratoPage.dueDay('2026-11-06'), 'Todo dia 6');
     expect(ContratoPage.dueDay('Mensal'), 'Mensal');
+  });
+
+  test('etapas do motor aparecem em linguagem do assinante', () {
+    expect(
+        DiagnosticPresentation.stepLabel(
+            'Testando Download (Fast.com)... 73.8 Mbps (7%)'),
+        'Medindo o download…');
+    expect(
+        DiagnosticPresentation.stepLabel(
+            'Testando ping para o Roteador (10.0.2.2)...'),
+        'Testando o roteador…');
+    expect(
+        DiagnosticPresentation.stepLabel('Verificando sinal da Fibra (ONU)...'),
+        'Lendo o sinal da fibra…');
+    expect(DiagnosticPresentation.stepLabel('Escaneando Rede Local (LAN)...'),
+        'Contando aparelhos na rede…');
   });
 }

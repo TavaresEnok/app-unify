@@ -83,7 +83,9 @@ class DiagnosticView extends StatelessWidget {
                       Expanded(
                         child: Semantics(
                           liveRegion: true,
-                          child: Text(state.geralStatusMessage,
+                          child: Text(
+                              DiagnosticPresentation.stepLabel(
+                                  state.geralStatusMessage),
                               style:
                                   vibeText(t, 14, 800, letterSpacingEm: -.02)),
                         ),

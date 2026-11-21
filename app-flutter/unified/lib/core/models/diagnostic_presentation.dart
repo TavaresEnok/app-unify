@@ -136,6 +136,41 @@ class DiagnosticPresentation {
       : state.isTesting
           ? 'Você pode interromper. Os resultados já obtidos serão mantidos.'
           : 'Veja abaixo o que foi medido e o que ficou sem verificar. Uma consulta sem resposta, sozinha, não comprova falha na internet.';
+
+  /// Etapa em andamento em linguagem do assinante (`DGSTEPS` do protótipo).
+  /// O motor descreve tecnicamente ("Testando Download (Fast.com)... 73.8
+  /// Mbps (7%)"); aqui vira "Medindo o download…".
+  static String stepLabel(String raw) {
+    final text = raw.toLowerCase();
+    String pick() {
+      if (text.contains('upload')) return 'Medindo o upload';
+      if (text.contains('download')) return 'Medindo o download';
+      if (text.contains('latência')) return 'Medindo a latência';
+      if (text.contains('roteador')) return 'Testando o roteador';
+      if (text.contains('google') || text.contains('cloudflare')) {
+        return 'Medindo o ping externo';
+      }
+      if (text.contains('fibra') || text.contains('onu')) {
+        return 'Lendo o sinal da fibra';
+      }
+      if (text.contains('permiss')) return 'Aguardando a permissão';
+      if (text.contains('lan') && text.contains('rede')) {
+        return 'Contando aparelhos na rede';
+      }
+      if (text.contains('wifi') || text.contains('wi-fi')) {
+        return 'Verificando o Wi-Fi';
+      }
+      if (text.contains('ip')) return 'Consultando o IP público';
+      if (text.contains('dispositivo')) return 'Lendo dados do celular';
+      if (text.contains('servidor')) return 'Preparando o teste';
+      if (text.contains('internet')) return 'Testando o acesso à internet';
+      return raw.replaceAll(RegExp(r'\.+$'), '').trim();
+    }
+
+    final label = pick();
+    return label.isEmpty ? 'Verificando…' : '$label…';
+  }
+
   static String label(DiagnosticOutcome outcome) => switch (outcome) {
         DiagnosticOutcome.notVerified => 'Não verificado',
         DiagnosticOutcome.running => 'Verificando…',

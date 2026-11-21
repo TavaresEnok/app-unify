@@ -49,8 +49,8 @@ void main() {
       uploadHistory: [const FlSpot(0, 30)],
     );
     await showView(tester, state, onStop: () => stopped = true);
-    expect(find.text('120.0 Mbps'), findsOneWidget);
-    expect(find.text('30.0 Mbps'), findsOneWidget);
+    expect(find.text('120 Mbps'), findsOneWidget);
+    expect(find.text('30 Mbps'), findsOneWidget);
     await tester.ensureVisible(find.text('Parar'));
     await tester.tap(find.text('Parar'));
     expect(stopped, isTrue);
@@ -74,8 +74,8 @@ void main() {
       speedTestPingLatency: 11,
     );
     await showView(tester, state, onShare: () => shared = true);
-    expect(find.text('420.0 Mbps'), findsOneWidget);
-    expect(find.text('390.0 Mbps'), findsOneWidget);
+    expect(find.text('420 Mbps'), findsOneWidget);
+    expect(find.text('390 Mbps'), findsOneWidget);
     await tester.ensureVisible(find.text('Compartilhar'));
     await tester.tap(find.text('Compartilhar'));
     expect(shared, isTrue);
@@ -90,8 +90,8 @@ void main() {
       uploadHistory: [const FlSpot(0, 25)],
     );
     await showView(tester, state);
-    expect(find.text('25.0 Mbps'), findsOneWidget);
-    expect(find.text('0.0 Mbps'), findsNothing);
+    expect(find.text('25 Mbps'), findsOneWidget);
+    expect(find.text('0 Mbps'), findsNothing);
     expect(find.text('—'), findsNWidgets(2));
   });
 
@@ -126,7 +126,7 @@ void main() {
                   onShare: () {}))),
     ));
     await tester.pumpAndSettle();
-    expect(find.text('25.0 Mbps'), findsOneWidget);
+    expect(find.text('25 Mbps'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Testar de novo'), 150);
     expect(tester.takeException(), isNull);
   });

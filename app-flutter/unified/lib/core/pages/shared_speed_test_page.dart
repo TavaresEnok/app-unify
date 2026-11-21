@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import '../models/diagnostic_presentation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/diagnostico_state.dart';
@@ -114,24 +115,24 @@ class SpeedTestView extends ConsumerWidget {
               if (finished && hasMeasurement) ...[
                 const SizedBox(height: 10),
                 VibeKvList([
-                  VibeKv(
-                      'Latência',
-                      state.speedTestPingLatency != null &&
-                              state.speedTestPingLatency! > 0
-                          ? '${state.speedTestPingLatency!.toStringAsFixed(0)} ms'
-                          : 'Indisponível'),
+                  if (state.speedTestPingLatency != null &&
+                      state.speedTestPingLatency! > 0)
+                    VibeKv('Latência',
+                        '${state.speedTestPingLatency!.round()} ms'),
                   if (customStatus == TestStatus.success)
                     const VibeKv('Servidor', 'Servidor do provedor'),
                   if (externalStatus == TestStatus.success)
                     VibeKv('Referência externa',
-                        '${state.fastDownloadResultMbps.toStringAsFixed(1)} Mbps'),
+                        '${state.fastDownloadResultMbps.round()} Mbps'),
                 ]),
               ],
               if (state.isTesting) ...[
                 const SizedBox(height: 12),
                 Semantics(
                     liveRegion: true,
-                    child: Text(state.geralStatusMessage,
+                    child: Text(
+                        DiagnosticPresentation.stepLabel(
+                            state.geralStatusMessage),
                         textAlign: TextAlign.center,
                         style: vibeText(t, 12, 500, color: t.mut))),
                 const SizedBox(height: 12),
@@ -205,7 +206,7 @@ class _SpeedValue extends StatelessWidget {
               child: Text(label, style: vibeText(t, 12, 500, color: t.mut)))
         ]),
         const SizedBox(height: 6),
-        Text(value == null ? '—' : '${value!.toStringAsFixed(1)} Mbps',
+        Text(value == null ? '—' : '${value!.round()} Mbps',
             style: vibeText(t, 15, 750), maxLines: 2),
       ]),
     );
@@ -229,7 +230,7 @@ class _SpeedGauge extends StatelessWidget {
     return Semantics(
         label: value == null
             ? 'Medição de $label indisponível'
-            : '${value!.toStringAsFixed(1)} megabits por segundo de $label',
+            : '${value!.round()} megabits por segundo de $label',
         child: SizedBox(
           width: 220,
           height: 145,
