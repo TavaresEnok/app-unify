@@ -633,12 +633,7 @@ class VibeServiceRail extends StatelessWidget {
                       Text(item.label,
                           textAlign: TextAlign.center,
                           maxLines: 2,
-                          style: const TextStyle(
-                                  inherit: false,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.2)
-                              .copyWith(color: fg)),
+                          style: vibeText(t, 12, 600, color: fg, height: 1.2)),
                     ]),
                   ),
                 ),
@@ -659,8 +654,21 @@ class VibePromo {
     this.text = '',
     this.cta = 'Saiba mais',
     this.imageUrl = '',
+    this.icon = '',
+    this.art = '',
+    this.highlight = false,
     required this.onTap,
   });
+
+  /// Ícone grande no canto do cartão, quando não há imagem nem ilustração.
+  final String icon;
+
+  /// Ilustração do protótipo (`turbo`, `wifi`, `gift`).
+  final String art;
+
+  /// Destaque de uma função do app, mostrado quando o provedor não cadastrou
+  /// ofertas. Não é oferta comercial.
+  final bool highlight;
 
   final String kicker;
   final String title;
@@ -725,7 +733,7 @@ class _VibePromoCarouselState extends State<VibePromoCarousel> {
       return Semantics(
         button: true,
         enabled: enabled,
-        label: delta < 0 ? 'Promoção anterior' : 'Próxima promoção',
+        label: delta < 0 ? 'Anterior' : 'Próximo',
         excludeSemantics: true,
         child: Opacity(
           opacity: enabled ? 1 : .4,
@@ -788,7 +796,7 @@ class _VibePromoCarouselState extends State<VibePromoCarousel> {
             Semantics(
               button: true,
               selected: i == _index,
-              label: 'Promoção ${i + 1} de ${promos.length}',
+              label: '${i + 1} de ${promos.length}',
               excludeSemantics: true,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -918,11 +926,23 @@ class _PromoCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const SizedBox.shrink()),
                   )
+                else if (promo.icon.isNotEmpty)
+                  Positioned(
+                    right: 14,
+                    bottom: 12,
+                    child: VibeIcon(promo.icon,
+                        size: 84,
+                        strokeWidth: 1.1,
+                        color: art.withValues(alpha: .9)),
+                  )
                 else
                   Positioned(
                     right: -10,
                     bottom: -12,
-                    child: VibeArt(const ['turbo', 'wifi', 'gift'][style],
+                    child: VibeArt(
+                        promo.art.isNotEmpty
+                            ? promo.art
+                            : const ['turbo', 'wifi', 'gift'][style],
                         color: art),
                   ),
                 Padding(

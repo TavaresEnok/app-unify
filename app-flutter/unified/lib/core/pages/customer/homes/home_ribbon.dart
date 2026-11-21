@@ -182,7 +182,9 @@ class VibeRibbonHome extends ConsumerWidget {
             ],
             if (promos.isNotEmpty) ...[
               const SizedBox(height: 8),
-              VibePromoCarousel(promos: promos),
+              VibePromoCarousel(
+                  promos: promos,
+                  title: promos.first.highlight ? 'Dicas do app' : 'Para você'),
             ],
             if (late != null) ...[const SizedBox(height: 12), late],
           ]),

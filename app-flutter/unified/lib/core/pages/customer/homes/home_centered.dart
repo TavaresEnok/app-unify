@@ -98,7 +98,10 @@ class VibeCenteredHome extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         ...vibeHomeAlerts(context, data),
-        if (promos.isNotEmpty) VibePromoCarousel(promos: promos),
+        if (promos.isNotEmpty)
+          VibePromoCarousel(
+              promos: promos,
+              title: promos.first.highlight ? 'Dicas do app' : 'Para você'),
         if (late != null) ...[const SizedBox(height: 12), late],
       ]),
     );

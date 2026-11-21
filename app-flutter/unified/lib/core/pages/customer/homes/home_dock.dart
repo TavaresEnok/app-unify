@@ -531,7 +531,11 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
             child: Semantics(
               header: true,
               child: Text(
-                  multiple ? 'Ofertas do provedor' : 'Oferta do provedor',
+                  promo.highlight
+                      ? 'Dicas do app'
+                      : multiple
+                          ? 'Ofertas do provedor'
+                          : 'Oferta do provedor',
                   style: vibeText(t, 16, 650,
                       color: p.ink, height: 1.2, letterSpacingEm: -.028)),
             ),
@@ -541,15 +545,15 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                 style: vibeText(t, 12, 500,
                     color: p.muted, letterSpacingEm: -.0175)),
             const SizedBox(width: 4),
-            step(-1, 'i-left', 'Oferta anterior'),
-            step(1, 'i-right', 'Próxima oferta'),
+            step(-1, 'i-left', 'Anterior'),
+            step(1, 'i-right', 'Próximo'),
           ],
         ]),
       ),
       const SizedBox(height: 2),
       Semantics(
         button: true,
-        label: 'Ver oferta, ${promo.title}',
+        label: '${promo.highlight ? promo.cta : 'Ver oferta'}, ${promo.title}',
         excludeSemantics: true,
         child: Material(
           color: p.hero,
@@ -584,10 +588,24 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                           alignment: Alignment.centerRight,
                           child: Opacity(
                             opacity: .9,
-                            child: VibeArt(
-                                const ['turbo', 'wifi', 'gift'][index % 3],
-                                size: 104,
-                                color: p.main),
+                            child: promo.icon.isNotEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.only(right: 14),
+                                    child: VibeIcon(promo.icon,
+                                        size: 72,
+                                        strokeWidth: 1.1,
+                                        color: p.main),
+                                  )
+                                : VibeArt(
+                                    promo.art.isNotEmpty
+                                        ? promo.art
+                                        : const [
+                                            'turbo',
+                                            'wifi',
+                                            'gift'
+                                          ][index % 3],
+                                    size: 104,
+                                    color: p.main),
                           ),
                         ),
                 ),
@@ -620,11 +638,15 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                             ),
                           const SizedBox(height: 11),
                           Row(mainAxisSize: MainAxisSize.min, children: [
-                            Text('Ver oferta',
-                                style: vibeText(t, 13, 650,
-                                    color: Colors.white,
-                                    height: 1.15,
-                                    letterSpacingEm: -.016)),
+                            Flexible(
+                                child: Text(
+                                    promo.highlight ? promo.cta : 'Ver oferta',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: vibeText(t, 13, 650,
+                                        color: Colors.white,
+                                        height: 1.15,
+                                        letterSpacingEm: -.016))),
                             const SizedBox(width: 3),
                             const VibeIcon('i-right',
                                 size: 15,

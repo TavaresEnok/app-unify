@@ -29,7 +29,7 @@ void main() {
     ));
     expect(tester.takeException(), isNull);
     expect(find.text('1 de 2'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Próxima promoção'));
+    await tester.tap(find.bySemanticsLabel('Próximo'));
     await tester.pumpAndSettle();
     expect(find.text('2 de 2'), findsOneWidget);
     await tester.tap(find.bySemanticsLabel(RegExp('^Outra oferta')));

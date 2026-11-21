@@ -119,7 +119,10 @@ class VibeSheetHome extends ConsumerWidget {
         ),
         // O título das ofertas encosta nos atalhos: `.sheet .sec:first-child`
         // zera a margem e a altura das setas (44 px) faz o espaço.
-        if (promos.isNotEmpty) VibePromoCarousel(promos: promos),
+        if (promos.isNotEmpty)
+          VibePromoCarousel(
+              promos: promos,
+              title: promos.first.highlight ? 'Dicas do app' : 'Para você'),
         if (late != null) ...[const SizedBox(height: 12), late],
       ]),
     );

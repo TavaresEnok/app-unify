@@ -149,8 +149,10 @@ class VibeBlocksHome extends ConsumerWidget {
           const SizedBox(height: 12),
           late
         ] else if (promotion.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          _PromoLine(promo: promotion.first),
+          const SizedBox(height: 18),
+          VibePromoCarousel(
+              promos: promotion,
+              title: promotion.first.highlight ? 'Dicas do app' : 'Para você'),
         ],
       ],
     );
@@ -174,7 +176,12 @@ class _BlockGrid extends StatelessWidget {
     final t = VibeTokens.of(context);
     final scale = MediaQuery.textScalerOf(context).scale(1);
     return LayoutBuilder(builder: (context, constraints) {
-      final width = (constraints.maxWidth - 16) / 3;
+      // Três colunas como no protótipo; com tela estreita e fonte ampliada,
+      // duas, para "Velocidade" não quebrar no meio da palavra.
+      final three = (constraints.maxWidth - 16) / 3 - 12 >= 68 * scale;
+      final width = three
+          ? (constraints.maxWidth - 16) / 3
+          : (constraints.maxWidth - 8) / 2;
       return Wrap(spacing: 8, runSpacing: 8, children: [
         for (final item in items)
           SizedBox(
@@ -213,63 +220,5 @@ class _BlockGrid extends StatelessWidget {
           ),
       ]);
     });
-  }
-}
-
-/// Oferta em linha (`.d7 .promo`).
-class _PromoLine extends StatelessWidget {
-  const _PromoLine({required this.promo});
-
-  final VibePromo promo;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
-    return Semantics(
-      button: true,
-      label: '${promo.kicker}. ${promo.title}',
-      excludeSemantics: true,
-      child: Material(
-        color: t.card,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: promo.onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(children: [
-              if (promo.imageUrl.trim().isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(promo.imageUrl,
-                      width: 42,
-                      height: 42,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          VibeIcon('gift', size: 22, color: t.at)),
-                )
-              else
-                VibeIcon('gift', size: 22, color: t.at),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (promo.kicker.isNotEmpty)
-                        Text(promo.kicker,
-                            style: vibeText(t, 12, 500, color: t.mut)),
-                      Text(promo.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: vibeText(t, 14, 700, height: 1.25)),
-                    ]),
-              ),
-              const SizedBox(width: 12),
-              VibeIcon('chev', size: 22, color: t.at),
-            ]),
-          ),
-        ),
-      ),
-    );
   }
 }

@@ -198,7 +198,46 @@ class VibeHomeData {
             }));
       }
     }
-    return list;
+    return list.isEmpty ? highlights(context) : list;
+  }
+
+  /// Sem ofertas cadastradas, o espaço do carrossel mostra o que o app já
+  /// faz pelo assinante, cada cartão abrindo a função. Nada de promessa
+  /// comercial: isso é do provedor, pelo painel.
+  List<VibePromo> highlights(BuildContext context) {
+    // Pix fica de fora: o cartão da fatura logo acima já tem o botão.
+    return [
+      if (can('network_diagnostic'))
+        VibePromo(
+          highlight: true,
+          kicker: 'Dica do app',
+          title: 'Internet lenta?',
+          text: 'Descubra onde está o problema.',
+          cta: 'Verificar agora',
+          art: 'wifi',
+          onTap: openDiagnostic,
+        ),
+      if (can('speed_test'))
+        VibePromo(
+          highlight: true,
+          kicker: 'Dica do app',
+          title: 'Meça sua velocidade',
+          text: 'Download e upload em segundos.',
+          cta: 'Testar agora',
+          art: 'turbo',
+          onTap: () => onNavigate('speed_test'),
+        ),
+      if (can('internet_usage'))
+        VibePromo(
+          highlight: true,
+          kicker: 'Dica do app',
+          title: 'Seu consumo do mês',
+          text: 'Quanto você usou, dia a dia.',
+          cta: 'Ver consumo',
+          icon: 'g-chart',
+          onTap: () => onNavigate('internet_usage'),
+        ),
+    ];
   }
 
   void copyPix(BuildContext context, Fatura invoice) =>
