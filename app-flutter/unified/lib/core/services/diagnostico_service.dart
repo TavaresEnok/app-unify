@@ -477,7 +477,7 @@ class DiagnosticoService {
       ScaffoldMessenger.of(ctx).showSnackBar(
         const SnackBar(
           content: Text(
-            'Permissão de localização é necessária para obter informações de WiFi.',
+            'Permita a localização para o app ler o nome e o sinal do Wi-Fi.',
           ),
         ),
       );

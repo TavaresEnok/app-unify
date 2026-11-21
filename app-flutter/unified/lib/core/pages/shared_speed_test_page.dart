@@ -59,13 +59,19 @@ class SpeedTestView extends ConsumerWidget {
         : externalDownloadMeasured
             ? state.fastDownloadResultMbps
             : null;
-    final displayUpload =
-        customStatus == TestStatus.success || state.uploadHistory.isNotEmpty
-            ? state.customUploadResultMbps
-            : externalStatus == TestStatus.success ||
-                    state.fastUploadHistory.isNotEmpty
-                ? state.fastUploadResultMbps
-                : null;
+    // Upload zerado com o teste "concluído" é falha de envio, não medição:
+    // mostra "—" em vez de "0 Mbps".
+    final customUpload = state.uploadHistory.isNotEmpty ||
+            (customStatus == TestStatus.success &&
+                state.customUploadResultMbps > 0)
+        ? state.customUploadResultMbps
+        : null;
+    final externalUpload = state.fastUploadHistory.isNotEmpty ||
+            (externalStatus == TestStatus.success &&
+                state.fastUploadResultMbps > 0)
+        ? state.fastUploadResultMbps
+        : null;
+    final displayUpload = customUpload ?? externalUpload;
     final double? gaugeValue;
     if (!state.isTesting) {
       gaugeValue = state.startedAt == null ? 0 : displayDownload;
