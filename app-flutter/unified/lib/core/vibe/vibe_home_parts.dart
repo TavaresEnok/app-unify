@@ -11,7 +11,13 @@ import 'vibe_tokens.dart';
 /// Valor `R$ 99,90` (`.amt`): centavos menores e alinhados pela base.
 class VibeAmount extends StatelessWidget {
   const VibeAmount(this.value,
-      {super.key, required this.size, required this.color});
+      {super.key,
+      required this.size,
+      required this.color,
+      this.currencyScale = .42});
+
+  /// Tamanho do "R\$" em relação ao valor (`.amt small`; `.d17` usa .36).
+  final double currencyScale;
 
   final double value;
   final double size;
@@ -26,7 +32,7 @@ class VibeAmount extends StatelessWidget {
     final grouped = whole
         .toString()
         .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-    final small = size * .42;
+    final small = size * currencyScale;
     return Text.rich(
       TextSpan(children: [
         TextSpan(

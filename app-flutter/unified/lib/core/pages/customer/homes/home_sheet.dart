@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../vibe/vibe_home_parts.dart';
+import '../../../vibe/vibe_icon.dart';
 import '../../../vibe/vibe_text.dart';
 import '../../../vibe/vibe_tokens.dart';
 import 'vibe_home_blocks.dart';
@@ -93,6 +95,26 @@ class VibeSheetHome extends ConsumerWidget {
                 case final boleto?)
               boleto,
           ]),
+          if (data.nextDue() case final next?) ...[
+            const SizedBox(height: 12),
+            Row(children: [
+              VibeIcon('cal', size: 16, color: t.on.withValues(alpha: .78)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text.rich(
+                  TextSpan(children: [
+                    const TextSpan(text: 'Próxima fatura vence em '),
+                    TextSpan(
+                        text: DateFormat('dd/MM').format(next),
+                        style: vibeText(t, 13, 800,
+                            color: t.on.withValues(alpha: .78))),
+                  ]),
+                  style:
+                      vibeText(t, 13, 600, color: t.on.withValues(alpha: .78)),
+                ),
+              ),
+            ]),
+          ],
         ],
       ]),
     );

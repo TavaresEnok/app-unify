@@ -618,11 +618,15 @@ class VibePageChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
     final (Color bg, Color fg) = switch (tone) {
-      VibeTone.bad => (const Color(0xFFFDE2E2), const Color(0xFFB42318)),
+      VibeTone.bad => t.dark
+          ? (t.badb, t.bad)
+          : (const Color(0xFFFDE2E2), const Color(0xFFB42318)),
       VibeTone.ok => t.dark
           ? (const Color(0xFF1A3B2C), const Color(0xFFA8EDC4))
           : (const Color(0xFFDCFCE7), const Color(0xFF166534)),
-      VibeTone.warning => (const Color(0xFFFEF0C7), const Color(0xFF93370D)),
+      VibeTone.warning => t.dark
+          ? (t.wab, t.wa)
+          : (const Color(0xFFFEF0C7), const Color(0xFF93370D)),
       VibeTone.neutral => (t.ink.withValues(alpha: .09), t.ink),
     };
     return Container(
@@ -844,10 +848,17 @@ class VibeStatusCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
     final (Color bg, Color fg) = switch (tone) {
-      VibeTone.warning => (const Color(0xFFFEF0C7), const Color(0xFFB54708)),
-      VibeTone.bad => (const Color(0xFFFDE2E2), const Color(0xFFB42318)),
-      _ => (const Color(0xFFDCFCE7), const Color(0xFF15803D)),
+      VibeTone.warning => t.dark
+          ? (t.wab, t.wa)
+          : (const Color(0xFFFEF0C7), const Color(0xFFB54708)),
+      VibeTone.bad => t.dark
+          ? (t.badb, t.bad)
+          : (const Color(0xFFFDE2E2), const Color(0xFFB42318)),
+      _ => t.dark
+          ? (t.okb, t.ok)
+          : (const Color(0xFFDCFCE7), const Color(0xFF15803D)),
     };
     return Container(
       width: 56,
@@ -912,9 +923,11 @@ class VibeOkBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
     if (strip) {
-      final (Color bg, Color fg) = warning
-          ? (const Color(0xFFFFFAEB), const Color(0xFF93370D))
-          : (const Color(0xFFECFDF3), const Color(0xFF166534));
+      final (Color bg, Color fg) = t.dark
+          ? (warning ? (t.wab, t.wa) : (t.okb, t.ok))
+          : warning
+              ? (const Color(0xFFFFFAEB), const Color(0xFF93370D))
+              : (const Color(0xFFECFDF3), const Color(0xFF166534));
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration:
@@ -932,10 +945,12 @@ class VibeOkBox extends StatelessWidget {
         Container(
           width: 44,
           height: 44,
-          decoration: const BoxDecoration(
-              color: Color(0xFFDCFCE7), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+              color: t.dark ? t.okb : const Color(0xFFDCFCE7),
+              shape: BoxShape.circle),
           alignment: Alignment.center,
-          child: const VibeIcon('check', size: 24, color: Color(0xFF15803D)),
+          child: VibeIcon('check',
+              size: 24, color: t.dark ? t.ok : const Color(0xFF15803D)),
         ),
         const SizedBox(height: 6),
         Text(title, textAlign: TextAlign.center, style: vibeText(t, 16, 700)),

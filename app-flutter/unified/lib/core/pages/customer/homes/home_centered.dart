@@ -51,7 +51,8 @@ class VibeCenteredHome extends ConsumerWidget {
             Center(
               child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: VibeAmount(main.invoice.valor, size: 48, color: t.on)),
+                  child: VibeAmount(main.invoice.valor,
+                      size: 48, color: t.on, currencyScale: .36)),
             ),
             const SizedBox(height: 12),
             Center(

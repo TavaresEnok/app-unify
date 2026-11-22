@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' show Brightness, Color, ThemeMode;
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import '../services/notification_service.dart';
@@ -27,10 +27,8 @@ final configurationProvider =
 /// para telas novas: `ref.watch(layoutTokensProvider)`.
 final layoutTokensProvider = Provider<LayoutTokens>((ref) {
   final config = ref.watch(configurationProvider).providerConfig;
-  final themeMode = ref.watch(themeProvider).themeMode;
-  final tokens = LayoutTokens.of(config?.layoutType).withBrightness(
-    themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light,
-  );
+  final brightness = ref.watch(themeProvider).brightness;
+  final tokens = LayoutTokens.of(config?.layoutType).withBrightness(brightness);
   final value = config?.config.themeColor.replaceFirst('#', '');
   final branded = value != null && RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(value)
       ? tokens.withPrimary(Color(0xFF000000 | int.parse(value, radix: 16)))

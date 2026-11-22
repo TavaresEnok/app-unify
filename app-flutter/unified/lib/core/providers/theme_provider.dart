@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/theme_config.dart';
 import '../theme/layout_tokens.dart';
 
-class DynamicThemeProvider with ChangeNotifier {
+class DynamicThemeProvider with ChangeNotifier, WidgetsBindingObserver {
   ThemeData _lightTheme;
   ThemeData _darkTheme;
   static const _preferenceKey = 'theme_mode';
@@ -17,6 +17,20 @@ class DynamicThemeProvider with ChangeNotifier {
         _lightTheme = _buildTheme(ThemeConfig.defaultTheme, Brightness.light),
         _darkTheme = _buildTheme(ThemeConfig.defaultTheme, Brightness.dark) {
     _loadPreference();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Brilho efetivo: no modo automático, o do celular.
+  Brightness get brightness => switch (_themeMode) {
+        ThemeMode.dark => Brightness.dark,
+        ThemeMode.system =>
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+        _ => Brightness.light,
+      };
+
+  @override
+  void didChangePlatformBrightness() {
+    if (_themeMode == ThemeMode.system && !_disposed) notifyListeners();
   }
 
   ThemeData get lightTheme => _lightTheme;
@@ -44,8 +58,10 @@ class DynamicThemeProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString(_preferenceKey);
       if (_disposed || _changedByUser) return;
-      if (saved == ThemeMode.dark.toString()) {
-        _themeMode = ThemeMode.dark;
+      final mode =
+          ThemeMode.values.where((m) => m.toString() == saved).firstOrNull;
+      if (mode != null && mode != _themeMode) {
+        _themeMode = mode;
         notifyListeners();
       }
     } catch (_) {
@@ -55,7 +71,7 @@ class DynamicThemeProvider with ChangeNotifier {
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _changedByUser = true;
-    _themeMode = mode == ThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
+    _themeMode = mode;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -68,6 +84,7 @@ class DynamicThemeProvider with ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

@@ -22,6 +22,30 @@ abstract final class AppFormatters {
 
   static String date(DateTime value) => _date.format(value);
 
+  /// Dia do mês em que o contrato vence: "20/11/2026", "Vence em 6/11/2026"
+  /// ou "2026-11-06" → 20 / 6 / 6. Nulo quando o texto não traz uma data.
+  static int? dueDayOf(String value) {
+    final match = RegExp(r'(?<!\d)(\d{1,2})/\d{1,2}(?:/\d{2,4})?(?!\d)')
+            .firstMatch(value) ??
+        RegExp(r'\d{4}-\d{2}-(\d{2})').firstMatch(value);
+    final day = int.tryParse(match?.group(1) ?? '');
+    return day == null || day < 1 || day > 31 ? null : day;
+  }
+
+  /// Primeira data com o dia [day] depois de [after] (dia 31 em mês curto
+  /// vira o último dia do mês).
+  static DateTime nextDue(int day, DateTime after) {
+    for (var i = 0; i < 3; i++) {
+      final first = DateTime(after.year, after.month + i);
+      final last = DateTime(first.year, first.month + 1, 0).day;
+      final date = DateTime(first.year, first.month, day > last ? last : day);
+      if (date.isAfter(DateTime(after.year, after.month, after.day))) {
+        return date;
+      }
+    }
+    return DateTime(after.year, after.month + 1, day);
+  }
+
   /// "Hoje, 08:00", "Ontem, 19:12" ou "12/11, 08:40".
   static String when(DateTime value, {DateTime? now}) {
     final local = value.toLocal(), today = now ?? DateTime.now();

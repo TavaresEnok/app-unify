@@ -3,6 +3,7 @@ import 'package:app_provedor_unified/core/models/diagnostic_presentation.dart';
 import 'package:app_provedor_unified/core/pages/shared_contrato_page.dart';
 import 'package:app_provedor_unified/core/pages/shared_meu_ip_page.dart';
 import 'package:app_provedor_unified/core/pages/unified_login_page.dart';
+import 'package:app_provedor_unified/core/utils/app_formatters.dart';
 import 'package:app_provedor_unified/core/widgets/diagnostics/diagnostic_view.dart';
 
 TextEditingValue _type(String text) => CpfCnpjInputFormatter()
@@ -53,5 +54,18 @@ void main() {
         'Lendo o sinal da fibra…');
     expect(DiagnosticPresentation.stepLabel('Escaneando Rede Local (LAN)...'),
         'Contando aparelhos na rede…');
+  });
+
+  test('próxima fatura cai no dia do contrato do mês seguinte', () {
+    expect(AppFormatters.dueDayOf('Vence em 6/11/2026'), 6);
+    expect(AppFormatters.dueDayOf('Mensal'), isNull);
+    expect(AppFormatters.nextDue(20, DateTime(2026, 11, 18)),
+        DateTime(2026, 11, 20));
+    expect(AppFormatters.nextDue(20, DateTime(2026, 11, 20)),
+        DateTime(2026, 12, 20));
+    expect(AppFormatters.nextDue(31, DateTime(2027, 1, 31)),
+        DateTime(2027, 2, 28));
+    expect(AppFormatters.nextDue(5, DateTime(2026, 12, 10)),
+        DateTime(2027, 1, 5));
   });
 }

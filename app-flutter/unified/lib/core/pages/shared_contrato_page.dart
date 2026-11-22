@@ -21,15 +21,11 @@ class ContratoPage extends ConsumerWidget {
     return 'Não informado';
   }
 
-  /// O contrato vence todo mês no mesmo dia: "20/11/2026" → "Todo dia 20".
   /// O contrato vence todo mês no mesmo dia: "20/11/2026", "Vence em
   /// 6/11/2026" ou "2026-11-06" viram "Todo dia 20" / "Todo dia 6".
   static String dueDay(String value) {
-    final match = RegExp(r'(?<!\d)(\d{1,2})/\d{1,2}(?:/\d{2,4})?(?!\d)')
-            .firstMatch(value) ??
-        RegExp(r'\d{4}-\d{2}-(\d{2})').firstMatch(value);
-    final day = int.tryParse(match?.group(1) ?? '');
-    return day == null || day < 1 || day > 31 ? value.trim() : 'Todo dia $day';
+    final day = AppFormatters.dueDayOf(value);
+    return day == null ? value.trim() : 'Todo dia $day';
   }
 
   @override

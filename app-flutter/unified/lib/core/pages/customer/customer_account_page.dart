@@ -141,6 +141,25 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
           ]),
         ),
         if (rows.isNotEmpty) VibeCard(child: VibeRows(children: rows)),
+        VibeCard(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Aparência', style: vibeText(t, 14, 700)),
+            const SizedBox(height: 2),
+            Text('Automático segue o modo do celular.',
+                style: vibeText(t, 12.5, 500, color: t.mut)),
+            const SizedBox(height: 10),
+            VibeChoiceChips<ThemeMode>(
+              options: const [
+                (ThemeMode.light, 'Claro'),
+                (ThemeMode.dark, 'Escuro'),
+                (ThemeMode.system, 'Automático'),
+              ],
+              selected: ref.watch(themeProvider).themeMode,
+              onSelected: (mode) => ref.read(themeProvider).setThemeMode(mode),
+            ),
+          ]),
+        ),
         if (custom.isNotEmpty)
           VibeCard(
             child: VibeRows(children: [
@@ -163,7 +182,7 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
                   Text('Sair da conta?', style: vibeText(t, 14, 700)),
                   const SizedBox(height: 4),
                   const VibeNote(
-                      'Você vai precisar do CPF e da senha para entrar de novo.',
+                      'Para entrar de novo, é só informar o CPF ou CNPJ do titular.',
                       paragraph: true),
                   const SizedBox(height: 12),
                   VibeTwo(

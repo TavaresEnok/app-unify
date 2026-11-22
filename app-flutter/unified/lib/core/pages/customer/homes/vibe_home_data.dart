@@ -87,6 +87,18 @@ class VibeHomeData {
   }
 
   String get plan => AppFormatters.label(user?.plano);
+
+  /// Com a fatura paga, a próxima data pelo dia de vencimento do contrato
+  /// (`NX` do protótipo). Sem o dia no cadastro, nada é presumido.
+  DateTime? nextDue({DateTime? today}) {
+    final main = billing.main;
+    final day = AppFormatters.dueDayOf(user?.vencimentoFatura ?? '');
+    if (main == null || !main.paid || day == null) return null;
+    final now = today ?? DateTime.now();
+    final paidDue = main.invoice.vencimento;
+    return AppFormatters.nextDue(day, paidDue.isAfter(now) ? paidDue : now);
+  }
+
   String get providerName => config?.name.trim() ?? '';
   String? get logoUrl => config?.config.logoUrl;
 

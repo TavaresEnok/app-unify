@@ -25,4 +25,27 @@ void main() {
     expect(restored.themeMode, ThemeMode.dark);
     restored.dispose();
   });
+
+  test('o modo automático segue o celular e volta salvo', () async {
+    SharedPreferences.setMockInitialValues({});
+    final binding = TestWidgetsFlutterBinding.instance;
+    final theme = DynamicThemeProvider();
+    expect(theme.themeMode, ThemeMode.light);
+    expect(theme.brightness, Brightness.light);
+
+    await theme.setThemeMode(ThemeMode.system);
+    var notified = 0;
+    theme.addListener(() => notified++);
+    binding.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    expect(theme.brightness, Brightness.dark);
+    expect(notified, greaterThan(0));
+    binding.platformDispatcher.clearPlatformBrightnessTestValue();
+    expect(theme.brightness, Brightness.light);
+    theme.dispose();
+
+    final restored = DynamicThemeProvider();
+    await Future<void>.delayed(Duration.zero);
+    expect(restored.themeMode, ThemeMode.system);
+    restored.dispose();
+  });
 }
