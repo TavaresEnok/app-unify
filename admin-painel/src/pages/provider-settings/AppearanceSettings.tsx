@@ -4,10 +4,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
-import { Check, Loader2, MonitorSmartphone, Palette, RotateCcw, Save, Smartphone } from 'lucide-react';
+import { Check, Loader2, Palette, RotateCcw, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 const defaultBrand = '#2456C9';
@@ -24,15 +23,6 @@ const layoutOptions = [
     { value: 'layout_04', title: 'Blocos escuros', desc: 'Cartões e serviços em blocos' },
     { value: 'layout_05', title: 'Faixa e fatura', desc: 'Fatura em destaque na faixa' },
     { value: 'layout_06', title: 'Topo centralizado', desc: 'Valor centralizado no topo' },
-];
-
-const diagnosticOptions = [
-    { value: 'default', label: 'Padrão', desc: 'Baseado no layout atual' },
-    { value: 'diagnostic_02', label: 'Cyberpunk Dark', desc: 'Gráficos em tempo real' },
-    { value: 'diagnostic_03', label: 'Elegant Dark', desc: 'Gauge animado' },
-    { value: 'diagnostic_05', label: 'Clean Light', desc: 'Neumorphic' },
-    { value: 'diagnostic_06', label: 'Minimal Light', desc: 'Timeline' },
-    { value: 'diagnostic_07', label: 'Zenith Premium', desc: 'Mesh particles' },
 ];
 
 function previewAsset(layout: string, color: string, dark = false) {
@@ -189,46 +179,6 @@ export default function AppearanceSettings() {
                                     </button>
                                 );
                             })}
-                        </div>
-                    </section>
-
-                    <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-                        <div className="rounded-xl border border-[#EEF0F4] bg-[#FAFBFC] p-4">
-                            <Label className="mb-3 flex items-center gap-2 text-[12.5px] font-semibold text-[#39414F]">
-                                <MonitorSmartphone className="h-4 w-4" />
-                                Estilo do diagnóstico
-                            </Label>
-                            <Select value={config.diagnosticStyle || 'default'} onValueChange={(val) => setConfig((p) => ({ ...p, diagnosticStyle: val as ProviderConfig['diagnosticStyle'] }))}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Escolha o estilo do diagnóstico" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {diagnosticOptions.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>{option.label} - {option.desc}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="rounded-xl border border-[#EEF0F4] bg-[#FAFBFC] p-4">
-                            <Label className="mb-3 flex items-center gap-2 text-[12.5px] font-semibold text-[#39414F]">
-                                <Smartphone className="h-4 w-4" />
-                                Cabeçalho e serviços
-                            </Label>
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[12.5px] text-[#4A5364]">Cabeçalho com imagem</span>
-                                    <Switch checked={config.other?.useBackgroundImage || false} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), useBackgroundImage: checked } }))} />
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[12.5px] text-[#4A5364]">Mostrar serviço de TV</span>
-                                    <Switch checked={config.other?.showTvService ?? true} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), showTvService: checked } }))} />
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[12.5px] text-[#4A5364]">Mostrar serviço de Telefone</span>
-                                    <Switch checked={config.other?.showPhoneService ?? true} onCheckedChange={(checked) => setConfig((p) => ({ ...p, other: { ...(p.other || {}), showPhoneService: checked } }))} />
-                                </div>
-                            </div>
                         </div>
                     </section>
 
