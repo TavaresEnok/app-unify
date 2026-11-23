@@ -37,7 +37,7 @@ export default function ProviderDashboardPage() {
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
                 <div>
                     <h2 className="m-0 mb-1 text-xl font-bold tracking-normal text-[#0E1320]">Visão geral</h2>
-                    <p className="m-0 text-[13px] text-[#687181]">Contagens de registros do provedor consultadas no Firestore; sem garantia de frescor da origem.</p>
+                    <p className="m-0 text-[13px] text-[#687181]">Contagens do provedor consolidadas do cache local (PostgreSQL) e dos chamados.</p>
                 </div>
                 <Button onClick={() => navigate('/provedor/comunicados/notificacoes')} className="gap-1.5">
                     <Send className="h-3.5 w-3.5" />
@@ -53,9 +53,9 @@ export default function ProviderDashboardPage() {
             {data && <>
             {/* Só indicadores medidos; sem cards de instalações/adesões/nota sem origem (E1). */}
             <div className="grid gap-3.5 md:grid-cols-3">
-                <StatsCard title="Clientes sincronizados" value={measuredCount(stats.totalClients)} icon={Users} description="Total cadastrado no Firestore, sem período." />
+                <StatsCard title="Clientes sincronizados" value={measuredCount(stats.totalClients)} icon={Users} description="Total sincronizado no cache local (PostgreSQL)." />
                 <StatsCard title="Chamados abertos" value={measuredCount(stats.openTicketsCount)} icon={MessageSquare} description="Aberto ou Em Andamento, sem período." />
-                <StatsCard title="Notificações (24h)" value={measuredCount(stats.notificationCount)} icon={Bell} description="Enviadas nas últimas 24 horas." />
+                <StatsCard title="Notificações enviadas" value={measuredCount(stats.notificationCount)} icon={Bell} description="Campanhas registradas no histórico do provedor." />
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[.85fr_1.15fr]">

@@ -10,7 +10,10 @@ import 'navigation/customer_routes.dart';
 import 'navigation/customer_shell_scope.dart';
 import 'vibe/vibe_nav_bar.dart';
 import 'vibe/vibe_page_parts.dart';
+import 'vibe/vibe_text.dart';
 import 'vibe/vibe_tokens.dart';
+import 'services/incident_service.dart';
+import 'services/push_notification_service.dart';
 import 'widgets/content_state.dart';
 import 'widgets/offline_banner.dart';
 import 'pages/customer/customer_home_page.dart';
@@ -42,16 +45,33 @@ class PainelPage extends ConsumerStatefulWidget {
 
 class _PainelPageState extends ConsumerState<PainelPage> {
   int _tab = 0;
+  ProviderIncident? _activeIncident;
+  String? _dismissedIncidentId;
   static const _tabs = ['dashboard', 'invoices', 'connection', 'support'];
+
   @override
   void initState() {
     super.initState();
     final destination = CustomerRoutes.normalize(widget.initialDestination);
     _tab = _tabs.contains(destination) ? _tabs.indexOf(destination) : 0;
+    PushNotificationService().setOnNotificationTap(_handlePushRoute);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.refreshOnOpen) _refresh();
       if (!_tabs.contains(destination) && mounted) _navigate(destination);
     });
+  }
+
+  @override
+  void dispose() {
+    PushNotificationService().setOnNotificationTap(null);
+    super.dispose();
+  }
+
+  void _handlePushRoute(String? rawRoute) {
+    if (!mounted) return;
+    final normalized = CustomerRoutes.normalize(rawRoute ?? '');
+    final target = normalized.isEmpty ? 'notifications' : normalized;
+    _navigate(target);
   }
 
   Future<void> _refresh() async {
@@ -63,10 +83,100 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     if (!mounted) return;
     final user = ref.read(authNotifierProvider).valueOrNull;
     if (user != null) {
-      await ref
-          .read(notificationProvider)
-          .syncRemoteNotifications(user, config.id);
+      final notif = ref.read(notificationProvider);
+      notif.configureApiUrl(config.apiUrl);
+      await notif.syncRemoteNotifications(user, config.id);
     }
+    final incident = await IncidentService.fetchActiveFromApi(config.apiUrl);
+    if (mounted) {
+      setState(() => _activeIncident = incident);
+    }
+  }
+
+  void _showIncidentSheet(VibeTokens t, ProviderIncident incident) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheet) => Container(
+        decoration: BoxDecoration(
+          color: t.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: t.ink.withValues(alpha: .18),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(
+                      incident.severity == 'critical'
+                          ? Icons.error_outline_rounded
+                          : Icons.warning_amber_rounded,
+                      color: incident.severity == 'critical' ? t.bad : t.wa,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        incident.title,
+                        style: vibeText(t, 18, 800),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  incident.message,
+                  style: vibeText(t, 14, 500, color: t.mut, height: 1.45),
+                ),
+                if (incident.area != null || incident.estimatedResolution != null) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (incident.area != null)
+                        Chip(
+                          label: Text('Região: ${incident.area!}',
+                              style: vibeText(t, 12, 600)),
+                          backgroundColor: t.ink.withValues(alpha: .06),
+                          side: BorderSide.none,
+                        ),
+                      if (incident.estimatedResolution != null)
+                        Chip(
+                          label: Text('Previsão: ${incident.estimatedResolution!}',
+                              style: vibeText(t, 12, 600)),
+                          backgroundColor: t.ink.withValues(alpha: .06),
+                          side: BorderSide.none,
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                VibePageButton(
+                  label: 'Entendi',
+                  onPressed: () => Navigator.of(sheet).pop(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   int _tabForRoute(String route) => switch (route) {
@@ -354,6 +464,9 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                         backgroundColor: t.bg,
                         body: Column(children: [
                           Expanded(child: _withMasthead(t, body)),
+                          if (_activeIncident != null &&
+                              _activeIncident!.id != _dismissedIncidentId)
+                            _buildIncidentBanner(t, _activeIncident!),
                           const OfflineBanner(),
                         ]),
                         bottomNavigationBar: VibeNavBar(
@@ -363,6 +476,66 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                       ),
                     )),
           )),
+    );
+  }
+
+  Widget _buildIncidentBanner(VibeTokens t, ProviderIncident incident) {
+    final accent = incident.severity == 'critical' ? t.bad : t.wa;
+    return Material(
+      color: accent.withValues(alpha: .12),
+      child: InkWell(
+        onTap: () => _showIncidentSheet(t, incident),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: accent.withValues(alpha: .35)),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                incident.severity == 'critical'
+                    ? Icons.error_outline_rounded
+                    : Icons.warning_amber_rounded,
+                size: 18,
+                color: accent,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      incident.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: vibeText(t, 12.5, 700, color: t.ink),
+                    ),
+                    Text(
+                      incident.area != null
+                          ? '${incident.area} · Toque para detalhes'
+                          : 'Toque para ver detalhes do aviso',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: vibeText(t, 11, 500, color: t.mut),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: Icon(Icons.close_rounded, size: 18, color: t.mut),
+                tooltip: 'Dispensar aviso',
+                onPressed: () =>
+                    setState(() => _dismissedIncidentId = incident.id),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

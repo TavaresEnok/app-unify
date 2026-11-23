@@ -182,6 +182,32 @@ describe("credenciais SGP por provedor", () => {
 });
 
 describe("todos os contratos", () => {
+  it("preserva situação suspensa quando a conexão está online", async () => {
+    sgpResponses["/ws/ura/consultacliente/"] = () => ({ contratos: [contrato(1, 0, {
+      razaoSocial: "Nome Completo do Assinante", contratoStatusDisplay: "Suspenso",
+    })] });
+    sgpResponses["/api/central/verificaacesso/"] = () => ({ online: true });
+    const response = await request(app).post("/getClientData").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(200);
+    expect(response.body.data).toMatchObject({
+      userName: "Nome Completo do Assinante", userStatus: "Online", contractStatus: "Suspenso",
+    });
+  });
+
+  it("getClientData envia form-urlencoded ao verificaacesso e reconhece status numérico 1 / Serviço Online", async () => {
+    sgpResponses["/api/central/verificaacesso/"] = (body) => {
+      expect(body).toBeInstanceOf(URLSearchParams);
+      expect(body.get("cpfcnpj")).toBe(CPF);
+      expect(body.get("contrato")).toBe("1");
+      return { msg: "Serviço Online", status: 1 };
+    };
+    const online = await request(app).post("/getClientData").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(200);
+    expect(online.body.data.userStatus).toBe("Online");
+
+    sgpResponses["/api/central/verificaacesso/"] = () => ({ msg: "Serviço Offline", status: 0 });
+    const offline = await request(app).post("/getClientData").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(200);
+    expect(offline.body.data.userStatus).toBe("Offline");
+  });
+
   it("getClientData lista todos e soma o valor em aberto", async () => {
     sgpResponses["/api/central/verificaacesso/"] = () => ({ online: true });
     const response = await request(app).post("/getClientData").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(200);
@@ -206,6 +232,14 @@ describe("todos os contratos", () => {
     expect(response.body.data.contratos).toHaveLength(2);
   });
 
+  it("getConsumptionData não confunde velocidade do plano com franquia", async () => {
+    sgpResponses["/api/central/extratouso/"] = () => ({ total: 2 * 1024 ** 3, plano: "500 MEGA" });
+    const response = await request(app).post("/getConsumptionData").set(asSubscriber()).send({ cpfCnpj: CPF, contratoId: 1 }).expect(200);
+    expect(response.body.data.usedGb).toBe(2);
+    expect(response.body.data.totalGb).toBeNull();
+    expect(response.body.data.contratos[0].totalGb).toBeNull();
+  });
+
   it("makePaymentPromise libera todos os contratos com débito", async () => {
     sgpResponses["/ws/ura/consultacliente/"] = () => ({ contratos: [contrato(1, 0), contrato(2, 10), contrato(3, 20)] });
     sgpResponses["/api/ura/liberacaopromessa/"] = () => ({ status: true, msg: "ok" });
@@ -219,6 +253,19 @@ describe("todos os contratos", () => {
     sgpResponses["/api/ura/liberacaopromessa/"] = () => ({ status: false, msg: "Já existe promessa" });
     const response = await request(app).post("/makePaymentPromise").set(asSubscriber()).send({ cpfCnpj: CPF, contratoId: "1" }).expect(409);
     expect(response.body.error.message).toBe("Já existe promessa");
+  });
+
+  it("preserva centavos e documentos por contrato e comunica indisponibilidade", async () => {
+    sgpResponses["/api/ura/titulos/"] = (body) => ({ titulos: body.status === "pagos" ? [] : [
+      { id: 1, valor: "1.023,45", contrato: 2, codigoPix: "test-oct", link: "https://example.test/oct" },
+      { id: 2, valor: null, contrato: 2 },
+      { id: 3, valor: 99, contrato: 1 },
+    ] });
+    const response = await request(app).post("/getInvoices").set(asSubscriber()).send({ cpfCnpj: CPF, contratoId: "2" }).expect(200);
+    expect(response.body.data.map((item: any) => [item.id, item.valor])).toEqual([[1, "1023,45"], [2, null]]);
+    expect(response.body.data[0]).toMatchObject({ linha_digitavel_pix: "test-oct", link: "https://example.test/oct" });
+    sgpResponses["/api/ura/titulos/"] = () => ({ mensagem: "indisponível" });
+    await request(app).post("/getInvoices").set(asSubscriber()).send({ cpfCnpj: CPF }).expect(502);
   });
 
   it("getInvoices filtra por contrato quando pedido", async () => {

@@ -13,7 +13,7 @@ class PushNotificationService {
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
@@ -21,6 +21,32 @@ class PushNotificationService {
 
   // Callback para navegação (será setado pelo app)
   Function(String? route)? onNotificationTap;
+
+  // Rota pendente quando o app é aberto pelo toque em uma notificação (cold start)
+  // antes de o PainelPage registrar o callback de navegação.
+  String? _pendingRoute;
+
+  /// Registra (ou limpa) o handler de navegação ao tocar em notificações.
+  /// Se houver uma rota pendente de abertura a frio, dispara imediatamente.
+  void setOnNotificationTap(void Function(String? route)? handler) {
+    onNotificationTap = handler;
+    if (handler != null && _pendingRoute != null) {
+      final route = _pendingRoute;
+      _pendingRoute = null;
+      Future.microtask(() => handler(route));
+    }
+  }
+
+  void _dispatchRoute(String? rawRoute) {
+    final route = rawRoute?.trim();
+    final effectiveRoute =
+        (route == null || route.isEmpty) ? '/notificacoes' : route;
+    if (onNotificationTap != null) {
+      onNotificationTap!(effectiveRoute);
+    } else {
+      _pendingRoute = effectiveRoute;
+    }
+  }
 
   // Serviço de notificações in-app (injetado)
   NotificationService? _notificationService;
@@ -171,26 +197,17 @@ class PushNotificationService {
     );
   }
 
-  /// Handle quando usuário toca na notificação (app em background)
+  /// Handle quando usuário toca na notificação (app em background ou terminado)
   void _handleMessageOpenedApp(RemoteMessage message) {
     debugPrint('🔔 App aberto via notificação: ${message.data}');
-    final route = message.data['route'];
-
-    // Note: Notification will already be in history if it was received while in foreground or background via system tray.
-    // If the user taps it, we just navigate.
-
-    if (route != null && onNotificationTap != null) {
-      onNotificationTap!(route);
-    }
+    final route = message.data['route']?.toString();
+    _dispatchRoute(route);
   }
 
   /// Handle quando usuário toca na notificação local
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('🔔 Notificação local clicada: ${response.payload}');
-    final route = response.payload;
-    if (route != null && onNotificationTap != null) {
-      onNotificationTap!(route);
-    }
+    _dispatchRoute(response.payload);
   }
 
   /// Obtém o token FCM atual

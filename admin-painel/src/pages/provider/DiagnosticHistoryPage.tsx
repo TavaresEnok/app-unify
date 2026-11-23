@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Timestamp } from 'firebase/firestore';
-import { Loader2, Activity, Trash2, Search, Download } from 'lucide-react';
-import PrivateAttachment from '@/components/PrivateAttachment';
+import { Loader2, Activity, Trash2, Search, Download, RefreshCw } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -20,39 +18,27 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteDiagnostic, subscribeDiagnostics } from '@/features/diagnostics/diagnosticService';
+import {
+    deleteProviderDiagnostic,
+    fetchProviderDiagnostics,
+    type DiagnosticResultItem,
+} from '@/shared/api/diagnostics';
 
-// Espelha o que o app grava em provedores/{id}/diagnostic_results
-// (DiagnosticReportService.persistResult).
-interface DiagnosticResult {
-    id: string;
-    contractId?: number;
-    planName?: string;
-    severity?: 'ok' | 'attention' | 'critical';
-    headline?: string;
-    needsProviderSupport?: boolean;
-    findings?: Array<{ title: string; area: string; severity: string }>;
-    reportUrl?: string;
-    reportAttachmentId?: string;
-    measurements?: {
-        speed?: { downloadMbps?: number; uploadMbps?: number; pingMs?: number };
-        googlePing?: { latencyMs?: number; lossPercent?: number };
-        onu?: { rxPower?: number; status?: string };
-        device?: { connectionType?: string };
-    };
-    createdAt?: Timestamp;
-}
-
-const SEVERITY_META: Record<string, { label: string; tone: 'green' | 'amber' | 'red' }> = {
+const VERDICT_META: Record<string, { label: string; tone: 'green' | 'amber' | 'red' | 'gray' }> = {
+    healthy: { label: 'OK', tone: 'green' },
     ok: { label: 'OK', tone: 'green' },
+    degraded: { label: 'Atenção', tone: 'amber' },
     attention: { label: 'Atenção', tone: 'amber' },
     critical: { label: 'Crítico', tone: 'red' },
+    unknown: { label: 'Parcial', tone: 'gray' },
 };
 
-function formatDate(timestamp?: Timestamp): string {
-    if (!timestamp) return '-';
+function formatDate(iso?: string): string {
+    if (!iso) return '-';
     try {
-        return timestamp.toDate().toLocaleString('pt-BR', {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '-';
+        return d.toLocaleString('pt-BR', {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit',
         });
@@ -61,49 +47,63 @@ function formatDate(timestamp?: Timestamp): string {
     }
 }
 
-function num(value: number | undefined, digits = 1): string {
-    return typeof value === 'number' ? value.toFixed(digits) : '-';
+function num(value: unknown, digits = 1): string {
+    return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '-';
+}
+
+function needsProvider(item: DiagnosticResultItem): boolean {
+    if (typeof item.summary?.needsProviderSupport === 'boolean') {
+        return item.summary.needsProviderSupport;
+    }
+    return item.verdict === 'critical';
 }
 
 export default function DiagnosticHistoryPage() {
     const { providerId, user } = useAuth();
-    const [results, setResults] = useState<DiagnosticResult[]>([]);
+    const [results, setResults] = useState<DiagnosticResultItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
-    useEffect(() => {
-        setResults([]); setLoading(true);
+    const load = useCallback(async (isRefresh = false) => {
         if (!providerId || !user) return;
-        let alive = true;
-        const unsubscribe = subscribeDiagnostics<DiagnosticResult>(providerId, (data) => {
-            if (!alive) return;
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
+        try {
+            const data = await fetchProviderDiagnostics(providerId);
             setResults(data);
-            setLoading(false);
-        }, (error) => {
+        } catch (error) {
             console.error('Error fetching diagnostics:', error);
             toast.error('Erro ao carregar diagnósticos');
+        } finally {
             setLoading(false);
-        });
-        return () => { alive = false; unsubscribe(); };
+            setRefreshing(false);
+        }
     }, [providerId, user]);
+
+    useEffect(() => {
+        setResults([]);
+        void load(false);
+    }, [load]);
 
     // Classificação do diagnóstico; não comprova resolução nem visita evitada.
     const metrics = useMemo(() => {
         const total = results.length;
-        const needsProvider = results.filter((r) => r.needsProviderSupport).length;
-        const critical = results.filter((r) => r.severity === 'critical').length;
+        const needsProviderCount = results.filter(needsProvider).length;
+        const critical = results.filter((r) => r.verdict === 'critical').length;
         const selfResolvable = results.filter(
-            (r) => r.severity !== 'ok' && !r.needsProviderSupport,
+            (r) => r.verdict !== 'healthy' && r.verdict !== 'ok' && !needsProvider(r),
         ).length;
         const deflectionRate = total === 0 ? 0 : Math.round((selfResolvable / total) * 100);
-        return { total, needsProvider, critical, selfResolvable, deflectionRate };
+        return { total, needsProvider: needsProviderCount, critical, selfResolvable, deflectionRate };
     }, [results]);
 
     const handleDelete = async (id: string) => {
         if (!providerId) return;
         try {
-            await deleteDiagnostic(providerId, id);
+            await deleteProviderDiagnostic(providerId, id);
+            setResults((prev) => prev.filter((item) => item.id !== id));
             toast.success('Registro excluído com sucesso');
         } catch (error) {
             console.error('Error deleting:', error);
@@ -112,23 +112,34 @@ export default function DiagnosticHistoryPage() {
         setDeleteId(null);
     };
 
-    const filteredResults = results.filter((r) =>
-        String(r.contractId ?? '').includes(searchTerm) ||
-        (r.planName ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (r.headline ?? '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const q = searchTerm.trim().toLowerCase();
+    const filteredResults = q
+        ? results.filter((r) =>
+            r.contratoId.toLowerCase().includes(q) ||
+            r.clientName.toLowerCase().includes(q) ||
+            r.cpfCnpj.includes(q.replace(/\D/g, '') || q) ||
+            r.planName.toLowerCase().includes(q) ||
+            r.verdictHeadline.toLowerCase().includes(q) ||
+            r.oltName.toLowerCase().includes(q) ||
+            r.bairro.toLowerCase().includes(q),
+        )
+        : results;
 
     const exportCSV = () => {
-        const headers = ['Contrato', 'Plano', 'Data/Hora', 'Severidade', 'Resultado', 'Encaminhamento', 'Download (Mbps)', 'Ping (ms)'];
+        const headers = ['Contrato', 'Cliente', 'Plano', 'OLT', 'Bairro', 'Data/Hora', 'Severidade', 'Resultado', 'Encaminhamento', 'Download (Mbps)', 'Ping (ms)', 'Sinal ONU (dBm)'];
         const rows = filteredResults.map((r) => [
-            r.contractId ?? '',
-            r.planName ?? '',
+            r.contratoId || '',
+            r.clientName.replace(/[,;\n]/g, ' '),
+            r.planName.replace(/[,;\n]/g, ' '),
+            r.oltName.replace(/[,;\n]/g, ' '),
+            r.bairro.replace(/[,;\n]/g, ' '),
             formatDate(r.createdAt),
-            SEVERITY_META[r.severity ?? '']?.label ?? '-',
-            (r.headline ?? '').replace(/[,;\n]/g, ' '),
-            r.needsProviderSupport ? 'Provedor' : 'Cliente',
-            num(r.measurements?.speed?.downloadMbps),
-            num(r.measurements?.googlePing?.latencyMs, 0),
+            VERDICT_META[r.verdict]?.label ?? '-',
+            r.verdictHeadline.replace(/[,;\n]/g, ' '),
+            needsProvider(r) ? 'Provedor' : 'Cliente',
+            num(r.summary?.downloadMbps),
+            num(r.summary?.pingMs, 0),
+            num(r.summary?.onuRxDbm, 1),
         ]);
         const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -174,21 +185,25 @@ export default function DiagnosticHistoryPage() {
                 </div>
             )}
 
-            <DataTable<DiagnosticResult>
+            <DataTable<DiagnosticResultItem>
                 title="Diagnósticos"
-                description={results.length > 0 ? `${results.length} diagnósticos registrados no total.` : 'Nenhum diagnóstico registrado ainda.'}
+                description={results.length > 0 ? `${results.length} diagnósticos registrados no PostgreSQL.` : 'Nenhum diagnóstico registrado ainda.'}
                 actions={(
                     <>
-                        <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
+                        <div className="relative flex-grow sm:flex-grow-0 sm:w-72">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="search"
-                                placeholder="Buscar por contrato, plano ou resultado..."
+                                placeholder="Buscar por contrato, cliente, OLT, bairro..."
                                 className="pl-8 w-full"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
+                        <Button onClick={() => void load(true)} variant="outline" disabled={refreshing}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                            Atualizar
+                        </Button>
                         <Button onClick={exportCSV} variant="outline" disabled={results.length === 0}>
                             <Download className="mr-2 h-4 w-4" />
                             Exportar CSV
@@ -196,76 +211,83 @@ export default function DiagnosticHistoryPage() {
                     </>
                 )}
                 columns={[
-                    { label: "Contrato" },
+                    { label: "Contrato / Cliente" },
+                    { label: "OLT / Bairro" },
                     { label: "Data" },
                     { label: "Severidade" },
                     { label: "Resultado" },
                     { label: "↓ Mbps", className: "text-right" },
                     { label: "Ping", className: "text-right" },
                     { label: "Encaminhamento" },
-                    { label: "PDF" },
                     { label: "" },
                 ]}
-                gridTemplate="1fr 1fr .9fr 1.8fr .7fr .6fr 1fr .5fr 48px"
+                gridTemplate="1.15fr 1.15fr .95fr .8fr 1.6fr .65fr .6fr .9fr 48px"
                 rows={filteredResults}
                 getRowKey={(result) => result.id}
-                minWidth="980px"
+                minWidth="1040px"
                 empty={(
                     <EmptyState
                         icon={Activity}
                         title={searchTerm ? "Nenhum resultado para sua busca" : "Nenhum Diagnóstico Registrado"}
                         description={searchTerm
                             ? `Não foram encontrados diagnósticos para "${searchTerm}".`
-                            : "Os diagnósticos feitos pelos clientes no app aparecerão aqui automaticamente."}
+                            : "Os diagnósticos feitos pelos clientes no app aparecerão aqui automaticamente com identificação de OLT e bairro."}
                     />
                 )}
-                renderRow={(result) => (
-                    <div className="grid items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] transition-colors hover:bg-[#F8FAFC]" style={{ gridTemplateColumns: "1fr 1fr .9fr 1.8fr .7fr .6fr 1fr .5fr 48px" }}>
-                        <span className="min-w-0">
-                            <span className="block truncate text-[13px] font-semibold text-[#1A2233]">{result.contractId ?? '—'}</span>
-                            <span className="block truncate text-[11.5px] text-[#98A1B1]">{result.planName ?? '-'}</span>
-                        </span>
-                        <span className="text-[12px] text-[#687181]">{formatDate(result.createdAt)}</span>
-                        <StatusBadge
-                            status={SEVERITY_META[result.severity ?? '']?.label ?? '-'}
-                            tone={SEVERITY_META[result.severity ?? '']?.tone ?? 'gray'}
-                        />
-                        <span className="truncate text-[12.5px] text-[#4A5364]" title={result.headline}>{result.headline ?? '-'}</span>
-                        <span className="text-right font-mono text-[12px] text-[#4A5364]">{num(result.measurements?.speed?.downloadMbps)}</span>
-                        <span className="text-right font-mono text-[12px] text-[#4A5364]">{num(result.measurements?.googlePing?.latencyMs, 0)}ms</span>
-                        <StatusBadge
-                            status={result.needsProviderSupport ? 'Provedor' : 'Cliente'}
-                            tone={result.needsProviderSupport ? 'amber' : 'gray'}
-                        />
-                        <span>
-                            {result.reportAttachmentId && providerId ? <PrivateAttachment key={`${user?.uid}/${providerId}/${result.id}/${result.reportAttachmentId}`} resource={{ providerId, resultId: result.id }} attachmentId={result.reportAttachmentId} />
-                                : <span>{result.reportUrl ? 'Legado: remediação pendente' : '—'}</span>}
-                        </span>
-                        <div className="flex justify-end">
-                            <AlertDialog open={deleteId === result.id} onOpenChange={(open) => !open && setDeleteId(null)}>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(result.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Excluir Diagnóstico?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Esta ação não pode ser desfeita. O registro do diagnóstico do contrato {result.contractId ?? '—'} será permanentemente excluído.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDelete(result.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                            Excluir
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                renderRow={(result) => {
+                    const meta = VERDICT_META[result.verdict] ?? { label: '-', tone: 'gray' as const };
+                    const providerSupport = needsProvider(result);
+                    return (
+                        <div className="grid items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] transition-colors hover:bg-[#F8FAFC]" style={{ gridTemplateColumns: "1.15fr 1.15fr .95fr .8fr 1.6fr .65fr .6fr .9fr 48px" }}>
+                            <span className="min-w-0">
+                                <span className="block truncate text-[13px] font-semibold text-[#1A2233]">
+                                    {result.clientName || (result.contratoId ? `Contrato ${result.contratoId}` : '—')}
+                                </span>
+                                <span className="block truncate text-[11.5px] text-[#98A1B1]">
+                                    {[result.contratoId ? `#${result.contratoId}` : '', result.planName].filter(Boolean).join(' · ') || '-'}
+                                </span>
+                            </span>
+                            <span className="min-w-0">
+                                <span className="block truncate text-[12.5px] font-medium text-[#1A2233]">{result.oltName || '—'}</span>
+                                <span className="block truncate text-[11.5px] text-[#98A1B1]">{[result.bairro, result.cidade].filter(Boolean).join(' - ') || '—'}</span>
+                            </span>
+                            <span className="text-[12px] text-[#687181]">{formatDate(result.createdAt)}</span>
+                            <StatusBadge status={meta.label} tone={meta.tone} />
+                            <span className="truncate text-[12.5px] text-[#4A5364]" title={result.verdictHeadline}>{result.verdictHeadline || '-'}</span>
+                            <span className="text-right font-mono text-[12px] text-[#4A5364]">{num(result.summary?.downloadMbps)}</span>
+                            <span className="text-right font-mono text-[12px] text-[#4A5364]">
+                                {result.summary?.pingMs != null ? `${num(result.summary.pingMs, 0)}ms` : '-'}
+                            </span>
+                            <StatusBadge
+                                status={providerSupport ? 'Provedor' : 'Cliente'}
+                                tone={providerSupport ? 'amber' : 'gray'}
+                            />
+                            <div className="flex justify-end">
+                                <AlertDialog open={deleteId === result.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(result.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Excluir Diagnóstico?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta ação não pode ser desfeita. O registro do diagnóstico do contrato {result.contratoId || '—'} será permanentemente excluído.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(result.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                                Excluir
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                }}
                 footer={filteredResults.length > 0 && (
                     <div className="text-[12px] text-[#98A1B1]">
                         Exibindo {filteredResults.length} de {results.length} registros

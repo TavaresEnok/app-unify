@@ -3,6 +3,7 @@ import { measureRequests, metrics } from "./middlewares/metrics";
 import { authenticateIfPresent, verifySuperAdmin, verifyAdmin, verifyToken } from "./middlewares/auth";
 import { recordPanelTiming, panelTimings } from "./services/panelTiming";
 import { redis } from "./services/redis";
+import { getPgPool } from "./services/postgres";
 import { env } from "./config/env";
 import { corsMiddleware } from "./middlewares/cors";
 import { ApiError, correlationId, errorHandler, notFoundHandler } from "./middlewares/errorHandler";
@@ -13,8 +14,10 @@ import { ticketsRouter } from "./routes/tickets.routes";
 import { privateAttachmentsRouter } from "./routes/privateAttachments.routes";
 import { usersRouter } from "./routes/users.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
+import { notificationsRouter } from "./routes/notifications.routes";
+import { clientsRouter } from "./routes/clients.routes";
 import { subscriberRouter } from "./routes/subscriber.routes";
-import { diagnosticsRouter } from "./routes/diagnostics.routes";
+import { adminDiagnosticsRouter, diagnosticsRouter } from "./routes/diagnostics.routes";
 import { proxyRouter } from "./routes/proxy.routes";
 import { buildAuthorizationRouter } from "./routes/buildAuthorization.routes";
 import { publicConfigRouter } from "./routes/publicConfig.routes";
@@ -45,6 +48,9 @@ export function createApp() {
   app.use("/private", privateAttachmentsRouter);
   app.use("/admin/users", usersRouter);
   app.use("/admin/dashboard", dashboardRouter);
+  app.use("/admin/notifications", notificationsRouter);
+  app.use("/admin/clients", clientsRouter);
+  app.use("/admin/diagnostics", adminDiagnosticsRouter);
   app.use("/diagnostic", diagnosticsRouter);
   app.use("/public", publicConfigRouter);
   app.use(subscriberRouter);
@@ -54,7 +60,16 @@ export function createApp() {
     try {
       if (!redis && env.nodeEnv === "production") throw new Error("Redis ausente");
       await redis?.ping();
-      res.json({ status: "ready", service: "api-service" });
+      const pg = getPgPool();
+      if (pg) await pg.query("SELECT 1");
+      res.json({
+        status: "ready",
+        service: "api-service",
+        checks: {
+          redis: redis ? "ok" : "disabled",
+          postgres: pg ? "ok" : "disabled",
+        },
+      });
     } catch { res.status(503).json({ status: "not-ready", service: "api-service" }); }
   });
 

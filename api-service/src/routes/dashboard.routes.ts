@@ -2,6 +2,7 @@ import { Router } from "express";
 import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore } from "../services/firebaseAdmin";
+import { getPgPool } from "../services/postgres";
 import { loadGlobalDashboard, loadProviderDashboard } from "../services/dashboardData";
 
 export const dashboardRouter = Router();
@@ -20,7 +21,7 @@ async function cachedDashboard(key: string, load: () => Promise<unknown>) {
 export async function warmDashboardData() {
   // Establish Firestore connections and prepare the first read at process start,
   // rather than charging this initialization to the first administrator.
-  await cachedDashboard("global", () => loadGlobalDashboard(firestore));
+  await cachedDashboard("global", () => loadGlobalDashboard(firestore, getPgPool()));
 }
 
 // Keep the fresh account/role check used by the queue handlers: a revoked role
@@ -35,14 +36,14 @@ function authorizePanel(claims: Express.Request["user"], providerId?: string) {
 dashboardRouter.get("/panel", asyncRoute(async (req, res) => {
   authorizePanel(req.user);
   res.setHeader("Cache-Control", "private, no-store");
-  res.json({ data: await cachedDashboard("global", () => loadGlobalDashboard(firestore)) });
+  res.json({ data: await cachedDashboard("global", () => loadGlobalDashboard(firestore, getPgPool())) });
 }));
 
 dashboardRouter.get("/panel/providers/:providerId", asyncRoute(async (req, res) => {
   const providerId = String(req.params.providerId);
   authorizePanel(req.user, providerId);
   res.setHeader("Cache-Control", "private, no-store");
-  res.json({ data: await cachedDashboard(`provider:${providerId}`, () => loadProviderDashboard(firestore, providerId)) });
+  res.json({ data: await cachedDashboard(`provider:${providerId}`, () => loadProviderDashboard(firestore, providerId, getPgPool())) });
 }));
 
 dashboardRouter.get("/", asyncRoute(async (req, res) => {

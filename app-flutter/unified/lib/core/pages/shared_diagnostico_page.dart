@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import '../controllers/diagnostic_binding.dart';
 import '../models/diagnostico_state.dart';
@@ -143,6 +147,14 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
             // The saved diagnostic is still available if achievement storage fails.
           }
         }
+        unawaited(_uploadDiagnosticResult(
+          apiUrl: config.apiUrl,
+          contratoId: user.contratoId?.toString() ?? '',
+          clientName: user.nome,
+          planName: user.plano,
+          state: state,
+          view: view,
+        ));
       } catch (_) {
         _savedRuns.remove(id);
         if (mounted) {
@@ -151,6 +163,112 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                   'Os resultados estão disponíveis, mas não conseguimos salvar o histórico neste aparelho.')));
         }
       }
+    }
+  }
+
+  Future<void> _uploadDiagnosticResult({
+    required String? apiUrl,
+    required String contratoId,
+    required String clientName,
+    required String planName,
+    required DiagnosticoState state,
+    required DiagnosticPresentation view,
+  }) async {
+    final base = apiUrl?.trim().replaceAll(RegExp(r'/+$'), '') ?? '';
+    if (base.isEmpty) return;
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null || token.isEmpty) return;
+
+      final onuEntry = state.testResultsDisplay['onuInfo'];
+      final onuMetrics =
+          onuEntry?['metrics'] is Map ? onuEntry!['metrics'] as Map : null;
+      final onuRxRaw = onuMetrics?['rxPower'] ?? onuMetrics?['rx'];
+      final onuRxDbm = onuRxRaw is num
+          ? onuRxRaw.toDouble()
+          : double.tryParse(onuRxRaw?.toString() ?? '');
+      final onuStatus = onuMetrics?['status']?.toString() ?? '';
+
+      final googleMetrics =
+          state.testResultsDisplay['pingGoogle']?['metrics'] is Map
+              ? state.testResultsDisplay['pingGoogle']!['metrics'] as Map
+              : null;
+      final pingMs = googleMetrics?['latencyMs'] is num
+          ? (googleMetrics!['latencyMs'] as num).toDouble()
+          : state.speedTestPingLatency;
+      final lossPercent = googleMetrics?['lossPercent'] is num
+          ? (googleMetrics!['lossPercent'] as num).toDouble()
+          : null;
+
+      final downloadMbps = state.customDownloadResultMbps > 0
+          ? state.customDownloadResultMbps
+          : (state.fastDownloadResultMbps > 0
+              ? state.fastDownloadResultMbps
+              : null);
+      final uploadMbps = state.customUploadResultMbps > 0
+          ? state.customUploadResultMbps
+          : (state.fastUploadResultMbps > 0
+              ? state.fastUploadResultMbps
+              : null);
+
+      final gwOk =
+          state.testResultsDisplay['pingGateway']?['status'] == TestStatus.success;
+      final extFail =
+          state.testResultsDisplay['pingGoogle']?['status'] == TestStatus.error;
+      final onuOffline = onuStatus.toLowerCase().contains('offline') ||
+          onuStatus.toLowerCase().contains('los');
+      final onuWeak = onuRxDbm != null && onuRxDbm < -28.0;
+
+      final needsProviderSupport =
+          onuOffline || onuWeak || (gwOk && extFail);
+      final verdict = (onuOffline || (gwOk && extFail))
+          ? 'critical'
+          : (onuWeak || view.tone == 'wa')
+              ? 'degraded'
+              : view.tone == 'ok'
+                  ? 'healthy'
+                  : 'unknown';
+      final cause = onuOffline
+          ? 'onu_offline'
+          : onuWeak
+              ? 'fiber_attenuation'
+              : (gwOk && extFail)
+                  ? 'external_routing'
+                  : view.tone == 'ok'
+                      ? 'healthy'
+                      : 'local_or_partial';
+
+      final summary = <String, dynamic>{
+        'needsProviderSupport': needsProviderSupport,
+        if (downloadMbps != null) 'downloadMbps': downloadMbps,
+        if (uploadMbps != null) 'uploadMbps': uploadMbps,
+        if (pingMs != null) 'pingMs': pingMs,
+        if (lossPercent != null) 'lossPercent': lossPercent,
+        if (onuRxDbm != null) 'onuRxDbm': onuRxDbm,
+        if (onuStatus.isNotEmpty) 'onuStatus': onuStatus,
+      };
+
+      await http
+          .post(
+            Uri.parse('$base/diagnostic/results'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'contratoId': contratoId,
+              'clientName': clientName,
+              'planName': planName,
+              'mode': state.runMode.name,
+              'verdict': verdict,
+              'verdictHeadline': view.title,
+              'cause': cause,
+              'summary': summary,
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Best-effort: o diagnóstico local permanece salvo mesmo sem rede/servidor.
     }
   }
 
@@ -364,10 +482,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                                 page: switch (route) {
                                   'wifi' => const WifiPage(),
                                   'ping' => const SharedPingPage(),
-                                  _ => const VibeHeaderPage(
-                                      title: 'Tracert',
-                                      subtitle: 'Rota da rede',
-                                      body: SharedTraceRoutePage()),
+                                  _ => const SharedTraceRoutePage(),
                                 });
                           },
                         )),

@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -12,11 +13,15 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 
+export type IncidentSeverity = "info" | "warning" | "critical";
+
 export interface Incident {
   id: string;
   title: string;
   message: string;
-  area?: string;
+  area?: string | null;
+  severity?: IncidentSeverity;
+  estimatedResolution?: string | null;
   active: boolean;
   createdAt?: { toDate: () => Date };
   resolvedAt?: { toDate: () => Date } | null;
@@ -30,6 +35,7 @@ export function subscribeIncidents(
   const incidents = query(
     collection(db, "provedores", providerId, "incidents"),
     orderBy("createdAt", "desc"),
+    limit(100),
   );
   return onSnapshot(
     incidents,
@@ -40,12 +46,20 @@ export function subscribeIncidents(
 
 export function createIncident(
   providerId: string,
-  data: { title: string; message: string; area?: string },
+  data: {
+    title: string;
+    message: string;
+    area?: string;
+    severity?: IncidentSeverity;
+    estimatedResolution?: string;
+  },
 ): Promise<unknown> {
   return addDoc(collection(db, "provedores", providerId, "incidents"), {
     title: data.title.trim(),
     message: data.message.trim(),
     area: data.area?.trim() || null,
+    severity: data.severity || "warning",
+    estimatedResolution: data.estimatedResolution?.trim() || null,
     active: true,
     createdAt: serverTimestamp(),
     resolvedAt: null,
