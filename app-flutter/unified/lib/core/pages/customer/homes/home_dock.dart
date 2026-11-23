@@ -411,7 +411,12 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
   Widget? _trust(BuildContext context, VibeHomeData data) {
     if (!data.billing.overdue) return null;
     final t = VibeTokens.of(context);
-    const fg = Color(0xFF633319);
+    final fg = t.dark ? const Color(0xFFFFC599) : const Color(0xFF633319);
+    final bg = t.dark ? const Color(0xFF2D1E14) : const Color(0xFFFFF0D9);
+    final accentBorder =
+        t.dark ? const Color(0xFFD97943) : const Color(0xFFB35B30);
+    final edgeBorder =
+        t.dark ? const Color(0xFF6E3D22) : const Color(0xFFD0A287);
     final suspended = data.suspended;
     final action = data.can('invoices')
         ? ('Liberação por confiança', () => data.onNavigate('trust_unlock'))
@@ -423,13 +428,13 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFF0D9),
+        decoration: BoxDecoration(
+          color: bg,
           border: Border(
-            left: BorderSide(color: Color(0xFFB35B30), width: 4),
-            top: BorderSide(color: Color(0xFFD0A287)),
-            right: BorderSide(color: Color(0xFFD0A287)),
-            bottom: BorderSide(color: Color(0xFFD0A287)),
+            left: BorderSide(color: accentBorder, width: 4),
+            top: BorderSide(color: edgeBorder),
+            right: BorderSide(color: edgeBorder),
+            bottom: BorderSide(color: edgeBorder),
           ),
         ),
         padding: const EdgeInsets.fromLTRB(11, 9, 11, 2),
@@ -455,7 +460,7 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                           child: Text(action.$1,
                               style: vibeText(t, 13, 650, color: fg))),
                       const SizedBox(width: 2),
-                      const VibeIcon('i-right',
+                      VibeIcon('i-right',
                           size: 14, strokeWidth: 1.7, color: fg),
                     ]),
                   ),

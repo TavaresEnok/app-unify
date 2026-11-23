@@ -19,3 +19,23 @@ test('bounds active transfers and exposes the server measurement ceiling', async
         await new Promise(resolve => server.close(resolve));
     }
 });
+
+test('sends Content-Length on GET download and accepts POST upload', async () => {
+    const server = createServer({ maxConcurrent: 2, maxMbps: 100, maxDuration: 5000, downloadBytes: 128 * 1024 });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${server.address().port}`;
+    try {
+        const down = await fetch(`${url}/`);
+        assert.equal(down.status, 200);
+        assert.equal(down.headers.get('content-length'), String(128 * 1024));
+        const buf = Buffer.from(await down.arrayBuffer());
+        assert.equal(buf.length, 128 * 1024);
+
+        const up = await fetch(`${url}/`, { method: 'POST', body: Buffer.alloc(64 * 1024) });
+        assert.equal(up.status, 200);
+        assert.equal(await up.text(), 'OK');
+    } finally {
+        server.closeAllConnections();
+        await new Promise(resolve => server.close(resolve));
+    }
+});

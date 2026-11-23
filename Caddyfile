@@ -69,8 +69,9 @@
 		}
 	}
 
-	# Speed Test
-	handle /speedtest/* {
+	# Speed Test (aceita /speedtest com ou sem barra final)
+	@speedtest path /speedtest /speedtest/*
+	handle @speedtest {
 		uri strip_prefix /speedtest
 		reverse_proxy {$SPEED_TEST_UPSTREAM:speed-test:3001} {
 			import cliente_real

@@ -24,6 +24,8 @@ extension DiagnosticPing on DiagnosticoService {
         _currentState = _currentState.copyWith(
             isTesting: false, geralStatusMessage: 'Teste de ping concluído.');
         _streamController.add(_currentState);
+      } else if (!_streamController.isClosed) {
+        _streamController.add(_currentState);
       }
     }
   }

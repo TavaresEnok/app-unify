@@ -162,10 +162,125 @@ void main() {
 
       expect(service.currentState.testResultsDisplay['batteryInfo']?['status'],
           TestStatus.success);
+      expect(
+          service.currentState.testResultsDisplay['batteryInfo']?['measuredAt'],
+          isA<String>());
       final result = service.currentState.testResultsDisplay['batteryInfo']
           ?['result'] as Map<String, dynamic>;
       expect(result['batteryLevel'], 85);
       expect(result['stateStr'], 'Descarregando');
+    });
+
+    test(
+        'runSpeedTestsOnly uses /speedtest/ with trailing slash and stopAllTests releases canStart immediately',
+        () async {
+      when(mockClient.get(any))
+          .thenAnswer((_) async => http.Response('{"maxMbps":300}', 200));
+      when(mockPingFactory.create(any,
+              count: anyNamed('count'),
+              timeout: anyNamed('timeout'),
+              interval: anyNamed('interval')))
+          .thenReturn(mockPing);
+      when(mockPing.stream).thenAnswer((_) => const Stream.empty());
+
+      String? capturedDownloadUrl;
+      String? capturedUploadUrl;
+      when(mockSpeedTest.startTesting(
+        onCompleted: anyNamed('onCompleted'),
+        onStarted: anyNamed('onStarted'),
+        onProgress: anyNamed('onProgress'),
+        onError: anyNamed('onError'),
+        onCancel: anyNamed('onCancel'),
+        downloadTestServer: anyNamed('downloadTestServer'),
+        uploadTestServer: anyNamed('uploadTestServer'),
+        fileSizeInBytes: anyNamed('fileSizeInBytes'),
+      )).thenAnswer((invocation) async {
+        capturedDownloadUrl =
+            invocation.namedArguments[#downloadTestServer] as String?;
+        capturedUploadUrl =
+            invocation.namedArguments[#uploadTestServer] as String?;
+      });
+
+      final run = service.runSpeedTestsOnly();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(service.currentState.isTesting, isTrue);
+      expect(service.canStart, isFalse);
+      expect(capturedDownloadUrl, 'http://test.api/speedtest/');
+      expect(capturedUploadUrl, 'http://test.api/speedtest/');
+
+      service.stopAllTests();
+      await run.timeout(const Duration(seconds: 1));
+      expect(service.currentState.isTesting, isFalse);
+      expect(service.canStart, isTrue);
+      service.dispose();
+    });
+
+    test('runAllTests marks lanScan and onuInfo unsupported instead of pending',
+        () async {
+      when(mockConnectivity.checkConnectivity())
+          .thenAnswer((_) async => ConnectivityResult.mobile);
+      when(mockBattery.batteryLevel).thenAnswer((_) async => 90);
+      when(mockBattery.batteryState)
+          .thenAnswer((_) async => BatteryState.charging);
+      when(mockClient.get(any)).thenAnswer((_) async => http.Response('{}', 500));
+      when(mockClient.post(any,
+              headers: anyNamed('headers'), body: anyNamed('body')))
+          .thenAnswer((_) async => http.Response('{}', 500));
+      when(mockPingFactory.create(any,
+              count: anyNamed('count'),
+              timeout: anyNamed('timeout'),
+              interval: anyNamed('interval')))
+          .thenReturn(mockPing);
+      when(mockPing.stream).thenAnswer((_) => const Stream.empty());
+      when(mockSpeedTest.startTesting(
+        onCompleted: anyNamed('onCompleted'),
+        onStarted: anyNamed('onStarted'),
+        onProgress: anyNamed('onProgress'),
+        onError: anyNamed('onError'),
+        onCancel: anyNamed('onCancel'),
+        downloadTestServer: anyNamed('downloadTestServer'),
+        uploadTestServer: anyNamed('uploadTestServer'),
+        fileSizeInBytes: anyNamed('fileSizeInBytes'),
+      )).thenAnswer((invocation) async {
+        final onError = invocation.namedArguments[#onError] as void Function(
+            String, String)?;
+        onError?.call('offline', 'offline');
+      });
+
+      final noOnuService = DiagnosticoService(
+        providerConfig: providerConfig,
+        client: mockClient,
+        battery: mockBattery,
+        networkInfo: mockNetworkInfo,
+        connectivity: mockConnectivity,
+        lanScanner: mockLanScanner,
+        speedTest: mockSpeedTest,
+        onuService: null,
+        pingFactory: mockPingFactory,
+        packageInfo: PackageInfo(
+          appName: 'Test',
+          packageName: 'com.test',
+          version: '1.0.0',
+          buildNumber: '1',
+        ),
+      );
+
+      await noOnuService.runAllTests();
+      expect(
+          noOnuService.currentState.testResultsDisplay['lanScan']
+              ?['availability'],
+          TestAvailability.unsupported.name);
+      expect(
+          noOnuService.currentState.testResultsDisplay['lanScan']?['status'],
+          TestStatus.error);
+      expect(
+          noOnuService.currentState.testResultsDisplay['onuInfo']
+              ?['availability'],
+          TestAvailability.unsupported.name);
+      expect(
+          noOnuService.currentState.testResultsDisplay['onuInfo']?['status'],
+          TestStatus.error);
+      noOnuService.dispose();
     });
 
     test('runDeviceInfoTest updates state with connection and device info',

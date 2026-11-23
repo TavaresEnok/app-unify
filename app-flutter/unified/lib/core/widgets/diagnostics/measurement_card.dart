@@ -31,7 +31,7 @@ class MeasurementCard extends StatelessWidget {
     'vlan': 'VLAN',
     'cto': 'CTO',
     'lastUpdate': 'Atualização',
-    'batteryLevel': 'Bateria (%)',
+    'batteryLevel': 'Bateria',
     'isCharging': 'Carregando',
     'stateStr': 'Estado',
   };
@@ -42,7 +42,14 @@ class MeasurementCard extends StatelessWidget {
     if (result['display'] is String) return result['display'] as String;
     return result.entries.where((e) => _labels.containsKey(e.key)).map((entry) {
       final value = entry.value;
-      return '${_labels[entry.key]}: ${value == null ? 'Indisponível' : value is bool ? (value ? 'Sim' : 'Não') : value}';
+      final formatted = value == null
+          ? 'Indisponível'
+          : entry.key == 'batteryLevel' && value is num
+              ? '${value.round()}%'
+              : value is bool
+                  ? (value ? 'Sim' : 'Não')
+                  : '$value';
+      return '${_labels[entry.key]}: $formatted';
     }).join('\n');
   }
 

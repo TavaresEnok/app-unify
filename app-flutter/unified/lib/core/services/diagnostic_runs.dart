@@ -24,6 +24,13 @@ extension DiagnosticRuns on DiagnosticoService {
       if (onuService != null) {
         _updateStatus("Verificando sinal da Fibra (ONU)...");
         await runOnuTest();
+      } else {
+        _updateTestState(
+          'onuInfo',
+          TestStatus.error,
+          'Consulta de fibra indisponível nesta sessão.',
+          availability: TestAvailability.unsupported,
+        );
       }
 
       await runBatteryTest();
@@ -47,6 +54,12 @@ extension DiagnosticRuns on DiagnosticoService {
             'Requer info WiFi (permissão negada).',
             availability: TestAvailability.permissionRequired,
           );
+          _updateTestState(
+            'lanScan',
+            TestStatus.error,
+            'Requer permissão de localização.',
+            availability: TestAvailability.permissionRequired,
+          );
         }
       } else {
         _updateTestState(
@@ -57,6 +70,12 @@ extension DiagnosticRuns on DiagnosticoService {
         );
         _updateTestState(
           'pingGateway',
+          TestStatus.error,
+          'Não conectado ao WiFi.',
+          availability: TestAvailability.unsupported,
+        );
+        _updateTestState(
+          'lanScan',
           TestStatus.error,
           'Não conectado ao WiFi.',
           availability: TestAvailability.unsupported,
@@ -160,6 +179,13 @@ extension DiagnosticRuns on DiagnosticoService {
         _updateStatus("Verificando sinal da fibra...");
         await runOnuTest();
         if (!_currentState.isTesting) return;
+      } else {
+        _updateTestState(
+          'onuInfo',
+          TestStatus.error,
+          'Consulta de fibra indisponível nesta sessão.',
+          availability: TestAvailability.unsupported,
+        );
       }
 
       if (_isWifiConnected) {

@@ -19,6 +19,7 @@ import 'package:flutter_internet_speed_test/flutter_internet_speed_test.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:network_tools/network_tools.dart';
+import 'package:path_provider/path_provider.dart';
 import 'onu_wifi_service.dart';
 
 part 'diagnostic_ping.dart';
@@ -58,11 +59,24 @@ abstract interface class LocalNetworkScanner {
 }
 
 class NetworkToolsLocalScanner implements LocalNetworkScanner {
+  static Future<void>? _initFuture;
   void Function()? _cancel;
   void cancel() => _cancel?.call();
 
+  static Future<void> _ensureConfigured() {
+    return _initFuture ??= () async {
+      final dir = await getTemporaryDirectory();
+      await configureNetworkTools(dir.path);
+    }()
+        .catchError((Object error) {
+      _initFuture = null;
+      throw error;
+    });
+  }
+
   @override
   Future<int> countActiveHosts(String subnet) async {
+    await _ensureConfigured();
     final completer = Completer<int>();
     var count = 0;
     final subscription =
@@ -117,6 +131,7 @@ class DiagnosticoService {
   final bool _ownsClient;
   bool _executionActive = false;
   void Function()? _cancelPing;
+  void Function()? _cancelSpeedTest;
   final NetworkInfo _networkInfo;
   final Connectivity _connectivity;
   final Battery _battery;
@@ -259,6 +274,8 @@ class DiagnosticoService {
     if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
     _cancelPing?.call();
     _cancelPing = null;
+    _cancelSpeedTest?.call();
+    _cancelSpeedTest = null;
     internetSpeedTest.cancelTest();
     _realtimeUpdateTimer?.cancel();
     _realtimeUpdateTimer = null;
@@ -302,21 +319,21 @@ class DiagnosticoService {
 
       // Atualizar com dados estruturados para a UI poder ler
       final resultText = "Nível: $level%\nEstado: $stateStr$warning";
-      final newResults = Map<String, Map<String, dynamic>>.from(
-        _currentState.testResultsDisplay,
-      );
-      newResults['batteryInfo'] = {
-        ...?newResults['batteryInfo'],
-        'status': TestStatus.success,
-        'result': {
+      _updateTestState(
+        'batteryInfo',
+        TestStatus.success,
+        {
           'batteryLevel': level,
           'isCharging': isCharging,
           'stateStr': stateStr,
+          'displayText': resultText,
         },
-        'displayText': resultText,
-      };
-      _currentState = _currentState.copyWith(testResultsDisplay: newResults);
-      _streamController.add(_currentState);
+        metrics: {
+          'batteryLevel': level,
+          'isCharging': isCharging,
+          'state': stateStr,
+        },
+      );
     } catch (e) {
       _updateTestState(
         'batteryInfo',
@@ -336,7 +353,8 @@ class DiagnosticoService {
     );
     try {
       final String? ip = await _networkInfo.getWifiIP();
-      if (ip == null) {
+      final lastDot = ip?.lastIndexOf('.') ?? -1;
+      if (ip == null || lastDot <= 0) {
         _updateTestState(
           'lanScan',
           TestStatus.error,
@@ -344,7 +362,7 @@ class DiagnosticoService {
         );
         return;
       }
-      final String subnet = ip.substring(0, ip.lastIndexOf('.'));
+      final String subnet = ip.substring(0, lastDot);
       final hostCount = await _lanScanner.countActiveHosts(subnet);
 
       if (!_currentState.isTesting) return;
@@ -359,7 +377,6 @@ class DiagnosticoService {
     }
   }
 
-  @visibleForTesting
   @visibleForTesting
   Future<void> runDeviceInfoTest() async {
     if (!_currentState.isTesting) return;
@@ -377,6 +394,7 @@ class DiagnosticoService {
       } else if (connectivityResult == ConnectivityResult.none) {
         connectionType = "Sem Conexão";
       } else if (connectivityResult == ConnectivityResult.vpn) {
+        connectionType = "VPN";
         _updateStatus("VPN (Pode afetar a velocidade!)");
       }
 
@@ -471,18 +489,20 @@ class DiagnosticoService {
   Future<bool> _requestLocationPermission() async {
     if (!Platform.isAndroid) return true;
     var status = await Permission.location.request();
-    final ctx = context;
-    if (ctx == null || !ctx.mounted) return false;
     if (!status.isGranted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Permita a localização para o app ler o nome e o sinal do Wi-Fi.',
+      final ctx = context;
+      if (ctx != null && ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Permita a localização para o app ler o nome e o sinal do Wi-Fi.',
+            ),
           ),
-        ),
-      );
+        );
+      }
+      return false;
     }
-    return status.isGranted;
+    return true;
   }
 
   String _getFrequencyBand(int? frequency) {
@@ -758,7 +778,7 @@ class DiagnosticoService {
       if (apiUri.host.isNotEmpty) {
         // Caminho público estável, independente da porta interna.
         defaultSpeedTestUrl =
-            '${apiUri.scheme}://${apiUri.authority}/speedtest';
+            '${apiUri.scheme}://${apiUri.authority}/speedtest/';
       }
     } catch (_) {
       // Ignore parse error, stick to librespeed
@@ -792,6 +812,8 @@ class DiagnosticoService {
             '\nServidor compartilhado: até ${capabilities["maxMbps"]} Mbps. O resultado não comprova a velocidade total do plano.';
       }
     } catch (_) {/* Servidores externos podem não publicar capacidades. */}
+    if (!_currentState.isTesting) return;
+
     final completer = Completer<void>();
     _downloadHistoryCounter = 0;
     _uploadHistoryCounter = 0;
@@ -810,6 +832,13 @@ class DiagnosticoService {
       maxDurationTimer?.cancel();
     }
 
+    void cancelSpeedTest() {
+      cancelTimer();
+      if (!completer.isCompleted) completer.complete();
+    }
+
+    _cancelSpeedTest = cancelSpeedTest;
+
     try {
       // 0. Latency Check to Custom Server
       double customLatency = 0;
@@ -823,14 +852,45 @@ class DiagnosticoService {
             count: 3,
             timeout: const Duration(seconds: 1),
           );
+          final pingCompleter = Completer<void>();
           double totalTime = 0;
           int successCount = 0;
-          await for (final event in ping.stream) {
-            if (event.response != null && event.response!.time != null) {
-              totalTime += event.response!.time!.inMilliseconds;
-              successCount++;
-            }
+          late final StreamSubscription<PingData> pingSub;
+          pingSub = ping.stream.listen(
+            (event) {
+              if (event.response != null && event.response!.time != null) {
+                totalTime += event.response!.time!.inMilliseconds;
+                successCount++;
+              }
+            },
+            onDone: () {
+              if (!pingCompleter.isCompleted) pingCompleter.complete();
+            },
+            onError: (_) {
+              if (!pingCompleter.isCompleted) pingCompleter.complete();
+            },
+          );
+          final pingTimeout = Timer(const Duration(seconds: 5), () {
+            pingSub.cancel();
+            ping.stop();
+            if (!pingCompleter.isCompleted) pingCompleter.complete();
+          });
+          void cancelLatencyPing() {
+            pingSub.cancel();
+            ping.stop();
+            if (!pingCompleter.isCompleted) pingCompleter.complete();
           }
+
+          _cancelPing = cancelLatencyPing;
+          try {
+            await pingCompleter.future;
+          } finally {
+            pingTimeout.cancel();
+            await pingSub.cancel();
+            ping.stop();
+            if (identical(_cancelPing, cancelLatencyPing)) _cancelPing = null;
+          }
+          if (!_currentState.isTesting) return;
           if (successCount > 0) {
             customLatency = totalTime / successCount;
             _updateStatus(
@@ -841,6 +901,8 @@ class DiagnosticoService {
       } catch (e) {
         // Ignorar erro de ping no debug
       }
+
+      if (!_currentState.isTesting) return;
 
       // 1. Timer de segurança apenas (60s para garantir que complete todo o teste)
       maxDurationTimer = Timer(const Duration(seconds: 60), () {
@@ -877,13 +939,18 @@ class DiagnosticoService {
             _cancelPing?.call();
             _cancelPing = null;
             internetSpeedTest.cancelTest();
+            cancelSpeedTest();
             return;
           }
           _updateStatus("Testando Download (Servidor Personalizado)...");
         },
+        onCancel: cancelSpeedTest,
         onCompleted: (TestResult download, TestResult upload) {
           cancelTimer();
-          if (!_currentState.isTesting) return;
+          if (!_currentState.isTesting) {
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
           final downloadMbps = download.transferRate;
           final uploadMbps = upload.transferRate;
 
@@ -950,7 +1017,10 @@ class DiagnosticoService {
         },
         onError: (String errorMessage, String speedTestError) {
           cancelTimer();
-          if (!_currentState.isTesting) return;
+          if (!_currentState.isTesting) {
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
 
           String cleanError = errorMessage;
           if (errorMessage.toLowerCase().contains("socketexception") ||
@@ -964,6 +1034,7 @@ class DiagnosticoService {
           if (!completer.isCompleted) completer.complete();
         },
       );
+      await completer.future;
     } catch (e) {
       cancelTimer();
       _updateTestState(
@@ -972,9 +1043,12 @@ class DiagnosticoService {
         "Erro ao iniciar: $e",
       );
       if (!completer.isCompleted) completer.complete();
+    } finally {
+      cancelTimer();
+      if (identical(_cancelSpeedTest, cancelSpeedTest)) {
+        _cancelSpeedTest = null;
+      }
     }
-
-    return completer.future;
   }
 
   @visibleForTesting
@@ -998,6 +1072,13 @@ class DiagnosticoService {
 
     // SAFETY TIMEOUT: Ensure test doesn't hang forever
     Timer? safeguardTimer;
+
+    void cancelSpeedTest() {
+      safeguardTimer?.cancel();
+      if (!completer.isCompleted) completer.complete();
+    }
+
+    _cancelSpeedTest = cancelSpeedTest;
 
     try {
       safeguardTimer = Timer(const Duration(seconds: 45), () {
@@ -1023,13 +1104,18 @@ class DiagnosticoService {
             _cancelPing?.call();
             _cancelPing = null;
             internetSpeedTest.cancelTest();
+            cancelSpeedTest();
             return;
           }
           _updateStatus("Testando Download (Fast.com)...");
         },
+        onCancel: cancelSpeedTest,
         onCompleted: (TestResult download, TestResult upload) {
           safeguardTimer?.cancel();
-          if (!_currentState.isTesting) return;
+          if (!_currentState.isTesting) {
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
           final downloadMbps = download.transferRate;
           final uploadMbps = upload.transferRate;
           _updateTestState(
@@ -1103,7 +1189,10 @@ class DiagnosticoService {
         },
         onError: (String errorMessage, String speedTestError) {
           safeguardTimer?.cancel();
-          if (!_currentState.isTesting) return;
+          if (!_currentState.isTesting) {
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
           _updateTestState(
             'speedTestFast',
             TestStatus.error,
@@ -1112,6 +1201,7 @@ class DiagnosticoService {
           if (!completer.isCompleted) completer.complete();
         },
       );
+      await completer.future;
     } catch (e) {
       safeguardTimer?.cancel();
       _updateTestState(
@@ -1120,8 +1210,11 @@ class DiagnosticoService {
         "Erro ao iniciar: $e",
       );
       if (!completer.isCompleted) completer.complete();
+    } finally {
+      safeguardTimer?.cancel();
+      if (identical(_cancelSpeedTest, cancelSpeedTest)) {
+        _cancelSpeedTest = null;
+      }
     }
-
-    return completer.future;
   }
 }

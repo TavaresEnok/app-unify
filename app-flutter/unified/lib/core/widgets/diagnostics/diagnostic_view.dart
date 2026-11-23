@@ -342,6 +342,23 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
     if (key == 'onuInfo' && entry['result'] is Map) {
       return _fiber(Map<String, dynamic>.from(entry['result'] as Map), dot);
     }
+    if (key == 'batteryInfo' && entry['result'] is Map) {
+      final data = Map<String, dynamic>.from(entry['result'] as Map);
+      final level = data['batteryLevel'];
+      final stateStr = data['stateStr']?.toString().trim() ?? '';
+      final isCharging = data['isCharging'] == true;
+      final lowBattery = level is num && level < 20 && !isCharging;
+      return [
+        if (level is num)
+          VibeKv(
+            'Bateria',
+            '${level.round()}%',
+            leading: VibeDot(lowBattery ? VibeTone.warning : VibeTone.ok),
+          ),
+        if (stateStr.isNotEmpty && stateStr != 'Desconhecido')
+          VibeKv('Energia', stateStr, leading: dot),
+      ];
+    }
     final suffix = switch (key) {
       'speedTestCustom' => ' no provedor',
       'speedTestFast' => ' de referência',

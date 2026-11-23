@@ -7,6 +7,11 @@ function createServer(options = {}) {
     const maxMbps = Number(options.maxMbps || process.env.SPEED_TEST_MAX_MBPS || 300);
     const maxDuration = Number(options.maxDuration || process.env.SPEED_TEST_MAX_DURATION_MS || 20000);
     const byteLimit = 512 * 1024 * 1024;
+    const minDownloadBytes = 64 * 1024;
+    const defaultDownloadBytes = Math.min(
+        byteLimit,
+        Math.max(minDownloadBytes, Number(options.downloadBytes || process.env.SPEED_TEST_DOWNLOAD_BYTES || 10 * 1024 * 1024))
+    );
     const clients = new Map();
     const transfers = new Set();
     const timer = setInterval(() => {
@@ -14,23 +19,34 @@ function createServer(options = {}) {
         let budget = maxMbps * 1000000 / 8 / 20;
         const share = Math.max(1, Math.floor(budget / Math.max(1, transfers.size)));
         for (const transfer of transfers) {
-            if (transfer.res.destroyed || Date.now() - transfer.start >= maxDuration) { transfer.res.end(); transfers.delete(transfer); continue; }
+            if (transfer.res.destroyed) { transfers.delete(transfer); continue; }
+            if (Date.now() - transfer.start >= maxDuration) {
+                if (transfer.bytes >= transfer.targetBytes) transfer.res.end();
+                else transfer.res.destroy();
+                transfers.delete(transfer);
+                continue;
+            }
             let available = share;
-            while (available > 0 && transfer.bytes < byteLimit && transfer.res.writableLength < 256 * 1024) {
-                const size = Math.min(CHUNK.length, available, byteLimit - transfer.bytes);
+            while (available > 0 && transfer.bytes < transfer.targetBytes && transfer.res.writableLength < 256 * 1024) {
+                const size = Math.min(CHUNK.length, available, transfer.targetBytes - transfer.bytes);
                 transfer.res.write(CHUNK.subarray(0, size)); transfer.bytes += size; available -= size;
             }
-            if (transfer.bytes >= byteLimit) { transfer.res.end(); transfers.delete(transfer); }
+            if (transfer.bytes >= transfer.targetBytes) { transfer.res.end(); transfers.delete(transfer); }
         }
     }, 50);
     timer.unref();
     let active = 0;
     const server = http.createServer((req, res) => {
-        const path = new URL(req.url, 'http://localhost').pathname;
+        const parsedUrl = new URL(req.url, 'http://localhost');
+        const path = parsedUrl.pathname;
+        const requestedBytes = Number(parsedUrl.searchParams.get('bytes'));
+        const targetBytes = Number.isFinite(requestedBytes) && requestedBytes > 0
+            ? Math.min(byteLimit, Math.max(minDownloadBytes, Math.floor(requestedBytes)))
+            : defaultDownloadBytes;
         res.setHeader('Cache-Control', 'no-store');
         if (path === '/health' || path === '/capabilities') {
             res.setHeader('Content-Type', 'application/json');
-            return res.end(JSON.stringify({ status: 'ok', active, maxConcurrent, maxMbps, maxDurationMs: maxDuration, sharedBandwidth: true }));
+            return res.end(JSON.stringify({ status: 'ok', active, maxConcurrent, maxMbps, maxDurationMs: maxDuration, downloadBytes: defaultDownloadBytes, sharedBandwidth: true }));
         }
         const origins = (process.env.ALLOWED_ORIGINS || '').split(',').map(value => value.trim());
         const origin = req.headers.origin;
@@ -38,17 +54,20 @@ function createServer(options = {}) {
         res.setHeader('Access-Control-Allow-Origin', origin || '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,HEAD,OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-        res.setHeader('Access-Control-Expose-Headers', 'X-SpeedTest-Limit-Mbps');
+        res.setHeader('Access-Control-Expose-Headers', 'X-SpeedTest-Limit-Mbps, Content-Length');
         res.setHeader('X-SpeedTest-Limit-Mbps', String(maxMbps));
         if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-        if (req.method === 'HEAD') { res.writeHead(200); return res.end(); }
+        if (req.method === 'HEAD') {
+            res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': String(targetBytes) });
+            return res.end();
+        }
         if (!['GET', 'POST'].includes(req.method)) { res.writeHead(405); return res.end(); }
         const remote = req.socket.remoteAddress || '';
         const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
         const trustedProxy = /^(::ffff:)?(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(remote) || remote === '::1';
         const ip = trustedProxy && isIP(forwarded) ? forwarded : remote;
         const prior = clients.get(ip);
-        if (active >= maxConcurrent || (prior?.active || 0) >= maxConcurrent || (prior?.count || 0) >= 60) {
+        if (active >= maxConcurrent || (prior?.active || 0) >= maxConcurrent || (prior?.count || 0) >= 120) {
             res.writeHead(429, { 'Retry-After': '30' }); return res.end('Teste ocupado. Tente novamente.');
         }
         const record = prior || { active: 0, count: 0, since: Date.now() };
@@ -60,7 +79,8 @@ function createServer(options = {}) {
         res.once('close', () => clearTimeout(timeout));
         res.setHeader('Content-Type', 'application/octet-stream');
         if (req.method === 'GET') {
-            const transfer = { res, bytes: 0, start: Date.now() };
+            res.setHeader('Content-Length', String(targetBytes));
+            const transfer = { res, bytes: 0, targetBytes, start: Date.now() };
             transfers.add(transfer);
             res.once('close', () => transfers.delete(transfer));
         } else {

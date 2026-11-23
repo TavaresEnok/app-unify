@@ -4,6 +4,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.content.Context
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.net.ConnectivityManager
@@ -40,33 +41,37 @@ class MainActivity: FlutterActivity() {
     private fun getWifiDetails(): Map<String, Any>? {
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val connectivityManager = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        
-        val networkKey = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-             val currentNetwork = connectivityManager.activeNetwork
-             val caps = connectivityManager.getNetworkCapabilities(currentNetwork)
-             if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                 wifiManager.connectionInfo
-             } else {
-                 null
-             }
-        } else {
-             wifiManager.connectionInfo
+
+        val wifiInfo: WifiInfo? = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val currentNetwork = connectivityManager.activeNetwork
+                val caps = connectivityManager.getNetworkCapabilities(currentNetwork)
+                if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                    (caps.transportInfo as? WifiInfo) ?: @Suppress("DEPRECATION") wifiManager.connectionInfo
+                } else {
+                    null
+                }
+            } else {
+                @Suppress("DEPRECATION") wifiManager.connectionInfo
+            }
+        } catch (_: SecurityException) {
+            null
         }
 
-        if (networkKey == null) return null
+        if (wifiInfo == null) return null
 
         val info = hashMapOf<String, Any>()
-        info["frequency"] = networkKey.frequency
-        info["rssi"] = networkKey.rssi
-        info["linkSpeed"] = networkKey.linkSpeed
-        
+        info["frequency"] = wifiInfo.frequency
+        info["rssi"] = wifiInfo.rssi
+        info["linkSpeed"] = wifiInfo.linkSpeed
+
         // DNS Servers (Android M+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val activeNetwork = connectivityManager.activeNetwork
             if (activeNetwork != null) {
                 val linkProps = connectivityManager.getLinkProperties(activeNetwork)
                 if (linkProps != null) {
-                    val dnsList = linkProps.dnsServers.map { it.hostAddress }
+                    val dnsList = linkProps.dnsServers.mapNotNull { it.hostAddress }
                     info["dnsServers"] = dnsList
                 }
             }
