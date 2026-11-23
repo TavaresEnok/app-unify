@@ -18,6 +18,7 @@ import { notificationsRouter } from "./routes/notifications.routes";
 import { clientsRouter } from "./routes/clients.routes";
 import { subscriberRouter } from "./routes/subscriber.routes";
 import { adminDiagnosticsRouter, diagnosticsRouter } from "./routes/diagnostics.routes";
+import { tr069AdminRouter, tr069SubscriberRouter } from "./routes/tr069.routes";
 import { proxyRouter } from "./routes/proxy.routes";
 import { buildAuthorizationRouter } from "./routes/buildAuthorization.routes";
 import { publicConfigRouter } from "./routes/publicConfig.routes";
@@ -51,7 +52,9 @@ export function createApp() {
   app.use("/admin/notifications", notificationsRouter);
   app.use("/admin/clients", clientsRouter);
   app.use("/admin/diagnostics", adminDiagnosticsRouter);
+  app.use("/admin/tr069", tr069AdminRouter);
   app.use("/diagnostic", diagnosticsRouter);
+  app.use("/tr069", tr069SubscriberRouter);
   app.use("/public", publicConfigRouter);
   app.use(subscriberRouter);
   app.use(proxyRouter);

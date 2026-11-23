@@ -52,6 +52,7 @@ dependencies:
   intl: ^0.19.0
   fl_chart: ^0.68.0
   lottie: ^3.1.0
+  qr: ^3.0.2
 
   # DIAGNÓSTICO E REDE
   flutter_local_notifications: ^17.2.1
