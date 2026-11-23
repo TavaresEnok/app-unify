@@ -17,6 +17,26 @@ it.each([401, 403, 503])('preserves denial/unavailability from restricted flow %
   state.endpoint = 'https://fixed.test/apk-builder'; vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status })));
   await expect(forwardGenerateApk(request)).rejects.toMatchObject({ code: status === 503 ? 'unavailable' : 'permission-denied' });
 });
+it.each([
+  undefined,
+  {},
+  { role: 'subscriber', providerId: 'a' },
+  { role: 'client', providerId: 'a' },
+  { role: 'providerAdmin', providerId: 'a' },
+  { superAdmin: 'true' },
+  { superAdmin: true, role: 'subscriber' },
+  { superAdmin: true, role: 'providerAdmin' },
+  { superAdmin: true, role: 'client' },
+])('rejects non-manager claims before contacting the builder: %j', async token => {
+  state.endpoint = 'https://fixed.test/apk-builder';
+  const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
+  await expect(forwardGenerateApk({
+    ...request,
+    auth: { uid: 'synthetic', token },
+    data: { ...request.data, superAdmin: true, role: 'superAdmin' },
+  })).rejects.toMatchObject({ code: 'permission-denied' });
+  expect(fetcher).not.toHaveBeenCalled();
+});
 it('forwards bearer only to fixed builder with async polling contract and sanitized result', async () => {
   state.endpoint = 'https://fixed.test/apk-builder';
   const fetcher = vi.fn(async (_url: URL, _options: any) => ({ ok: true, json: async () => ({ success: true, jobId: 'job', status: 'running', logs: 'private' }) }));

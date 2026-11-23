@@ -6,7 +6,7 @@ export interface ProviderSettingSection {
 export const PROVIDER_SETTING_SECTIONS: readonly ProviderSettingSection[] = [
   { id: "appearance", fields: ["layoutType", "diagnosticStyle", "themeColor", "secondaryColor", "backgroundColor", "cardColor", "cardTextColor", "textColor", "textSecondaryColor", "iconColor", "actionColor", "invoiceColor", "quickActionsCardColor", "quickActionsTextColor", "otherCardsColor", "otherCardsTextColor"] },
   { id: "typography", fields: ["typography"] },
-  { id: "images", fields: ["logoUrl", "iconUrl", "backgroundUrl"] },
+  { id: "images", fields: ["logoUrl", "logoFraming", "iconUrl", "backgroundUrl"] },
   { id: "menus", fields: ["menuConfig"] },
   { id: "dashboard", fields: ["dashboardConfig", "dashboard"] },
   { id: "carousel", fields: ["imageCarousel"] },

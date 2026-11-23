@@ -6,7 +6,7 @@ const booleans = (keys: string): Record<string, Shape> => Object.fromEntries(key
 // rather than admitting arbitrary JSON or treating the encoded map as opaque.
 const layoutThemeSchema: Shape = Object.fromEntries(
   "layout_01 layout_02 layout_03 layout_04 layout_05 layout_06".split(" ").map(key => [
-    key, strings("themeColor secondaryColor actionColor invoiceColor cardColor textColor backgroundColor iconColor quickActionsCardColor quickActionsTextColor otherCardsColor otherCardsTextColor"),
+    key, strings("themeColor secondaryColor actionColor invoiceColor cardColor cardTextColor textColor textSecondaryColor backgroundColor iconColor quickActionsCardColor quickActionsTextColor otherCardsColor otherCardsTextColor"),
   ]),
 );
 const menuItem: Shape = { enabled: "boolean", name: "string", icon: "string", type: "string", url: "string", color: "string" };
@@ -14,6 +14,7 @@ const menuKeys = "invoices support contract consumption diagnostics notification
 const dashboard: Shape = { widgets: [{ ...strings("id type title size color icon"), enabled: "boolean", order: "number", position: "number", visible: "boolean", config: { ...booleans("showInvoice showConnection showPlan showLabels"), ...strings("imageUrl chartType"), height: "number", borderRadius: "number", columns: "number", iconSize: "number", period: "number", actions: ["string"] } }] };
 export const personalizationSchema: Record<string, Shape> = {
   ...strings("layoutType diagnosticStyle themeColor secondaryColor backgroundColor cardColor cardTextColor textColor textSecondaryColor iconColor actionColor invoiceColor quickActionsCardColor quickActionsTextColor otherCardsColor otherCardsTextColor logoUrl iconUrl backgroundUrl loginQuote termsOfUse iconPack"),
+  logoFraming: { shape: "string", fit: "string", zoom: "number", x: "number", y: "number" },
   typography: strings("fontFamily titleSize bodySize fontWeight"),
   imageCarousel: ["string"],
   menuConfig: { order: ["string"], items: Object.fromEntries(menuKeys.split(" ").map(k => [k, menuItem]).concat([["$customMenu", menuItem]])) },

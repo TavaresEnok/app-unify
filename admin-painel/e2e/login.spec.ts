@@ -31,7 +31,7 @@ test('login retries immediately and shows the panel while its single data reques
     await route.fulfill({ json: { data: { stats: { totalClients: 10, openTicketsCount: 0 }, recentTickets: [] } } });
   });
   await page.goto('/login');
-  await page.getByLabel(/e-mail|email/i).fill(email); await page.getByLabel(/senha/i).fill('fixture-password');
+  await page.getByLabel(/e-mail|email/i).fill(email); await page.getByLabel(/^senha$/i).fill('fixture-password');
   for (let index = 1; index <= 6; index++) {
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
     await expect.poll(() => attempts).toBe(index);

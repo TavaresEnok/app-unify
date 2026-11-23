@@ -7,9 +7,8 @@ import { assertCpfInTenant } from "../services/tenantScope";
 
 export const proxyRouter = Router();
 
-// /check-cpf é o endpoint de LOGIN (emite o token) — por definição não pode
-// exigir token. O endurecimento dele é o segundo fator no proxy-sgp
-// (REQUIRE_LOGIN_SECOND_FACTOR), não autenticação aqui.
+// Login histórico do assinante: CPF/CNPJ + provedor, sem senha. O proxy-sgp
+// valida o contrato e emite a sessão; este endpoint público limita tentativas.
 proxyRouter.post("/check-cpf", subscriberLoginLimiter, asyncRoute(async (req, res) => {
   const result = await proxyToSgp("/check-cpf", req.body);
   res.status(result.status).json(result.data);

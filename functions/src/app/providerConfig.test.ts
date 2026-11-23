@@ -7,7 +7,7 @@ it("standalone boundary mirrors equal the canonical schema", () => {
   expect(readFileSync(new URL(path, import.meta.url), "utf8")).toBe(canonical);
 });
 it("validates encoded layout themes recursively on input and legacy output", () => {
- const themes = { layout_01: { themeColor: "#123456" }, layout_06: { textColor: "#ffffff" } };
+ const themes = { layout_01: { themeColor: "#123456", cardTextColor: "#123455", textSecondaryColor: "#555555" }, layout_06: { textColor: "#ffffff" } };
  const config = { strings: { layoutThemes: JSON.stringify(themes) } };
  expect(parsePersonalization(config)).toEqual(config);
  expect(publicProviderData(config)).toEqual(config);

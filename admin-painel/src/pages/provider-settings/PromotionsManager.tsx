@@ -18,6 +18,7 @@ export default function PromotionsManager() {
     description: '',
     badge: 'OFERTA',
     imageUrl: '',
+    link: '',
     startDate: '',
     endDate: '',
     showCountdown: true,
@@ -28,6 +29,15 @@ export default function PromotionsManager() {
       toast.error('Preencha título e datas');
       return;
     }
+    if (newPromo.link.trim()) {
+      try {
+        const url = new URL(newPromo.link.trim());
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+      } catch {
+        toast.error('Informe um link HTTP ou HTTPS válido.');
+        return;
+      }
+    }
     const promo = {
       id: `promo_${Date.now()}`,
       ...newPromo,
@@ -36,7 +46,7 @@ export default function PromotionsManager() {
       createdAt: new Date().toISOString(),
     };
     setPromotions([...promotions, promo]);
-    setNewPromo({ title: '', description: '', badge: 'OFERTA', imageUrl: '', startDate: '', endDate: '', showCountdown: true });
+    setNewPromo({ title: '', description: '', badge: 'OFERTA', imageUrl: '', link: '', startDate: '', endDate: '', showCountdown: true });
     toast.success('Promoção criada!');
   };
 
@@ -48,6 +58,16 @@ export default function PromotionsManager() {
   };
 
   const handleSave = async () => {
+    for (const promotion of promotions) {
+      if (!promotion.link?.trim()) continue;
+      try {
+        const url = new URL(promotion.link.trim());
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+      } catch {
+        toast.error('Informe links HTTP ou HTTPS válidos nas promoções.');
+        return;
+      }
+    }
     const nextConfig = { ...config, promotions: { enabled: true, items: promotions } };
     setConfig(nextConfig);
     await saveConfig(nextConfig);
@@ -101,6 +121,13 @@ export default function PromotionsManager() {
                 onChange={(e) => setNewPromo({ ...newPromo, imageUrl: e.target.value })}
                 placeholder="https://..."
               />
+            </div>
+
+            <div>
+              <Label htmlFor="promotion-link">Link da oferta (opcional)</Label>
+              <Input id="promotion-link" type="url" value={newPromo.link}
+                onChange={(e) => setNewPromo({ ...newPromo, link: e.target.value })}
+                placeholder="https://..." />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -157,6 +184,13 @@ export default function PromotionsManager() {
                         {promo.description && (
                           <p className="text-sm text-muted-foreground mb-3">{promo.description}</p>
                         )}
+                        <div className="mb-3">
+                          <Label htmlFor={`link-${promo.id}`}>Link da oferta (opcional)</Label>
+                          <Input id={`link-${promo.id}`} type="url" value={promo.link || ''}
+                            onChange={(e) => setPromotions(promotions.map((item: any) =>
+                              item.id === promo.id ? { ...item, link: e.target.value } : item))}
+                            placeholder="https://..." />
+                        </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />

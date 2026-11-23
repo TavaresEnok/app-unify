@@ -20,7 +20,7 @@ buildAuthorizationRouter.post("/authorize", async (req, res) => {
     const current = await firebaseAuth.getUser(token.uid);
     const now = Math.floor(Date.now() / 1000);
     if (current.disabled || token.superAdmin !== true || current.customClaims?.superAdmin !== true ||
-        ["subscriber", "providerAdmin"].includes(token.role) || ["subscriber", "providerAdmin"].includes(current.customClaims?.role) ||
+        ["subscriber", "providerAdmin", "client"].includes(token.role) || ["subscriber", "providerAdmin", "client"].includes(current.customClaims?.role) ||
         typeof token.auth_time !== "number" || token.auth_time > now + 30 ||
         (["request", "spawn"].includes(purpose) && now - token.auth_time > 300)) throw new Error("denied");
     // SaaS has global tenant scope; existence and active state are server data.

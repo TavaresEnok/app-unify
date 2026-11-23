@@ -2,6 +2,10 @@ import type { RequestHandler } from "express";
 import { firebaseAuth } from "../services/firebaseAdmin";
 import { ApiError } from "./errorHandler";
 
+// Reuse only within this HTTP request. Never trust a pre-populated req.user or
+// cache authorization across requests: revocations and role changes stay live.
+const verifiedRequests = new WeakMap<Express.Request, { token: string; user: NonNullable<Express.Request['user']> }>();
+
 function bearerToken(header: string | undefined): string {
   if (!header?.startsWith("Bearer ")) throw new ApiError(401, "Token não fornecido.", "unauthenticated");
   return header.slice(7).trim();
@@ -10,7 +14,15 @@ function bearerToken(header: string | undefined): string {
 export const verifyToken: RequestHandler = async (req, _res, next) => {
   req.user = undefined;
   try {
-    const identity = await firebaseAuth.verifyIdToken(bearerToken(req.headers.authorization), true);
+    const token = bearerToken(req.headers.authorization);
+    const verified = verifiedRequests.get(req);
+    if (verified?.token === token) {
+      req.user = verified.user;
+      next();
+      return;
+    }
+    verifiedRequests.delete(req);
+    const identity = await firebaseAuth.verifyIdToken(token, true);
     const current = await firebaseAuth.getUser(identity.uid);
     if (current.disabled) throw new ApiError(401, "Sessão inválida.", "unauthenticated");
     const claims = current.customClaims || {};
@@ -21,6 +33,7 @@ export const verifyToken: RequestHandler = async (req, _res, next) => {
     req.user = { uid: identity.uid, sub: identity.uid, aud: identity.aud, iss: identity.iss,
       iat: identity.iat, exp: identity.exp, auth_time: identity.auth_time, firebase: identity.firebase,
       role: claims.role, providerId: claims.providerId, cpfCnpj: claims.cpfCnpj, superAdmin: claims.superAdmin === true } as typeof identity;
+    verifiedRequests.set(req, { token, user: Object.freeze(req.user) });
     next();
   } catch (error) {
     const code = (error as { code?: string }).code;
@@ -29,6 +42,13 @@ export const verifyToken: RequestHandler = async (req, _res, next) => {
       ? new ApiError(401, "Sessão inválida.", "unauthenticated")
       : new ApiError(503, "Autorização indisponível. Preserve os dados e tente mais tarde.", "authorization-unavailable"));
   }
+};
+
+// Long-running/private operations must recheck authority immediately before
+// committing or releasing bytes, even though ingress already verified the token.
+export const verifyFreshToken: RequestHandler = (req, res, next) => {
+  verifiedRequests.delete(req);
+  return verifyToken(req, res, next);
 };
 
 export const authenticateIfPresent: RequestHandler = (req, res, next) => {

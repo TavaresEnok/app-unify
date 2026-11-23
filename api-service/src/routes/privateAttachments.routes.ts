@@ -1,6 +1,6 @@
 import express, { Router, type RequestHandler } from "express";
 import { createHash } from "node:crypto";
-import { verifyToken } from "../middlewares/auth";
+import { verifyToken, verifyFreshToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { admin, firestore, serverTimestamp } from "../services/firebaseAdmin";
 
@@ -132,7 +132,7 @@ privateAttachmentsRouter.put(paths, boundedBody, privateRoute(async (req, res) =
   const [bytes] = await pinned.download({ validation: "crc32c" });
   if (bytes.length !== expected.size || digest(bytes) !== checksum) throw fail();
   // Revalidate current Auth after I/O; no long-lived authority snapshot.
-  await new Promise<void>((resolve, reject) => verifyToken(req, res, error => error ? reject(error) : resolve()));
+  await new Promise<void>((resolve, reject) => verifyFreshToken(req, res, error => error ? reject(error) : resolve()));
   await firestore.runTransaction(async tx => {
     const [resource, metadata] = await Promise.all([tx.get(loc.resource), tx.get(ref)]);
     const current = authorize(req, resourceData(resource, loc.report), loc.report, req.params.provider);
@@ -169,7 +169,7 @@ privateAttachmentsRouter.get(paths, privateRoute(async (req, res) => {
   const [bytes] = await file.download({ validation: "crc32c" });
   if (bytes.length !== metadata.size || digest(bytes) !== metadata.checksum) throw fail();
   validatePrivateBytes(bytes, metadata.mime, loc.report);
-  await new Promise<void>((resolve, reject) => verifyToken(req, res, error => error ? reject(error) : resolve()));
+  await new Promise<void>((resolve, reject) => verifyFreshToken(req, res, error => error ? reject(error) : resolve()));
   const current = authorize(req, resourceData(await loc.resource.get(), loc.report), loc.report, req.params.provider);
   if (current.tenant !== canonical.tenant || current.owner !== canonical.owner || JSON.stringify((await ref.get()).data()) !== JSON.stringify(metadata)) throw fail();
   res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'",

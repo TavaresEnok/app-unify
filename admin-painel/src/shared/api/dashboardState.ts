@@ -31,6 +31,8 @@ export function createDashboardController<T>(allowed: boolean) {
 
 export function useDashboardState<T>(identity: unknown, role: string | null, tenant: string | null,
   allowed: boolean, request: () => Promise<T>) {
+  // A recriação do controlador por identity/role/tenant garante isolamento de sessão.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const controller = useMemo(() => createDashboardController<T>(allowed), [identity, role, tenant, allowed]);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const reload = () => { clearDashboardPrefetch(); return controller.load(request); };

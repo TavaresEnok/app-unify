@@ -64,6 +64,13 @@ export interface ProviderConfig {
   otherCardsTextColor?: string;
   typography?: TypographyConfig;
   logoUrl?: string;
+  logoFraming?: {
+    shape?: "circle" | "rounded" | "wide";
+    fit?: "contain" | "cover";
+    zoom?: number;
+    x?: number;
+    y?: number;
+  };
   iconUrl?: string;
   backgroundUrl?: string;
   loginQuote?: string;

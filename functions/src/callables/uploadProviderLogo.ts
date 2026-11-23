@@ -44,7 +44,7 @@ export const uploadProviderLogo = onCall({
         cacheControl: "public, max-age=31536000, immutable",
       },
     });
-    const url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
     await db.collection("provedores").doc(providerId).set({ logoUrl: url }, { merge: true });
     return { success: true, url };
   } catch (error) {

@@ -11,8 +11,10 @@ beforeEach(() => {
   state.get.mockResolvedValue({ uid: 'u', customClaims: { role: 'providerAdmin', providerId: 'a' } });
 });
 it('verifies revoked session and current scope before uploading', async () => {
-  await expect(invoke()).resolves.toMatchObject({ success: true });
+  const url = 'https://firebasestorage.googleapis.com/v0/b/synthetic/o/providers%2Fa%2Flogo.png?alt=media';
+  await expect(invoke()).resolves.toEqual({ success: true, url });
   expect(state.verify).toHaveBeenCalledWith('synthetic', true); expect(state.save).toHaveBeenCalledTimes(1);
+  expect(state.set).toHaveBeenCalledWith({ logoUrl: url }, { merge: true });
 });
 it.each(['revoked', 'old-session', 'disabled', 'removed', 'tenant', 'outage', 'other-tenant'])('denies %s without writes', async mode => {
   if (mode === 'revoked') state.verify.mockRejectedValue(Object.assign(Error(), { code: 'auth/id-token-revoked' }));

@@ -3,9 +3,27 @@ import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore, serverTimestamp } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
+import { cursorTimestamp, decodeCursor, encodeCursor, pageSize } from "../services/cursorPage";
 
 export const ticketsRouter = Router();
 ticketsRouter.use(verifyToken, verifyAdmin);
+
+// Cursor pagination for the web client. Legacy routes remain compatible during migration.
+ticketsRouter.get('/page', asyncRoute(async (req, res) => {
+  const size = pageSize(req.query.limit);
+  const providerId = req.user?.superAdmin === true ? undefined : req.user?.providerId;
+  if (req.user?.superAdmin !== true && !providerId) throw new ApiError(403, 'Provedor obrigatório.', 'permission-denied');
+  const scope = `tickets:${providerId || 'global'}`;
+  const cursor = decodeCursor(req.query.cursor, scope, true);
+  let query: FirebaseFirestore.Query = firestore.collection('tickets');
+  if (providerId) query = query.where('providerId', '==', providerId);
+  query = query.orderBy('updatedAt', 'desc').orderBy('__name__', 'desc');
+  if (cursor) query = query.startAfter(cursorTimestamp(cursor), cursor.id);
+  const snapshot = await query.limit(size + 1).get();
+  const docs = snapshot.docs.slice(0, size);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data: docs.map(doc => serialize(doc.id, doc.data())), nextCursor: snapshot.docs.length > size ? encodeCursor(scope, docs[docs.length - 1], 'updatedAt') : null });
+}));
 
 async function requireTicket(req: Express.Request, ticketId: string) {
   const ticket = await firestore.collection("tickets").doc(ticketId).get();

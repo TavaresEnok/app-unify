@@ -1,0 +1,821 @@
+{
+  "date": "2026-11-12",
+  "timezone": "America/Fortaleza",
+  "deployment": {
+    "services": [
+      "api-service",
+      "frontend"
+    ],
+    "imageRevisionLabel": "347f186 working tree; performance-20261112 suffix",
+    "rollbackTags": [
+      "painel_provedores-api-service:rollback-performance-20261112",
+      "painel_provedores-frontend:rollback-performance-20261112"
+    ],
+    "cloudFunctionsDeployed": false,
+    "rulesDeployed": false,
+    "mobileArtifactChanged": false
+  },
+  "validation": {
+    "apiTests": 122,
+    "frontendUnitTests": 63,
+    "browserWorkspaceTests": 30,
+    "browserPublicRoutesTests": 10,
+    "functionsTests": 185,
+    "lintErrors": 0,
+    "preexistingLintWarnings": 3
+  },
+  "before": {
+    "date": "2026-11-12",
+    "scope": "Diagnóstico de produção, sem deploy ou alteração do código",
+    "profiles": [
+      {
+        "name": "server-browser-normal",
+        "measurements": [
+          {
+            "phase": "login-page",
+            "readyMs": 459
+          },
+          {
+            "phase": "login-dashboard",
+            "readyMs": 3210
+          },
+          {
+            "phase": "/provedores",
+            "readyMs": 1804
+          },
+          {
+            "phase": "/utilizadores",
+            "readyMs": 4817
+          },
+          {
+            "phase": "/tickets",
+            "readyMs": 1796
+          },
+          {
+            "phase": "/utilizadores",
+            "readyMs": 2305
+          },
+          {
+            "phase": "/tickets",
+            "readyMs": 1296
+          },
+          {
+            "phase": "/provedores",
+            "readyMs": 1797
+          },
+          {
+            "phase": "/provedores/vibe/appearance",
+            "readyMs": 1808
+          },
+          {
+            "phase": "/provedores/vibe/app-build",
+            "readyMs": 37
+          },
+          {
+            "phase": "/provedores/vibe/appearance",
+            "readyMs": 36
+          },
+          {
+            "phase": "/dashboard",
+            "readyMs": 1810
+          },
+          {
+            "directApi": "/admin/providers",
+            "ms": 1167,
+            "status": 200,
+            "bytes": 7767
+          },
+          {
+            "directApi": "/admin/dashboard/panel",
+            "ms": 1158,
+            "status": 200,
+            "bytes": 167
+          },
+          {
+            "directApi": "/admin/providers",
+            "ms": 1251,
+            "status": 200,
+            "bytes": 7767
+          }
+        ],
+        "metrics": {
+          "uptimeSeconds": 86042.007928696,
+          "memory": {
+            "rss": 79695872,
+            "heapTotal": 42377216,
+            "heapUsed": 39424568,
+            "external": 5522825,
+            "arrayBuffers": 1706518
+          },
+          "routes": [
+            {
+              "route": "GET /ready",
+              "count": 2859,
+              "failures": 0,
+              "p95Ms": 3.3075859993696213
+            },
+            {
+              "route": "GET /health",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 2.791800000006333
+            },
+            {
+              "route": "GET /public/providers/:providerId/config",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 89.98575900000287
+            },
+            {
+              "route": "POST /getInvoices",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 14.575141000001167
+            },
+            {
+              "route": "POST unmatched",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 3.206640000003972
+            },
+            {
+              "route": "OPTIONS unmatched",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 0.9288519999972777
+            },
+            {
+              "route": "GET unmatched",
+              "count": 18,
+              "failures": 0,
+              "p95Ms": 2.3523389995098114
+            },
+            {
+              "route": "GET /admin/dashboard/panel/providers/:providerId",
+              "count": 3,
+              "failures": 0,
+              "p95Ms": 3132.866610996425
+            },
+            {
+              "route": "POST /admin/performance",
+              "count": 7,
+              "failures": 0,
+              "p95Ms": 1542.7037840038538
+            },
+            {
+              "route": "GET /admin/providers/",
+              "count": 382,
+              "failures": 0,
+              "p95Ms": 1816.9073249995708
+            },
+            {
+              "route": "GET /admin/dashboard/panel",
+              "count": 23,
+              "failures": 0,
+              "p95Ms": 1878.4151329994202
+            },
+            {
+              "route": "POST /internal/builds/authorize",
+              "count": 173,
+              "failures": 0,
+              "p95Ms": 730.5063199996948
+            },
+            {
+              "route": "GET /admin/metrics",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 1196.7049790024757
+            }
+          ],
+          "panel": [
+            {
+              "flow": "restore",
+              "totalMs": 4806,
+              "authMs": 1655,
+              "apiMs": 3147,
+              "role": "providerAdmin",
+              "recordedAt": "2026-11-12T13:26:05.303Z"
+            },
+            {
+              "flow": "restore",
+              "totalMs": 2099,
+              "authMs": 487,
+              "apiMs": 1610,
+              "role": "providerAdmin",
+              "recordedAt": "2026-11-12T13:27:14.705Z"
+            },
+            {
+              "flow": "restore",
+              "totalMs": 3085,
+              "authMs": 870,
+              "apiMs": 2211,
+              "role": "providerAdmin",
+              "recordedAt": "2026-11-12T16:26:01.372Z"
+            },
+            {
+              "flow": "login",
+              "totalMs": 3201,
+              "authMs": 724,
+              "apiMs": 2472,
+              "role": "superAdmin",
+              "recordedAt": "2026-11-12T17:21:41.060Z"
+            },
+            {
+              "flow": "login",
+              "totalMs": 2719,
+              "authMs": 1275,
+              "apiMs": 1425,
+              "role": "superAdmin",
+              "recordedAt": "2026-11-12T19:46:46.475Z"
+            },
+            {
+              "flow": "login",
+              "totalMs": 2670,
+              "authMs": 1215,
+              "apiMs": 1442,
+              "role": "superAdmin",
+              "recordedAt": "2026-11-12T19:47:42.531Z"
+            }
+          ]
+        },
+        "longTasks": []
+      },
+      {
+        "name": "network-and-cpu-simulation",
+        "measurements": [
+          {
+            "phase": "login-page",
+            "readyMs": 421
+          },
+          {
+            "phase": "login-dashboard",
+            "readyMs": 3225
+          },
+          {
+            "profile": "simulated 1.6Mbps,150ms,CPU4x"
+          },
+          {
+            "phase": "/provedores",
+            "readyMs": 2894,
+            "shell": {
+              "samples": 139,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/utilizadores",
+            "readyMs": 2880,
+            "shell": {
+              "samples": 138,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/tickets",
+            "readyMs": 1842,
+            "shell": {
+              "samples": 89,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/utilizadores",
+            "readyMs": 1345,
+            "shell": {
+              "samples": 67,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/tickets",
+            "readyMs": 830,
+            "shell": {
+              "samples": 39,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/provedores",
+            "readyMs": 1839,
+            "shell": {
+              "samples": 90,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/provedores/vibe/appearance",
+            "readyMs": 2351,
+            "shell": {
+              "samples": 104,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/provedores/vibe/app-build",
+            "readyMs": 370,
+            "shell": {
+              "samples": 15,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/provedores/vibe/appearance",
+            "readyMs": 194,
+            "shell": {
+              "samples": 5,
+              "hidden": 0
+            }
+          },
+          {
+            "phase": "/dashboard",
+            "readyMs": 1393,
+            "shell": {
+              "samples": 66,
+              "hidden": 0
+            }
+          },
+          {
+            "directApi": "/admin/providers",
+            "ms": 1255,
+            "status": 200,
+            "bytes": 7767
+          },
+          {
+            "directApi": "/admin/dashboard/panel",
+            "ms": 1115,
+            "status": 200,
+            "bytes": 167
+          },
+          {
+            "directApi": "/admin/providers",
+            "ms": 1145,
+            "status": 200,
+            "bytes": 7767
+          }
+        ],
+        "metrics": {
+          "uptimeSeconds": 86109.308649356,
+          "memory": {
+            "rss": 78671872,
+            "heapTotal": 43163648,
+            "heapUsed": 34428408,
+            "external": 4173176,
+            "arrayBuffers": 367457
+          },
+          "routes": [
+            {
+              "route": "GET /ready",
+              "count": 2861,
+              "failures": 0,
+              "p95Ms": 3.3075859993696213
+            },
+            {
+              "route": "GET /health",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 2.791800000006333
+            },
+            {
+              "route": "GET /public/providers/:providerId/config",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 89.98575900000287
+            },
+            {
+              "route": "POST /getInvoices",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 14.575141000001167
+            },
+            {
+              "route": "POST unmatched",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 3.206640000003972
+            },
+            {
+              "route": "OPTIONS unmatched",
+              "count": 1,
+              "failures": 0,
+              "p95Ms": 0.9288519999972777
+            },
+            {
+              "route": "GET unmatched",
+              "count": 18,
+              "failures": 0,
+              "p95Ms": 2.3523389995098114
+            },
+            {
+              "route": "GET /admin/dashboard/panel/providers/:providerId",
+              "count": 3,
+              "failures": 0,
+              "p95Ms": 3132.866610996425
+            },
+            {
+              "route": "POST /admin/performance",
+              "count": 8,
+              "failures": 0,
+              "p95Ms": 1542.7037840038538
+            },
+            {
+              "route": "GET /admin/providers/",
+              "count": 390,
+              "failures": 0,
+              "p95Ms": 1816.9073249995708
+            },
+            {
+              "route": "GET /admin/dashboard/panel",
+              "count": 26,
+              "failures": 0,
+              "p95Ms": 1878.4151329994202
+            },
+            {
+              "route": "POST /internal/builds/authorize",
+              "count": 173,
+              "failures": 0,
+              "p95Ms": 730.5063199996948
+            },
+            {
+              "route": "GET /admin/metrics",
+              "count": 2,
+              "failures": 0,
+              "p95Ms": 1389.3184539973736
+            }
+          ],
+          "panel": [
+            {
+              "flow": "restore",
+              "totalMs": 4806,
+              "authMs": 1655,
+              "apiMs": 3147,
+              "role": "providerAdmin",
+              "recordedAt": "2026-11-12T13:26:05.303Z"
+            },
+            {
+              "flow": "restore",
+              "totalMs": 2099,
+              "authMs": 487,
+              "apiMs": 1610,
+              "role": "providerAdmin",
+              "recordedAt": "2026-11-12T13:27:14.705Z"
+            },
+            {
+              "flow": "restore",
+              "totalMs": 3085,
+              "authMs": 870,
+              "apiMs": 2211,
+              "role": "providerAdmin",
+              "recordedAt": "2026-11-12T16:26:01.372Z"
+            },
+            {
+              "flow": "login",
+              "totalMs": 3201,
+              "authMs": 724,
+              "apiMs": 2472,
+              "role": "superAdmin",
+              "recordedAt": "2026-11-12T17:21:41.060Z"
+            },
+            {
+              "flow": "login",
+              "totalMs": 2719,
+              "authMs": 1275,
+              "apiMs": 1425,
+              "role": "superAdmin",
+              "recordedAt": "2026-11-12T19:46:46.475Z"
+            },
+            {
+              "flow": "login",
+              "totalMs": 2670,
+              "authMs": 1215,
+              "apiMs": 1442,
+              "role": "superAdmin",
+              "recordedAt": "2026-11-12T19:47:42.531Z"
+            },
+            {
+              "flow": "login",
+              "totalMs": 2782,
+              "authMs": 1299,
+              "apiMs": 1465,
+              "role": "superAdmin",
+              "recordedAt": "2026-11-12T19:48:51.762Z"
+            }
+          ]
+        },
+        "longTasks": [
+          {
+            "start": 11010.899999976158,
+            "duration": 64
+          },
+          {
+            "start": 17231.699999928474,
+            "duration": 69
+          },
+          {
+            "start": 17301.5,
+            "duration": 165
+          },
+          {
+            "start": 18247,
+            "duration": 54
+          }
+        ]
+      }
+    ],
+    "authExperiment": {
+      "method": "Mesma função verifyToken publicada, executada em processo isolado; comparação de duas execuções versus uma por requisição",
+      "baselineWarmMs": [
+        1200,
+        1167
+      ],
+      "singleExecutionWarmMs": [
+        690,
+        610
+      ],
+      "accountLookupsBefore": 4,
+      "accountLookupsAfter": 2
+    },
+    "historicalSaveQueueMs": [
+      4763,
+      1605,
+      4226,
+      1500,
+      5259
+    ],
+    "infrastructure": {
+      "memoryAvailableGiB": 4.1,
+      "swapUsedGiB": 6.6,
+      "diskUsedPercent": 92,
+      "cpuIdlePercentRange": [
+        82,
+        86
+      ],
+      "apiOom": 0,
+      "frontendOom": 0
+    },
+    "databaseCounts": {
+      "providers": 1,
+      "users": 2,
+      "tickets": 0,
+      "clients": 8
+    }
+  },
+  "afterFirstBrowser": [
+    {
+      "phase": "login-dashboard",
+      "ms": 3748
+    },
+    {
+      "phase": "/provedores",
+      "ms": 1316
+    },
+    {
+      "phase": "/utilizadores",
+      "ms": 796
+    },
+    {
+      "phase": "/tickets",
+      "ms": 790
+    },
+    {
+      "phase": "/provedores",
+      "ms": 35
+    },
+    {
+      "phase": "/provedores/vibe/appearance",
+      "ms": 799
+    },
+    {
+      "phase": "/provedores/vibe/app-build",
+      "ms": 93
+    },
+    {
+      "phase": "/provedores/vibe/appearance",
+      "ms": 38
+    },
+    {
+      "phase": "/utilizadores",
+      "ms": 36
+    },
+    {
+      "phase": "/tickets",
+      "ms": 41
+    },
+    {
+      "phase": "save",
+      "ms": 839,
+      "status": 200,
+      "colorPreserved": true
+    },
+    {
+      "path": "/admin/providers/summaries",
+      "status": 200,
+      "samples": [
+        1165,
+        606,
+        616
+      ]
+    },
+    {
+      "path": "/admin/users/page?limit=25",
+      "status": 200,
+      "samples": [
+        659,
+        632,
+        623
+      ]
+    },
+    {
+      "path": "/admin/tickets/page?limit=25",
+      "status": 200,
+      "samples": [
+        640,
+        598,
+        604
+      ]
+    },
+    {
+      "path": "/admin/providers/vibe",
+      "status": 200,
+      "samples": [
+        623,
+        612,
+        660
+      ]
+    },
+    {
+      "path": "/admin/dashboard/panel",
+      "status": 200,
+      "samples": [
+        778,
+        583,
+        592
+      ]
+    },
+    {
+      "pageErrors": [],
+      "requests": [
+        {
+          "phase": "login",
+          "path": "/api/admin/dashboard/panel",
+          "ms": 1621
+        },
+        {
+          "phase": "/provedores",
+          "path": "/api/admin/providers/summaries",
+          "ms": 779
+        },
+        {
+          "phase": "/utilizadores",
+          "path": "/api/admin/users/page",
+          "ms": 675
+        },
+        {
+          "phase": "/tickets",
+          "path": "/api/admin/tickets/page",
+          "ms": 715
+        },
+        {
+          "phase": "/provedores/vibe/appearance",
+          "path": "/api/admin/providers/vibe",
+          "ms": 614
+        },
+        {
+          "phase": "save",
+          "path": "/api/admin/providers/vibe/config",
+          "ms": 766
+        }
+      ],
+      "initialFirestoreLoaded": true
+    }
+  ],
+  "afterWarmApiFreshBrowser": [
+    {
+      "phase": "login-dashboard",
+      "ms": 2722
+    },
+    {
+      "phase": "/provedores",
+      "ms": 808,
+      "firestoreLoaded": false
+    },
+    {
+      "phase": "/utilizadores",
+      "ms": 792,
+      "firestoreLoaded": false
+    },
+    {
+      "phase": "/tickets",
+      "ms": 799,
+      "firestoreLoaded": false
+    },
+    {
+      "phase": "/provedores",
+      "ms": 36,
+      "firestoreLoaded": false
+    },
+    {
+      "phase": "/provedores/vibe/appearance",
+      "ms": 802,
+      "firestoreLoaded": false
+    },
+    {
+      "phase": "/provedores/vibe/appearance",
+      "ms": 5,
+      "firestoreLoaded": false
+    },
+    {
+      "phase": "/utilizadores",
+      "ms": 42,
+      "firestoreLoaded": false
+    },
+    {
+      "phase": "/tickets",
+      "ms": 37,
+      "firestoreLoaded": false
+    },
+    {
+      "path": "/admin/providers/summaries",
+      "status": 200,
+      "samples": [
+        958,
+        620,
+        613
+      ]
+    },
+    {
+      "path": "/admin/users/page?limit=25",
+      "status": 200,
+      "samples": [
+        613,
+        611,
+        607
+      ]
+    },
+    {
+      "path": "/admin/tickets/page?limit=25",
+      "status": 200,
+      "samples": [
+        598,
+        622,
+        653
+      ]
+    },
+    {
+      "path": "/admin/providers/vibe",
+      "status": 200,
+      "samples": [
+        612,
+        604,
+        611
+      ]
+    },
+    {
+      "path": "/admin/dashboard/panel",
+      "status": 200,
+      "samples": [
+        673,
+        596,
+        570
+      ]
+    },
+    {
+      "pageErrors": [],
+      "requests": [
+        {
+          "phase": "login",
+          "path": "/api/admin/dashboard/panel",
+          "ms": 907
+        },
+        {
+          "phase": "/provedores",
+          "path": "/api/admin/providers/summaries",
+          "ms": 741
+        },
+        {
+          "phase": "/utilizadores",
+          "path": "/api/admin/users/page",
+          "ms": 632
+        },
+        {
+          "phase": "/tickets",
+          "path": "/api/admin/tickets/page",
+          "ms": 640
+        },
+        {
+          "phase": "/provedores/vibe/appearance",
+          "path": "/api/admin/providers/vibe",
+          "ms": 639
+        }
+      ],
+      "initialFirestoreLoaded": false
+    }
+  ],
+  "limitations": [
+    "Samples from Chromium on the server, not the user device.",
+    "First login after deploy includes cold Auth/API initialization.",
+    "Navigation return measurements apply within the 15-second session-scoped read cache.",
+    "Save before-values measure only Firestore queue; after-value measures click to success, so durations are not identical measurement windows.",
+    "HTTP improvements benefit installed apps using the API, but no physical-device latency measurement or APK change was performed.",
+    "Load benchmark uses synthetic Firestore/Auth/SGP and an identity space, not a populated 500000-client database."
+  ]
+}

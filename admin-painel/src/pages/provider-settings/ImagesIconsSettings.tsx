@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useSettings, type ProviderConfig } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,9 +16,76 @@ interface ImageConfig {
 
 const imageFields: ImageConfig[] = [
     { key: 'backgroundUrl', label: 'Imagem de Fundo (Login)', placeholder: 'URL da imagem de fundo...', previewSize: 'h-24 w-auto' },
-    { key: 'logoUrl', label: 'Logo do Provedor', placeholder: 'URL da logo (PNG/SVG)...', previewSize: 'h-24 w-auto' },
+    { key: 'logoUrl', label: 'Logo do Provedor', placeholder: 'URL da logo (PNG ou JPEG)...', previewSize: 'h-24 w-auto' },
     { key: 'iconUrl', label: 'Ícone da Aplicação', placeholder: 'URL do ícone...', previewSize: 'h-12 w-12' },
 ];
+
+type LogoFraming = NonNullable<ProviderConfig['logoFraming']>;
+const defaultFraming: Required<LogoFraming> = {
+    shape: 'circle', fit: 'contain', zoom: 1, x: 50, y: 50,
+};
+
+const sliders = [
+    { key: 'zoom', label: 'Zoom', min: 1, max: 3, step: 0.05 },
+    { key: 'x', label: 'Posição horizontal', min: 0, max: 100, step: 1 },
+    { key: 'y', label: 'Posição vertical', min: 0, max: 100, step: 1 },
+] as const;
+
+function LogoFramingEditor({ url, value, onChange, disabled }: {
+    url: string;
+    value: LogoFraming | undefined;
+    onChange: (value: LogoFraming) => void;
+    disabled: boolean;
+}) {
+    const framing = { ...defaultFraming, ...value };
+    const update = (patch: LogoFraming) => onChange({ ...framing, ...patch });
+    const position = `${framing.x}% ${framing.y}%`;
+    const shape = framing.shape === 'wide' ? 'h-[100px] w-[200px] rounded-[20px]'
+        : framing.shape === 'rounded' ? 'size-[100px] rounded-[20px]' : 'size-[100px] rounded-full';
+    const selectClass = 'mt-1 block w-full rounded-md border border-input bg-background p-2 text-sm';
+    return (
+        <div className="mt-4 grid gap-4 rounded-lg border bg-muted/30 p-4 sm:grid-cols-[minmax(205px,auto)_1fr]">
+            <figure className="self-center justify-self-center text-center">
+                <div className={`mx-auto overflow-hidden bg-slate-100 ring-1 ring-slate-200 ${shape}`}>
+                    <img key={url} src={url} alt="Logo na tela de login" className="size-full"
+                        style={{ objectFit: framing.fit, objectPosition: position, transformOrigin: position, transform: `scale(${framing.zoom})` }} />
+                </div>
+                <figcaption className="mt-2 text-xs text-muted-foreground">Prévia no login</figcaption>
+            </figure>
+            <fieldset disabled={disabled} className="grid min-w-0 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <Label htmlFor="logo-frame-shape">Formato</Label>
+                        <select id="logo-frame-shape" className={selectClass} value={framing.shape}
+                            onChange={e => update({ shape: e.target.value as LogoFraming['shape'] })}>
+                            <option value="circle">Circular</option>
+                            <option value="rounded">Quadrado arredondado</option>
+                            <option value="wide">Horizontal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <Label htmlFor="logo-frame-fit">Encaixe</Label>
+                        <select id="logo-frame-fit" className={selectClass} value={framing.fit}
+                            onChange={e => update({ fit: e.target.value as LogoFraming['fit'] })}>
+                            <option value="contain">Mostrar imagem inteira</option>
+                            <option value="cover">Preencher quadro</option>
+                        </select>
+                    </div>
+                </div>
+                {sliders.map(({ key, label, min, max, step }) => (
+                    <Label key={key} className="grid gap-1">
+                        <span className="flex justify-between gap-2"><span>{label}</span><span>{key === 'zoom' ? Math.round(framing[key] * 100) : framing[key]}%</span></span>
+                        <input type="range" value={framing[key]} min={min} max={max} step={step}
+                            onChange={e => update({ [key]: e.target.valueAsNumber })} />
+                    </Label>
+                ))}
+                <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={() => onChange(defaultFraming)}>
+                    Restaurar enquadramento
+                </Button>
+            </fieldset>
+        </div>
+    );
+}
 
 export default function ImagesIconsSettings() {
     const { config, setConfig, isSaving } = useSettings();
@@ -34,12 +101,12 @@ export default function ImagesIconsSettings() {
 
     useEffect(() => {
         // Sincroniza o estado local com o estado global ao carregar a página
-        const updatedUrls: Record<string, string> = {};
-        imageFields.forEach(field => {
-            updatedUrls[field.key] = config[field.key] || '';
+        setLocalUrls({
+            backgroundUrl: config.backgroundUrl || '',
+            logoUrl: config.logoUrl || '',
+            iconUrl: config.iconUrl || '',
         });
-        setLocalUrls(updatedUrls);
-    }, [config]);
+    }, [config.backgroundUrl, config.logoUrl, config.iconUrl]);
 
     // Função para atualizar o estado local
     const handleLocalUpdate = (key: string, value: string) => {
@@ -87,8 +154,11 @@ export default function ImagesIconsSettings() {
                             </Button>
                         </div>
 
-                        {/* Pré-visualização */}
-                        {localUrls[field.key] && (
+                        {field.key === 'logoUrl' && localUrls.logoUrl && (
+                            <LogoFramingEditor url={localUrls.logoUrl} value={config.logoFraming} disabled={isSaving}
+                                onChange={logoFraming => setConfig(previous => ({ ...previous, logoFraming }))} />
+                        )}
+                        {field.key !== 'logoUrl' && localUrls[field.key] && (
                             <div className="mt-4 rounded-lg border border-[#EEF0F4] bg-[#FAFBFC] p-4">
                                 <p className="mb-2 text-[12px] font-semibold text-[#687181]">Pré-visualização</p>
                                 <img

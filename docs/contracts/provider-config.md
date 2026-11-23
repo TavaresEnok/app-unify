@@ -77,21 +77,29 @@ de assets. Nenhum documento real foi consultado ou alterado neste lote.
 ## Layouts
 
 `strings.layoutThemes` mantém o formato legado de texto JSON, com validação
-explícita dos layouts `layout_01` a `layout_06` e somente os doze campos de cor
+explícita dos layouts `layout_01` a `layout_06` e somente os campos de cor
 produzidos pela tela de aparência. JSON inválido, layouts/campos desconhecidos,
 credenciais e valores estruturados onde se espera cor textual são rejeitados
 na entrada. A saída legada remove propriedades não permitidas também dentro
 desse JSON; temas válidos permanecem na leitura, escrita e backup/restore.
 
-Layouts canonicos:
+O painel e o Flutter usam a mesma correspondência dos cinco layouts definitivos.
 
-- `layout_02`
-- `layout_03`
-- `layout_04`
-- `layout_05`
-- `layout_06`
+| Identificador persistido | Design do app do assinante | Quadro no HTML aprovado |
+| --- | --- | --- |
+| `layout_02` | Histórico na folha | `a2` |
+| `layout_03` | Dock de serviços | `b22` |
+| `layout_04` | Blocos escuros | `a7` |
+| `layout_05` | Faixa e fatura | `a1` |
+| `layout_06` | Topo centralizado | `a17` |
 
-Fallback: `layout_06`.
+Ao ler `layout_01`, um valor ausente ou um ID desconhecido, o Flutter
+apresenta `layout_06`. A leitura preserva o documento original do provedor.
+A referência visual e de navegação está em [vibe-5-definitivas.html](../../layout-app/vibe-5-definitivas.html).
+
+A página de aparência oferece rosa `#FC46AA`, azul `#2456C9`, verde
+`#137650` e cor personalizada. Restaurar as cores padrão afeta o layout
+selecionado. O assinante escolhe o modo claro ou escuro no aplicativo.
 
 ## Estilos de diagnostico
 

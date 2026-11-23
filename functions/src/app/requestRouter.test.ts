@@ -27,6 +27,7 @@ const mem = vi.hoisted(() => {
     collection: (name: string) => query(path + "/" + name),
   });
   const query = (path: string, filters: any[] = [], orders: string[] = [], cap = Infinity, cursor?: any[]): any => ({
+    select: () => query(path, filters, orders, cap, cursor),
     doc: (id: string) => doc(path + "/" + id),
     add: async (data: any) => {
       if (controls.failAdd === path) { controls.failAdd = ""; throw new Error("synthetic private journal failure"); }

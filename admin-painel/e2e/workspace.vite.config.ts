@@ -7,7 +7,8 @@ export default defineConfig({
   root,
   plugins: [react()],
   resolve: { alias: [
-    ...['@/contexts/AuthContext', '@/firebase/auth', '@/firebase/config', '@/hooks/useApi', '@/shared/firebase/providerSettingsService', '@/features/providers/providerService'].map(find => ({ find, replacement: workspace })),
+    { find: '@/shared/firebase/buildSession', replacement: path.resolve(__dirname, 'fixtures/buildSession.ts') },
+    ...['@/shared/api/panelHttp', '@/contexts/AuthContext', '@/firebase/auth', '@/firebase/config', '@/hooks/useApi', '@/shared/firebase/providerSettingsService', '@/features/providers/providerService'].map(find => ({ find, replacement: workspace })),
     { find: 'firebase/firestore', replacement: path.resolve(__dirname, 'fixtures/firestore.ts') },
     { find: '@', replacement: path.join(root, 'src') },
   ] },

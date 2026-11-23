@@ -7,6 +7,10 @@ export async function forwardGenerateApk(request: any) {
   if (!request.auth || typeof bearer !== "string" || !bearer.startsWith("Bearer ")) {
     throw new HttpsError("permission-denied", "Autenticação obrigatória.");
   }
+  const claims = request.auth.token;
+  if (claims?.superAdmin !== true || ["subscriber", "providerAdmin", "client"].includes(claims.role)) {
+    throw new HttpsError("permission-denied", "Apenas gerentes da plataforma podem gerar aplicativos.");
+  }
   // Fixed backend configuration only. No Python, signing or fallback in Functions.
   if (!endpoint) throw new HttpsError("failed-precondition", "Gerador de aplicativo não configurado.");
   let url: URL;

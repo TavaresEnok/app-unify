@@ -10,7 +10,7 @@ vi.mock('../services/firebaseAdmin', () => ({ firebaseAuth: {
   },
   getUser: async () => { if (state.failure === 'outage') throw Error('private'); return state.current; },
 } }));
-import { verifyToken, verifyAdmin, canAccessProvider } from './auth';
+import { verifyToken, verifyAdmin, canAccessProvider, authenticateIfPresent } from './auth';
 import { errorHandler } from './errorHandler';
 const app = express();
 app.use((req, _res, next) => { req.user = { uid: 'forged', superAdmin: true } as any; next(); });
@@ -32,4 +32,20 @@ it.each(['revoked', 'disabled', 'removed', 'tenant', 'subscriber-old-admin', 'ou
   expect(result.status).toBe(mode === 'outage' ? 503 : ['disabled', 'revoked'].includes(mode) ? 401 : 403);
   if (mode === 'outage') expect(result.body.error.code).toBe('authorization-unavailable');
   expect(result.body.uid).toBeUndefined();
+});
+
+it('verifies once per HTTP request, still checks every new request and rejects changed credentials', async () => {
+  const routed = express();
+  routed.use(authenticateIfPresent);
+  routed.get('/a', verifyToken, verifyAdmin, (_req, res) => res.json({ ok: true }));
+  routed.get('/changed', (req, _res, next) => { req.headers.authorization = 'Bearer changed'; next(); }, verifyToken, (_req, res) => res.json({ ok: true }));
+  routed.use(errorHandler);
+  await request(routed).get('/a').set('Authorization', 'Bearer synthetic').expect(200);
+  expect(state.checks).toEqual([true]);
+  await request(routed).get('/a').set('Authorization', 'Bearer synthetic').expect(200);
+  expect(state.checks).toEqual([true, true]);
+  await request(routed).get('/changed').set('Authorization', 'Bearer synthetic').expect(200);
+  expect(state.checks).toHaveLength(4);
+  state.failure = 'revoked';
+  await request(routed).get('/a').set('Authorization', 'Bearer synthetic').expect(401);
 });
