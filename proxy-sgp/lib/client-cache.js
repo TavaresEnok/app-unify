@@ -1,4 +1,8 @@
 'use strict';
+const {
+    SUBSCRIBER_SEGMENTS_TABLE_SQL,
+    SUBSCRIBER_SEGMENTS_INDEXES_SQL,
+} = require('./subscriber-segments-ddl');
 let ready;
 let segmentsReady;
 function ensureClientCache(pool) {
@@ -16,15 +20,14 @@ function ensureClientCache(pool) {
 }
 
 function ensureSegmentTable(pool) {
-    if (!segmentsReady) segmentsReady = pool.query(`CREATE TABLE IF NOT EXISTS subscriber_segments (
-        provider_id TEXT NOT NULL, cpfcnpj TEXT NOT NULL, contrato_id TEXT NOT NULL DEFAULT '',
-        client_name TEXT NOT NULL DEFAULT '', contract_status TEXT NOT NULL DEFAULT '',
-        plano TEXT NOT NULL DEFAULT '', cidade TEXT NOT NULL DEFAULT '', bairro TEXT NOT NULL DEFAULT '',
-        pop_id TEXT NOT NULL DEFAULT '', olt_id TEXT NOT NULL DEFAULT '', olt_name TEXT NOT NULL DEFAULT '',
-        slot TEXT NOT NULL DEFAULT '', pon TEXT NOT NULL DEFAULT '', cto TEXT NOT NULL DEFAULT '',
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        PRIMARY KEY (provider_id, cpfcnpj, contrato_id)
-    )`).catch(error => { segmentsReady = null; throw error; });
+    if (!segmentsReady) {
+        segmentsReady = (async () => {
+            await pool.query(SUBSCRIBER_SEGMENTS_TABLE_SQL);
+            for (const idxSql of SUBSCRIBER_SEGMENTS_INDEXES_SQL) {
+                await pool.query(idxSql);
+            }
+        })().catch(error => { segmentsReady = null; throw error; });
+    }
     return segmentsReady;
 }
 

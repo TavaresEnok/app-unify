@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc && node -e \"for (const file of ['upstream-runtime.js','invoice-amount.js']) require('fs').copyFileSync('src/services/'+file,'dist/services/'+file)\"",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc && node -e \"for (const file of ['upstream-runtime.js','invoice-amount.js','subscriber-segments-ddl.js']) require('fs').copyFileSync('src/services/'+file,'dist/services/'+file)\"",
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",

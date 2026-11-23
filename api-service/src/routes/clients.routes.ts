@@ -140,16 +140,17 @@ clientsRouter.get("/", asyncRoute(async (req, res) => {
   const clauses = ["c.provider_id = $1"];
   const params: unknown[] = [providerId];
   if (search) {
-    params.push(`%${search}%`);
+    const escapedSearch = search.replace(/[\\%_]/g, (ch: string) => `\\${ch}`);
+    params.push(`%${escapedSearch}%`);
     const pLike = `$${params.length}`;
     if (digits.length >= 3) {
       params.push(`%${digits}%`);
       const pDigits = `$${params.length}`;
       params.push(digits);
       const pExact = `$${params.length}`;
-      clauses.push(`(c.nome ILIKE ${pLike} OR c.cpfcnpj LIKE ${pDigits} OR c.client_id = ${pExact} OR c.contratos::text ILIKE ${pLike})`);
+      clauses.push(`(c.nome ILIKE ${pLike} ESCAPE '\\' OR c.cpfcnpj LIKE ${pDigits} OR c.client_id = ${pExact} OR c.contratos::text ILIKE ${pLike} ESCAPE '\\')`);
     } else {
-      clauses.push(`(c.nome ILIKE ${pLike} OR c.contratos::text ILIKE ${pLike})`);
+      clauses.push(`(c.nome ILIKE ${pLike} ESCAPE '\\' OR c.contratos::text ILIKE ${pLike} ESCAPE '\\')`);
     }
   }
   const whereSql = clauses.join(" AND ");

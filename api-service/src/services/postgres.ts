@@ -1,4 +1,8 @@
 import { Pool, type QueryResult, type QueryResultRow } from "pg";
+import {
+  SUBSCRIBER_SEGMENTS_INDEXES_SQL,
+  SUBSCRIBER_SEGMENTS_TABLE_SQL,
+} from "./subscriber-segments-ddl";
 
 export interface SqlQueryable {
   query<R extends QueryResultRow = any>(text: string, values?: unknown[]): Promise<QueryResult<R>>;
@@ -26,33 +30,10 @@ export function getPgPool(): Pool | null {
 export async function ensureNotificationSchema(db: SqlQueryable): Promise<void> {
   if (!schemaReady) {
     schemaReady = (async () => {
-      await db.query(`
-        CREATE TABLE IF NOT EXISTS subscriber_segments (
-          provider_id TEXT NOT NULL,
-          cpfcnpj TEXT NOT NULL,
-          contrato_id TEXT NOT NULL DEFAULT '',
-          client_name TEXT NOT NULL DEFAULT '',
-          contract_status TEXT NOT NULL DEFAULT '',
-          plano TEXT NOT NULL DEFAULT '',
-          cidade TEXT NOT NULL DEFAULT '',
-          bairro TEXT NOT NULL DEFAULT '',
-          pop_id TEXT NOT NULL DEFAULT '',
-          olt_id TEXT NOT NULL DEFAULT '',
-          olt_name TEXT NOT NULL DEFAULT '',
-          slot TEXT NOT NULL DEFAULT '',
-          pon TEXT NOT NULL DEFAULT '',
-          cto TEXT NOT NULL DEFAULT '',
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          PRIMARY KEY (provider_id, cpfcnpj, contrato_id)
-        )
-      `);
-      await db.query(`CREATE INDEX IF NOT EXISTS idx_segments_provider_olt ON subscriber_segments (provider_id, olt_name)`);
-      await db.query(`CREATE INDEX IF NOT EXISTS idx_segments_provider_pon ON subscriber_segments (provider_id, olt_name, slot, pon)`);
-      await db.query(`CREATE INDEX IF NOT EXISTS idx_segments_provider_cto ON subscriber_segments (provider_id, cto)`);
-      await db.query(`CREATE INDEX IF NOT EXISTS idx_segments_provider_geo ON subscriber_segments (provider_id, cidade, bairro)`);
-      await db.query(`CREATE INDEX IF NOT EXISTS idx_segments_provider_status ON subscriber_segments (provider_id, contract_status)`);
-      await db.query(`CREATE INDEX IF NOT EXISTS idx_segments_provider_plano ON subscriber_segments (provider_id, plano)`);
-      await db.query(`CREATE INDEX IF NOT EXISTS idx_segments_provider_pop ON subscriber_segments (provider_id, pop_id)`);
+      await db.query(SUBSCRIBER_SEGMENTS_TABLE_SQL);
+      for (const idxSql of SUBSCRIBER_SEGMENTS_INDEXES_SQL) {
+        await db.query(idxSql);
+      }
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS subscriber_devices (

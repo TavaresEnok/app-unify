@@ -20,6 +20,10 @@ for (const target of ["proxy-sgp/lib/upstream.js", "api-service/src/services/ups
   if (await readFile(resolve(target), "utf8").catch(() => "") !== runtime) stale.push(target);
 }
 
+const invoiceAmount = await readFile(resolve("shared/runtime/invoice-amount.js"), "utf8");
+for (const target of ["proxy-sgp/lib/invoice-amount.js", "api-service/src/services/invoice-amount.js"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== invoiceAmount) stale.push(target);
+}
 const dashboard = await readFile(resolve("shared/runtime/dashboard.ts"), "utf8");
 for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/services/dashboardData.ts"]) {
   if (await readFile(resolve(target), "utf8").catch(() => "") !== dashboard) stale.push(target);
@@ -28,6 +32,10 @@ for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/ser
 const sgp = await readFile(resolve("shared/runtime/sgp-outbound.js"), "utf8");
 for (const target of ["proxy-sgp/lib/sgp-outbound.js", "api-service/src/services/sgp-outbound.ts"]) {
   if (await readFile(resolve(target), "utf8").catch(() => "") !== (target.endsWith('.ts') ? sgp.replace('module.exports =', 'export default') : sgp)) stale.push(target);
+}
+const segmentsDdl = await readFile(resolve("shared/runtime/subscriber-segments-ddl.js"), "utf8");
+for (const target of ["proxy-sgp/lib/subscriber-segments-ddl.js", "api-service/src/services/subscriber-segments-ddl.js"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== segmentsDdl) stale.push(target);
 }
 
 if (stale.length) {

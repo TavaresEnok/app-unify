@@ -160,6 +160,10 @@ export function parsePonKey(value: string): string | null {
   return match ? `${match[1]}/${match[2]}` : null;
 }
 
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
 /**
  * Monta cláusula WHERE 100% parametrizada sobre `subscriber_segments` (alias `s`).
  */
@@ -203,9 +207,9 @@ export function buildSegmentWhere(providerId: string, filters: NormalizedSegment
     clauses.push(`s.cpfcnpj = ${push(filters.targetCpf)}`);
   }
   if (filters.search) {
-    const pattern = `%${filters.search}%`;
+    const pattern = `%${escapeLikePattern(filters.search)}%`;
     const p = push(pattern);
-    clauses.push(`(s.olt_name ILIKE ${p} OR s.cto ILIKE ${p} OR s.bairro ILIKE ${p} OR s.cidade ILIKE ${p} OR s.plano ILIKE ${p} OR s.client_name ILIKE ${p})`);
+    clauses.push(`(s.olt_name ILIKE ${p} ESCAPE '\\' OR s.cto ILIKE ${p} ESCAPE '\\' OR s.bairro ILIKE ${p} ESCAPE '\\' OR s.cidade ILIKE ${p} ESCAPE '\\' OR s.plano ILIKE ${p} ESCAPE '\\' OR s.client_name ILIKE ${p} ESCAPE '\\')`);
   }
 
   return { whereSql: clauses.join(" AND "), params };

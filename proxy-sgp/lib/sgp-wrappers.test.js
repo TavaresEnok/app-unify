@@ -14,6 +14,14 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         received.push({ host: req.headers.host, method: req.method, url: req.url, body });
         if (redirect) { res.writeHead(302, { Location: 'http://127.0.0.1:1/forbidden' }); res.end(); return; }
         if (req.url === '/api/central/verificaacesso/') { res.end(JSON.stringify({ status: online ? 1 : 0 })); return; }
+        if (req.url === '/api/ura/titulos/' && new URLSearchParams(body).get('contrato') === '1') {
+            const paid = new URLSearchParams(body).get('status') === 'pagos';
+            return res.end(JSON.stringify({ titulos: paid ? [] : [
+                { id: 41, contrato: 1, valor: '102,47', dataVencimento: '2026-09-01', codigoPix: 'test-sep', link: 'https://example.test/sep' },
+                { id: 42, contrato: 1, valor: '99.90', dataVencimento: '2026-10-01', codigoPix: 'test-oct', link: 'https://example.test/oct' },
+                { id: 43, contrato: 2, valor: 15 },
+            ] }));
+        }
         res.end(JSON.stringify({ contratos: [{ contratoId: '1', contratoCentralSenha: 'synthetic-password', contratoStatus: 'Ativo' }], clientes: [], titulos: [] }));
     });
     upstreamServer.listen(0, '127.0.0.1'); await once(upstreamServer, 'listening');
@@ -77,12 +85,12 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
     const server = api.app.listen(0, '127.0.0.1'); await once(server, 'listening');
     const post = (path, body, token = 'a') => fetch(`http://127.0.0.1:${server.address().port}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(3000) });
     try {
-        // Exercise the HTTP login consumer, preserving its CPF/password form
-        // authentication (verificaacesso does not use token/app).
+        // Exercise the historical subscriber login: CPF/CNPJ + provider only.
+        // The central password is resolved server-side solely for SGP calls.
         for (const tenant of ['a', 'b']) for (const status of [true, false]) {
             online = status;
             const start = received.length;
-            const result = await post('/check-cpf', { providerId: tenant, cpf: '12345678901', senha: 'synthetic-password' });
+            const result = await post('/check-cpf', { providerId: tenant, cpf: '12345678901' });
             assert.equal(result.status, 200);
             assert.equal((await result.json()).status, status ? 'Online' : 'Offline');
             assert.equal(users.get(`subscriber:${tenant}:12345678901`).customClaims.role, 'subscriber');
@@ -98,15 +106,14 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
             });
         }
         const uid = 'subscriber:a:12345678901';
-        const login = senha => post('/check-cpf', { providerId: 'a', cpf: '12345678901', ...(senha === undefined ? {} : { senha }) });
+        const login = () => post('/check-cpf', { providerId: 'a', cpf: '12345678901' });
         const beforeDenied = issued.length;
-        for (const senha of [undefined, '', 'wrong']) assert.equal((await login(senha)).status, 401);
         for (const claims of [{ superAdmin: true }, { role: 'providerAdmin', providerId: 'a' }, { role: 'subscriber', providerId: 'b' }]) {
-            users.set(uid, { uid, customClaims: claims }); assert.equal((await login('synthetic-password')).status, 403);
+            users.set(uid, { uid, customClaims: claims }); assert.equal((await login()).status, 403);
         }
         users.set(uid, { uid, disabled: true, customClaims: { role: 'subscriber', providerId: 'a' } });
-        assert.equal((await login('synthetic-password')).status, 401);
-        authOutage = true; assert.equal((await login('synthetic-password')).status, 503); authOutage = false;
+        assert.equal((await login()).status, 401);
+        authOutage = true; assert.equal((await login()).status, 503); authOutage = false;
         assert.equal(issued.length, beforeDenied);
         users.set(uid, { uid, customClaims: { role: 'subscriber', providerId: 'a', cpfCnpj: '12345678901' } });
         for (const provider of ['a', 'b']) {
@@ -151,6 +158,17 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         }
         assert.ok(received.some(item => item.body.includes('token=synthetic-a') && item.body.includes('app=app-a')));
         assert.ok(received.some(item => item.body.includes('token=synthetic-b') && item.body.includes('app=app-b')));
+        const scoped = await post('/get-invoices', { cpfCnpj: '12345678901', contratoId: 1 });
+        assert.equal(scoped.status, 200);
+        assert.deepEqual((await scoped.json()).data.map(({ id, valor, pix_copia_cola, link }) =>
+            [id, valor, pix_copia_cola, link]), [
+            ['41', 102.47, 'test-sep', 'https://example.test/sep'],
+            ['42', 99.90, 'test-oct', 'https://example.test/oct'],
+        ]);
+        const beforeInvalid = received.filter(row => row.url === '/api/ura/liberacaopromessa/').length;
+        assert.equal((await post('/get-invoices', { cpfCnpj: '12345678901', contratoId: 999 })).status, 404);
+        assert.equal((await post('/unlock-trust', { cpfCnpj: '12345678901', contratoId: 999 })).status, 409);
+        assert.equal(received.filter(row => row.url === '/api/ura/liberacaopromessa/').length, beforeInvalid);
         const count = received.length;
         for (const forged of [{ token: 'forged' }, { app: 'forged' }, { sgpBaseUrl: 'http://127.0.0.1' }, { sgpParams: { token: 'forged' } }]) assert.equal((await post('/get-invoices', { cpfCnpj: '12345678901', ...forged })).status, 400);
         assert.equal((await post('/get-invoices', { cpfCnpj: '12345678901', providerId: 'b' })).status, 403);

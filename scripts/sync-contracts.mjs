@@ -24,6 +24,10 @@ const runtime = await readFile(resolve(root, "shared/runtime/upstream.js"), "utf
 for (const target of ["proxy-sgp/lib/upstream.js", "api-service/src/services/upstream-runtime.js"]) {
   await writeFile(resolve(root, target), runtime);
 }
+const invoiceAmount = await readFile(resolve(root, "shared/runtime/invoice-amount.js"), "utf8");
+for (const target of ["proxy-sgp/lib/invoice-amount.js", "api-service/src/services/invoice-amount.js"]) {
+  await writeFile(resolve(root, target), invoiceAmount);
+}
 const dashboard = await readFile(resolve(root, "shared/runtime/dashboard.ts"), "utf8");
 for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/services/dashboardData.ts"]) {
   await writeFile(resolve(root, target), dashboard);
@@ -31,4 +35,8 @@ for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/ser
 const sgp = await readFile(resolve(root, "shared/runtime/sgp-outbound.js"), "utf8");
 for (const target of ["proxy-sgp/lib/sgp-outbound.js", "api-service/src/services/sgp-outbound.ts"]) {
   await writeFile(resolve(root, target), target.endsWith('.ts') ? sgp.replace('module.exports =', 'export default') : sgp);
+}
+const segmentsDdl = await readFile(resolve(root, "shared/runtime/subscriber-segments-ddl.js"), "utf8");
+for (const target of ["proxy-sgp/lib/subscriber-segments-ddl.js", "api-service/src/services/subscriber-segments-ddl.js"]) {
+  await writeFile(resolve(root, target), segmentsDdl);
 }

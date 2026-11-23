@@ -28,16 +28,18 @@ beforeEach(() => {
     details: { systemUrl: "https://sgp.example", apiToken: "synthetic-secret", phone: "8899" },
     config: { faq: [{ id: "1", question: "Q", answer: "A", password: "synthetic-secret" }], integrations: { apiToken: "synthetic-secret" } },
     menuConfig: { order: ["invoices"], items: { invoices: { enabled: true, name: "Faturas" } } },
+    logoFraming: { shape: "wide", fit: "cover", zoom: 1.4, x: 35, y: 65, password: "synthetic-secret" },
     unknownField: "synthetic",
   });
 });
 
 it("serves the sanitized personalization without login", async () => {
   const response = await request(app).get("/public/providers/vibe/config").expect(200);
-  expect(response.headers["cache-control"]).toBe("public, max-age=60");
+  expect(response.headers["cache-control"]).toBe("public, max-age=30");
   const data = response.body.data;
   expect(data).toMatchObject({ id: "vibe", name: "Vibe", layoutType: "layout_05", themeColor: "#112233",
     menuConfig: { order: ["invoices"], items: { invoices: { enabled: true, name: "Faturas" } } } });
+  expect(data.logoFraming).toEqual({ shape: "wide", fit: "cover", zoom: 1.4, x: 35, y: 65 });
   expect(data.config.faq).toEqual([{ id: "1", question: "Q", answer: "A" }]);
   expect(data.details).toEqual({ phone: "8899" });
   const body = JSON.stringify(data);
@@ -56,4 +58,11 @@ it("caches briefly to spare Firestore reads", async () => {
   await request(app).get("/public/providers/vibe/config").expect(200);
   await request(app).get("/public/providers/vibe/config").expect(200);
   expect(state.reads).toBe(1);
+});
+
+it("coalesces simultaneous app startup reads and isolates providers", async () => {
+  state.docs.set('provedores/other', { name: 'Other', themeColor: '#fff' });
+  const responses = await Promise.all(Array.from({ length: 40 }, (_, i) => request(app).get(`/public/providers/${i % 2 ? 'vibe' : 'other'}/config`)));
+  expect(state.reads).toBe(2);
+  responses.forEach((r, i) => { expect(r.status).toBe(200); expect(r.body.data.id).toBe(i % 2 ? 'vibe' : 'other'); });
 });

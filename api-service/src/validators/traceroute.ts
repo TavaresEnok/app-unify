@@ -50,9 +50,9 @@ export function normalizeMaxHops(value: unknown): number {
 export function parseTracerouteOutput(stdout: string) {
   return stdout.split("\n").flatMap((line) => {
     if (line.includes("traceroute to")) return [];
-    const match = line.match(/^\s*(\d+)\s+(\S+)\s+(.+)/);
+    const match = line.match(/^\s*(\d+)\s+(\S+)(?:\s+(.*))?$/);
     if (!match) return [];
-    const time = match[3].match(/(\d+\.?\d*)\s*ms/);
+    const time = (match[3] || "").match(/(\d+\.?\d*)\s*ms/);
     return [{ hop: Number(match[1]), ip: match[2], time: time ? `${time[1]} ms` : "*" }];
   });
 }

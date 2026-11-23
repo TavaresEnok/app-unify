@@ -68,6 +68,10 @@ describe("notificationCampaigns SQL & matcher", () => {
     expect(whereSql).toContain("s.olt_name = ANY($2::text[])");
     expect(whereSql).toContain("(s.slot || '/' || s.pon) = ANY($3::text[])");
     expect(whereSql).toContain("s.cto = ANY($4::text[])");
+
+    const wild = buildSegmentWhere("vibe", normalizeFilters({ search: "100%_fibra\\x" }));
+    expect(wild.whereSql).toContain("ESCAPE '\\'");
+    expect(wild.params).toEqual(["vibe", "%100\\%\\_fibra\\\\x%"]);
     expect(whereSql).toContain("s.cidade = ANY($5::text[])");
     expect(whereSql).toContain("s.bairro = ANY($6::text[])");
     expect(whereSql).toContain("LOWER(s.contract_status) = ANY($7::text[])");
