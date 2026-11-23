@@ -1,4 +1,3 @@
-import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({ slots: [] as any[], cursor: 0, effects: [] as Array<() => void>,

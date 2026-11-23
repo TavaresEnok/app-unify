@@ -189,7 +189,11 @@ class AuthRepository {
     return 'Não foi possível entrar. Confira os dados e tente novamente.';
   }
 
-  Future<void> saveUserLocally(Usuario usuario, String providerId) async {
+  Future<void> saveUserLocally(
+    Usuario usuario,
+    String providerId, {
+    String? apiUrl,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     try {
       await SubscriberAchievements.record(
@@ -228,12 +232,33 @@ class AuthRepository {
       await prefs.remove('userContratoId');
     }
 
-    await _saveDeviceToken(usuario.cpfCnpj, providerId);
+    await _saveDeviceToken(usuario, providerId, apiUrl: apiUrl);
   }
 
-  Future<void> logout(Usuario? currentUser) async {
+  Future<void> logout(Usuario? currentUser, {String? apiUrl}) async {
     try {
       if (currentUser != null) {
+        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (apiUrl != null &&
+            apiUrl.isNotEmpty &&
+            idToken != null &&
+            idToken.isNotEmpty) {
+          final base = apiUrl.replaceAll(RegExp(r'/+$'), '');
+          await _client
+              .delete(
+                Uri.parse('$base/subscriber/device-token'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer $idToken',
+                },
+                body: jsonEncode({
+                  if (fcmToken != null && fcmToken.isNotEmpty)
+                    'fcmToken': fcmToken,
+                }),
+              )
+              .timeout(const Duration(seconds: 6));
+        }
         final authUid = FirebaseAuth.instance.currentUser?.uid;
         if (authUid != null) {
           await FirebaseFirestore.instance
@@ -251,6 +276,7 @@ class AuthRepository {
     for (final key in prefs.getKeys()) {
       if (key != 'onboarding_completed' &&
           key != 'theme_preference' &&
+          key != 'theme_mode' &&
           !key.startsWith(SubscriberAchievements.prefix)) {
         await prefs.remove(key);
       }
@@ -262,16 +288,45 @@ class AuthRepository {
     await FirebaseAuth.instance.signOut();
   }
 
-  Future<void> _saveDeviceToken(String cpfCnpj, String providerId) async {
+  Future<void> _saveDeviceToken(
+    Usuario usuario,
+    String providerId, {
+    String? apiUrl,
+  }) async {
     try {
       String? token = await FirebaseMessaging.instance.getToken();
       final authUid = FirebaseAuth.instance.currentUser?.uid;
 
-      // Load user data from storage to sync to Firestore
-      final usuario = await loadUserFromStorage();
+      if (token != null && token.isNotEmpty && apiUrl != null && apiUrl.isNotEmpty) {
+        try {
+          final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+          if (idToken != null && idToken.isNotEmpty) {
+            final base = apiUrl.replaceAll(RegExp(r'/+$'), '');
+            await _client
+                .post(
+                  Uri.parse('$base/subscriber/device-token'),
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $idToken',
+                  },
+                  body: jsonEncode({
+                    'fcmToken': token,
+                    if (usuario.contratoId != null)
+                      'contratoId': usuario.contratoId.toString(),
+                    'plano': usuario.plano,
+                    'contractStatus': usuario.contractStatus ?? '',
+                    'connectionStatus': usuario.status,
+                  }),
+                )
+                .timeout(const Duration(seconds: 10));
+          }
+        } catch (e) {
+          debugPrint('ℹ️  Aviso: Falha ao registrar token FCM na API: $e');
+        }
+      }
 
-      if (token != null && usuario != null && authUid != null) {
-        // Sync full profile for segmented notifications
+      if (token != null && authUid != null) {
+        // Mantém espelho mínimo no Firestore para compatibilidade com fluxos legados.
         await FirebaseFirestore.instance
             .collection('clientes')
             .doc(authUid)
@@ -279,18 +334,20 @@ class AuthRepository {
           {
             'fcmToken': token,
             'authUid': authUid,
-            'cpfCnpj': cpfCnpj,
+            'cpfCnpj': usuario.cpfCnpj,
             'providerId': providerId,
             'nome': usuario.nome,
             'plano': usuario.plano,
             'status': usuario.status,
+            if (usuario.contractStatus != null)
+              'contractStatus': usuario.contractStatus,
             'lastUpdated': FieldValue.serverTimestamp()
           },
           SetOptions(merge: true),
         );
       }
     } catch (e) {
-      debugPrint('❌ Erro ao salvar dados do cliente no Firestore: $e');
+      debugPrint('❌ Erro ao salvar dados do cliente: $e');
     }
   }
 

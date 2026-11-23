@@ -1,3 +1,5 @@
+const { invoiceAmount } = require('./lib/invoice-amount');
+const { wifiNetworks, assertWifiResponse, preservedWifiPassword } = require('./lib/wifi-response');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -18,7 +20,7 @@ const upstream = createUpstream({ getRedis: () => stateRedis, getCacheRedis: () 
 });
 const { loadConfig } = require('./lib/config');
 const { maskCpfCnpj, secureLog } = require('./lib/secure-log');
-const { canIssueClientToken, subscriberIdentity, passwordMatches } = require('./lib/client-access');
+const { canIssueClientToken, subscriberIdentity } = require('./lib/client-access');
 const { createRateLimiter } = require('./lib/rate-limiter');
 
 const config = loadConfig();
@@ -332,10 +334,12 @@ async function resolveClientContractCredentials({ cpfCnpjUnformatted, sgpParams,
         throw new Error('Nenhum contrato encontrado.');
     }
 
-    let contratoSelecionado = consultaResponse.contratos[0];
-    if (contratoPreferido) {
-        const found = consultaResponse.contratos.find((c) => String(c?.contratoId) === String(contratoPreferido));
-        if (found) contratoSelecionado = found;
+    const contracts = consultaResponse.contratos;
+    const contratoSelecionado = contratoPreferido == null
+        ? contracts[0]
+        : contracts.find(c => String(c.contratoId) === String(contratoPreferido));
+    if (!contratoSelecionado) {
+        throw Object.assign(new Error('Contrato não encontrado para este assinante.'), { status: 404 });
     }
 
     return {
@@ -359,6 +363,7 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
             cpfCnpjUnformatted,
             sgpParams,
             sgpBaseUrl,
+            contratoPreferido: req.body.contratoId,
         });
 
         if (!contratoId) {
@@ -401,8 +406,6 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
             console.log(`[Consumo DEBUG] Campo 'extrato' está AUSENTE ou NULO.`);
         }
 
-        const usedGb = (extratoResponse?.total ?? 0) / (1024 * 1024 * 1024);
-
         // Tenta encontrar o array de detalhes em varios campos comuns do SGP
         const rawDetails = extratoResponse?.extrato ?? extratoResponse?.list ?? extratoResponse?.sessions ?? extratoResponse?.detalhes ?? [];
 
@@ -438,7 +441,10 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
         })).sort((a, b) => a.day - b.day);
 
         // Calculate total only if API didn't provide it (or if we trust ours more)
-        const finalUsedGb = (extratoResponse?.total ? parseFloat(extratoResponse.total) : totalBytes) / (1024 * 1024 * 1024);
+        const reported = extratoResponse?.total;
+        const total = reported != null && String(reported).trim() !== '' ? Number(reported)
+            : dailyDetails.length ? totalBytes : null;
+        const finalUsedGb = Number.isFinite(total) && total >= 0 ? total / (1024 ** 3) : null;
 
         res.status(200).json({
             data: {
@@ -463,8 +469,37 @@ function requireInternalSecret(req, res) {
     }
     return true;
 }
+
+async function authorizeInternalOrAdmin(req, res, targetProviderId) {
+    if (secretMatches(req.body?.secret, config.proxySecret)) return true;
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) {
+        res.status(403).json({ error: { message: 'Não autorizado.' } });
+        return false;
+    }
+    try {
+        const verified = await admin.auth().verifyIdToken(header.slice(7).trim(), true);
+        const current = await admin.auth().getUser(verified.uid);
+        if (current.disabled) {
+            res.status(401).json({ error: { message: 'Sessão inválida.' } });
+            return false;
+        }
+        const claims = current.customClaims || {};
+        const allowed = claims.superAdmin === true ||
+            (claims.role === 'providerAdmin' && targetProviderId && claims.providerId === targetProviderId);
+        if (!allowed) {
+            res.status(403).json({ error: { message: 'Sem permissão para este provedor.' } });
+            return false;
+        }
+        return true;
+    } catch {
+        res.status(401).json({ error: { message: 'Sessão inválida.' } });
+        return false;
+    }
+}
+
 app.post('/sync-clients', async (req, res) => {
-    if (!requireInternalSecret(req, res)) return;
+    if (!(await authorizeInternalOrAdmin(req, res, req.body?.providerId))) return;
     try {
         const { enqueueSync } = require('./lib/jobs');
         const job = await enqueueSync(req.body.providerId);
@@ -475,7 +510,7 @@ app.post('/sync-clients', async (req, res) => {
     }
 });
 app.post('/sync-status', async (req, res) => {
-    if (!requireInternalSecret(req, res)) return;
+    if (!(await authorizeInternalOrAdmin(req, res, req.body?.providerId))) return;
     const job = await require('./lib/jobs').getQueue().getJob(String(req.body.jobId || ''));
     if (!job || job.data.providerId !== req.body.providerId) return res.status(404).json({ error: { message: 'Trabalho não encontrado.' } });
     res.json({ jobId: job.id, status: await job.getState(), progress: job.progress, count: job.returnvalue?.count || 0 });
@@ -507,8 +542,8 @@ const loginCredentialLimiter = createRateLimiter({ getRedis: () => stateRedis, w
     getClientId: req => `login:${require('crypto').createHash('sha256').update(`${req.body?.providerId || ''}:${String(req.body?.cpf || '').replace(/\D/g, '')}`).digest('hex')}`,
 });
 app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
-    if (!req.body.providerId || typeof req.body.senha !== 'string' || !req.body.senha || req.body.senha.length > 512) {
-        return res.status(401).json({ error: { message: 'CPF/CNPJ, provedor e senha são obrigatórios. Atualize o aplicativo.' } });
+    if (!req.body.providerId) {
+        return res.status(401).json({ error: { message: 'CPF/CNPJ e provedor são obrigatórios. Atualize o aplicativo.' } });
     }
     const { cpf } = req.body;
     const cpfCnpjUnformatted = typeof cpf === 'string' ? cpf.replace(/[^0-9]/g, '') : '';
@@ -539,17 +574,22 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
 
         if (!clientResponse?.contratos?.length) return res.status(404).json({ error: { message: "Cliente não encontrado." } });
 
-        let contrato = clientResponse.contratos.find(item => passwordMatches(req.body.senha, String(item.contratoCentralSenha || '')) && canIssueClientToken(item.contratoStatusDisplay || item.contratoStatus || item.status));
-        if (!contrato) return res.status(401).json({ error: { message: 'Credenciais inválidas.' } });
+        // O acesso histórico do assinante usa somente CPF/CNPJ. Quando há mais
+        // de um contrato, prioriza um contrato elegível e mantém o primeiro
+        // como fallback para que o app possa explicar um vínculo encerrado.
+        let contrato = clientResponse.contratos.find(item =>
+            canIssueClientToken(item.contratoStatusDisplay || item.contratoStatus || item.status)
+        ) || clientResponse.contratos[0];
         const contractAccountStatus = contrato.contratoStatusDisplay
             || contrato.contratoStatus
             || contrato.status
             || '';
-        let valorAberto = parseFloat(contrato.contratoValorAberto || '0');
+        let valorAberto = contrato.contratoValorAberto == null || contrato.contratoValorAberto === ''
+            ? null : Number(contrato.contratoValorAberto);
         let vencimento = contrato.cobVencimento;
 
         // Se o valor vier zerado do cadastro, busca nas faturas abertas
-        if (!valorAberto || valorAberto <= 0) {
+        if (valorAberto === null) {
             try {
                 const titlesParams = {
                     ...sgpParams,
@@ -560,6 +600,12 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                 console.log('[Check-CPF] Valor zerado. Buscando títulos abertos...');
                 const titlesResponse = await callSgpApi(titlesParams);
 
+                if (titlesResponse?.titulos?.length) {
+                    // Títulos sem identificação do contrato não podem ser
+                    // atribuídos com segurança ao contrato selecionado.
+                    titlesResponse.titulos = titlesResponse.titulos.filter(t =>
+                        String(t.contratoId ?? t.contrato ?? '') === String(contrato.contratoId));
+                }
                 if (titlesResponse?.titulos?.length) {
                     // Filtra apenas faturas vencidas ou a vencer nos próximos 45 dias
                     // Isso evita somar faturas de anos futuros se o provedor gerou carnê
@@ -595,18 +641,19 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
         }
 
         const responseData = {
-            nome: contrato.razaoSocial,
+            nome: contrato.razaoSocial || contrato.nome || null,
             cpfCnpj: contrato.cpfCnpj,
-            plano: contrato.servico_plano,
-            status: contrato.contratoStatusDisplay || "Ativo", // Será substituído abaixo se verificaAcesso funcionar
-            valorFatura: valorAberto.toFixed(2).replace('.', ','),
+            plano: contrato.servico_plano || contrato.plano || null,
+            status: contractAccountStatus,
+            contractStatus: contractAccountStatus || null,
+            valorFatura: valorAberto !== null && Number.isFinite(valorAberto) ? valorAberto.toFixed(2).replace('.', ',') : null,
             vencimentoFatura: vencimento
                 ? (vencimento.toString().includes('-')
                     ? vencimento.split('-').reverse().join('/')
                     : `Dia ${vencimento}`)
-                : "N/A",
+                : null,
             contratoId: contrato.contratoId,
-            email: "cliente@email.com"
+            email: contrato.email || contrato.emailContato || null
         };
 
         // ========================================================================
@@ -757,6 +804,9 @@ async function handleOnuRequest(req, res, useFilters) {
             cto: onu.cto || null,
             lastUpdate: onu.info_date || null,
         };
+        if (sgpParams.providerId && contratoResolvido) {
+            require('./lib/client-cache').upsertOnuSegment(pool, sgpParams.providerId, cpfCnpjUnformatted, contratoResolvido, formattedData).catch(() => undefined);
+        }
         res.status(200).json({ data: formattedData });
     } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } })); }
 }
@@ -809,7 +859,7 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
         } else {
             console.log(`[WIFI-LIST] Sucesso. Itens encontrados:`, Array.isArray(response) ? response.length : 'Obj');
         }
-        res.status(200).json({ success: true, data: response });
+        res.status(200).json({ success: true, data: wifiNetworks(response) });
     } catch (error) {
         console.error(`[WIFI-LIST] CRITICAL ERROR:`, error.message);
         (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } }));
@@ -821,7 +871,7 @@ app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
     if (!requireSgpClientCredentials(sgpParams, res)) return;
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     console.log(`[WIFI-UPDATE] Tentando atualizar WiFi ID: ${wifiId} do Contrato: ${contrato}`);
-    if (!contrato || !wifiId || !ssid || !password) return res.status(400).json({ error: { message: "Dados incompletos" } });
+    if (!contrato || !wifiId || typeof ssid !== 'string' || !ssid.trim() || typeof password !== 'string') return res.status(400).json({ error: { message: "Dados incompletos" } });
     try {
         let senha = senhaInput;
         if (!senha) {
@@ -838,13 +888,20 @@ app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
             return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para atualizar Wi-Fi.' } });
         }
 
-        const updateParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, wifi_id: wifiId, ssid, password, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/update/`) };
-        const response = await callSgpApi(updateParams);
+        let nextPassword = password;
+        if (!nextPassword) {
+            const current = await callSgpApi({ ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha,
+                cache: false, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/list/`) });
+            nextPassword = preservedWifiPassword(wifiNetworks(current), wifiId);
+        }
+
+        const updateParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, wifi_id: wifiId, ssid, password: nextPassword, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/update/`) };
+        const response = assertWifiResponse(await callSgpApi(updateParams));
         secureLog(`[WIFI-UPDATE] Resposta SGP:`, response);
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         console.error(`[WIFI-UPDATE] ERROR:`, error.message);
-        (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } }));
+        (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: error.publicMessage || "Erro interno." } }));
     }
 });
 
@@ -881,51 +938,37 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
     try {
         const url = formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/');
 
-        // Busca faturas abertas e pagas em paralelo
-        const paramsAbertos = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, status: 'abertos', url };
-        const paramsPagos = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, status: 'pagos', url };
-
-        console.log(`[Faturas] Buscando abertas e pagas em paralelo...`);
-        const [responseAbertos, responsePagos] = await Promise.all([
-            callSgpApi(paramsAbertos),
-            callSgpApi(paramsPagos)
+        const params = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, url };
+        if (req.body.contratoId != null) {
+            const { contratoId } = await resolveClientContractCredentials({
+                cpfCnpjUnformatted, sgpParams, sgpBaseUrl, contratoPreferido: req.body.contratoId
+            });
+            params.contrato = contratoId;
+        }
+        const [open, paid] = await Promise.all([
+            callSgpApi({ ...params, status: 'abertos' }),
+            callSgpApi({ ...params, status: 'pagos' })
         ]);
-
-        // DEBUG: Log raw response to find PIX field name
-        if (responseAbertos?.titulos && responseAbertos.titulos.length > 0) {
-            secureLog(`[Faturas DEBUG] Primeiro título aberto (sanitizado):`, responseAbertos.titulos[0]);
-        }
-
-        let formattedInvoices = [];
-
-        if (responseAbertos?.titulos && Array.isArray(responseAbertos.titulos)) {
-            console.log(`[Faturas] ${responseAbertos.titulos.length} faturas abertas encontradas.`);
-            formattedInvoices.push(...responseAbertos.titulos.map(inv => ({
-                id: inv.id?.toString() || inv.nossoNumero || '0',
-                numero: inv.nossoNumero || inv.numeroDocumento?.toString() || '0',
-                valor: parseFloat(inv.valor ?? 0),
-                vencimento: inv.dataVencimento,
-                status: 'pendente',
-                link: inv.link,
-                linha_digitavel: inv.linhaDigitavel,
-                pix_copia_cola: inv.codigoPix,
-            })));
-        }
-
-        if (responsePagos?.titulos && Array.isArray(responsePagos.titulos)) {
-            console.log(`[Faturas] ${responsePagos.titulos.length} faturas pagas encontradas.`);
-            formattedInvoices.push(...responsePagos.titulos.map(inv => ({
-                id: inv.id?.toString() || inv.nossoNumero || '0',
-                numero: inv.nossoNumero || inv.numeroDocumento?.toString() || '0',
-                valor: parseFloat(inv.valor ?? 0),
-                vencimento: inv.dataVencimento,
-                status: 'pago',
-                dataPagamento: inv.dataPagamento,
-                link: inv.link,
-                linha_digitavel: inv.linhaDigitavel,
-                pix_copia_cola: inv.codigoPix,
-            })));
-        }
+        const format = (response, status) => {
+            if (!Array.isArray(response?.titulos)) {
+                throw new Error('O SGP não retornou a lista de títulos.');
+            }
+            return response.titulos
+                .filter(inv => !params.contrato || (inv.contratoId ?? inv.contrato) == null ||
+                    String(inv.contratoId ?? inv.contrato) === params.contrato)
+                .map(inv => ({
+                    id: inv.id?.toString() || inv.nossoNumero || inv.numeroDocumento?.toString(),
+                    numero: inv.nossoNumero || inv.numeroDocumento?.toString(),
+                    valor: invoiceAmount(inv.valor),
+                    vencimento: inv.dataVencimento,
+                    status,
+                    dataPagamento: inv.dataPagamento,
+                    link: inv.link,
+                    linha_digitavel: inv.linhaDigitavel,
+                    pix_copia_cola: inv.codigoPix,
+                }));
+        };
+        const formattedInvoices = [...format(open, 'pendente'), ...format(paid, 'pago')];
 
         console.log(`[Faturas] Total de faturas formatadas: ${formattedInvoices.length}`);
 
@@ -959,14 +1002,21 @@ app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
         if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) {
             return res.status(404).json({ error: { message: "Nenhum contrato encontrado para este cliente." } });
         }
-        const contratoId = consultaResponse.contratos[0].contratoId;
+        const contracts = consultaResponse.contratos;
+        const selected = req.body.contratoId == null
+            ? (contracts.length === 1 ? contracts[0] : null)
+            : contracts.find(contract => String(contract.contratoId) === String(req.body.contratoId));
+        if (!selected?.contratoId) {
+            return res.status(409).json({ error: { message: "Selecione um contrato válido para solicitar a liberação." } });
+        }
+        const contratoId = selected.contratoId;
 
         // 2. Solicita liberação por promessa
         const promessaParams = { ...sgpParams, contrato: contratoId.toString(), url: formatSgpUrl(sgpBaseUrl, '/api/ura/liberacaopromessa/') };
         const promessaResponse = await callSgpApi(promessaParams);
 
-        if (promessaResponse?.status === false) {
-            return res.status(400).json({ error: { message: promessaResponse.msg || "Não foi possível realizar o desbloqueio." } });
+        if (![true, 1, '1', 'true'].includes(promessaResponse?.status)) {
+            return res.status(400).json({ error: { message: promessaResponse?.msg || "Não foi possível realizar o desbloqueio." } });
         }
 
         console.log(`[Unlock] Sucesso para contrato ${contratoId}`);

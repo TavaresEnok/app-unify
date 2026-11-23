@@ -27,6 +27,7 @@ export const SUPER_ADMIN_NAVIGATION: NavigationItem[] = [
 
 export const PROVIDER_NAVIGATION: NavigationItem[] = [
   { to: "/provedor/dashboard", label: "Visão geral", icon: LayoutDashboard },
+  { to: "/provedor/clientes", label: "Clientes", icon: Users },
   { to: "/provedor/atendimento", label: "Atendimento", icon: MessageSquare },
   { to: "/provedor/comunicados", label: "Comunicados", icon: Bell },
   { to: "/provedor/personalizacao", label: "Personalização", icon: Brush },

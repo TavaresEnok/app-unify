@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import '../models/in_app_notification.dart';
 import '../models/usuario.dart';
 
@@ -9,8 +11,14 @@ class NotificationService with ChangeNotifier {
   List<InAppNotification> _notifications = [];
   bool _isLoading = true;
   String? _storageKey;
+  String? _apiUrl;
   Set<String> _dismissed = {};
   int _generation = 0;
+
+  void configureApiUrl(String? apiUrl) {
+    final trimmed = apiUrl?.trim();
+    _apiUrl = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+  }
 
   List<InAppNotification> get notifications => _notifications;
   bool get isLoading => _isLoading;
@@ -82,10 +90,18 @@ class NotificationService with ChangeNotifier {
     }
   }
 
-  /// Syncs notifications from Firestore (Robust Fallback)
+  /// Syncs notifications from API (PostgreSQL, sem custo de leitura no Firestore)
+  /// com fallback para o Firestore legado caso a API não seja informada/indisponível.
   Future<void> syncRemoteNotifications(Usuario user, String providerId) async {
     if (_storageKey != _accountKey(providerId, user.cpfCnpj)) return;
     final generation = _generation;
+
+    final apiUrl = _apiUrl;
+    if (apiUrl != null && apiUrl.isNotEmpty) {
+      final syncedFromApi = await _syncFromApi(apiUrl, generation);
+      if (syncedFromApi) return;
+    }
+
     try {
       // 1. Fetch recent notifications (last 7 days to avoid fetching excessively)
       final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
@@ -192,6 +208,75 @@ class NotificationService with ChangeNotifier {
       }
     } catch (e) {
       debugPrint('❌ Erro ao sincronizar notificações remotas: $e');
+    }
+  }
+
+  Future<bool> _syncFromApi(
+    String apiUrl,
+    int generation, {
+    http.Client? client,
+  }) async {
+    final httpClient = client ?? http.Client();
+    final ownsClient = client == null;
+    try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken == null || idToken.isEmpty) return false;
+      final base = apiUrl.replaceAll(RegExp(r'/+$'), '');
+      final response = await httpClient.get(
+        Uri.parse('$base/subscriber/notifications?limit=30'),
+        headers: {'Authorization': 'Bearer $idToken'},
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return false;
+      if (generation != _generation) return true;
+
+      final decoded = jsonDecode(response.body);
+      final items = decoded is Map ? decoded['data'] : null;
+      if (items is! List) return true;
+
+      bool changed = false;
+      for (final raw in items.whereType<Map>()) {
+        final nId = raw['id']?.toString() ?? '';
+        if (nId.isEmpty ||
+            _dismissed.contains(nId) ||
+            _notifications.any((n) => n.id == nId)) {
+          continue;
+        }
+        final createdAt =
+            DateTime.tryParse(raw['createdAt']?.toString() ?? '') ??
+                DateTime.now();
+        final cat = raw['category']?.toString().toLowerCase() ?? 'info';
+        final type = cat == 'urgent'
+            ? NotificationType.warning
+            : cat == 'promo'
+                ? NotificationType.promotion
+                : NotificationType.info;
+        final route = raw['route']?.toString();
+        _notifications.insert(
+          0,
+          InAppNotification(
+            id: nId,
+            type: type,
+            title: raw['title']?.toString() ?? 'Nova Notificação',
+            message: raw['body']?.toString() ?? '',
+            createdAt: createdAt,
+            read: false,
+            actionUrl: (route != null && route.isNotEmpty) ? route : null,
+          ),
+        );
+        changed = true;
+      }
+
+      if (changed) {
+        _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        notifyListeners();
+        await _saveToPrefs();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('ℹ️  Fallback para Firestore ao sincronizar notificações: $e');
+      return false;
+    } finally {
+      if (ownsClient) httpClient.close();
     }
   }
 

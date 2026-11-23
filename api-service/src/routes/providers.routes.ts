@@ -4,11 +4,15 @@ import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { firestore, serverTimestamp, firebaseAuth } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
 import sgpOutbound from "../services/sgp-outbound";
+import { FieldValue } from "firebase-admin/firestore";
+import { publicConfigCache } from "../services/publicConfigCache";
+import { proxyToSgp } from "../services/proxySgpClient";
 
-import { parseProviderInput, publicProviderData, parsePrivateIntegration } from "../services/providerConfig";
+import { parseProviderInput, publicProviderData, parsePrivateIntegration, parsePersonalization } from "../services/providerConfig";
 
 export const providersRouter = Router();
 providersRouter.use(verifyToken, verifyAdmin);
+providersRouter.use((_req, res, next) => { res.setHeader("Cache-Control", "private, no-store"); next(); });
 
 function serialize(id: string, input: FirebaseFirestore.DocumentData) {
   const data = { ...input };
@@ -34,6 +38,38 @@ providersRouter.get("/", asyncRoute(async (req, res) => {
   return res.json({ data: provider.exists ? [serialize(provider.id, provider.data() || {})] : [] });
 }));
 
+// A directory needs metadata, never every tenant's complete customization.
+providersRouter.get('/summaries', asyncRoute(async (req, res) => {
+  if (req.user?.superAdmin !== true) throw new ApiError(403, 'Acesso SaaS obrigatório.', 'permission-denied');
+  const snapshot = await firestore.collection('provedores').select('name', 'active', 'details.cnpj', 'plan', 'plano', 'appStatus', 'statusApp', 'cnpj').get();
+  res.json({ data: snapshot.docs.map(doc => serialize(doc.id, doc.data())) });
+}));
+
+providersRouter.get("/:providerId", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para este provedor.", "permission-denied");
+  const provider = await firestore.collection("provedores").doc(id).get();
+  if (!provider.exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  res.json({ data: serialize(provider.id, provider.data() || {}) });
+}));
+
+// Same writer/schema as the legacy command, without a Firestore RPC queue.
+providersRouter.patch("/:providerId/config", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para este provedor.", "permission-denied");
+  let config: Record<string, unknown>;
+  try { config = parsePersonalization(req.body); }
+  catch { throw new ApiError(400, "Configuração inválida ou campo não permitido.", "invalid-argument"); }
+  const provider = firestore.collection("provedores").doc(id);
+  if (!(await provider.get()).exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  await provider.update({ ...config, integrations: FieldValue.delete(), "config.integrations": FieldValue.delete(), updatedAt: serverTimestamp() });
+  publicConfigCache.delete(id);
+  await recordAdminAudit({ type: "UPDATE_PROVIDER_CONFIG", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId, payload: config });
+  res.json({ success: true, providerId: id });
+}));
+
 providersRouter.post("/", asyncRoute(async (req, res) => {
   if (!req.body || typeof req.body !== "object" || Array.isArray(req.body) ||
       (req.body.id !== undefined && typeof req.body.id !== "string")) {
@@ -51,6 +87,7 @@ providersRouter.post("/", asyncRoute(async (req, res) => {
   data.updatedAt = serverTimestamp();
   if (id) {
     await firestore.collection("provedores").doc(id).set(data, { merge: true });
+    publicConfigCache.delete(id);
     await recordAdminAudit({ type: "UPDATE_PROVIDER", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId, payload: data });
     return res.json({ success: true, id });
   }
@@ -84,5 +121,14 @@ providersRouter.post("/:providerId/integration", asyncRoute(async (req, res) => 
   if (!(await provider.get()).exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
   await provider.collection("secrets").doc("sgp").set({ integrations }, { merge: true });
   await recordAdminAudit({ type: "REPLACE_PROVIDER_INTEGRATION", requesterUid: req.user!.uid, providerId: id, payload: { replaced: true } });
-  res.json({ success: true });
+  let syncQueued = false;
+  if (process.env.NODE_ENV !== "test") {
+    try {
+      await proxyToSgp("/sync-clients", { providerId: id }, req.headers.authorization);
+      syncQueued = true;
+    } catch {
+      // A integração foi salva; o sync inicial pode ser acionado manualmente ou pelo cron.
+    }
+  }
+  res.json(syncQueued ? { success: true, syncQueued: true } : { success: true });
 }));

@@ -7,6 +7,7 @@ const claims = (token: string): any => ({ uid: token, auth_time: Math.floor(Date
 function ref(path: string): any { return {
  get: async () => ({ id: path.split("/").pop(), exists: state.docs.has(path), data: () => state.docs.get(path) }),
  set: async (d: any) => state.docs.set(path, { ...state.docs.get(path), ...d }),
+ update: async (d: any) => state.docs.set(path, { ...state.docs.get(path), ...d }),
  collection: (n: string) => collection(path + "/" + n),
 }; }
 function collection(path: string): any { return { doc: (id: string) => ref(path + "/" + id), get: async () => ({ docs: [...state.docs].filter(([k]) => k.startsWith(path + "/") && !k.slice(path.length + 1).includes("/")).map(([k, v]) => ({ id: k.split("/").pop(), data: () => v })) }) }; }
@@ -89,4 +90,23 @@ it.each(["revoked", "disabled", "demoted", "stale"])("preserves private credenti
  expect(state.docs.get("provedores/a/secrets/sgp")).toEqual(original);
  expect(state.audits).toEqual([]);
  expect(JSON.stringify(result.body)).not.toContain("synthetic");
+});
+
+it('loads one sanitized provider and denies cross-tenant reads', async () => {
+ const response = await request(app).get('/a').set('Authorization', 'Bearer provider').expect(200);
+ expect(response.body.data.id).toBe('a'); expect(JSON.stringify(response.body)).not.toContain('synthetic');
+ await request(app).get('/a').set('Authorization', 'Bearer other').expect(403);
+ await request(app).get('/a').set('Authorization', 'Bearer subscriber').expect(403);
+ await request(app).get('/missing').set('Authorization', 'Bearer saas').expect(404);
+});
+it('saves personalization over HTTP without widening the schema or altering secrets', async () => {
+ state.docs.set('provedores/a/secrets/sgp', { integrations: { apiToken: 'private' } });
+ const patch = (uid: string, body: any) => request(app).patch('/a/config').set('Authorization', 'Bearer ' + uid).send(body);
+ await patch('other', { themeColor: '#fff' }).expect(403);
+ await patch('subscriber', { themeColor: '#fff' }).expect(403);
+ for (const body of [{ details: { appName: 'bad' } }, { config: { integrations: {} } }, { name: 'bad' }, { faq: [{ question: 'Q', answer: 'A', token: 'bad' }] }]) await patch('provider', body).expect(400);
+ await patch('provider', { themeColor: '#fff', logoUrl: 'https://example.test/logo.png' }).expect(200);
+ expect(state.docs.get('provedores/a').themeColor).toBe('#fff');
+ expect(state.docs.get('provedores/a/secrets/sgp')).toEqual({ integrations: { apiToken: 'private' } });
+ expect(state.audits).toHaveLength(1);
 });

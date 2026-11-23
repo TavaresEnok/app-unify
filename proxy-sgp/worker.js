@@ -9,13 +9,46 @@ const queue = getQueue();
 const timezone = 'America/Fortaleza';
 function localDay(date = new Date()) { return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date); }
 
+const {
+    ensureClientCache,
+    bulkUpsertClientsAndSegments,
+    pruneStaleAfterFullSync,
+    runRetentionCleanup,
+} = require('./lib/client-cache');
+
 async function seedReminders(job) {
-    const { day, cursor } = job.data;
+    const { day, cursor, offset = 0 } = job.data;
+    // Prioriza subscriber_devices no PostgreSQL (custo R$ 0,00 de Firestore).
+    const tableCheck = await pool.query(`SELECT to_regclass('public.subscriber_devices') IS NOT NULL AS ok`).catch(() => ({ rows: [{ ok: false }] }));
+    if (tableCheck.rows[0]?.ok) {
+        const pgPage = await pool.query(
+            `SELECT DISTINCT ON (provider_id, cpfcnpj) provider_id, cpfcnpj, fcm_token
+               FROM subscriber_devices
+              WHERE fcm_token <> ''
+              ORDER BY provider_id, cpfcnpj, updated_at DESC
+              LIMIT 500 OFFSET $1`,
+            [offset],
+        );
+        if (pgPage.rows.length > 0 || offset > 0) {
+            const jobs = pgPage.rows.map(row => ({
+                name: 'invoice-reminder',
+                data: { cpf: row.cpfcnpj, fcmToken: row.fcm_token, providerId: row.provider_id, day, source: 'pg' },
+                opts: { jobId: jobId('reminder', day, row.provider_id, row.cpfcnpj), priority: 10 },
+            }));
+            if (jobs.length) await queue.addBulk(jobs);
+            if (pgPage.rows.length === 500) {
+                await queue.add('seed-reminders', { day, offset: offset + 500 }, { jobId: jobId('seed-pg', day, offset + 500), priority: 1 });
+            }
+            return { scanned: pgPage.rows.length, queued: jobs.length, source: 'pg' };
+        }
+    }
+
+    // Fallback legado caso subscriber_devices ainda não tenha tokens importados.
     let query = db.collection('clientes').orderBy(admin.firestore.FieldPath.documentId()).limit(500);
     if (cursor) query = query.startAfter(cursor);
     const page = await query.get();
     const jobs = page.docs.filter(doc => doc.data().fcmToken && doc.data().providerId).map(doc => ({
-        name: 'invoice-reminder', data: { clientId: doc.id, providerId: doc.data().providerId, day },
+        name: 'invoice-reminder', data: { clientId: doc.id, providerId: doc.data().providerId, day, source: 'firestore' },
         opts: { jobId: jobId('reminder', day, doc.data().providerId, doc.id), priority: 10 },
     }));
     if (jobs.length) await queue.addBulk(jobs);
@@ -23,29 +56,43 @@ async function seedReminders(job) {
         const next = page.docs[page.docs.length - 1].id;
         await queue.add('seed-reminders', { day, cursor: next }, { jobId: jobId('seed', day, next), priority: 1 });
     }
-    return { scanned: page.size, queued: jobs.length };
+    return { scanned: page.size, queued: jobs.length, source: 'firestore' };
 }
 
 async function invoiceReminder(job) {
     if (job.data.day !== localDay()) return { skipped: 'expired' };
-    const client = await db.collection('clientes').doc(job.data.clientId).get();
-    const data = client.data();
-    if (!data?.fcmToken || data.providerId !== job.data.providerId) return { skipped: 'unregistered' };
-    const cpf = String(data.cpfCnpj || '').replace(/\D/g, '');
-    if (!cpf) return { skipped: 'missing-cpf' };
-    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials({ providerId: data.providerId });
+    let cpf = '';
+    let fcmToken = '';
+    let providerId = job.data.providerId;
+    let clientRef = null;
+
+    if (job.data.source === 'pg' && job.data.cpf && job.data.fcmToken) {
+        cpf = String(job.data.cpf).replace(/\D/g, '');
+        fcmToken = String(job.data.fcmToken);
+    } else {
+        const client = await db.collection('clientes').doc(job.data.clientId).get();
+        const data = client.data();
+        if (!data?.fcmToken || data.providerId !== providerId) return { skipped: 'unregistered' };
+        cpf = String(data.cpfCnpj || '').replace(/\D/g, '');
+        fcmToken = data.fcmToken;
+        clientRef = client.ref;
+    }
+
+    if (!cpf || !fcmToken) return { skipped: 'missing-cpf' };
+    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials({ providerId });
     const result = await callSgpApi({ ...sgpParams, url: formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/'), cpfcnpj: cpf, status: 'abertos' });
     const tomorrow = localDay(new Date(Date.now() + 86400000));
     const invoice = result?.titulos?.find(item => String(item.dataVencimento || '').slice(0, 10) === tomorrow);
     if (!invoice) return { skipped: 'no-due-invoice' };
     try {
-        await admin.messaging().send({ token: data.fcmToken,
+        await admin.messaging().send({ token: fcmToken,
             notification: { title: 'Fatura vencendo amanhã', body: `Sua fatura de R$ ${Number(invoice.valor || 0).toFixed(2).replace('.', ',')} vence amanhã.` },
             data: { route: '/faturas' }, android: { collapseKey: `invoice-${tomorrow}` },
         });
     } catch (error) {
         if (['messaging/invalid-registration-token', 'messaging/registration-token-not-registered'].includes(error.code)) {
-            await client.ref.update({ fcmToken: admin.firestore.FieldValue.delete() });
+            if (clientRef) await clientRef.update({ fcmToken: admin.firestore.FieldValue.delete() }).catch(() => undefined);
+            await pool.query('DELETE FROM subscriber_devices WHERE provider_id = $1 AND fcm_token = $2', [providerId, fcmToken]).catch(() => undefined);
             return { skipped: 'invalid-token' };
         }
         throw error;
@@ -56,34 +103,105 @@ async function invoiceReminder(job) {
 async function syncClients(job) {
     const { providerId } = job.data;
     const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials({ providerId });
-    await require('./lib/client-cache').ensureClientCache(pool);
-    let { page = 1, count = 0, lastPageHash } = job.data;
+    await ensureClientCache(pool);
+    const mirrorFirestore = process.env.SYNC_MIRROR_FIRESTORE === 'true';
+    let { page = 1, count = 0, lastPageHash, syncStartedAt = new Date().toISOString() } = job.data;
+
     while (true) {
         const result = await callSgpApi({ ...sgpParams, url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/'), ...syncParameters(page) });
         const clients = result?.clientes;
         lastPageHash = validateSyncPage(page, clients, lastPageHash);
-        const batch = db.batch();
+
+        const rows = [];
+        const batch = mirrorFirestore ? db.batch() : null;
         for (const raw of clients) {
             const client = sanitize(raw);
             const cpf = String(client.cpfcnpj || client.cpfCnpj || '').replace(/\D/g, '');
             if (!cpf) continue;
-            await pool.query('INSERT INTO sgp_clients (provider_id,client_id,nome,cpfcnpj,contratos) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (provider_id,client_id) DO UPDATE SET nome=EXCLUDED.nome,cpfcnpj=EXCLUDED.cpfcnpj,contratos=EXCLUDED.contratos', [providerId, String(client.id ?? client.clienteId ?? cpf), client.nome || client.razaoSocial || 'Cliente', cpf, JSON.stringify(client.contratos || [])]);
-            batch.set(db.collection('provedores').doc(providerId).collection('clientes').doc(cpf), {
-                ...client, nome: client.nome || client.razaoSocial || 'Cliente', cpfCnpj: cpf, cpfcnpj: cpf, providerId, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
+            const nome = client.nome || client.razaoSocial || 'Cliente';
+            const clientId = String(client.id ?? client.clienteId ?? cpf);
+            rows.push({ clientId, nome, cpf, contratos: client.contratos || [] });
+            if (batch) {
+                batch.set(db.collection('provedores').doc(providerId).collection('clientes').doc(cpf), {
+                    ...client, nome, cpfCnpj: cpf, cpfcnpj: cpf, providerId, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+            }
         }
-        await batch.commit();
-        count += clients.length;
+
+        // Apenas 2 queries SQL em lote (UNNEST) para a página inteira (100 clientes).
+        await bulkUpsertClientsAndSegments(pool, providerId, rows);
+        if (batch) await batch.commit();
+
+        count += rows.length;
         page++;
-        await job.updateData({ providerId, page, count, lastPageHash });
+        await job.updateData({ providerId, page, count, lastPageHash, syncStartedAt });
         await job.updateProgress({ count, page: page - 1 });
         if (clients.length < 100 || (result.paginacao?.total_paginas && page > result.paginacao.total_paginas)) break;
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 250));
     }
-    return { count };
+
+    // Política de limpeza pós-sync completo: remove clientes que não existem mais no SGP.
+    let pruned = { prunedClients: 0, prunedSegments: 0 };
+    if (count > 0) {
+        pruned = await pruneStaleAfterFullSync(pool, providerId, syncStartedAt);
+    }
+
+    // Atualiza apenas 1 resumo leve no provedor (1 escrita em vez de 5.000).
+    await db.collection('provedores').doc(providerId).set({
+        syncedClientCount: count,
+        lastClientSyncAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true }).catch(() => undefined);
+
+    return { count, ...pruned };
 }
 
-const handlers = { 'seed-reminders': seedReminders, 'invoice-reminder': invoiceReminder, 'sync-clients': syncClients };
+/**
+ * Enfileira a sincronização periódica de todos os provedores ativos de forma
+ * escalonada (45s entre cada provedor) para nunca sobrecarregar CPU, RAM ou SGP.
+ */
+async function scheduleAllProviderSyncs() {
+    const snap = await db.collection('provedores').select('active').get();
+    let queued = 0;
+    for (const doc of snap.docs) {
+        if (doc.data()?.active === false) continue;
+        const providerId = doc.id;
+        try {
+            await ensureSgpCredentials({ providerId });
+        } catch {
+            continue; // Provedor sem integração SGP configurada
+        }
+        const id = jobId('sync', providerId);
+        const previous = await queue.getJob(id);
+        if (previous && ['completed', 'failed'].includes(await previous.getState())) {
+            await previous.remove();
+        }
+        await queue.add(
+            'sync-clients',
+            { providerId, page: 1, count: 0, syncStartedAt: new Date().toISOString() },
+            { jobId: id, delay: queued * 45_000, priority: 5 },
+        );
+        queued++;
+    }
+    return { queued };
+}
+
+async function retentionCleanup() {
+    const snap = await db.collection('provedores').select().get();
+    const activeProviderIds = snap.docs.map(doc => doc.id);
+    return runRetentionCleanup(pool, {
+        deviceMaxAgeDays: Number(process.env.RETENTION_DEVICES_DAYS || 120),
+        campaignMaxAgeDays: Number(process.env.RETENTION_CAMPAIGNS_DAYS || 180),
+        activeProviderIds,
+    });
+}
+
+const handlers = {
+    'seed-reminders': seedReminders,
+    'invoice-reminder': invoiceReminder,
+    'sync-clients': syncClients,
+    'schedule-all-syncs': scheduleAllProviderSyncs,
+    'retention-cleanup': retentionCleanup,
+};
 const worker = new Worker(queueName, async (job, token) => {
     if (!handlers[job.name]) throw new Error('Tipo de trabalho desconhecido.');
     try { return await handlers[job.name](job); }
@@ -94,13 +212,21 @@ const worker = new Worker(queueName, async (job, token) => {
         }
         throw error;
     }
-}, { connection: connection(), concurrency: 8, limiter: { max: 40, duration: 1000 }, lockDuration: 120000 });
+}, { connection: connection(), concurrency: 6, limiter: { max: 40, duration: 1000 }, lockDuration: 180000 });
 worker.on('failed', (job, error) => console.error(JSON.stringify({ event: 'job.failed', name: job?.name, id: job?.id, error: error.message })));
 worker.on('error', error => console.error('[worker]', error.message));
 
 async function schedule() {
     await queue.upsertJobScheduler('daily-invoice-reminders', { pattern: '0 9 * * *', tz: timezone }, {
         name: 'seed-daily', data: {}, opts: { attempts: 5 },
+    });
+    // Sincronização escalonada de todos os provedores 2x por semana (Terça e Sexta às 03:00).
+    await queue.upsertJobScheduler('biweekly-client-sync', { pattern: '0 3 * * 2,5', tz: timezone }, {
+        name: 'schedule-all-syncs', data: {}, opts: { attempts: 3 },
+    });
+    // Limpeza semanal de retenção (Domingo às 04:00): tokens > 120d, campanhas > 180d, provedores órfãos.
+    await queue.upsertJobScheduler('weekly-retention-cleanup', { pattern: '0 4 * * 0', tz: timezone }, {
+        name: 'retention-cleanup', data: {}, opts: { attempts: 3 },
     });
 }
 handlers['seed-daily'] = async () => {

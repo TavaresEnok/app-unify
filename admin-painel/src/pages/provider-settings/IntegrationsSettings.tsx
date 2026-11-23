@@ -26,8 +26,13 @@ export default function IntegrationsSettings() {
         body: JSON.stringify({ apiToken, sgpBaseUrl, appName }),
       });
       if (!response.ok) throw new Error("Não foi possível substituir a integração.");
+      const data = await response.json().catch(() => ({}));
       setToken(""); setUrl(""); setApp("");
-      toast.success("Integração substituída.");
+      toast.success(
+        data?.syncQueued
+          ? "Integração salva e sincronização inicial de clientes iniciada."
+          : "Integração substituída.",
+      );
     } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao substituir."); }
     finally { setSaving(false); }
   };

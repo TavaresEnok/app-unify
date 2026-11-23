@@ -40,7 +40,7 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
       final user = await _repository.performLoginApi(cpf, config);
 
       // 2. Save locally
-      await _repository.saveUserLocally(user, config.id);
+      await _repository.saveUserLocally(user, config.id, apiUrl: config.apiUrl);
 
       await ref.read(notificationProvider).setAccount(config.id, user.cpfCnpj);
 
@@ -53,10 +53,11 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
 
   Future<void> logout() async {
     final currentUser = state.value;
+    final apiUrl = ref.read(configurationProvider).providerConfig?.apiUrl;
     state = const AsyncValue.loading();
     ref.read(notificationProvider).clearAccount();
     try {
-      await _repository.logout(currentUser);
+      await _repository.logout(currentUser, apiUrl: apiUrl);
       state = const AsyncValue.data(null);
     } catch (e) {
       // Even if API logout fails, we clear state to ensure user can "exit"
@@ -80,7 +81,8 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
 
       // Preserve some local-only fields if any (auth tokens are handled inside repository)
 
-      await _repository.saveUserLocally(updatedUser, config.id);
+      await _repository.saveUserLocally(updatedUser, config.id,
+          apiUrl: config.apiUrl);
       state = AsyncValue.data(updatedUser);
     } catch (e) {
       debugPrint('Erro ao atualizar dados do usuário em background: $e');

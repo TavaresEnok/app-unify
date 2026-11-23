@@ -18,6 +18,8 @@ export default function PrivateAttachment({ resource, attachmentId }: { resource
       if (alive) setLoaded({ key, ...value });
     }, () => { if (alive) setError('Anexo indisponível.'); });
     return () => { alive = false; capability.dispose(); };
+    // `key` já codifica resource e attachmentId sem disparar recarga por referência de objeto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, user, request]);
   const value = loaded?.key === key ? loaded : undefined;
   return <div>

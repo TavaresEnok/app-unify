@@ -44,6 +44,8 @@ const TermsOfUseSettings = lazy(() => import("@/pages/provider-settings/TermsOfU
 const ForceUpdate = lazy(() => import("@/pages/provider-settings/ForceUpdate"));
 const ProviderDashboardPage = lazy(loadProviderDashboardPage);
 const NotificationSenderPage = lazy(() => import("./pages/provider/NotificationSenderPage"));
+const ProviderClientsPage = lazy(() => import("./pages/provider/ProviderClientsPage"));
+const ClientDetailPage = lazy(() => import("./pages/provider/ClientDetailPage"));
 const DiagnosticHistoryPage = lazy(() => import("./pages/provider/DiagnosticHistoryPage"));
 const IncidentsPage = lazy(() => import("./pages/provider/IncidentsPage"));
 const AdminTicketsPage = lazy(() => import("./pages/AdminTicketsPage"));
@@ -144,8 +146,9 @@ export default function App() {
               </Route>
               <Route path="provedor/dashboard" element={<ProviderDashboardPage />} />
               <Route path="provedor/notificacoes" element={<Navigate to="/provedor/comunicados/notificacoes" replace />} />
-              <Route path="provedor/clientes/*" element={<Navigate to="/provedor/dashboard" replace />} />
               <Route element={<ProviderWorkspace />}>
+                <Route path="provedor/clientes" element={<ProviderClientsPage />} />
+                <Route path="provedor/clientes/:clientId" element={<ClientDetailPage />} />
                 <Route path="provedor/comunicados">{CommunicationsRoutes}</Route>
                 <Route path="provedor/aplicativo" element={<ApplicationPage />} />
                 <Route path="provedor/minha-empresa" element={<CompanyLayout />}>
