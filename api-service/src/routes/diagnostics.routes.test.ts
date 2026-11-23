@@ -190,5 +190,33 @@ describe("diagnostics & subscriber incidents routes", () => {
     expect(r1.body.data[1].matchesArea).toBe(false);
     expect(r2.body.data).toHaveLength(2);
   });
+
+  it("detecta clusters de possível queda por OLT/Bairro no /admin/diagnostics/outage-radar", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        scope: "olt",
+        area_name: "OLT ZTE - PAU AMARELO",
+        cidade: "PAULISTA",
+        distinct_subscribers: "4",
+        critical_count: "3",
+        degraded_count: "1",
+        total_diagnostics: "5",
+        last_seen_at: new Date("2026-11-23T15:00:00Z"),
+      }],
+    });
+
+    const res = await request(app)
+      .get("/admin/diagnostics/outage-radar?providerId=vibe&windowMinutes=45&minSubscribers=3")
+      .set({ Authorization: "Bearer adm-vibe" })
+      .expect(200);
+
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      scope: "olt",
+      areaName: "OLT ZTE - PAU AMARELO",
+      distinctSubscribers: 4,
+      criticalCount: 3,
+    });
+  });
 });
 

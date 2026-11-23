@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
-import { Loader2, TriangleAlert, Megaphone, Trash2, Send, Users, Smartphone } from 'lucide-react';
+import { Loader2, TriangleAlert, Megaphone, Trash2, Send, Users, Smartphone, Radio } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
     type SegmentFilters,
     type SegmentOptionsData,
 } from '@/shared/api/notifications';
+import { fetchOutageRadar, type OutageCluster } from '@/shared/api/diagnostics';
 
 function formatDate(ts?: { toDate: () => Date } | null): string {
     if (!ts) return '-';
@@ -46,25 +47,32 @@ const SEVERITY_BADGE: Record<IncidentSeverity, { label: string; tone: 'blue' | '
 
 export default function IncidentsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const radarDraft = (location.state as { radarCluster?: OutageCluster } | null)?.radarCluster;
     const { providerId } = useSettings();
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [radarClusters, setRadarClusters] = useState<OutageCluster[]>([]);
 
-    const [title, setTitle] = useState('');
-    const [message, setMessage] = useState('');
-    const [area, setArea] = useState('');
-    const [severity, setSeverity] = useState<IncidentSeverity>('warning');
+    const [title, setTitle] = useState(
+        radarDraft ? `Instabilidade identificada em ${radarDraft.areaName}`.slice(0, 80) : '',
+    );
+    const [message, setMessage] = useState(
+        radarDraft ? 'Identificamos instabilidade na sua região e nossa equipe técnica já está atuando para normalizar a conexão.' : '',
+    );
+    const [area, setArea] = useState(radarDraft ? radarDraft.areaName.slice(0, 80) : '');
+    const [severity, setSeverity] = useState<IncidentSeverity>(radarDraft ? 'critical' : 'warning');
     const [estimatedResolution, setEstimatedResolution] = useState('');
 
     // Segmentação real do PostgreSQL (OLT / Bairro / Cidade)
     const [segments, setSegments] = useState<SegmentOptionsData | null>(null);
-    const [selectedOlt, setSelectedOlt] = useState('__all__');
-    const [selectedBairro, setSelectedBairro] = useState('__all__');
+    const [selectedOlt, setSelectedOlt] = useState(radarDraft?.scope === 'olt' ? radarDraft.areaName : '__all__');
+    const [selectedBairro, setSelectedBairro] = useState(radarDraft?.scope === 'bairro' ? radarDraft.areaName : '__all__');
     const [selectedCidade, setSelectedCidade] = useState('__all__');
 
     // Disparo integrado de push em 1 clique
-    const [sendPushNow, setSendPushNow] = useState(false);
+    const [sendPushNow, setSendPushNow] = useState(Boolean(radarDraft));
     const [preview, setPreview] = useState<AudiencePreviewData | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -86,8 +94,23 @@ export default function IncidentsPage() {
         fetchNotificationSegments(providerId)
             .then((data) => { if (alive) setSegments(data); })
             .catch(() => { /* fallback: campo texto livre continua disponível */ });
+        fetchOutageRadar(providerId)
+            .then((clusters) => { if (alive) setRadarClusters(clusters); })
+            .catch(() => { /* silencioso */ });
         return () => { alive = false; };
     }, [providerId]);
+
+    const applyRadarCluster = (cluster: OutageCluster) => {
+        setTitle(`Instabilidade identificada em ${cluster.areaName}`.slice(0, 80));
+        setMessage('Identificamos instabilidade na sua região e nossa equipe técnica já está atuando para normalizar a conexão.');
+        setArea(cluster.areaName.slice(0, 80));
+        setSeverity('critical');
+        setSelectedOlt(cluster.scope === 'olt' ? cluster.areaName : '__all__');
+        setSelectedBairro(cluster.scope === 'bairro' ? cluster.areaName : '__all__');
+        setSelectedCidade('__all__');
+        setSendPushNow(true);
+        toast.info(`Formulário preenchido para ${cluster.areaName}. Revise e publique.`);
+    };
 
     const pushFilters = useMemo<SegmentFilters>(() => {
         const filters: SegmentFilters = {};
@@ -201,6 +224,53 @@ export default function IncidentsPage() {
 
     return (
         <div className="flex flex-col gap-4">
+            {radarClusters.length > 0 && (
+                <Card className="border-amber-200 bg-amber-50/70">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-[15px] text-amber-900">
+                            <Radio className="h-4 w-4 text-amber-600" />
+                            Radar automático de quedas (últimos 45 min)
+                        </CardTitle>
+                        <p className="text-[12.5px] text-amber-800/90">
+                            Múltiplos assinantes na mesma OLT ou bairro registraram diagnósticos críticos/degradados recentemente.
+                        </p>
+                    </CardHeader>
+                    <CardContent className="grid gap-2">
+                        {radarClusters.map((cluster) => (
+                            <div
+                                key={`${cluster.scope}:${cluster.areaName}`}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2"
+                            >
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[13px] font-semibold text-[#1A2233]">
+                                            {cluster.scope === 'olt' ? 'OLT' : 'Bairro'}: {cluster.areaName}
+                                        </span>
+                                        <StatusBadge
+                                            status={`${cluster.distinctSubscribers} cliente(s)`}
+                                            tone={cluster.criticalCount > 0 ? 'red' : 'amber'}
+                                        />
+                                    </div>
+                                    <div className="text-[11.5px] text-[#687181]">
+                                        {cluster.criticalCount} crítico(s), {cluster.degradedCount} atenção
+                                        {cluster.cidade ? ` · ${cluster.cidade}` : ''}
+                                    </div>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => applyRadarCluster(cluster)}
+                                >
+                                    <TriangleAlert className="h-3.5 w-3.5 text-amber-600" />
+                                    Preencher aviso + push
+                                </Button>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
+
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">

@@ -12,6 +12,7 @@ interface PgTableFlags {
   has_clients: boolean;
   has_segments: boolean;
   has_campaigns: boolean;
+  has_devices: boolean;
 }
 
 async function inspectPgTables(pg: DashboardSqlQueryable): Promise<PgTableFlags> {
@@ -19,9 +20,10 @@ async function inspectPgTables(pg: DashboardSqlQueryable): Promise<PgTableFlags>
     SELECT
       to_regclass('public.sgp_clients') IS NOT NULL AS has_clients,
       to_regclass('public.subscriber_segments') IS NOT NULL AS has_segments,
-      to_regclass('public.notification_campaigns') IS NOT NULL AS has_campaigns
+      to_regclass('public.notification_campaigns') IS NOT NULL AS has_campaigns,
+      to_regclass('public.subscriber_devices') IS NOT NULL AS has_devices
   `);
-  return res.rows[0] || { has_clients: false, has_segments: false, has_campaigns: false };
+  return res.rows[0] || { has_clients: false, has_segments: false, has_campaigns: false, has_devices: false };
 }
 
 export async function loadGlobalDashboard(db: Firestore, pg: DashboardSqlQueryable | null = null) {
@@ -45,15 +47,19 @@ export async function loadGlobalDashboard(db: Firestore, pg: DashboardSqlQueryab
 
   // Clientes e notificações preferem o PostgreSQL local (custo zero de Firestore);
   // caem para o Firestore automaticamente quando o banco local não está ativo.
-  const [clientCount, notificationCount] = await Promise.all([
+  const [clientCount, notificationCount, appUsersCount] = await Promise.all([
     pg && flags?.has_clients
       ? pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM sgp_clients`)
         .then((r) => Number(r.rows[0]?.count || 0))
       : count(db.collection("clientes")),
     pg && flags?.has_campaigns
-      ? pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM notification_campaigns WHERE created_at >= NOW() - INTERVAL '24 hours'`)
+      ? pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM notification_campaigns WHERE COALESCE(status, 'sent') = 'sent' AND created_at >= NOW() - INTERVAL '24 hours'`)
         .then((r) => Number(r.rows[0]?.count || 0))
       : count(db.collection("notifications").where("createdAt", ">=", oneDayAgo)),
+    pg && flags?.has_devices
+      ? pg.query<{ count: string }>(`SELECT COUNT(DISTINCT (provider_id, cpfcnpj))::text AS count FROM subscriber_devices WHERE fcm_token <> ''`)
+        .then((r) => Number(r.rows[0]?.count || 0))
+      : Promise.resolve(undefined),
   ]);
 
   let chartData: Array<{ name: string; clientes: number }>;
@@ -88,7 +94,13 @@ export async function loadGlobalDashboard(db: Firestore, pg: DashboardSqlQueryab
   }
 
   return {
-    stats: { providerCount: providers.size, clientCount, notificationCount, openTicketsCount },
+    stats: {
+      providerCount: providers.size,
+      clientCount,
+      notificationCount,
+      openTicketsCount,
+      ...(typeof appUsersCount === "number" ? { appUsersCount } : {}),
+    },
     chartData,
     recentTickets: recentTickets.docs.map((ticket) => ({ id: ticket.id, ...ticket.data() })),
   };
@@ -125,20 +137,37 @@ export async function loadProviderDashboard(db: Firestore, providerId: string, p
       : count(clients.where("status", "in", ["Ativo", "ativo", "ATIVO", "Online", "online"]));
 
   const notificationCountPromise = pg && flags?.has_campaigns
-    ? pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM notification_campaigns WHERE provider_id = $1`, [providerId])
+    ? pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM notification_campaigns WHERE provider_id = $1 AND COALESCE(status, 'sent') = 'sent'`, [providerId])
       .then((r) => Number(r.rows[0]?.count || 0))
     : count(db.collection("notifications").where("providerId", "==", providerId));
 
-  const [clientCount, activeClientCount, openTicketsCount, notificationCount, recentTickets] = await Promise.all([
+  const appUsersCountPromise = pg && flags?.has_devices
+    ? pg.query<{ count: string }>(
+      `SELECT COUNT(DISTINCT cpfcnpj)::text AS count
+         FROM subscriber_devices
+        WHERE provider_id = $1 AND fcm_token <> ''`,
+      [providerId],
+    ).then((r) => Number(r.rows[0]?.count || 0))
+    : Promise.resolve(undefined);
+
+  const [clientCount, activeClientCount, openTicketsCount, notificationCount, recentTickets, appUsersCount] = await Promise.all([
     clientCountPromise,
     activeClientCountPromise,
     count(tickets.where("status", "in", ["Aberto", "Em Andamento"])),
     notificationCountPromise,
     tickets.orderBy("updatedAt", "desc").limit(5).get(),
+    appUsersCountPromise,
   ]);
 
   return {
-    stats: { clientCount, totalClients: clientCount, activeClientCount, openTicketsCount, notificationCount },
+    stats: {
+      clientCount,
+      totalClients: clientCount,
+      activeClientCount,
+      openTicketsCount,
+      notificationCount,
+      ...(typeof appUsersCount === "number" ? { appUsersCount } : {}),
+    },
     recentTickets: recentTickets.docs.map((ticket) => ({ id: ticket.id, ...ticket.data() })),
   };
 }

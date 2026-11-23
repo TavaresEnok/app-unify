@@ -65,7 +65,10 @@ export interface SendCampaignInput {
   route?: string;
   filters?: SegmentFilters;
   sentBy: string;
+  scheduledFor?: string | null;
 }
+
+export type CampaignStatus = "sent" | "scheduled" | "processing" | "cancelled" | "failed";
 
 export interface CampaignRecord {
   id: string;
@@ -81,7 +84,17 @@ export interface CampaignRecord {
   failureCount: number;
   deliveryMode: "topic" | "multicast";
   sentBy: string;
+  status?: CampaignStatus;
+  scheduledFor?: string | null;
   createdAt: string;
+}
+
+export interface BillingPushRule {
+  providerId: string;
+  enabled: boolean;
+  daysBefore: number[];
+  daysAfter: number[];
+  updatedAt: string | null;
 }
 
 export interface MessagingLike {
@@ -250,7 +263,13 @@ export async function projectSegmentsFromSgpClients(db: SqlQueryable, providerId
         TRIM(COALESCE(srv->'onu'->>'olt_nome', srv->'onu'->>'olt_name', '')) AS olt_name,
         COALESCE(srv->'onu'->>'slot', '') AS slot,
         COALESCE(srv->'onu'->>'pon', '') AS pon,
-        TRIM(COALESCE(srv->'onu'->'splitter'->>'nome', srv->'onu'->>'cto', '')) AS cto
+        TRIM(COALESCE(srv->'onu'->'splitter'->>'nome', srv->'onu'->>'cto', '')) AS cto,
+        CASE
+          WHEN COALESCE(c->>'vencimento', c->>'dia_vencimento', '') ~ '^[0-9]{1,2}$'
+           AND COALESCE(c->>'vencimento', c->>'dia_vencimento', '0')::int BETWEEN 1 AND 31
+          THEN COALESCE(c->>'vencimento', c->>'dia_vencimento', '0')::smallint
+          ELSE 0::smallint
+        END AS due_day
       FROM sgp_clients sc
       CROSS JOIN LATERAL jsonb_array_elements(
         CASE WHEN jsonb_typeof(sc.contratos) = 'array' THEN sc.contratos ELSE '[]'::jsonb END
@@ -269,11 +288,11 @@ export async function projectSegmentsFromSgpClients(db: SqlQueryable, providerId
     )
     INSERT INTO subscriber_segments (
       provider_id, cpfcnpj, contrato_id, client_name, contract_status,
-      plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto, updated_at
+      plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto, due_day, updated_at
     )
     SELECT
       provider_id, cpfcnpj, contrato_id, client_name, contract_status,
-      plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto, NOW()
+      plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto, due_day, NOW()
     FROM extracted
     ON CONFLICT (provider_id, cpfcnpj, contrato_id) DO UPDATE SET
       client_name = CASE WHEN EXCLUDED.client_name <> '' THEN EXCLUDED.client_name ELSE subscriber_segments.client_name END,
@@ -287,6 +306,7 @@ export async function projectSegmentsFromSgpClients(db: SqlQueryable, providerId
       slot = CASE WHEN EXCLUDED.slot <> '' THEN EXCLUDED.slot ELSE subscriber_segments.slot END,
       pon = CASE WHEN EXCLUDED.pon <> '' THEN EXCLUDED.pon ELSE subscriber_segments.pon END,
       cto = CASE WHEN EXCLUDED.cto <> '' THEN EXCLUDED.cto ELSE subscriber_segments.cto END,
+      due_day = CASE WHEN EXCLUDED.due_day > 0 THEN EXCLUDED.due_day ELSE subscriber_segments.due_day END,
       updated_at = NOW()
     `,
     [providerId],
@@ -541,41 +561,46 @@ async function resolveTargetTokens(
   return { matchedSubscribers, tokens };
 }
 
-export async function sendCampaign(
+async function deliverCampaignFcm(
   db: SqlQueryable,
   messagingClient: MessagingLike,
-  input: SendCampaignInput,
-): Promise<CampaignRecord> {
-  await ensureProviderSegments(db, input.providerId);
-
-  const title = input.title.trim().slice(0, 120);
-  const body = input.body.trim().slice(0, 1000);
-  const category = (input.category || "info").trim().slice(0, 32) || "info";
-  const route = (input.route || "").trim().slice(0, 120);
-  const filters = normalizeFilters(input.filters);
-  const active = hasActiveFilters(filters);
-  const id = randomUUID();
-
+  params: {
+    id: string;
+    providerId: string;
+    title: string;
+    body: string;
+    category: string;
+    route: string;
+    filters: NormalizedSegmentFilters;
+  },
+): Promise<{
+  matchedSubscribers: number;
+  targetedDevices: number;
+  successCount: number;
+  failureCount: number;
+  deliveryMode: "topic" | "multicast";
+}> {
+  const active = hasActiveFilters(params.filters);
   const dataPayload: Record<string, string> = {
-    campaignId: id,
-    category,
-    route,
+    campaignId: params.id,
+    category: params.category,
+    route: params.route,
   };
 
   let matchedSubscribers = 0;
   let targetedDevices = 0;
   let successCount = 0;
   let failureCount = 0;
-  let deliveryMode: "topic" | "multicast" = active ? "multicast" : "topic";
+  const deliveryMode: "topic" | "multicast" = active ? "multicast" : "topic";
 
   if (!active) {
-    const preview = await previewAudience(db, input.providerId, filters);
+    const preview = await previewAudience(db, params.providerId, params.filters);
     matchedSubscribers = preview.matchedSubscribers;
     targetedDevices = preview.reachableDevices;
 
     await messagingClient.send({
-      topic: `provider_${input.providerId}`,
-      notification: { title, body },
+      topic: `provider_${params.providerId}`,
+      notification: { title: params.title, body: params.body },
       data: dataPayload,
       android: {
         priority: "high",
@@ -584,7 +609,7 @@ export async function sendCampaign(
     });
     successCount = Math.max(1, targetedDevices);
   } else {
-    const resolved = await resolveTargetTokens(db, input.providerId, filters);
+    const resolved = await resolveTargetTokens(db, params.providerId, params.filters);
     matchedSubscribers = resolved.matchedSubscribers;
     targetedDevices = resolved.tokens.length;
 
@@ -593,7 +618,7 @@ export async function sendCampaign(
       const chunk = resolved.tokens.slice(i, i + 500);
       const response = await messagingClient.sendEachForMulticast({
         tokens: chunk,
-        notification: { title, body },
+        notification: { title: params.title, body: params.body },
         data: dataPayload,
         android: {
           priority: "high",
@@ -612,17 +637,99 @@ export async function sendCampaign(
     if (invalidTokens.length > 0) {
       await db.query(
         `DELETE FROM subscriber_devices WHERE provider_id = $1 AND fcm_token = ANY($2::text[])`,
-        [input.providerId, invalidTokens],
+        [params.providerId, invalidTokens],
       ).catch(() => undefined);
     }
   }
+
+  return { matchedSubscribers, targetedDevices, successCount, failureCount, deliveryMode };
+}
+
+export async function sendCampaign(
+  db: SqlQueryable,
+  messagingClient: MessagingLike,
+  input: SendCampaignInput,
+): Promise<CampaignRecord> {
+  await ensureProviderSegments(db, input.providerId);
+
+  const title = input.title.trim().slice(0, 120);
+  const body = input.body.trim().slice(0, 1000);
+  const category = (input.category || "info").trim().slice(0, 32) || "info";
+  const route = (input.route || "").trim().slice(0, 120);
+  const filters = normalizeFilters(input.filters);
+  const id = randomUUID();
+
+  // Agendamento futuro (até 30 dias à frente)
+  const rawSchedule = typeof input.scheduledFor === "string" ? input.scheduledFor.trim() : "";
+  if (rawSchedule) {
+    const parsed = new Date(rawSchedule);
+    const now = Date.now();
+    if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= now + 30_000) {
+      throw new Error("A data de agendamento deve estar no futuro (mínimo 1 minuto).");
+    }
+    if (parsed.getTime() > now + 30 * 86_400_000) {
+      throw new Error("O agendamento pode ser feito com no máximo 30 dias de antecedência.");
+    }
+    const preview = await previewAudience(db, input.providerId, filters);
+    const deliveryMode: "topic" | "multicast" = hasActiveFilters(filters) ? "multicast" : "topic";
+    const inserted = await db.query<{ created_at: Date }>(
+      `INSERT INTO notification_campaigns (
+         id, provider_id, title, body, category, route, filters,
+         matched_subscribers, targeted_devices, success_count, failure_count,
+         delivery_mode, sent_by, status, scheduled_for
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,0,0,$10,$11,'scheduled',$12)
+       RETURNING created_at`,
+      [
+        id,
+        input.providerId,
+        title,
+        body,
+        category,
+        route,
+        JSON.stringify(filters),
+        preview.matchedSubscribers,
+        preview.reachableDevices,
+        deliveryMode,
+        input.sentBy,
+        parsed.toISOString(),
+      ],
+    );
+    return {
+      id,
+      providerId: input.providerId,
+      title,
+      body,
+      category,
+      route,
+      filters,
+      matchedSubscribers: preview.matchedSubscribers,
+      targetedDevices: preview.reachableDevices,
+      successCount: 0,
+      failureCount: 0,
+      deliveryMode,
+      sentBy: input.sentBy,
+      status: "scheduled",
+      scheduledFor: parsed.toISOString(),
+      createdAt: (inserted.rows[0]?.created_at ?? new Date()).toISOString(),
+    };
+  }
+
+  const delivered = await deliverCampaignFcm(db, messagingClient, {
+    id,
+    providerId: input.providerId,
+    title,
+    body,
+    category,
+    route,
+    filters,
+  });
 
   const inserted = await db.query<{ created_at: Date }>(
     `INSERT INTO notification_campaigns (
        id, provider_id, title, body, category, route, filters,
        matched_subscribers, targeted_devices, success_count, failure_count,
-       delivery_mode, sent_by
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13)
+       delivery_mode, sent_by, status
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,'sent')
      RETURNING created_at`,
     [
       id,
@@ -632,11 +739,11 @@ export async function sendCampaign(
       category,
       route,
       JSON.stringify(filters),
-      matchedSubscribers,
-      targetedDevices,
-      successCount,
-      failureCount,
-      deliveryMode,
+      delivered.matchedSubscribers,
+      delivered.targetedDevices,
+      delivered.successCount,
+      delivered.failureCount,
+      delivered.deliveryMode,
       input.sentBy,
     ],
   );
@@ -649,13 +756,173 @@ export async function sendCampaign(
     category,
     route,
     filters,
-    matchedSubscribers,
-    targetedDevices,
-    successCount,
-    failureCount,
-    deliveryMode,
+    matchedSubscribers: delivered.matchedSubscribers,
+    targetedDevices: delivered.targetedDevices,
+    successCount: delivered.successCount,
+    failureCount: delivered.failureCount,
+    deliveryMode: delivered.deliveryMode,
     sentBy: input.sentBy,
+    status: "sent",
+    scheduledFor: null,
     createdAt: (inserted.rows[0]?.created_at ?? new Date()).toISOString(),
+  };
+}
+
+export async function cancelScheduledCampaign(
+  db: SqlQueryable,
+  providerId: string,
+  campaignId: string,
+): Promise<boolean> {
+  await ensureNotificationSchema(db);
+  const res = await db.query(
+    `UPDATE notification_campaigns
+        SET status = 'cancelled'
+      WHERE provider_id = $1 AND id = $2 AND status = 'scheduled'`,
+    [providerId, campaignId],
+  );
+  return (res.rowCount || 0) > 0;
+}
+
+/**
+ * Reivindica atomicamente campanhas agendadas vencidas (FOR UPDATE SKIP LOCKED)
+ * e realiza o disparo FCM sem duplicidade mesmo em múltiplas réplicas.
+ */
+export async function processDueScheduledCampaigns(
+  db: SqlQueryable,
+  messagingClient: MessagingLike,
+): Promise<number> {
+  await ensureNotificationSchema(db);
+  const claimed = await db.query<{
+    id: string;
+    provider_id: string;
+    title: string;
+    body: string;
+    category: string;
+    route: string;
+    filters: SegmentFilters;
+  }>(
+    `UPDATE notification_campaigns
+        SET status = 'processing'
+      WHERE id IN (
+        SELECT id
+          FROM notification_campaigns
+         WHERE status = 'scheduled'
+           AND scheduled_for <= NOW()
+         ORDER BY scheduled_for ASC
+         LIMIT 5
+         FOR UPDATE SKIP LOCKED
+      )
+      RETURNING id, provider_id, title, body, category, route, filters`,
+  );
+
+  let processed = 0;
+  for (const row of claimed.rows) {
+    try {
+      const delivered = await deliverCampaignFcm(db, messagingClient, {
+        id: row.id,
+        providerId: row.provider_id,
+        title: row.title,
+        body: row.body,
+        category: row.category || "info",
+        route: row.route || "",
+        filters: normalizeFilters(row.filters),
+      });
+      await db.query(
+        `UPDATE notification_campaigns
+            SET status = 'sent',
+                matched_subscribers = $2,
+                targeted_devices = $3,
+                success_count = $4,
+                failure_count = $5,
+                delivery_mode = $6,
+                created_at = NOW()
+          WHERE id = $1`,
+        [
+          row.id,
+          delivered.matchedSubscribers,
+          delivered.targetedDevices,
+          delivered.successCount,
+          delivered.failureCount,
+          delivered.deliveryMode,
+        ],
+      );
+      processed++;
+    } catch (error) {
+      console.warn(JSON.stringify({ severity: "WARNING", message: "scheduled.campaign.failed", campaignId: row.id, error: (error as Error).message }));
+      await db.query(`UPDATE notification_campaigns SET status = 'failed' WHERE id = $1`, [row.id]).catch(() => undefined);
+    }
+  }
+  return processed;
+}
+
+export async function getBillingPushRule(
+  db: SqlQueryable,
+  providerId: string,
+): Promise<BillingPushRule> {
+  await ensureNotificationSchema(db);
+  const res = await db.query<{
+    enabled: boolean;
+    days_before: number[];
+    days_after: number[];
+    updated_at: Date;
+  }>(
+    `SELECT enabled, days_before, days_after, updated_at
+       FROM billing_push_rules
+      WHERE provider_id = $1
+      LIMIT 1`,
+    [providerId],
+  );
+  const row = res.rows[0];
+  if (!row) {
+    return {
+      providerId,
+      enabled: true,
+      daysBefore: [1],
+      daysAfter: [],
+      updatedAt: null,
+    };
+  }
+  return {
+    providerId,
+    enabled: row.enabled !== false,
+    daysBefore: Array.isArray(row.days_before) ? row.days_before.map(Number) : [1],
+    daysAfter: Array.isArray(row.days_after) ? row.days_after.map(Number) : [],
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+  };
+}
+
+export async function saveBillingPushRule(
+  db: SqlQueryable,
+  providerId: string,
+  input: { enabled?: boolean; daysBefore?: unknown; daysAfter?: unknown },
+): Promise<BillingPushRule> {
+  await ensureNotificationSchema(db);
+  const enabled = input.enabled !== false;
+  const daysBefore = Array.isArray(input.daysBefore)
+    ? [...new Set(input.daysBefore.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 15))].sort((a, b) => b - a)
+    : [1];
+  const daysAfter = Array.isArray(input.daysAfter)
+    ? [...new Set(input.daysAfter.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 30))].sort((a, b) => a - b)
+    : [];
+
+  const res = await db.query<{ updated_at: Date }>(
+    `INSERT INTO billing_push_rules (provider_id, enabled, days_before, days_after, updated_at)
+     VALUES ($1, $2, $3::smallint[], $4::smallint[], NOW())
+     ON CONFLICT (provider_id) DO UPDATE SET
+       enabled = EXCLUDED.enabled,
+       days_before = EXCLUDED.days_before,
+       days_after = EXCLUDED.days_after,
+       updated_at = NOW()
+     RETURNING updated_at`,
+    [providerId, enabled, daysBefore, daysAfter],
+  );
+
+  return {
+    providerId,
+    enabled,
+    daysBefore,
+    daysAfter,
+    updatedAt: res.rows[0]?.updated_at ? new Date(res.rows[0].updated_at).toISOString() : new Date().toISOString(),
   };
 }
 
@@ -680,14 +947,16 @@ export async function listCampaignHistory(
     failure_count: number;
     delivery_mode: "topic" | "multicast";
     sent_by: string;
+    status?: CampaignStatus;
+    scheduled_for?: Date | null;
     created_at: Date;
   }>(
     `SELECT id, provider_id, title, body, category, route, filters,
             matched_subscribers, targeted_devices, success_count, failure_count,
-            delivery_mode, sent_by, created_at
+            delivery_mode, sent_by, COALESCE(status, 'sent') AS status, scheduled_for, created_at
        FROM notification_campaigns
       WHERE provider_id = $1
-      ORDER BY created_at DESC
+      ORDER BY CASE WHEN status = 'scheduled' THEN 0 ELSE 1 END, COALESCE(scheduled_for, created_at) DESC
       LIMIT $2`,
     [providerId, safeLimit],
   );
@@ -706,6 +975,8 @@ export async function listCampaignHistory(
     failureCount: Number(r.failure_count || 0),
     deliveryMode: r.delivery_mode === "topic" ? "topic" : "multicast",
     sentBy: r.sent_by,
+    status: r.status || "sent",
+    scheduledFor: r.scheduled_for ? new Date(r.scheduled_for).toISOString() : null,
     createdAt: new Date(r.created_at).toISOString(),
   }));
 }
@@ -850,6 +1121,7 @@ export async function listSubscriberNotifications(
       `SELECT id, title, body, category, route, filters, created_at
          FROM notification_campaigns
         WHERE provider_id = $1
+          AND COALESCE(status, 'sent') = 'sent'
           AND created_at >= NOW() - INTERVAL '14 days'
         ORDER BY created_at DESC
         LIMIT 80`,

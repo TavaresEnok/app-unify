@@ -56,7 +56,17 @@ export interface CampaignHistoryItem {
   failureCount: number;
   deliveryMode: 'topic' | 'multicast';
   sentBy: string;
+  status?: 'sent' | 'scheduled' | 'processing' | 'cancelled' | 'failed';
+  scheduledFor?: string | null;
   createdAt: string;
+}
+
+export interface BillingPushRule {
+  providerId: string;
+  enabled: boolean;
+  daysBefore: number[];
+  daysAfter: number[];
+  updatedAt: string | null;
 }
 
 export async function fetchNotificationSegments(
@@ -90,10 +100,42 @@ export async function sendNotificationCampaign(payload: {
   category: string;
   route: string;
   filters: SegmentFilters;
+  scheduledFor?: string | null;
 }): Promise<{ success: boolean; message: string; data: CampaignHistoryItem }> {
   const res = await panelRequest<{ success: boolean; message: string; data: CampaignHistoryItem }>(
     '/admin/notifications/send',
     { method: 'POST', body: payload },
+  );
+  clearPanelReads();
+  return res;
+}
+
+export async function cancelScheduledNotification(
+  providerId: string,
+  id: string,
+): Promise<{ success: boolean; message: string }> {
+  const params = new URLSearchParams({ providerId });
+  const res = await panelRequest<{ success: boolean; message: string }>(
+    `/admin/notifications/scheduled/${encodeURIComponent(id)}?${params.toString()}`,
+    { method: 'DELETE' },
+  );
+  clearPanelReads();
+  return res;
+}
+
+export async function fetchBillingPushRule(providerId: string): Promise<BillingPushRule> {
+  const params = new URLSearchParams({ providerId });
+  const res = await panelRequest<{ data: BillingPushRule }>(`/admin/notifications/billing-rules?${params.toString()}`);
+  return res.data;
+}
+
+export async function saveBillingPushRule(
+  providerId: string,
+  input: { enabled: boolean; daysBefore: number[]; daysAfter: number[] },
+): Promise<{ success: boolean; message: string; data: BillingPushRule }> {
+  const res = await panelRequest<{ success: boolean; message: string; data: BillingPushRule }>(
+    '/admin/notifications/billing-rules',
+    { method: 'PUT', body: { providerId, ...input } },
   );
   clearPanelReads();
   return res;

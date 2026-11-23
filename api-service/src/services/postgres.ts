@@ -66,10 +66,25 @@ export async function ensureNotificationSchema(db: SqlQueryable): Promise<void> 
           failure_count INTEGER NOT NULL DEFAULT 0,
           delivery_mode TEXT NOT NULL DEFAULT 'multicast',
           sent_by TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'sent',
+          scheduled_for TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      await db.query(`ALTER TABLE notification_campaigns ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'sent'`);
+      await db.query(`ALTER TABLE notification_campaigns ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMPTZ`);
       await db.query(`CREATE INDEX IF NOT EXISTS idx_campaigns_provider_created ON notification_campaigns (provider_id, created_at DESC)`);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_campaigns_scheduled ON notification_campaigns (status, scheduled_for) WHERE status = 'scheduled'`);
+
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS billing_push_rules (
+          provider_id TEXT PRIMARY KEY,
+          enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          days_before SMALLINT[] NOT NULL DEFAULT '{1}'::smallint[],
+          days_after SMALLINT[] NOT NULL DEFAULT '{}'::smallint[],
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS diagnostic_results (

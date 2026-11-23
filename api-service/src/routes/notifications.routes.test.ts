@@ -208,4 +208,60 @@ describe("rotas /admin/notifications", () => {
     expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ topic: "provider_vibe" }));
     expect(mockMulticast).not.toHaveBeenCalled();
   });
+
+  it("agenda campanha futura sem disparar FCM de imediato e permite cancelar", async () => {
+    const futureIso = new Date(Date.now() + 3_600_000).toISOString();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ count: "100" }] }) // ensureProviderSegments (sendCampaign)
+      .mockResolvedValueOnce({ rows: [{ count: "100" }] }) // ensureProviderSegments (previewAudience)
+      .mockResolvedValueOnce({ rows: [{ matched_subscribers: "40", reachable_devices: "18" }] }) // preview
+      .mockResolvedValueOnce({ rows: [{ created_at: new Date("2026-11-23T15:00:00Z") }] }); // INSERT scheduled
+
+    const res = await request(app)
+      .post("/admin/notifications/send")
+      .set({ Authorization: "Bearer adm-vibe" })
+      .send({
+        title: "Manutenção programada",
+        body: "Janela às 02h.",
+        filters: { oltNames: ["OLT ZTE - PAU AMARELO"] },
+        scheduledFor: futureIso,
+      })
+      .expect(201);
+
+    expect(res.body.data.status).toBe("scheduled");
+    expect(res.body.data.scheduledFor).toBe(futureIso);
+    expect(mockSend).not.toHaveBeenCalled();
+    expect(mockMulticast).not.toHaveBeenCalled();
+
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+    await request(app)
+      .delete(`/admin/notifications/scheduled/${res.body.data.id}?providerId=vibe`)
+      .set({ Authorization: "Bearer adm-vibe" })
+      .expect(200);
+  });
+
+  it("salva e consulta a régua automática de cobrança por push", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ updated_at: new Date("2026-11-23T15:00:00Z") }] });
+    const putRes = await request(app)
+      .put("/admin/notifications/billing-rules")
+      .set({ Authorization: "Bearer adm-vibe" })
+      .send({ providerId: "vibe", enabled: true, daysBefore: [3, 1, 0], daysAfter: [3] })
+      .expect(200);
+
+    expect(putRes.body.data).toMatchObject({
+      providerId: "vibe",
+      enabled: true,
+      daysBefore: [3, 1, 0],
+      daysAfter: [3],
+    });
+
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ enabled: true, days_before: [3, 1, 0], days_after: [3], updated_at: new Date("2026-11-23T15:00:00Z") }],
+    });
+    const getRes = await request(app)
+      .get("/admin/notifications/billing-rules?providerId=vibe")
+      .set({ Authorization: "Bearer adm-vibe" })
+      .expect(200);
+    expect(getRes.body.data.daysBefore).toEqual([3, 1, 0]);
+  });
 });

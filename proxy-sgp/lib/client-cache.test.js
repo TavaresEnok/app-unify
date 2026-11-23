@@ -15,7 +15,7 @@ test('bulkUpsertClientsAndSegments faz upsert em lote (UNNEST) de clientes e seg
         {
             clientId: '10', nome: 'Maria', cpf: '10331142430',
             contratos: [{
-                id: 86069, status: 'Ativo', pop_id: 3492,
+                id: 86069, status: 'Ativo', pop_id: 3492, vencimento: 10,
                 endereco: { cidade: 'Paulista', bairro: 'Pau Amarelo' },
                 servicos: [{ plano: { descricao: 'VIBE 500 MEGA' }, onu: { olt_id: 2, olt_nome: 'OLT ZTE - PAU AMARELO', slot: 1, pon: 11, splitter: { nome: 'R21-01' } } }],
             }],

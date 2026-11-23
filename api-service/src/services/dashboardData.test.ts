@@ -47,7 +47,7 @@ it('reads client and campaign counters from PostgreSQL when pool is available', 
   const pg: any = {
     query: async (sql: string) => {
       if (sql.includes('to_regclass')) {
-        return { rows: [{ has_clients: true, has_segments: true, has_campaigns: true }] };
+        return { rows: [{ has_clients: true, has_segments: true, has_campaigns: true, has_devices: true }] };
       }
       if (sql.includes('GROUP BY provider_id')) {
         return { rows: [{ provider_id: 'vibe', count: '492' }, { provider_id: 'nova', count: '120' }] };
@@ -60,6 +60,9 @@ it('reads client and campaign counters from PostgreSQL when pool is available', 
       }
       if (sql.includes('FROM subscriber_segments')) {
         return { rows: [{ count: '460' }] };
+      }
+      if (sql.includes('FROM subscriber_devices')) {
+        return { rows: [{ count: '185' }] };
       }
       if (sql.includes('FROM notification_campaigns')) {
         return { rows: [{ count: '7' }] };
@@ -74,6 +77,7 @@ it('reads client and campaign counters from PostgreSQL when pool is available', 
     clientCount: 612,
     notificationCount: 7,
     openTicketsCount: 2,
+    appUsersCount: 185,
   });
   expect(globalResult.chartData).toEqual([
     { name: 'Vibe Fibra', clientes: 492 },
@@ -87,6 +91,7 @@ it('reads client and campaign counters from PostgreSQL when pool is available', 
     activeClientCount: 460,
     openTicketsCount: 2,
     notificationCount: 7,
+    appUsersCount: 185,
   });
   expect(firestoreClientQueries).toBe(1); // reference created only, never queried
   expect(firestoreNotifQueries).toBe(0);

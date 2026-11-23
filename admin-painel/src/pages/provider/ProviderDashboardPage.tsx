@@ -1,9 +1,9 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { timestampDate, type TimestampValue } from '@/shared/api/timestamp';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, Bell, MessageSquare, Send, Users } from "lucide-react";
+import { Activity, Bell, MessageSquare, Radio, Send, Users } from "lucide-react";
 import { ProviderDashboardSkeleton } from '@/components/ProviderDashboardSkeleton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,6 +13,7 @@ import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
 import { useDashboardState, measuredCount } from '@/shared/api/dashboardState';
 import { reportPanelReady } from '@/shared/api/panelTiming';
+import { fetchOutageRadar, type OutageCluster } from '@/shared/api/diagnostics';
 
 interface RecentTicket {
     id: string;
@@ -30,7 +31,24 @@ export default function ProviderDashboardPage() {
     const { status, data } = dashboard;
     const stats = (data?.stats || {}) as Record<string, unknown>;
     const recentTickets = Array.isArray(data?.recentTickets) ? data.recentTickets as RecentTicket[] : undefined;
+    const [radarClusters, setRadarClusters] = useState<OutageCluster[]>([]);
     useEffect(() => { if (status === 'ready' && user) reportPanelReady(user); }, [status, user]);
+    useEffect(() => {
+        if (status !== 'ready' || !providerId || !user || userRole !== 'providerAdmin') return;
+        let alive = true;
+        fetchOutageRadar(providerId)
+            .then((items) => { if (alive) setRadarClusters(items); })
+            .catch(() => { /* best-effort */ });
+        return () => { alive = false; };
+    }, [status, providerId, user, userRole]);
+
+    const totalClientsNum = typeof stats.totalClients === 'number' ? stats.totalClients : 0;
+    const appUsersNum = typeof stats.appUsersCount === 'number' ? stats.appUsersCount : null;
+    const adoptionHint = appUsersNum !== null
+        ? totalClientsNum > 0
+            ? `${appUsersNum} cliente(s) com push ativo no app (${Math.round((appUsersNum / totalClientsNum) * 100)}%).`
+            : `${appUsersNum} cliente(s) com push ativo no app.`
+        : 'Total sincronizado no cache local (PostgreSQL).';
 
     return (
         <div className="space-y-5">
@@ -51,9 +69,29 @@ export default function ProviderDashboardPage() {
             {status === 'error' && <p role="alert">Não foi possível carregar os dados. Tente recarregar.</p>}
             {(status === 'stale' || (status === 'loading' && data)) && <p role="status">Dados desatualizados da consulta anterior.</p>}
             {data && <>
+            {radarClusters.length > 0 && (
+                <Card className="border-amber-200 bg-amber-50/70">
+                    <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
+                        <div className="flex items-center gap-2.5">
+                            <Radio className="h-4 w-4 text-amber-600" />
+                            <div className="text-[13px] text-amber-950">
+                                <strong>Possível queda detectada:</strong>{' '}
+                                {radarClusters[0].scope === 'olt' ? 'OLT' : 'Bairro'} {radarClusters[0].areaName} ({radarClusters[0].distinctSubscribers} clientes com falha recente)
+                            </div>
+                        </div>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate('/provedor/comunicados/instabilidades', { state: { radarCluster: radarClusters[0] } })}
+                        >
+                            Publicar aviso e notificar
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
             {/* Só indicadores medidos; sem cards de instalações/adesões/nota sem origem (E1). */}
             <div className="grid gap-3.5 md:grid-cols-3">
-                <StatsCard title="Clientes sincronizados" value={measuredCount(stats.totalClients)} icon={Users} description="Total sincronizado no cache local (PostgreSQL)." />
+                <StatsCard title="Clientes sincronizados" value={measuredCount(stats.totalClients)} icon={Users} description={adoptionHint} />
                 <StatsCard title="Chamados abertos" value={measuredCount(stats.openTicketsCount)} icon={MessageSquare} description="Aberto ou Em Andamento, sem período." />
                 <StatsCard title="Notificações enviadas" value={measuredCount(stats.notificationCount)} icon={Bell} description="Campanhas registradas no histórico do provedor." />
             </div>

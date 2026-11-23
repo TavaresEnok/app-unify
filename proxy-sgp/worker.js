@@ -16,30 +16,133 @@ const {
     runRetentionCleanup,
 } = require('./lib/client-cache');
 
+function targetDateIso(offsetDays) {
+    return localDay(new Date(Date.now() + offsetDays * 86400000));
+}
+
+function dayOfMonthFromIso(isoDate) {
+    return Number(String(isoDate || '').slice(8, 10)) || 0;
+}
+
+function billingPushMessage(offsetDays, formattedValue) {
+    if (offsetDays > 1) {
+        return {
+            title: `Fatura vence em ${offsetDays} dias`,
+            body: `Sua fatura de R$ ${formattedValue} vence em ${offsetDays} dias. Pague via PIX ou boleto pelo app.`,
+        };
+    }
+    if (offsetDays === 1) {
+        return {
+            title: 'Fatura vencendo amanhã',
+            body: `Sua fatura de R$ ${formattedValue} vence amanhã. Toque para pagar com PIX ou boleto.`,
+        };
+    }
+    if (offsetDays === 0) {
+        return {
+            title: 'Sua fatura vence hoje',
+            body: `Evite bloqueio: sua fatura de R$ ${formattedValue} vence hoje. Pague em segundos pelo app.`,
+        };
+    }
+    const overdue = Math.abs(offsetDays);
+    return {
+        title: `Fatura em aberto há ${overdue} ${overdue === 1 ? 'dia' : 'dias'}`,
+        body: `Identificamos uma fatura de R$ ${formattedValue} em aberto. Regularize ou faça promessa de pagamento no app.`,
+    };
+}
+
 async function seedReminders(job) {
     const { day, cursor, offset = 0 } = job.data;
-    // Prioriza subscriber_devices no PostgreSQL (custo R$ 0,00 de Firestore).
-    const tableCheck = await pool.query(`SELECT to_regclass('public.subscriber_devices') IS NOT NULL AS ok`).catch(() => ({ rows: [{ ok: false }] }));
-    if (tableCheck.rows[0]?.ok) {
+    // Prioriza subscriber_devices + subscriber_segments no PostgreSQL (custo R$ 0,00 de Firestore)
+    // e filtra pelo dia de vencimento (due_day) conforme a régua de cada provedor,
+    // cortando ~85-90% das consultas desnecessárias ao SGP.
+    const tableCheck = await pool.query(`
+      SELECT
+        to_regclass('public.subscriber_devices') IS NOT NULL AS has_devices,
+        to_regclass('public.subscriber_segments') IS NOT NULL AS has_segments,
+        to_regclass('public.billing_push_rules') IS NOT NULL AS has_rules
+    `).catch(() => ({ rows: [{ has_devices: false, has_segments: false, has_rules: false }] }));
+    const flags = tableCheck.rows[0] || {};
+
+    if (flags.has_devices) {
+        const rulesByProvider = new Map();
+        if (flags.has_rules) {
+            const rulesRes = await pool.query(`SELECT provider_id, enabled, days_before, days_after FROM billing_push_rules`);
+            for (const r of rulesRes.rows) {
+                rulesByProvider.set(r.provider_id, {
+                    enabled: r.enabled !== false,
+                    daysBefore: Array.isArray(r.days_before) ? r.days_before.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 15) : [1],
+                    daysAfter: Array.isArray(r.days_after) ? r.days_after.map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 30) : [],
+                });
+            }
+        }
+
         const pgPage = await pool.query(
-            `SELECT DISTINCT ON (provider_id, cpfcnpj) provider_id, cpfcnpj, fcm_token
-               FROM subscriber_devices
-              WHERE fcm_token <> ''
-              ORDER BY provider_id, cpfcnpj, updated_at DESC
-              LIMIT 500 OFFSET $1`,
+            flags.has_segments
+                ? `SELECT DISTINCT ON (d.provider_id, d.cpfcnpj)
+                          d.provider_id, d.cpfcnpj, d.fcm_token,
+                          COALESCE(
+                            ARRAY_AGG(DISTINCT s.due_day) FILTER (WHERE s.due_day > 0),
+                            ARRAY[]::smallint[]
+                          ) AS due_days
+                     FROM subscriber_devices d
+                     LEFT JOIN subscriber_segments s
+                       ON s.provider_id = d.provider_id AND s.cpfcnpj = d.cpfcnpj
+                    WHERE d.fcm_token <> ''
+                    GROUP BY d.provider_id, d.cpfcnpj, d.fcm_token, d.updated_at
+                    ORDER BY d.provider_id, d.cpfcnpj, d.updated_at DESC
+                    LIMIT 500 OFFSET $1`
+                : `SELECT DISTINCT ON (provider_id, cpfcnpj)
+                          provider_id, cpfcnpj, fcm_token,
+                          ARRAY[]::smallint[] AS due_days
+                     FROM subscriber_devices
+                    WHERE fcm_token <> ''
+                    ORDER BY provider_id, cpfcnpj, updated_at DESC
+                    LIMIT 500 OFFSET $1`,
             [offset],
         );
+
         if (pgPage.rows.length > 0 || offset > 0) {
-            const jobs = pgPage.rows.map(row => ({
-                name: 'invoice-reminder',
-                data: { cpf: row.cpfcnpj, fcmToken: row.fcm_token, providerId: row.provider_id, day, source: 'pg' },
-                opts: { jobId: jobId('reminder', day, row.provider_id, row.cpfcnpj), priority: 10 },
-            }));
+            const jobs = [];
+            let filteredOut = 0;
+            for (const row of pgPage.rows) {
+                const rule = rulesByProvider.get(row.provider_id) || { enabled: true, daysBefore: [1], daysAfter: [] };
+                if (!rule.enabled) { filteredOut++; continue; }
+                const offsets = [
+                    ...rule.daysBefore.map(d => d),
+                    ...rule.daysAfter.map(d => -d),
+                ];
+                if (!offsets.length) { filteredOut++; continue; }
+
+                const dueDays = Array.isArray(row.due_days) ? row.due_days.map(Number).filter(d => d >= 1 && d <= 31) : [];
+                if (dueDays.length > 0) {
+                    const targetDays = new Set(offsets.map(off => dayOfMonthFromIso(targetDateIso(off))));
+                    // Considera janela +/-1 dia para compensar meses de 28/30/31 dias e fins de semana
+                    const matchesWindow = dueDays.some(dd =>
+                        targetDays.has(dd) ||
+                        targetDays.has(dd === 31 ? 1 : dd + 1) ||
+                        targetDays.has(dd === 1 ? 31 : dd - 1)
+                    );
+                    if (!matchesWindow) { filteredOut++; continue; }
+                }
+
+                jobs.push({
+                    name: 'invoice-reminder',
+                    data: {
+                        cpf: row.cpfcnpj,
+                        fcmToken: row.fcm_token,
+                        providerId: row.provider_id,
+                        day,
+                        offsets,
+                        source: 'pg',
+                    },
+                    opts: { jobId: jobId('reminder', day, row.provider_id, row.cpfcnpj), priority: 10 },
+                });
+            }
             if (jobs.length) await queue.addBulk(jobs);
             if (pgPage.rows.length === 500) {
                 await queue.add('seed-reminders', { day, offset: offset + 500 }, { jobId: jobId('seed-pg', day, offset + 500), priority: 1 });
             }
-            return { scanned: pgPage.rows.length, queued: jobs.length, source: 'pg' };
+            return { scanned: pgPage.rows.length, queued: jobs.length, filteredByDueDay: filteredOut, source: 'pg' };
         }
     }
 
@@ -48,7 +151,7 @@ async function seedReminders(job) {
     if (cursor) query = query.startAfter(cursor);
     const page = await query.get();
     const jobs = page.docs.filter(doc => doc.data().fcmToken && doc.data().providerId).map(doc => ({
-        name: 'invoice-reminder', data: { clientId: doc.id, providerId: doc.data().providerId, day, source: 'firestore' },
+        name: 'invoice-reminder', data: { clientId: doc.id, providerId: doc.data().providerId, day, offsets: [1], source: 'firestore' },
         opts: { jobId: jobId('reminder', day, doc.data().providerId, doc.id), priority: 10 },
     }));
     if (jobs.length) await queue.addBulk(jobs);
@@ -65,6 +168,9 @@ async function invoiceReminder(job) {
     let fcmToken = '';
     let providerId = job.data.providerId;
     let clientRef = null;
+    const offsets = Array.isArray(job.data.offsets) && job.data.offsets.length
+        ? job.data.offsets.map(Number).filter(Number.isFinite)
+        : [1];
 
     if (job.data.source === 'pg' && job.data.cpf && job.data.fcmToken) {
         cpf = String(job.data.cpf).replace(/\D/g, '');
@@ -81,13 +187,25 @@ async function invoiceReminder(job) {
     if (!cpf || !fcmToken) return { skipped: 'missing-cpf' };
     const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials({ providerId });
     const result = await callSgpApi({ ...sgpParams, url: formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/'), cpfcnpj: cpf, status: 'abertos' });
-    const tomorrow = localDay(new Date(Date.now() + 86400000));
-    const invoice = result?.titulos?.find(item => String(item.dataVencimento || '').slice(0, 10) === tomorrow);
-    if (!invoice) return { skipped: 'no-due-invoice' };
+    const titulos = Array.isArray(result?.titulos) ? result.titulos : [];
+    let matchedInvoice = null;
+    let matchedOffset = null;
+    for (const off of offsets) {
+        const target = targetDateIso(off);
+        const found = titulos.find(item => String(item.dataVencimento || '').slice(0, 10) === target);
+        if (found) {
+            matchedInvoice = found;
+            matchedOffset = off;
+            break;
+        }
+    }
+    if (!matchedInvoice) return { skipped: 'no-due-invoice' };
+    const formattedValue = Number(matchedInvoice.valor || 0).toFixed(2).replace('.', ',');
+    const copy = billingPushMessage(matchedOffset, formattedValue);
     try {
         await admin.messaging().send({ token: fcmToken,
-            notification: { title: 'Fatura vencendo amanhã', body: `Sua fatura de R$ ${Number(invoice.valor || 0).toFixed(2).replace('.', ',')} vence amanhã.` },
-            data: { route: '/faturas' }, android: { collapseKey: `invoice-${tomorrow}` },
+            notification: { title: copy.title, body: copy.body },
+            data: { route: '/faturas' }, android: { collapseKey: `invoice-${targetDateIso(matchedOffset)}` },
         });
     } catch (error) {
         if (['messaging/invalid-registration-token', 'messaging/registration-token-not-registered'].includes(error.code)) {
@@ -97,7 +215,7 @@ async function invoiceReminder(job) {
         }
         throw error;
     }
-    return { sent: true };
+    return { sent: true, offsetDays: matchedOffset };
 }
 
 async function syncClients(job) {

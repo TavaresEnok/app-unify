@@ -44,6 +44,30 @@ export async function fetchProviderDiagnostics(
   return Array.isArray(res.data) ? res.data : [];
 }
 
+export interface OutageCluster {
+  scope: 'olt' | 'bairro';
+  areaName: string;
+  cidade: string;
+  distinctSubscribers: number;
+  criticalCount: number;
+  degradedCount: number;
+  totalDiagnostics: number;
+  lastSeenAt: string;
+}
+
+export async function fetchOutageRadar(
+  providerId: string,
+  options: { windowMinutes?: number; minSubscribers?: number } = {},
+): Promise<OutageCluster[]> {
+  const params = new URLSearchParams({ providerId });
+  if (options.windowMinutes) params.set('windowMinutes', String(options.windowMinutes));
+  if (options.minSubscribers) params.set('minSubscribers', String(options.minSubscribers));
+  const res = await panelRequest<{ data: OutageCluster[] }>(
+    `/admin/diagnostics/outage-radar?${params.toString()}`,
+  );
+  return Array.isArray(res.data) ? res.data : [];
+}
+
 export async function deleteProviderDiagnostic(
   providerId: string,
   id: string,

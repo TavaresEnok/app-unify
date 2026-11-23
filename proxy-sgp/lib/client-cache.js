@@ -52,6 +52,8 @@ function extractSegmentRows(providerId, clients) {
             const slot = onu?.slot != null ? String(onu.slot) : '';
             const pon = onu?.pon != null ? String(onu.pon) : '';
             const cto = String(onu?.splitter?.nome || onu?.cto || '').trim();
+            const rawDue = Number(c?.vencimento ?? c?.dia_vencimento ?? 0);
+            const dueDay = Number.isInteger(rawDue) && rawDue >= 1 && rawDue <= 31 ? rawDue : 0;
             map.set(`${cpf}::${contratoId}`, {
                 providerId,
                 cpf,
@@ -67,6 +69,7 @@ function extractSegmentRows(providerId, clients) {
                 slot,
                 pon,
                 cto,
+                dueDay,
             });
         }
     }
@@ -115,15 +118,15 @@ async function bulkUpsertClientsAndSegments(pool, providerId, rows) {
     await pool.query(
         `INSERT INTO subscriber_segments (
            provider_id, cpfcnpj, contrato_id, client_name, contract_status,
-           plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto, updated_at
+           plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto, due_day, updated_at
          )
          SELECT $1, u.cpfcnpj, u.contrato_id, u.client_name, u.contract_status,
-                u.plano, u.cidade, u.bairro, u.pop_id, u.olt_id, u.olt_name, u.slot, u.pon, u.cto, NOW()
+                u.plano, u.cidade, u.bairro, u.pop_id, u.olt_id, u.olt_name, u.slot, u.pon, u.cto, u.due_day, NOW()
          FROM UNNEST(
            $2::text[], $3::text[], $4::text[], $5::text[], $6::text[],
            $7::text[], $8::text[], $9::text[], $10::text[], $11::text[],
-           $12::text[], $13::text[], $14::text[]
-         ) AS u(cpfcnpj, contrato_id, client_name, contract_status, plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto)
+           $12::text[], $13::text[], $14::text[], $15::smallint[]
+         ) AS u(cpfcnpj, contrato_id, client_name, contract_status, plano, cidade, bairro, pop_id, olt_id, olt_name, slot, pon, cto, due_day)
          ON CONFLICT (provider_id, cpfcnpj, contrato_id) DO UPDATE SET
            client_name = CASE WHEN EXCLUDED.client_name <> '' THEN EXCLUDED.client_name ELSE subscriber_segments.client_name END,
            contract_status = CASE WHEN EXCLUDED.contract_status <> '' THEN EXCLUDED.contract_status ELSE subscriber_segments.contract_status END,
@@ -136,6 +139,7 @@ async function bulkUpsertClientsAndSegments(pool, providerId, rows) {
            slot = CASE WHEN EXCLUDED.slot <> '' THEN EXCLUDED.slot ELSE subscriber_segments.slot END,
            pon = CASE WHEN EXCLUDED.pon <> '' THEN EXCLUDED.pon ELSE subscriber_segments.pon END,
            cto = CASE WHEN EXCLUDED.cto <> '' THEN EXCLUDED.cto ELSE subscriber_segments.cto END,
+           due_day = CASE WHEN EXCLUDED.due_day > 0 THEN EXCLUDED.due_day ELSE subscriber_segments.due_day END,
            updated_at = NOW()`,
         [
             providerId,
@@ -152,6 +156,7 @@ async function bulkUpsertClientsAndSegments(pool, providerId, rows) {
             segs.map(s => s.slot),
             segs.map(s => s.pon),
             segs.map(s => s.cto),
+            segs.map(s => s.dueDay || 0),
         ],
     );
 }

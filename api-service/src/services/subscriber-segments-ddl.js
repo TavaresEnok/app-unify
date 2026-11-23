@@ -18,12 +18,14 @@ const SUBSCRIBER_SEGMENTS_TABLE_SQL = `
     slot TEXT NOT NULL DEFAULT '',
     pon TEXT NOT NULL DEFAULT '',
     cto TEXT NOT NULL DEFAULT '',
+    due_day SMALLINT NOT NULL DEFAULT 0,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (provider_id, cpfcnpj, contrato_id)
   )
 `;
 
 const SUBSCRIBER_SEGMENTS_INDEXES_SQL = [
+  'ALTER TABLE subscriber_segments ADD COLUMN IF NOT EXISTS due_day SMALLINT NOT NULL DEFAULT 0',
   'CREATE INDEX IF NOT EXISTS idx_segments_provider_olt ON subscriber_segments (provider_id, olt_name)',
   'CREATE INDEX IF NOT EXISTS idx_segments_provider_pon ON subscriber_segments (provider_id, olt_name, slot, pon)',
   'CREATE INDEX IF NOT EXISTS idx_segments_provider_cto ON subscriber_segments (provider_id, cto)',
@@ -31,6 +33,7 @@ const SUBSCRIBER_SEGMENTS_INDEXES_SQL = [
   'CREATE INDEX IF NOT EXISTS idx_segments_provider_status ON subscriber_segments (provider_id, contract_status)',
   'CREATE INDEX IF NOT EXISTS idx_segments_provider_plano ON subscriber_segments (provider_id, plano)',
   'CREATE INDEX IF NOT EXISTS idx_segments_provider_pop ON subscriber_segments (provider_id, pop_id)',
+  'CREATE INDEX IF NOT EXISTS idx_segments_provider_due_day ON subscriber_segments (provider_id, due_day)',
 ];
 
 module.exports = {

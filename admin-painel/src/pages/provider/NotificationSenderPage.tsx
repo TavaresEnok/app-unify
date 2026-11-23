@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import StatusBadge from '@/components/StatusBadge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,14 +23,20 @@ import {
   MapPin,
   Cpu,
   Download,
+  CalendarClock,
+  Receipt,
 } from 'lucide-react';
 import {
+  cancelScheduledNotification,
+  fetchBillingPushRule,
   fetchNotificationHistory,
   fetchNotificationSegments,
   previewNotificationAudience,
+  saveBillingPushRule,
   sendNotificationCampaign,
   syncNotificationSegments,
   type AudiencePreviewData,
+  type BillingPushRule,
   type CampaignHistoryItem,
   type SegmentFilters,
   type SegmentOption,
@@ -165,6 +172,12 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
   const [body, setBody] = useState(draft?.body || '');
   const [category, setCategory] = useState(draft?.category || 'info');
   const [route, setRoute] = useState('none');
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState('');
+
+  // Régua automática de cobrança (PostgreSQL)
+  const [billingRule, setBillingRule] = useState<BillingPushRule | null>(null);
+  const [savingBillingRule, setSavingBillingRule] = useState(false);
 
   // Filtros avançados (PostgreSQL)
   const [oltNames, setOltNames] = useState<string[]>([]);
@@ -226,6 +239,57 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
   useEffect(() => {
     void loadSegments();
   }, [loadSegments]);
+
+  useEffect(() => {
+    if (!providerId || historyOnly) return;
+    let alive = true;
+    fetchBillingPushRule(providerId)
+      .then((rule) => { if (alive) setBillingRule(rule); })
+      .catch(() => { /* silencioso */ });
+    return () => { alive = false; };
+  }, [providerId, historyOnly]);
+
+  const toggleBillingOffset = (kind: 'before' | 'after', day: number) => {
+    setBillingRule((prev) => {
+      const current = prev || { providerId: providerId || '', enabled: true, daysBefore: [1], daysAfter: [], updatedAt: null };
+      const list = kind === 'before' ? current.daysBefore : current.daysAfter;
+      const next = list.includes(day) ? list.filter((d) => d !== day) : [...list, day];
+      return kind === 'before' ? { ...current, daysBefore: next } : { ...current, daysAfter: next };
+    });
+  };
+
+  const handleSaveBillingRule = async () => {
+    if (!providerId || !billingRule) return;
+    setSavingBillingRule(true);
+    try {
+      const res = await saveBillingPushRule(providerId, {
+        enabled: billingRule.enabled,
+        daysBefore: billingRule.daysBefore,
+        daysAfter: billingRule.daysAfter,
+      });
+      setBillingRule(res.data);
+      toast.success('Régua automática salva', { description: res.message });
+    } catch (error) {
+      toast.error('Erro ao salvar régua', {
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+      });
+    } finally {
+      setSavingBillingRule(false);
+    }
+  };
+
+  const handleCancelScheduled = async (campaignId: string) => {
+    if (!providerId) return;
+    try {
+      await cancelScheduledNotification(providerId, campaignId);
+      setHistory((prev) => prev.map((item) => (item.id === campaignId ? { ...item, status: 'cancelled' } : item)));
+      toast.success('Agendamento cancelado.');
+    } catch (error) {
+      toast.error('Não foi possível cancelar', {
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+      });
+    }
+  };
 
   useEffect(() => {
     if (!providerId || historyOnly) return;
@@ -303,8 +367,26 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
       return;
     }
 
+    let scheduledIso: string | null = null;
+    if (scheduleEnabled) {
+      if (!scheduledFor) {
+        toast.error('Data obrigatória', { description: 'Escolha a data e hora do agendamento.' });
+        return;
+      }
+      const parsed = new Date(scheduledFor);
+      if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= Date.now() + 60_000) {
+        toast.error('Data inválida', { description: 'Escolha um horário pelo menos 1 minuto no futuro.' });
+        return;
+      }
+      scheduledIso = parsed.toISOString();
+    }
+
     if (activeFilterCount === 0) {
-      const ok = window.confirm('Nenhum filtro foi selecionado. Enviar esta notificação para TODOS os clientes do aplicativo?');
+      const ok = window.confirm(
+        scheduleEnabled
+          ? 'Nenhum filtro foi selecionado. Agendar esta notificação para TODOS os clientes do aplicativo?'
+          : 'Nenhum filtro foi selecionado. Enviar esta notificação para TODOS os clientes do aplicativo?',
+      );
       if (!ok) return;
     }
 
@@ -317,10 +399,13 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
         category,
         route: route === 'none' ? '' : route,
         filters: activeFilters,
+        scheduledFor: scheduledIso,
       });
-      toast.success('Campanha enviada', { description: res.message });
+      toast.success(scheduleEnabled ? 'Campanha agendada' : 'Campanha enviada', { description: res.message });
       setTitle('');
       setBody('');
+      setScheduleEnabled(false);
+      setScheduledFor('');
     } catch (error) {
       toast.error('Erro ao enviar', {
         description: error instanceof Error ? error.message : 'Não foi possível enviar a notificação.',
@@ -368,8 +453,27 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
                         status={item.deliveryMode === 'topic' ? 'Todos' : 'Segmentado'}
                         tone={item.deliveryMode === 'topic' ? 'blue' : 'green'}
                       />
+                      {item.status === 'scheduled' && <StatusBadge status="Agendado" tone="amber" />}
+                      {item.status === 'cancelled' && <StatusBadge status="Cancelado" tone="gray" />}
+                      {item.status === 'failed' && <StatusBadge status="Falhou" tone="red" />}
                     </div>
-                    <span className="shrink-0 text-[11.5px] text-[#98A1B1]">{dateLabel}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="shrink-0 text-[11.5px] text-[#98A1B1]">
+                        {item.status === 'scheduled' && item.scheduledFor
+                          ? `Agendado para ${new Date(item.scheduledFor).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                          : dateLabel}
+                      </span>
+                      {item.status === 'scheduled' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-destructive"
+                          onClick={() => void handleCancelScheduled(item.id)}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <p className="mt-1 text-[12.5px] text-[#5B6474] line-clamp-2">{item.body}</p>
                   {tags.length > 0 && (
@@ -659,19 +763,115 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
               />
             </div>
 
+            <div className="rounded-lg border border-[#EEF0F4] bg-[#F8FAFC] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-[#2456C9]" />
+                  <div>
+                    <div className="text-[13px] font-semibold text-[#1A2233]">Agendar envio futuro</div>
+                    <div className="text-[11.5px] text-[#687181]">
+                      Programe comunicados ou avisos de manutenção para data e hora específicas (até 30 dias).
+                    </div>
+                  </div>
+                </div>
+                <Switch checked={scheduleEnabled} onCheckedChange={setScheduleEnabled} disabled={sending} />
+              </div>
+              {scheduleEnabled && (
+                <div className="mt-3 max-w-xs">
+                  <Label htmlFor="scheduledFor" className="text-[12px] text-[#4A5364]">Data e hora do disparo</Label>
+                  <Input
+                    id="scheduledFor"
+                    type="datetime-local"
+                    value={scheduledFor}
+                    onChange={(e) => setScheduledFor(e.target.value)}
+                    disabled={sending}
+                    className="mt-1 bg-white"
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={() => void handleSendNotification()} disabled={sending} className="w-fit gap-2">
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 {sending
-                  ? 'Enviando…'
-                  : activeFilterCount === 0
-                    ? 'Enviar para todos'
-                    : `Enviar para segmento (${preview?.matchedSubscribers ?? 0})`}
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : scheduleEnabled
+                    ? <CalendarClock className="h-4 w-4" />
+                    : <Send className="h-4 w-4" />}
+                {sending
+                  ? (scheduleEnabled ? 'Agendando…' : 'Enviando…')
+                  : scheduleEnabled
+                    ? 'Agendar campanha'
+                    : activeFilterCount === 0
+                      ? 'Enviar para todos'
+                      : `Enviar para segmento (${preview?.matchedSubscribers ?? 0})`}
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Bloco 3: Régua Automática de Cobrança via Push */}
+      {billingRule && (
+        <Card className="overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-[#EEF0F4]">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-[15px]">
+                <Receipt className="h-4 w-4 text-[#2456C9]" />
+                Régua automática de lembretes de fatura (Push gratuito)
+              </CardTitle>
+              <p className="mt-0.5 text-[12.5px] text-[#687181]">
+                Consulta o SGP apenas para contratos com vencimento na janela escolhida e envia push levando direto para o PIX/boleto no app.
+              </p>
+            </div>
+            <Switch
+              checked={billingRule.enabled}
+              onCheckedChange={(checked) => setBillingRule((prev) => (prev ? { ...prev, enabled: checked } : prev))}
+              disabled={savingBillingRule}
+            />
+          </CardHeader>
+          <CardContent className="space-y-3 p-[18px]">
+            <div className="flex flex-wrap gap-2">
+              {([
+                { kind: 'before', day: 3, label: '3 dias antes (D-3)' },
+                { kind: 'before', day: 1, label: 'Véspera (D-1)' },
+                { kind: 'before', day: 0, label: 'No vencimento (D-0)' },
+                { kind: 'after', day: 3, label: '3 dias em atraso (D+3)' },
+                { kind: 'after', day: 5, label: '5 dias em atraso (D+5)' },
+              ] as const).map((item) => {
+                const selected = item.kind === 'before'
+                  ? billingRule.daysBefore.includes(item.day)
+                  : billingRule.daysAfter.includes(item.day);
+                return (
+                  <button
+                    key={`${item.kind}-${item.day}`}
+                    type="button"
+                    disabled={!billingRule.enabled || savingBillingRule}
+                    onClick={() => toggleBillingOffset(item.kind, item.day)}
+                    className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+                      selected
+                        ? 'border-[#2456C9] bg-[#EEF4FF] text-[#1D4ED8]'
+                        : 'border-[#E4E7EC] bg-white text-[#4A5364] hover:bg-[#F8FAFC]'
+                    } disabled:opacity-50`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSaveBillingRule()}
+              disabled={savingBillingRule}
+              className="gap-1.5"
+            >
+              {savingBillingRule && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Salvar régua automática
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

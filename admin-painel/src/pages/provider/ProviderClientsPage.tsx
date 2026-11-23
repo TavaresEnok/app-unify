@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
-import { Loader2, UserX, Search, RefreshCw, ChevronRight } from 'lucide-react';
+import { Loader2, UserX, Search, RefreshCw, ChevronRight, Smartphone } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   fetchProviderClients,
   getProviderClientsSyncStatus,
   triggerProviderClientsSync,
+  type ClientAppFilter,
   type ProviderClientItem,
 } from '@/shared/api/clients';
 
@@ -38,15 +39,17 @@ export default function ProviderClientsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [appFilter, setAppFilter] = useState<ClientAppFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalClients, setTotalClients] = useState(0);
+  const [appUsersCount, setAppUsersCount] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncJobId, setSyncJobId] = useState<string | null>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const pageCount = Math.max(1, Math.ceil(totalClients / ITEMS_PER_PAGE));
 
-  const loadClients = useCallback(async (page: number, search: string) => {
+  const loadClients = useCallback(async (page: number, search: string, filter: ClientAppFilter) => {
     if (!providerId || !user) return;
     setLoading(true);
     try {
@@ -54,9 +57,11 @@ export default function ProviderClientsPage() {
         page,
         limit: ITEMS_PER_PAGE,
         search,
+        appFilter: filter,
       });
       setClients(data.clientes);
       setTotalClients(data.total);
+      setAppUsersCount(data.appUsersCount ?? 0);
       setLastSyncedAt(data.lastSyncedAt);
     } catch (error) {
       toast.error('Falha ao carregar clientes', {
@@ -69,9 +74,9 @@ export default function ProviderClientsPage() {
 
   useEffect(() => {
     if (!isSyncing) {
-      void loadClients(currentPage, debouncedSearchTerm);
+      void loadClients(currentPage, debouncedSearchTerm, appFilter);
     }
-  }, [currentPage, debouncedSearchTerm, loadClients, isSyncing]);
+  }, [currentPage, debouncedSearchTerm, appFilter, loadClients, isSyncing]);
 
   const handleStartSync = async () => {
     if (!providerId || !user) return;
@@ -108,7 +113,7 @@ export default function ProviderClientsPage() {
           setCurrentPage(1);
           if (result.status === 'completed') {
             toast.success(`Sincronização concluída (${result.count ?? 0} clientes atualizados no PostgreSQL).`);
-            void loadClients(1, debouncedSearchTerm);
+            void loadClients(1, debouncedSearchTerm, appFilter);
           } else {
             toast.error('A sincronização falhou. Tente novamente.');
           }
@@ -121,7 +126,7 @@ export default function ProviderClientsPage() {
     };
     void poll();
     return () => { stopped = true; clearTimeout(timer); };
-  }, [syncJobId, providerId, loadClients, debouncedSearchTerm]);
+  }, [syncJobId, providerId, loadClients, debouncedSearchTerm, appFilter]);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
@@ -146,12 +151,32 @@ export default function ProviderClientsPage() {
       title="Clientes"
       description={
         totalClients > 0
-          ? `${totalClients} cliente(s) no PostgreSQL${formattedLastSync ? ` · atualizado em ${formattedLastSync}` : ''}.`
-          : 'Nenhum cliente sincronizado ainda.'
+          ? `${totalClients} cliente(s) exibido(s) · ${appUsersCount} com app ativo${formattedLastSync ? ` · atualizado em ${formattedLastSync}` : ''}.`
+          : appFilter !== 'all'
+            ? 'Nenhum cliente corresponde ao filtro selecionado.'
+            : 'Nenhum cliente sincronizado ainda.'
       }
       actions={(
         <>
-          <div className="relative flex-grow sm:flex-grow-0 sm:w-72">
+          <div className="flex items-center rounded-lg border border-[#E4E7EC] bg-[#F8FAFC] p-0.5">
+            {([
+              { id: 'all', label: 'Todos' },
+              { id: 'with_app', label: 'Com app' },
+              { id: 'without_app', label: 'Sem app' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => { setAppFilter(opt.id); setCurrentPage(1); }}
+                className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
+                  appFilter === opt.id ? 'bg-white text-[#1A2233] shadow-sm' : 'text-[#687181] hover:text-[#1A2233]'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -198,7 +223,14 @@ export default function ProviderClientsPage() {
           onClick={() => navigate(`/provedor/clientes/${encodeURIComponent(client.cpfcnpj || client.id)}`)}
         >
           <span className="min-w-0">
-            <span className="block truncate text-[13px] font-semibold text-[#1A2233]">{client.nome}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="truncate text-[13px] font-semibold text-[#1A2233]">{client.nome}</span>
+              {client.hasAppDevice && (
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                  <Smartphone className="h-2.5 w-2.5" /> App
+                </span>
+              )}
+            </span>
             <span className="block font-mono text-[10.5px] text-[#98A1B1]">ID {client.id}</span>
           </span>
           <span className="min-w-0">

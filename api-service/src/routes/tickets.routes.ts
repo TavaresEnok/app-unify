@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore, serverTimestamp } from "../services/firebaseAdmin";
+import { firestore, messaging, serverTimestamp } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
 import { cursorTimestamp, decodeCursor, encodeCursor, pageSize } from "../services/cursorPage";
+import { ensureNotificationSchema, getPgPool } from "../services/postgres";
 
 export const ticketsRouter = Router();
 ticketsRouter.use(verifyToken, verifyAdmin);
@@ -47,7 +48,7 @@ ticketsRouter.get("/", asyncRoute(async (req, res) => {
     if (!providerId) throw new ApiError(403, "Sem permissão para listar tickets.", "permission-denied");
     query = query.where("providerId", "==", providerId);
   }
-  const snapshot = await query.orderBy("updatedAt", "desc").get();
+  const snapshot = await query.orderBy("updatedAt", "desc").limit(200).get();
   res.json({ data: snapshot.docs.map((ticket) => serialize(ticket.id, ticket.data())) });
 }));
 
@@ -88,5 +89,68 @@ ticketsRouter.post("/:id/reply", asyncRoute(async (req, res) => {
     ticket.ref.set({ updatedAt: serverTimestamp(), status: "Em Andamento", lastMessage: message }, { merge: true }),
   ]);
   await recordAdminAudit({ type: "REPLY_TO_TICKET", requesterUid: req.user!.uid, providerId: data.providerId, correlationId: req.correlationId, payload: { ticketId: req.params.id } });
+  void notifyTicketReplyPush({
+    providerId: String(data.providerId || ""),
+    ticketId: req.params.id,
+    subject: typeof data.subject === "string" ? data.subject : "",
+    message,
+    userId: typeof data.userId === "string" ? data.userId : "",
+    cpfCnpj: String(data.cpfCnpj || data.clientCpf || data.clientId || "").replace(/\D/g, ""),
+  });
   res.json({ success: true });
 }));
+
+async function notifyTicketReplyPush(input: {
+  providerId: string;
+  ticketId: string;
+  subject: string;
+  message: string;
+  userId: string;
+  cpfCnpj: string;
+}): Promise<void> {
+  const pool = getPgPool();
+  if (!pool || !input.providerId || (!input.userId && !input.cpfCnpj)) return;
+  try {
+    await ensureNotificationSchema(pool);
+    const devices = await pool.query<{ fcm_token: string }>(
+      `SELECT DISTINCT fcm_token
+         FROM subscriber_devices
+        WHERE provider_id = $1
+          AND fcm_token <> ''
+          AND (($2 <> '' AND auth_uid = $2) OR ($3 <> '' AND cpfcnpj = $3))
+        LIMIT 10`,
+      [input.providerId, input.userId, input.cpfCnpj],
+    );
+    const tokens = devices.rows.map((r) => r.fcm_token).filter(Boolean);
+    if (!tokens.length) return;
+    const title = input.subject
+      ? `Resposta no chamado: ${input.subject.slice(0, 60)}`
+      : "Nova resposta no seu chamado";
+    const resp = await messaging.sendEachForMulticast({
+      tokens,
+      notification: {
+        title,
+        body: input.message.slice(0, 140),
+      },
+      data: {
+        route: "/suporte",
+        ticketId: input.ticketId,
+      },
+    });
+    const deadTokens: string[] = [];
+    resp.responses.forEach((r, idx) => {
+      const code = r.error?.code || "";
+      if (!r.success && (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token")) {
+        deadTokens.push(tokens[idx]);
+      }
+    });
+    if (deadTokens.length) {
+      await pool.query(
+        `DELETE FROM subscriber_devices WHERE provider_id = $1 AND fcm_token = ANY($2::text[])`,
+        [input.providerId, deadTokens],
+      ).catch(() => undefined);
+    }
+  } catch (error) {
+    console.warn(JSON.stringify({ severity: "WARNING", message: "ticket.reply.push_failed", ticketId: input.ticketId, error: (error as Error).message }));
+  }
+}

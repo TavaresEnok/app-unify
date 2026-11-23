@@ -223,3 +223,92 @@ export async function deleteDiagnosticResult(
   return (res.rowCount || 0) > 0;
 }
 
+export interface OutageCluster {
+  scope: "olt" | "bairro";
+  areaName: string;
+  cidade: string;
+  distinctSubscribers: number;
+  criticalCount: number;
+  degradedCount: number;
+  totalDiagnostics: number;
+  lastSeenAt: string;
+}
+
+/**
+ * Detecta automaticamente surtos regionais (possíveis quedas de fibra/OLT)
+ * agrupando diagnósticos críticos/degradados recentes por OLT e por Bairro.
+ */
+export async function detectOutageClusters(
+  db: SqlQueryable,
+  providerId: string,
+  options: { windowMinutes?: number; minSubscribers?: number } = {},
+): Promise<OutageCluster[]> {
+  await ensureNotificationSchema(db);
+  const windowMinutes = Math.min(240, Math.max(5, Math.trunc(Number(options.windowMinutes) || 45)));
+  const minSubscribers = Math.min(50, Math.max(2, Math.trunc(Number(options.minSubscribers) || 3)));
+
+  const res = await db.query<{
+    scope: "olt" | "bairro";
+    area_name: string;
+    cidade: string;
+    distinct_subscribers: string;
+    critical_count: string;
+    degraded_count: string;
+    total_diagnostics: string;
+    last_seen_at: Date;
+  }>(
+    `WITH recent AS (
+       SELECT cpfcnpj, verdict, olt_name, bairro, cidade, created_at
+         FROM diagnostic_results
+        WHERE provider_id = $1
+          AND verdict IN ('critical', 'degraded')
+          AND created_at >= NOW() - ($2::int * INTERVAL '1 minute')
+     ),
+     by_olt AS (
+       SELECT 'olt'::text AS scope,
+              olt_name AS area_name,
+              COALESCE(MAX(NULLIF(cidade, '')), '') AS cidade,
+              COUNT(DISTINCT cpfcnpj)::text AS distinct_subscribers,
+              COUNT(*) FILTER (WHERE verdict = 'critical')::text AS critical_count,
+              COUNT(*) FILTER (WHERE verdict = 'degraded')::text AS degraded_count,
+              COUNT(*)::text AS total_diagnostics,
+              MAX(created_at) AS last_seen_at
+         FROM recent
+        WHERE olt_name <> ''
+        GROUP BY olt_name
+       HAVING COUNT(DISTINCT cpfcnpj) >= $3
+     ),
+     by_bairro AS (
+       SELECT 'bairro'::text AS scope,
+              bairro AS area_name,
+              COALESCE(MAX(NULLIF(cidade, '')), '') AS cidade,
+              COUNT(DISTINCT cpfcnpj)::text AS distinct_subscribers,
+              COUNT(*) FILTER (WHERE verdict = 'critical')::text AS critical_count,
+              COUNT(*) FILTER (WHERE verdict = 'degraded')::text AS degraded_count,
+              COUNT(*)::text AS total_diagnostics,
+              MAX(created_at) AS last_seen_at
+         FROM recent
+        WHERE bairro <> ''
+        GROUP BY bairro
+       HAVING COUNT(DISTINCT cpfcnpj) >= $3
+     )
+     SELECT * FROM by_olt
+     UNION ALL
+     SELECT * FROM by_bairro
+     ORDER BY critical_count::int DESC, distinct_subscribers::int DESC, last_seen_at DESC
+     LIMIT 12`,
+    [providerId, windowMinutes, minSubscribers],
+  );
+
+  return res.rows.map((r) => ({
+    scope: r.scope === "olt" ? "olt" : "bairro",
+    areaName: r.area_name,
+    cidade: r.cidade || "",
+    distinctSubscribers: Number(r.distinct_subscribers || 0),
+    criticalCount: Number(r.critical_count || 0),
+    degradedCount: Number(r.degraded_count || 0),
+    totalDiagnostics: Number(r.total_diagnostics || 0),
+    lastSeenAt: r.last_seen_at ? new Date(r.last_seen_at).toISOString() : new Date().toISOString(),
+  }));
+}
+

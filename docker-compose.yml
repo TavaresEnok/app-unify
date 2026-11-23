@@ -23,6 +23,11 @@ services:
     environment:
       - APK_BUILDER_UPSTREAM=${APK_BUILDER_UPSTREAM:-apk-builder:8035}
       - SPEED_TEST_UPSTREAM=${SPEED_TEST_UPSTREAM:-speed-test:3001}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2019/config/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
       - frontend
       - backend-proxy

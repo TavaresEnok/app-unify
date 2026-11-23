@@ -10,6 +10,7 @@ import { assertCpfInTenant } from "../services/tenantScope";
 import { getPgPool } from "../services/postgres";
 import {
   deleteDiagnosticResult,
+  detectOutageClusters,
   listDiagnosticResults,
   saveDiagnosticResult,
 } from "../services/diagnosticResults";
@@ -112,6 +113,19 @@ adminDiagnosticsRouter.get("/", asyncRoute(async (req, res) => {
   const limit = Number(req.query.limit || 100);
   const data = await listDiagnosticResults(pool, providerId, limit);
   res.json({ data });
+}));
+
+adminDiagnosticsRouter.get("/outage-radar", asyncRoute(async (req, res) => {
+  const providerId = resolveAdminProviderId(req);
+  const pool = getPgPool();
+  if (!pool) {
+    res.json({ data: [] });
+    return;
+  }
+  const windowMinutes = req.query.windowMinutes ? Number(req.query.windowMinutes) : 45;
+  const minSubscribers = req.query.minSubscribers ? Number(req.query.minSubscribers) : 3;
+  const data = await detectOutageClusters(pool, providerId, { windowMinutes, minSubscribers });
+  res.json({ data, windowMinutes, minSubscribers });
 }));
 
 adminDiagnosticsRouter.delete("/:id", asyncRoute(async (req, res) => {

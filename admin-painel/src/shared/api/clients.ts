@@ -19,17 +19,20 @@ export interface ProviderClientItem {
   contratos: unknown[];
 }
 
+export type ClientAppFilter = 'all' | 'with_app' | 'without_app';
+
 export interface ProviderClientsPageData {
   clientes: ProviderClientItem[];
   total: number;
   page: number;
   limit: number;
   lastSyncedAt: string | null;
+  appUsersCount?: number;
 }
 
 export async function fetchProviderClients(
   providerId: string,
-  options: { page?: number; limit?: number; search?: string } = {},
+  options: { page?: number; limit?: number; search?: string; appFilter?: ClientAppFilter } = {},
 ): Promise<ProviderClientsPageData> {
   const params = new URLSearchParams({
     providerId,
@@ -37,6 +40,7 @@ export async function fetchProviderClients(
     limit: String(options.limit || 25),
   });
   if (options.search?.trim()) params.set('search', options.search.trim());
+  if (options.appFilter && options.appFilter !== 'all') params.set('appFilter', options.appFilter);
   const res = await panelRequest<{ data: ProviderClientsPageData }>(`/admin/clients?${params.toString()}`);
   return res.data;
 }

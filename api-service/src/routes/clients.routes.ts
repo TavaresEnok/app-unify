@@ -126,16 +126,22 @@ clientsRouter.get("/", asyncRoute(async (req, res) => {
   const pool = getPgPool();
   if (!pool) throw new ApiError(503, "Banco de clientes indisponível.", "service-unavailable");
 
-  const tableCheck = await pool.query<{ ok: boolean }>(`SELECT to_regclass('public.sgp_clients') IS NOT NULL AS ok`);
+  const tableCheck = await pool.query<{ ok: boolean; has_devices?: boolean }>(`
+    SELECT
+      to_regclass('public.sgp_clients') IS NOT NULL AS ok,
+      to_regclass('public.subscriber_devices') IS NOT NULL AS has_devices
+  `);
   if (!tableCheck.rows[0]?.ok) {
-    return res.json({ data: { clientes: [], total: 0, page: 1, limit: 25, lastSyncedAt: null } });
+    return res.json({ data: { clientes: [], total: 0, page: 1, limit: 25, lastSyncedAt: null, appUsersCount: 0 } });
   }
+  const hasDevices = Boolean(tableCheck.rows[0]?.has_devices);
 
   const limit = Math.min(100, Math.max(1, Math.trunc(Number(req.query.limit) || 25)));
   const page = Math.max(1, Math.trunc(Number(req.query.page) || 1));
   const offset = (page - 1) * limit;
   const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
   const digits = search.replace(/\D/g, "");
+  const appFilter = typeof req.query.appFilter === "string" ? req.query.appFilter.trim() : "all";
 
   const clauses = ["c.provider_id = $1"];
   const params: unknown[] = [providerId];
@@ -153,11 +159,20 @@ clientsRouter.get("/", asyncRoute(async (req, res) => {
       clauses.push(`(c.nome ILIKE ${pLike} ESCAPE '\\' OR c.contratos::text ILIKE ${pLike} ESCAPE '\\')`);
     }
   }
+  if (hasDevices && appFilter === "with_app") {
+    clauses.push(`EXISTS (SELECT 1 FROM subscriber_devices d WHERE d.provider_id = c.provider_id AND d.cpfcnpj = c.cpfcnpj AND d.fcm_token <> '')`);
+  } else if (hasDevices && appFilter === "without_app") {
+    clauses.push(`NOT EXISTS (SELECT 1 FROM subscriber_devices d WHERE d.provider_id = c.provider_id AND d.cpfcnpj = c.cpfcnpj AND d.fcm_token <> '')`);
+  }
   const whereSql = clauses.join(" AND ");
 
-  const [rowsRes, countRes, lastRes] = await Promise.all([
+  const hasAppSelect = hasDevices
+    ? `, EXISTS(SELECT 1 FROM subscriber_devices d WHERE d.provider_id = c.provider_id AND d.cpfcnpj = c.cpfcnpj AND d.fcm_token <> '') AS has_app_device`
+    : "";
+
+  const [rowsRes, countRes, lastRes, appUsersRes] = await Promise.all([
     pool.query(
-      `SELECT c.client_id, c.nome, c.cpfcnpj, c.contratos
+      `SELECT c.client_id, c.nome, c.cpfcnpj, c.contratos${hasAppSelect}
          FROM sgp_clients c
         WHERE ${whereSql}
         ORDER BY c.nome ASC, c.client_id ASC
@@ -169,6 +184,12 @@ clientsRouter.get("/", asyncRoute(async (req, res) => {
       `SELECT MAX(updated_at) AS last_synced FROM sgp_clients WHERE provider_id = $1`,
       [providerId],
     ).catch(() => ({ rows: [{ last_synced: null }] })),
+    hasDevices
+      ? pool.query<{ count: string }>(
+        `SELECT COUNT(DISTINCT cpfcnpj)::text AS count FROM subscriber_devices WHERE provider_id = $1 AND fcm_token <> ''`,
+        [providerId],
+      ).catch(() => ({ rows: [{ count: "0" }] }))
+      : Promise.resolve({ rows: [{ count: "0" }] }),
   ]);
 
   res.json({
@@ -178,6 +199,7 @@ clientsRouter.get("/", asyncRoute(async (req, res) => {
       page,
       limit,
       lastSyncedAt: lastRes.rows[0]?.last_synced ? new Date(lastRes.rows[0].last_synced).toISOString() : null,
+      appUsersCount: Number(appUsersRes.rows[0]?.count || 0),
     },
   });
 }));
