@@ -48,12 +48,17 @@ class ConfigurationProvider with ChangeNotifier {
 
   /// Método para carregar a configuração de forma assíncrona.
   Future<void> loadConfig(String providerId) async {
-    _isLoading = true;
+    final initialLoad = _providerConfig == null;
+    if (initialLoad) {
+      _isLoading = true;
+      notifyListeners();
+    }
     _errorMessage = null;
-    notifyListeners();
 
-    // 1. Tenta carregar do cache local primeiro
-    await _loadFromCache(providerId);
+    // 1. Tenta carregar do cache local apenas no carregamento inicial
+    if (initialLoad) {
+      await _loadFromCache(providerId);
+    }
 
     try {
       // 2. Busca do servidor: primeiro a API (configuração sanitizada); o

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../vibe/vibe_controls.dart';
 import '../../../vibe/vibe_home_parts.dart';
 import '../../../vibe/vibe_icon.dart';
 import '../../../vibe/vibe_invoice.dart';
@@ -10,20 +11,30 @@ import 'vibe_home_data.dart';
 
 /// Blocos comuns aos cinco Inícios do layout aprovado.
 
+/// Formato do cartão de fatura do Início, usado para manter exatamente a
+/// mesma altura e anatomia do cartão enquanto a consulta está em andamento.
+enum VibeInvoiceSlotVariant { sheet, blocks, ribbon, centered }
+
 /// Situação da consulta de faturas no lugar do cartão (carregando, erro ou
 /// sem fatura). Devolve `null` quando há fatura para mostrar.
-Widget? vibeInvoiceSlotState(BuildContext context, VibeHomeData data,
-    {bool onBrand = false}) {
+Widget? vibeInvoiceSlotState(
+  BuildContext context,
+  VibeHomeData data, {
+  bool onBrand = false,
+  VibeInvoiceSlotVariant variant = VibeInvoiceSlotVariant.sheet,
+}) {
   final t = VibeTokens.of(context);
   final billing = data.billing;
   final color = onBrand ? t.on : t.ink;
   final muted = onBrand ? t.on.withValues(alpha: .85) : t.mut;
   if (billing.main != null && !billing.failed) return null;
   if (billing.loading && billing.main == null) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text('Consultando suas faturas…',
-          style: vibeText(t, 14, 600, color: color)),
+    return _vibeInvoiceLoading(
+      context,
+      variant: variant,
+      onBrand: onBrand,
+      color: color,
+      muted: muted,
     );
   }
   if (billing.failed) {
@@ -49,6 +60,146 @@ Widget? vibeInvoiceSlotState(BuildContext context, VibeHomeData data,
             : 'A próxima mensalidade aparecerá aqui.',
         style: vibeText(t, 14, 500, color: muted)),
   ]);
+}
+
+Widget _vibeInvoiceLoading(
+  BuildContext context, {
+  required VibeInvoiceSlotVariant variant,
+  required bool onBrand,
+  required Color color,
+  required Color muted,
+}) {
+  final t = VibeTokens.of(context);
+  final Widget child = switch (variant) {
+    VibeInvoiceSlotVariant.sheet => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Expanded(
+              child: Text('Consultando suas faturas…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: vibeText(t, 13, 600, color: color)),
+            ),
+            const SizedBox(width: 8),
+            VibeShimmerBar(
+                width: 78, height: 26, radius: 13, onBrand: onBrand),
+          ]),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: VibeShimmerBar(
+                width: 175, height: 44, radius: 10, onBrand: onBrand),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: VibeShimmerBar(
+                width: 160, height: 18, radius: 6, onBrand: onBrand),
+          ),
+          const SizedBox(height: 18),
+          Row(children: [
+            Expanded(
+                child:
+                    VibeShimmerBar(height: 48, radius: 14, onBrand: onBrand)),
+            const SizedBox(width: 8),
+            Expanded(
+                child:
+                    VibeShimmerBar(height: 48, radius: 14, onBrand: onBrand)),
+          ]),
+        ],
+      ),
+    VibeInvoiceSlotVariant.blocks => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Expanded(
+              child: Text('Consultando suas faturas…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: vibeText(t, 15, 700, color: color)),
+            ),
+            const SizedBox(width: 8),
+            VibeShimmerBar(
+                width: 78, height: 26, radius: 13, onBrand: onBrand),
+          ]),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: VibeShimmerBar(
+                width: 165, height: 40, radius: 10, onBrand: onBrand),
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            VibeShimmerBar(
+                width: 115, height: 18, radius: 6, onBrand: onBrand),
+            const Spacer(),
+            VibeShimmerBar(
+                width: 120, height: 40, radius: 12, onBrand: onBrand),
+          ]),
+        ],
+      ),
+    VibeInvoiceSlotVariant.ribbon => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Expanded(
+              child: Text('Consultando suas faturas…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: vibeText(t, 13, 600, color: muted)),
+            ),
+            const SizedBox(width: 8),
+            VibeShimmerBar(
+                width: 78, height: 26, radius: 13, onBrand: onBrand),
+          ]),
+          const SizedBox(height: 10),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            VibeShimmerBar(
+                width: 135, height: 32, radius: 8, onBrand: onBrand),
+            const Spacer(),
+            VibeShimmerBar(
+                width: 120, height: 40, radius: 12, onBrand: onBrand),
+          ]),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: VibeShimmerBar(
+                width: 165, height: 18, radius: 6, onBrand: onBrand),
+          ),
+        ],
+      ),
+    VibeInvoiceSlotVariant.centered => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Consultando suas faturas…',
+              textAlign: TextAlign.center,
+              style: vibeText(t, 13, 600, color: color)),
+          const SizedBox(height: 8),
+          Center(
+            child: VibeShimmerBar(
+                width: 185, height: 48, radius: 10, onBrand: onBrand),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: VibeShimmerBar(
+                width: 86, height: 26, radius: 13, onBrand: onBrand),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: VibeShimmerBar(
+                width: 155, height: 18, radius: 6, onBrand: onBrand),
+          ),
+          const SizedBox(height: 16),
+          VibeShimmerBar(height: 48, radius: 14, onBrand: onBrand),
+        ],
+      ),
+  };
+  return Semantics(
+    label: 'Consultando suas faturas',
+    liveRegion: true,
+    child: child,
+  );
 }
 
 /// Aviso de dados incompletos abaixo do cartão da fatura.

@@ -83,6 +83,8 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     if (!mounted) return;
     final user = ref.read(authNotifierProvider).valueOrNull;
     if (user != null) {
+      await ref.read(financeiroViewModelProvider).fetchHistory();
+      if (!mounted) return;
       final notif = ref.read(notificationProvider);
       notif.configureApiUrl(config.apiUrl);
       await notif.syncRemoteNotifications(user, config.id);

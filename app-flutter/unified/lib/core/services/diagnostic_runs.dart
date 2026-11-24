@@ -9,6 +9,7 @@ extension DiagnosticRuns on DiagnosticoService {
       return;
     }
     _executionActive = true;
+    _activeOoklaPlan = null;
     _currentState = DiagnosticoState.initial().copyWith(
       isTesting: true,
       startedAt: DateTime.now(),
@@ -163,6 +164,7 @@ extension DiagnosticRuns on DiagnosticoService {
       return;
     }
     _executionActive = true;
+    _activeOoklaPlan = null;
     _currentState = DiagnosticoState.initial().copyWith(
       isTesting: true,
       startedAt: DateTime.now(),
@@ -245,6 +247,7 @@ extension DiagnosticRuns on DiagnosticoService {
       return;
     }
     _executionActive = true;
+    _activeOoklaPlan = null;
     _currentState = DiagnosticoState.initial().copyWith(
       isTesting: true,
       startedAt: DateTime.now(),

@@ -21,6 +21,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:network_tools/network_tools.dart';
 import 'package:path_provider/path_provider.dart';
 import 'onu_wifi_service.dart';
+import 'ookla_speedtest_service.dart';
 
 part 'diagnostic_ping.dart';
 part 'diagnostic_runs.dart';
@@ -137,6 +138,7 @@ class DiagnosticoService {
   final Battery _battery;
   final LocalNetworkScanner _lanScanner;
   final FlutterInternetSpeedTest internetSpeedTest;
+  final OoklaSpeedtestService _ooklaSpeedTest;
   final DeviceInfoPlugin _deviceInfo;
   final PackageInfo? _packageInfo;
   final PingFactory _pingFactory;
@@ -148,6 +150,8 @@ class DiagnosticoService {
   bool _isWifiConnected = false;
   static const platform = MethodChannel('br.com.ajust.app_provedor/wifi_info');
   Timer? _realtimeUpdateTimer;
+  OoklaServerPlan? _activeOoklaPlan;
+  OoklaCancelToken? _ooklaCancel;
 
   double _customPeakDownloadMbps = 0;
   double _customPeakUploadMbps = 0;
@@ -168,6 +172,7 @@ class DiagnosticoService {
     Battery? battery,
     LocalNetworkScanner? lanScanner,
     FlutterInternetSpeedTest? speedTest,
+    OoklaSpeedtestService? ooklaSpeedTest,
     DeviceInfoPlugin? deviceInfo,
     PackageInfo? packageInfo,
     PingFactory? pingFactory,
@@ -178,6 +183,7 @@ class DiagnosticoService {
         _battery = battery ?? Battery(),
         _lanScanner = lanScanner ?? NetworkToolsLocalScanner(),
         internetSpeedTest = speedTest ?? FlutterInternetSpeedTest(),
+        _ooklaSpeedTest = ooklaSpeedTest ?? OoklaSpeedtestService(),
         _deviceInfo = deviceInfo ?? DeviceInfoPlugin(),
         _packageInfo = packageInfo,
         _pingFactory = pingFactory ?? DefaultPingFactory() {
@@ -274,6 +280,9 @@ class DiagnosticoService {
     if (_lanScanner is NetworkToolsLocalScanner) _lanScanner.cancel();
     _cancelPing?.call();
     _cancelPing = null;
+    _ooklaCancel?.cancel();
+    _ooklaCancel = null;
+    _activeOoklaPlan = null;
     _cancelSpeedTest?.call();
     _cancelSpeedTest = null;
     internetSpeedTest.cancelTest();
@@ -765,12 +774,181 @@ class DiagnosticoService {
     }
   }
 
+  Future<bool> _tryRunOoklaServer(
+    OoklaServer server, {
+    required bool isReference,
+  }) async {
+    if (!_currentState.isTesting) return false;
+    final token = OoklaCancelToken();
+    _ooklaCancel = token;
+    final testKey = isReference ? 'speedTestFast' : 'speedTestCustom';
+
+    if (isReference) {
+      _fastDownloadHistoryCounter = 0;
+      _fastUploadHistoryCounter = 0;
+      _fastPeakDownloadMbps = 0;
+      _fastPeakUploadMbps = 0;
+      _currentState = _currentState.copyWith(
+        fastDownloadHistory: [],
+        fastUploadHistory: [],
+        speedTestReferenceServerName: server.displayName,
+      );
+    } else {
+      _downloadHistoryCounter = 0;
+      _uploadHistoryCounter = 0;
+      _customPeakDownloadMbps = 0;
+      _customPeakUploadMbps = 0;
+      _currentState = _currentState.copyWith(
+        downloadHistory: [],
+        uploadHistory: [],
+        speedTestServerName: server.displayName,
+      );
+    }
+    _streamController.add(_currentState);
+
+    _updateStatus(
+      'Conectado ao Speedtest: ${server.displayName}'
+      '${server.latencyMs.isFinite ? ' (${server.latencyMs.round()} ms)' : ''}...',
+    );
+
+    try {
+      final result = await _ooklaSpeedTest.runSpeedTest(
+        server: server,
+        cancelToken: token,
+        onProgress: (percent, mbps, isUpload) {
+          if (!_currentState.isTesting || token.isCancelled) return;
+          _updateStatus(
+            '${isUpload ? 'Testando Upload' : 'Testando Download'} '
+            '(${server.displayName})... '
+            '${mbps.toStringAsFixed(1)} Mbps (${percent.round()}%)',
+          );
+          if (isReference) {
+            if (!isUpload) {
+              if (mbps > _fastPeakDownloadMbps) _fastPeakDownloadMbps = mbps;
+              final hist = List<FlSpot>.from(_currentState.fastDownloadHistory);
+              if (hist.length >= 120) hist.removeAt(0);
+              hist.add(FlSpot(_fastDownloadHistoryCounter.toDouble(), mbps));
+              _fastDownloadHistoryCounter++;
+              _currentState = _currentState.copyWith(
+                fastDownloadHistory: hist,
+                fastDownloadResultMbps: mbps,
+              );
+            } else {
+              if (mbps > _fastPeakUploadMbps) _fastPeakUploadMbps = mbps;
+              final hist = List<FlSpot>.from(_currentState.fastUploadHistory);
+              if (hist.length >= 120) hist.removeAt(0);
+              hist.add(FlSpot(_fastUploadHistoryCounter.toDouble(), mbps));
+              _fastUploadHistoryCounter++;
+              _currentState = _currentState.copyWith(
+                fastUploadHistory: hist,
+                fastUploadResultMbps: mbps,
+              );
+            }
+          } else {
+            if (!isUpload) {
+              if (mbps > _customPeakDownloadMbps) _customPeakDownloadMbps = mbps;
+              final hist = List<FlSpot>.from(_currentState.downloadHistory);
+              if (hist.length >= 120) hist.removeAt(0);
+              hist.add(FlSpot(_downloadHistoryCounter.toDouble(), mbps));
+              _downloadHistoryCounter++;
+              _currentState = _currentState.copyWith(
+                downloadHistory: hist,
+                customDownloadResultMbps: mbps,
+              );
+            } else {
+              if (mbps > _customPeakUploadMbps) _customPeakUploadMbps = mbps;
+              final hist = List<FlSpot>.from(_currentState.uploadHistory);
+              if (hist.length >= 120) hist.removeAt(0);
+              hist.add(FlSpot(_uploadHistoryCounter.toDouble(), mbps));
+              _uploadHistoryCounter++;
+              _currentState = _currentState.copyWith(
+                uploadHistory: hist,
+                customUploadResultMbps: mbps,
+              );
+            }
+          }
+          _streamController.add(_currentState);
+        },
+      );
+
+      if (!_currentState.isTesting || token.isCancelled) return true;
+      if (result.downloadMbps <= 0 && result.uploadMbps <= 0) {
+        return false;
+      }
+
+      var lat = result.latencyMs;
+      if (lat <= 0) {
+        lat = _extractLatencyFromResult(
+          _currentState.testResultsDisplay['pingGoogle']?['result'],
+        );
+      }
+
+      _updateTestState(
+        testKey,
+        TestStatus.success,
+        'Download: ${result.downloadMbps.toStringAsFixed(1)} Mbps\n'
+        'Upload: ${result.uploadMbps.toStringAsFixed(1)} Mbps\n'
+        'Ping: ${lat.toStringAsFixed(0)} ms\n'
+        'Servidor: ${server.displayName}',
+      );
+
+      if (isReference) {
+        _currentState = _currentState.copyWith(
+          fastDownloadResultMbps: result.downloadMbps,
+          fastUploadResultMbps: result.uploadMbps,
+          speedTestReferenceServerName: server.displayName,
+        );
+      } else {
+        _currentState = _currentState.copyWith(
+          customDownloadResultMbps: result.downloadMbps,
+          customUploadResultMbps: result.uploadMbps,
+          speedTestPingLatency: lat > 0 ? lat : _currentState.speedTestPingLatency,
+          speedTestServerName: server.displayName,
+        );
+      }
+      _streamController.add(_currentState);
+      return true;
+    } catch (_) {
+      return token.isCancelled;
+    } finally {
+      if (identical(_ooklaCancel, token)) _ooklaCancel = null;
+    }
+  }
+
   @visibleForTesting
   Future<void> runSpeedTestCustom() async {
     if (!_currentState.isTesting) return;
     String? customUrl = providerConfig.config.other?.speedTestUrl;
 
-    // Usa HTTPS e o proxy do domínio; o servidor pode ser movido sem novo APK.
+    if (!OoklaSpeedtestService.isExplicitNonOoklaUrl(customUrl)) {
+      _updateTestState(
+        'speedTestCustom',
+        TestStatus.running,
+        'Localizando servidor Speedtest mais próximo...',
+      );
+      final discoveryToken = OoklaCancelToken();
+      _ooklaCancel = discoveryToken;
+      OoklaServerPlan? plan;
+      try {
+        plan = await _ooklaSpeedTest.discoverAndSelect(
+          client: client,
+          providerName: providerConfig.name,
+          providerId: providerConfig.id,
+          configuredUrl: customUrl,
+          cancelToken: discoveryToken,
+        );
+      } finally {
+        if (identical(_ooklaCancel, discoveryToken)) _ooklaCancel = null;
+      }
+      if (!_currentState.isTesting || discoveryToken.isCancelled) return;
+      if (plan != null) {
+        _activeOoklaPlan = plan;
+        final ok = await _tryRunOoklaServer(plan.primary, isReference: false);
+        if (ok || !_currentState.isTesting) return;
+      }
+    }
+
+    // Fallback: URL customizada explícita (não-Ookla) ou servidor próprio /speedtest/.
     String defaultSpeedTestUrl =
         'https://librespeed.org'; // Fallback of fallback
     try {
@@ -1054,6 +1232,37 @@ class DiagnosticoService {
   @visibleForTesting
   Future<void> runSpeedTestFastCom() async {
     if (!_currentState.isTesting) return;
+
+    var reference = _activeOoklaPlan?.reference;
+    if (reference == null && _activeOoklaPlan == null) {
+      final token = OoklaCancelToken();
+      _ooklaCancel = token;
+      try {
+        final plan = await _ooklaSpeedTest.discoverAndSelect(
+          client: client,
+          providerName: providerConfig.name,
+          providerId: providerConfig.id,
+          configuredUrl: providerConfig.config.other?.speedTestUrl,
+          cancelToken: token,
+        );
+        _activeOoklaPlan = plan;
+        reference = plan?.reference;
+      } finally {
+        if (identical(_ooklaCancel, token)) _ooklaCancel = null;
+      }
+      if (!_currentState.isTesting || token.isCancelled) return;
+    }
+
+    if (reference != null) {
+      _updateTestState(
+        'speedTestFast',
+        TestStatus.running,
+        'Conectando à referência (${reference.displayName})...',
+      );
+      final ok = await _tryRunOoklaServer(reference, isReference: true);
+      if (ok || !_currentState.isTesting) return;
+    }
+
     _updateTestState(
       'speedTestFast',
       TestStatus.running,

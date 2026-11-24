@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/fatura.dart';
 import '../../../utils/app_formatters.dart';
+import '../../../vibe/vibe_controls.dart';
 import '../../../vibe/vibe_home_parts.dart';
 import '../../../vibe/vibe_icon.dart';
 import '../../../vibe/vibe_invoice.dart';
@@ -214,8 +215,7 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
     Widget body;
     if (view == null || billing.failed) {
       if (billing.loading) {
-        body = Text('Consultando suas faturas…',
-            style: vibeText(t, 14, 600, color: p.hink));
+        body = _invoiceLoading(context);
       } else if (billing.failed) {
         body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Faturas indisponíveis',
@@ -365,6 +365,51 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
           child: body,
         ),
       ),
+    );
+  }
+
+  Widget _invoiceLoading(BuildContext context) {
+    final t = VibeTokens.of(context);
+    final p = t.dock!;
+    return Semantics(
+      label: 'Consultando suas faturas',
+      liveRegion: true,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text('Consultando suas faturas…',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: vibeText(t, 14, 650,
+                      color: p.hink, height: 1.3, letterSpacingEm: -.017)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          VibeShimmerBar(width: 78, height: 26, radius: 99, color: p.hink),
+        ]),
+        const SizedBox(height: 11),
+        Container(
+          decoration:
+              BoxDecoration(border: Border(top: BorderSide(color: p.hthin))),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            VibeShimmerBar(width: 170, height: 47, radius: 10, color: p.hink),
+            const SizedBox(height: 5),
+            VibeShimmerBar(width: 155, height: 19, radius: 6, color: p.hink),
+          ]),
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+              child: VibeShimmerBar(height: 44, radius: 10, color: p.hink)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: VibeShimmerBar(height: 44, radius: 10, color: p.hink)),
+        ]),
+      ]),
     );
   }
 

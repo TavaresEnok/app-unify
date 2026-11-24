@@ -11,9 +11,9 @@ export default function ApplicationSettings() {
       <Label htmlFor="customDomain">Domínio (opcional)</Label>
       <Input id="customDomain" placeholder="app.seuprovedor.com" value={config.other?.customDomain || ""} onChange={event => update("customDomain", event.target.value)} />
     </SettingsSection>
-    <SettingsSection title="Servidor de teste de velocidade" description="Endereço do servidor próprio usado para medições no aplicativo.">
-      <Label htmlFor="speedTestUrl">URL do servidor</Label>
-      <Input id="speedTestUrl" type="url" placeholder="https://velocidade.seuprovedor.com" value={config.other?.speedTestUrl || ""} onChange={event => update("speedTestUrl", event.target.value)} />
+    <SettingsSection title="Servidor de teste de velocidade" description="Opcional: deixe em branco para usar automaticamente o servidor Ookla Speedtest do seu provedor (ou o mais próximo do cliente). Se preferir, informe sua URL Speedtest (ex.: https://speedtest.seuprovedor.com.br:8080) ou ookla:ID.">
+      <Label htmlFor="speedTestUrl">URL ou ID Ookla do servidor</Label>
+      <Input id="speedTestUrl" type="text" placeholder="Automático (ou ookla:43431 / https://speedtest.seuprovedor.com.br:8080)" value={config.other?.speedTestUrl || ""} onChange={event => update("speedTestUrl", event.target.value)} />
     </SettingsSection>
   </SettingsPage>;
 }

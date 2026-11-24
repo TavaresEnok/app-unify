@@ -23,7 +23,8 @@ class VibeRibbonHome extends ConsumerWidget {
     final data = VibeHomeData.watch(ref, onNavigate);
     final inset = MediaQuery.paddingOf(context).top;
     final main = data.billing.main;
-    final slotState = vibeInvoiceSlotState(context, data);
+    final slotState = vibeInvoiceSlotState(context, data,
+        variant: VibeInvoiceSlotVariant.ribbon);
     final incomplete = vibeIncompleteNote(context, data);
 
     Widget planFooter() {

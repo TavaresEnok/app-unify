@@ -58,9 +58,34 @@ class ConsumoPage extends ConsumerWidget {
           onSelected: (month) =>
               controller.changeMonth(month.month, month.year),
         ),
-        if (state.isLoading)
-          const VibeLoading(blocks: 1, label: 'Carregando consumo')
-        else if (state.error != null)
+        if (state.isLoading) ...[
+          Semantics(
+            label: 'Carregando consumo',
+            liveRegion: true,
+            child: const VibeCard(
+              main: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  VibeLabel('Carregando consumo…'),
+                  SizedBox(height: 6),
+                  VibeShimmerBar(width: 130, height: 34, radius: 8),
+                  SizedBox(height: 10),
+                  VibeShimmerBar(height: 112, radius: 10),
+                  SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      VibeShimmerBar(width: 38, height: 14, radius: 4),
+                      VibeShimmerBar(width: 44, height: 14, radius: 4),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const VibeShimmerBar(height: 14, radius: 4),
+        ] else if (state.error != null)
           VibeCard(
             child: VibeEmpty(
               icon: 'g-chart',

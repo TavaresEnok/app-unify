@@ -130,8 +130,49 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
         final ip = data?['ip']?.toString() ?? '';
         final List<Widget> children;
         if (loading) {
-          children = const [
-            VibeLoading(blocks: 2, label: 'Consultando seu IP')
+          children = [
+            Semantics(
+              label: 'Consultando seu IP',
+              liveRegion: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const VibeCard(
+                    main: true,
+                    child: Column(children: [
+                      VibeLabel('IP público'),
+                      SizedBox(height: 8),
+                      VibeShimmerBar(width: 180, height: 34, radius: 8),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                  VibeCard(
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < 4; i++) ...[
+                          if (i > 0)
+                            Divider(height: 1, thickness: 1, color: t.line),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 11),
+                            child: Row(children: [
+                              VibeShimmerBar(width: 110, height: 14, radius: 5),
+                              Spacer(),
+                              VibeShimmerBar(width: 95, height: 14, radius: 5),
+                            ]),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Row(children: [
+                    Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
+                    SizedBox(width: 8),
+                    Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
+                  ]),
+                ],
+              ),
+            ),
           ];
         } else if (snapshot.hasError || data == null) {
           children = [

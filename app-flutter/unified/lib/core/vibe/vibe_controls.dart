@@ -320,6 +320,75 @@ class _VibeLoadingState extends State<VibeLoading>
   }
 }
 
+/// Barra de carregamento em shimmer com dimensões fixas para manter o layout
+/// original dos cartões enquanto os dados estão sendo consultados.
+class VibeShimmerBar extends StatefulWidget {
+  const VibeShimmerBar({
+    super.key,
+    this.width,
+    required this.height,
+    this.radius = 8,
+    this.color,
+    this.onBrand = false,
+  });
+
+  final double? width;
+  final double height;
+  final double radius;
+  final Color? color;
+  final bool onBrand;
+
+  @override
+  State<VibeShimmerBar> createState() => _VibeShimmerBarState();
+}
+
+class _VibeShimmerBarState extends State<VibeShimmerBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shine = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1100));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _shine.stop();
+    } else if (!_shine.isAnimating) {
+      _shine.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _shine.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
+    final base = widget.color ?? (widget.onBrand ? t.on : t.ink);
+    final strong = widget.onBrand || widget.color != null;
+    final low = base.withValues(alpha: strong ? .16 : .07);
+    final high = base.withValues(alpha: strong ? .28 : .14);
+    return AnimatedBuilder(
+      animation: _shine,
+      builder: (context, _) => Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(widget.radius),
+          gradient: LinearGradient(
+            begin: Alignment(-1 - 2 * _shine.value, 0),
+            end: Alignment(1 - 2 * _shine.value + 2, 0),
+            colors: [low, high, low],
+            tileMode: TileMode.mirror,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Estado de página inteira (sem dados, erro, recurso indisponível): ícone
 /// em círculo, título, texto e uma ação. O protótipo só desenha o estado
 /// dentro de cartão (`.g-empty`); este usa as mesmas medidas, centralizado.

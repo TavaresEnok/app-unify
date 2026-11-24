@@ -246,27 +246,44 @@ class _Chevron extends StatelessWidget {
       );
 }
 
-/// Carregamento em blocos (`.g-load`).
+/// Carregamento no formato do cartão da fatura principal (`.g-cd.g-main`).
 class _Loading extends StatelessWidget {
   const _Loading();
 
   @override
   Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
     return Semantics(
       label: 'Consultando suas faturas',
-      child: Column(children: [
-        for (var i = 0; i < 3; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
-          Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: t.ink.withValues(alpha: .08),
-              borderRadius: BorderRadius.circular(14),
+      liveRegion: true,
+      child: const VibeCard(
+        main: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Expanded(child: VibeLabel('Consultando suas faturas…')),
+              SizedBox(width: 8),
+              VibeShimmerBar(width: 78, height: 26, radius: 13),
+            ]),
+            SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: VibeShimmerBar(width: 160, height: 38, radius: 10),
             ),
-          ),
-        ],
-      ]),
+            SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: VibeShimmerBar(width: 170, height: 18, radius: 6),
+            ),
+            SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
+              SizedBox(width: 8),
+              Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
+            ]),
+          ],
+        ),
+      ),
     );
   }
 }

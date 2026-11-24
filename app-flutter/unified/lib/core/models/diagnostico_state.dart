@@ -21,6 +21,8 @@ class DiagnosticoState {
   final double customUploadResultMbps;
   final double fastDownloadResultMbps;
   final double fastUploadResultMbps;
+  final String? speedTestServerName;
+  final String? speedTestReferenceServerName;
   final List<FlSpot> downloadHistory;
   final List<FlSpot> uploadHistory;
   final List<FlSpot> fastDownloadHistory;
@@ -39,6 +41,8 @@ class DiagnosticoState {
     this.customUploadResultMbps = 0,
     this.fastDownloadResultMbps = 0,
     this.fastUploadResultMbps = 0,
+    this.speedTestServerName,
+    this.speedTestReferenceServerName,
     this.downloadHistory = const [],
     this.uploadHistory = const [],
     this.fastDownloadHistory = const [],
@@ -127,6 +131,8 @@ class DiagnosticoState {
     double? customUploadResultMbps,
     double? fastDownloadResultMbps,
     double? fastUploadResultMbps,
+    String? speedTestServerName,
+    String? speedTestReferenceServerName,
     List<FlSpot>? downloadHistory,
     List<FlSpot>? uploadHistory,
     List<FlSpot>? fastDownloadHistory,
@@ -148,6 +154,9 @@ class DiagnosticoState {
       fastDownloadResultMbps:
           fastDownloadResultMbps ?? this.fastDownloadResultMbps,
       fastUploadResultMbps: fastUploadResultMbps ?? this.fastUploadResultMbps,
+      speedTestServerName: speedTestServerName ?? this.speedTestServerName,
+      speedTestReferenceServerName:
+          speedTestReferenceServerName ?? this.speedTestReferenceServerName,
       downloadHistory: downloadHistory ?? this.downloadHistory,
       uploadHistory: uploadHistory ?? this.uploadHistory,
       fastDownloadHistory: fastDownloadHistory ?? this.fastDownloadHistory,

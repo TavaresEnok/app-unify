@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../controllers/diagnostic_binding.dart';
 import '../models/diagnostico_state.dart';
@@ -18,6 +20,7 @@ import '../providers/customer_capabilities_provider.dart';
 import '../services/diagnostico_service.dart';
 import '../services/diagnostic_history_store.dart';
 import '../services/subscriber_achievements.dart';
+import '../widgets/diagnostics/diagnostic_share_card.dart';
 import '../widgets/diagnostics/diagnostic_view.dart';
 import '../../layouts/layout_03/wifi_page.dart';
 import 'shared_ping_page.dart';
@@ -293,92 +296,136 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
   Future<void> _share(DiagnosticoState state) async {
     final name =
         ref.read(configurationProvider).providerConfig?.name ?? 'Seu provedor';
+    final planName = ref.read(authNotifierProvider).valueOrNull?.plano;
     final summary = DiagnosticPresentation(state).shareText(name);
+    final captureKey = GlobalKey();
+    var capturing = false;
+
     await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (sheet) {
           final t = VibeTokens.of(sheet);
-          return Container(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(sheet).height * .85),
-            decoration: BoxDecoration(
-                color: t.card,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24))),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-                child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                                color: t.ink.withValues(alpha: .18),
-                                borderRadius: BorderRadius.circular(2))),
-                      ),
-                      const SizedBox(height: 16),
-                      Semantics(
-                        header: true,
-                        child: Text('Compartilhar resumo',
-                            style: vibeText(t, 19, 800, letterSpacingEm: -.01)),
-                      ),
-                      const SizedBox(height: 6),
-                      Text('O resumo não leva CPF, senha, nome da rede nem IP.',
-                          style:
-                              vibeText(t, 13, 500, color: t.mut, height: 1.45)),
-                      const SizedBox(height: 12),
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                              color: t.ink.withValues(alpha: .06),
-                              borderRadius: BorderRadius.circular(10)),
-                          child: SingleChildScrollView(
-                              child: SelectableText(summary,
-                                  style:
-                                      vibeMono(t.ink).copyWith(height: 1.55))),
+          return StatefulBuilder(
+            builder: (sheetContext, setSheetState) => Container(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(sheet).height * .88),
+              decoration: BoxDecoration(
+                  color: t.card,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24))),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                  color: t.ink.withValues(alpha: .18),
+                                  borderRadius: BorderRadius.circular(2))),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      VibeTwo(
-                        VibePageButton(
-                            label: 'Copiar',
-                            icon: 'copy',
-                            ghost: true,
-                            onPressed: () async {
-                              await Clipboard.setData(
-                                  ClipboardData(text: summary));
-                              if (sheet.mounted) {
-                                ScaffoldMessenger.of(sheet).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Resumo copiado.')));
-                              }
-                            }),
-                        VibePageButton(
-                            label: 'Enviar',
-                            icon: 'share',
-                            onPressed: () async {
-                              try {
-                                await Share.share(summary);
-                              } catch (_) {
-                                if (sheet.mounted) {
-                                  ScaffoldMessenger.of(sheet).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Não conseguimos abrir o compartilhamento. Você pode copiar o resumo.')));
-                                }
-                              }
-                            }),
-                      ),
-                    ]),
+                        const SizedBox(height: 14),
+                        Semantics(
+                          header: true,
+                          child: Text('Compartilhar resultado',
+                              style: vibeText(t, 19, 800, letterSpacingEm: -.01)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Print completo com todos os testes abertos.',
+                            style: vibeText(t, 13, 500,
+                                color: t.mut, height: 1.45)),
+                        const SizedBox(height: 12),
+                        Flexible(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: t.line),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: SingleChildScrollView(
+                                child: RepaintBoundary(
+                                  key: captureKey,
+                                  child: DiagnosticShareCard(
+                                    state: state,
+                                    providerName: name,
+                                    planName: planName,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        VibeTwo(
+                          VibePageButton(
+                              label: 'Copiar texto',
+                              icon: 'copy',
+                              ghost: true,
+                              onPressed: capturing
+                                  ? null
+                                  : () async {
+                                      await Clipboard.setData(
+                                          ClipboardData(text: summary));
+                                      if (sheet.mounted) {
+                                        ScaffoldMessenger.of(sheet)
+                                            .showSnackBar(const SnackBar(
+                                                content:
+                                                    Text('Resumo copiado.')));
+                                      }
+                                    }),
+                          VibePageButton(
+                              label: capturing ? 'Gerando print…' : 'Enviar print',
+                              icon: 'share',
+                              onPressed: capturing
+                                  ? null
+                                  : () async {
+                                      setSheetState(() => capturing = true);
+                                      try {
+                                        final bytes = await captureWidgetAsPng(
+                                            captureKey);
+                                        if (bytes != null && bytes.isNotEmpty) {
+                                          final dir =
+                                              await getTemporaryDirectory();
+                                          final file = File(
+                                              '${dir.path}/diagnostico_${DateTime.now().millisecondsSinceEpoch}.png');
+                                          await file.writeAsBytes(bytes,
+                                              flush: true);
+                                          await Share.shareXFiles(
+                                            [
+                                              XFile(file.path,
+                                                  mimeType: 'image/png')
+                                            ],
+                                            text:
+                                                'Diagnóstico de conexão — $name',
+                                          );
+                                        } else {
+                                          await Share.share(summary);
+                                        }
+                                      } catch (_) {
+                                        if (sheet.mounted) {
+                                          ScaffoldMessenger.of(sheet)
+                                              .showSnackBar(const SnackBar(
+                                                  content: Text(
+                                                      'Não conseguimos abrir o compartilhamento. Você pode copiar o texto.')));
+                                        }
+                                      } finally {
+                                        if (sheet.mounted) {
+                                          setSheetState(
+                                              () => capturing = false);
+                                        }
+                                      }
+                                    }),
+                        ),
+                      ]),
+                ),
               ),
             ),
           );

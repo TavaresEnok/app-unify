@@ -25,7 +25,8 @@ class VibeSheetHome extends ConsumerWidget {
     final data = VibeHomeData.watch(ref, onNavigate);
     final inset = MediaQuery.paddingOf(context).top;
     final main = data.billing.main;
-    final slotState = vibeInvoiceSlotState(context, data, onBrand: true);
+    final slotState = vibeInvoiceSlotState(context, data,
+        onBrand: true, variant: VibeInvoiceSlotVariant.sheet);
     final incomplete = vibeIncompleteNote(context, data, onBrand: true);
 
     final top = Container(

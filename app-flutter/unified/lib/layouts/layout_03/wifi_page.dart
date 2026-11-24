@@ -190,6 +190,42 @@ class _WifiPageState extends ConsumerState<WifiPage> {
     super.dispose();
   }
 
+  Widget _wifiLoadingCard(BuildContext context) {
+    final t = VibeTokens.of(context);
+    return Semantics(
+      label: 'Consultando o roteador',
+      liveRegion: true,
+      child: VibeCard(
+        child: Column(
+          children: [
+            for (var i = 0; i < 2; i++) ...[
+              if (i > 0) Divider(height: 1, thickness: 1, color: t.line),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    VibeShimmerBar(width: 38, height: 38, radius: 12),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          VibeShimmerBar(width: 150, height: 14, radius: 5),
+                          SizedBox(height: 6),
+                          VibeShimmerBar(width: 105, height: 12, radius: 4),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
@@ -325,14 +361,13 @@ class _WifiPageState extends ConsumerState<WifiPage> {
             ),
           )
         else if (controller == null || _loadingTr069)
-          const VibeLoading(blocks: 2, label: 'Consultando o roteador')
+          _wifiLoadingCard(context)
         else
           ValueListenableBuilder<WifiState>(
               valueListenable: controller,
               builder: (context, state, _) {
                 if (state.isLoading) {
-                  return const VibeLoading(
-                      blocks: 2, label: 'Consultando o roteador');
+                  return _wifiLoadingCard(context);
                 }
                 if (state.error != null) {
                   return VibeCard(

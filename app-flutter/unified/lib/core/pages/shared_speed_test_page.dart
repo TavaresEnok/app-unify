@@ -126,10 +126,17 @@ class SpeedTestView extends ConsumerWidget {
                     VibeKv('Latência',
                         '${state.speedTestPingLatency!.round()} ms'),
                   if (customStatus == TestStatus.success)
-                    const VibeKv('Servidor', 'Servidor do provedor'),
+                    VibeKv(
+                      'Servidor',
+                      state.speedTestServerName ?? 'Servidor do provedor',
+                    ),
                   if (externalStatus == TestStatus.success)
-                    VibeKv('Referência externa',
-                        '${state.fastDownloadResultMbps.round()} Mbps'),
+                    VibeKv(
+                      'Referência externa',
+                      state.speedTestReferenceServerName != null
+                          ? '${state.fastDownloadResultMbps.round()} Mbps · ${state.speedTestReferenceServerName}'
+                          : '${state.fastDownloadResultMbps.round()} Mbps',
+                    ),
                 ]),
               ],
               if (state.isTesting) ...[
@@ -182,7 +189,7 @@ class SpeedTestView extends ConsumerWidget {
           if (!finished) ...[
             const SizedBox(height: 12),
             const VibeNote(
-                'Mede download e upload neste celular, no servidor do provedor e em uma referência externa.'),
+                'Mede download e upload no servidor Speedtest do provedor (ou no mais próximo de você) e em um servidor de referência local.'),
           ],
         ],
       ],

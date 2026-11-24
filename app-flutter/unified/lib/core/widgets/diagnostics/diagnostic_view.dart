@@ -236,11 +236,17 @@ class _ToolsState extends State<_Tools> {
 /// Grupo do diagnóstico (`.g-row` + `.g-kv`): quantas verificações já
 /// terminaram, a cor do pior resultado e, aberto, cada valor medido.
 class DiagnosticGroupCard extends StatefulWidget {
-  const DiagnosticGroupCard(
-      {super.key, required this.group, required this.icon, required this.view});
+  const DiagnosticGroupCard({
+    super.key,
+    required this.group,
+    required this.icon,
+    required this.view,
+    this.forceExpanded = false,
+  });
   final DiagnosticGroup group;
   final String icon;
   final DiagnosticPresentation view;
+  final bool forceExpanded;
 
   @override
   State<DiagnosticGroupCard> createState() => _DiagnosticGroupCardState();
@@ -457,7 +463,8 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
                 ? VibeTone.ok
                 : VibeTone.warning)
             : null;
-    final open = _open ?? !view.state.isTesting;
+    final open =
+        widget.forceExpanded ? true : (_open ?? !view.state.isTesting);
     return VibeCard(
       child: VibeRows(children: [
         Semantics(
@@ -471,10 +478,13 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
                     '${keys.length == 1 ? 'verificado' : 'verificados'}',
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               VibeDot(tone),
-              const SizedBox(width: 12),
-              VibeChevron(open: open),
+              if (!widget.forceExpanded) ...[
+                const SizedBox(width: 12),
+                VibeChevron(open: open),
+              ],
             ]),
-            onTap: () => setState(() => _open = !open),
+            onTap:
+                widget.forceExpanded ? null : () => setState(() => _open = !open),
           ),
         ),
         if (open)

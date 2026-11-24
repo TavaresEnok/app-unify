@@ -20,6 +20,20 @@ class FinanceiroService {
     this.contratoId,
   });
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FinanceiroService &&
+          runtimeType == other.runtimeType &&
+          apiUrl == other.apiUrl &&
+          cpfCnpjUnformatted == other.cpfCnpjUnformatted &&
+          providerId == other.providerId &&
+          contratoId == other.contratoId;
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, apiUrl, cpfCnpjUnformatted, providerId, contratoId);
+
   /// Busca as faturas do cliente
   Future<List<dynamic>> fetchInvoices() async {
     try {

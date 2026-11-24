@@ -190,22 +190,22 @@ class DiagnosticPresentation {
       value < 1 ? 'menos de 1 ms' : '${value.round()} ms';
 
   String shareText(String providerName) {
-    final lines = <String>['Verificação de conexão — $providerName', title];
+    final header = <String>['Verificação de conexão — $providerName', title];
     final when = state.finishedAt;
     if (when != null) {
       final local = when.toLocal();
       String two(int n) => n.toString().padLeft(2, '0');
-      lines.add('Horário: ${two(local.day)}/${two(local.month)}/${local.year} '
+      header.add('Horário: ${two(local.day)}/${two(local.month)}/${local.year} '
           'às ${two(local.hour)}:${two(local.minute)}');
     }
-    for (final group in groups) {
-      lines.add('${group.title}: ${label(groupOutcome(group))}');
-    }
-    lines.add(
-        'Concluídas: $completed de ${plannedKeys.length} verificações selecionadas.');
-    lines.add(
-        'Resultados sem resposta não confirmam, sozinhos, falta de internet.');
+
+    final groupLines = <String>[
+      for (final group in groups) '${group.title}: ${label(groupOutcome(group))}',
+      'Concluídas: $completed de ${plannedKeys.length} verificações selecionadas.',
+    ];
+
     // Only allowlisted numeric metrics; no CPF, credentials, SSID, MAC or IP.
+    final metricLines = <String>[];
     for (final key in ['pingGateway', 'pingGoogle', 'pingCloudflare']) {
       final metrics = state.testResultsDisplay[key]?['metrics'];
       if (metrics is Map && metrics['latencyMs'] is num) {
@@ -215,15 +215,25 @@ class DiagnosticPresentation {
           'pingCloudflare': 'Resposta externa 2'
         }[key];
         final loss = metrics['lossPercent'];
-        lines.add('$name: latência ${_ms(metrics['latencyMs'] as num)}; '
+        metricLines.add('$name: latência ${_ms(metrics['latencyMs'] as num)}; '
             'perda ${loss is num ? '${loss.round()}%' : 'não informada'}.');
       }
     }
     if (state.testResultsDisplay['speedTestCustom']?['status'] ==
         TestStatus.success) {
-      lines.add(
-          'Velocidade neste celular: ${state.customDownloadResultMbps.round()} Mbps de download; ${state.customUploadResultMbps.round()} Mbps de upload.');
+      final server = state.speedTestServerName;
+      metricLines.add(
+          'Velocidade neste celular${server != null ? ' ($server)' : ''}: '
+          '${state.customDownloadResultMbps.round()} Mbps de download; '
+          '${state.customUploadResultMbps.round()} Mbps de upload.');
     }
-    return lines.join('\n');
+
+    final sections = <String>[
+      header.join('\n'),
+      groupLines.join('\n'),
+      if (metricLines.isNotEmpty) metricLines.join('\n'),
+      'Resultados sem resposta não confirmam, sozinhos, falta de internet.',
+    ];
+    return sections.join('\n\n');
   }
 }

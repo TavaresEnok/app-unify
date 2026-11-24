@@ -79,16 +79,16 @@ export default function OtherSettings() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="speedTestUrl">URL do Servidor Personalizado (Download/Upload)</Label>
+                    <Label htmlFor="speedTestUrl">Servidor Speedtest (Ookla / URL Personalizada)</Label>
                     <Input
                         id="speedTestUrl"
-                        placeholder="Ex: http://192.168.1.100:8080/folder/file.zip"
+                        placeholder="Automático (ou ookla:43431 / https://speedtest.seuprovedor.com.br:8080)"
                         value={localSpeedTestUrl}
                         onChange={(e) => setLocalSpeedTestUrl(e.target.value)}
                         disabled={isSaving}
                     />
                     <p className="text-sm text-muted-foreground">
-                        Link direto para seu servidor próprio. O app usará este endereço para forçar o download/upload.
+                        Deixe em branco para detectar automaticamente o servidor Ookla do provedor ou o servidor local com menor latência.
                     </p>
                 </div>
                 </div>
