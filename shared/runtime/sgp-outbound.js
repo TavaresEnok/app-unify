@@ -154,6 +154,24 @@ function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect
             } }, res => {
                 // No redirect is followed, even within the same origin.
                 if (res.statusCode < 200 || res.statusCode >= 300) {
+                    if (res.statusCode >= 400 && res.statusCode < 500) {
+                        const errChunks = [];
+                        let errSize = 0;
+                        res.on('data', chunk => {
+                            if (errSize < 4096) {
+                                errChunks.push(chunk.subarray(0, 4096 - errSize));
+                                errSize += chunk.length;
+                            }
+                        });
+                        res.on('error', () => fail(Object.assign(new Error(`SGP retornou HTTP ${res.statusCode}`), { response: { status: res.statusCode } })));
+                        res.on('end', () => {
+                            const rawErr = Buffer.concat(errChunks).toString('utf8');
+                            let errData;
+                            try { errData = JSON.parse(rawErr); } catch { errData = undefined; }
+                            fail(Object.assign(new Error(`SGP retornou HTTP ${res.statusCode}`), { response: { status: res.statusCode, data: errData } }));
+                        });
+                        return;
+                    }
                     res.resume(); return fail(Object.assign(new Error(`SGP retornou HTTP ${res.statusCode}`), { response: { status: res.statusCode } }));
                 }
                 let size = 0;

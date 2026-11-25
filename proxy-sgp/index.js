@@ -217,7 +217,11 @@ async function rawSgpApi(params) {
         console.error(`[SGP-API] Erro ao chamar ${url}:`, error.message);
         if (error.response) {
             secureLog(`[SGP-API] Response data:`, error.response.data);
-            const sgpMessage = typeof error.response.data?.msg === 'string' ? error.response.data.msg.slice(0, 200) : undefined;
+            const sgpMessage = typeof error.response.data?.msg === 'string'
+                ? error.response.data.msg.slice(0, 200)
+                : typeof error.response.data?.message === 'string'
+                    ? error.response.data.message.slice(0, 200)
+                    : undefined;
             throw Object.assign(new Error(`SGP retornou erro HTTP ${error.response.status}`), { response: { status: error.response.status }, sgpMessage });
         }
         throw new Error(`Erro de conexão com SGP: ${error.message}`);

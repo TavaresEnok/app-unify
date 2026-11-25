@@ -4,7 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const { getQueue, connection, jobId, queueName } = require('./lib/jobs');
 const { sanitize } = require('./lib/sanitize-client');
-const { validateSyncPage, syncParameters } = require('./lib/sync-page');
+const { validateSyncPage, syncParameters, hasNextSyncPage } = require('./lib/sync-page');
 const { pool, ensureCoreTables, ensureSgpCredentials, callSgpApi, formatSgpUrl } = require('./index');
 const queue = getQueue();
 const timezone = 'America/Fortaleza';
@@ -238,7 +238,7 @@ async function syncClients(job) {
         page++;
         await job.updateData({ providerId, page, count, lastPageHash, syncStartedAt });
         await job.updateProgress({ count, page: page - 1 });
-        if (clients.length < 100 || (result.paginacao?.total_paginas && page > result.paginacao.total_paginas)) break;
+        if (!hasNextSyncPage(page, clients.length, result.paginacao)) break;
         await new Promise(resolve => setTimeout(resolve, 250));
     }
 

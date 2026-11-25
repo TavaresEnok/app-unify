@@ -15,3 +15,19 @@ function syncParameters(page) {
     return { limit: 100, offset: (page - 1) * 100, contrato_status: 1, omitir_titulos: 1 };
 }
 module.exports.syncParameters = syncParameters;
+
+// Decide se há próxima página. `nextPage` já é a página seguinte (1-based).
+// O SGP pode devolver menos de 100 itens numa página intermediária (filtro
+// contrato_status), então `paginacao.total`/`total_paginas` têm prioridade;
+// sem eles, página incompleta encerra. Página vazia sempre encerra.
+function hasNextSyncPage(nextPage, pageLength, paginacao, pageSize = 100) {
+    if (!pageLength) return false;
+    const total = Number(paginacao?.total);
+    const totalPages = Number(paginacao?.total_paginas);
+    const byTotal = Number.isFinite(total) && total > 0 ? (nextPage - 1) * pageSize < total : null;
+    const byPages = Number.isFinite(totalPages) && totalPages > 0 ? nextPage <= totalPages : null;
+    if (byTotal === false || byPages === false) return false;
+    if (byTotal === null && byPages === null) return pageLength >= pageSize;
+    return true;
+}
+module.exports.hasNextSyncPage = hasNextSyncPage;

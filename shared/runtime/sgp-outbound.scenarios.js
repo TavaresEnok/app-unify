@@ -134,6 +134,20 @@ function scenarios(runtime) {
                 assert.equal(bytes, 1);
             } finally { if (server) await close(server); rmSync(dir, { recursive: true, force: true }); }
         },
+        'exposes bounded JSON body of 4xx errors (SGP msg) but never of 5xx': async () => {
+            const replies = [[422, '{"msg":"Equipamento não encontrado."}'], [404, `{"msg":"${'x'.repeat(10000)}"}`], [400, 'texto'], [500, '{"msg":"interno"}']];
+            const server = http.createServer((_req, res) => { const [status, body] = replies.shift(); res.writeHead(status); res.end(body); });
+            const port = await listening(server);
+            const transport = runtime.createSgpTransport({ lookup: async () => records(), connect: () => peer(net.connect({ host: '127.0.0.1', port })) });
+            const base = `http://sgp.synthetic.test:${port}/api/test/`;
+            try {
+                const errorOf = async () => { try { await transport.request(base, { token: 't' }, { encoding: 'json' }); } catch (error) { return error; } assert.fail('expected rejection'); };
+                assert.deepEqual((await errorOf()).response, { status: 422, data: { msg: 'Equipamento não encontrado.' } });
+                assert.deepEqual((await errorOf()).response, { status: 404, data: undefined }, 'corpo acima de 4 KiB é truncado e descartado');
+                assert.deepEqual((await errorOf()).response, { status: 400, data: undefined });
+                assert.deepEqual((await errorOf()).response, { status: 500 });
+            } finally { await close(server); }
+        },
         'allows public IPv4/IPv6 literals without DNS, denies incomplete private integration': async () => {
             let lookups = 0; const targets = [];
             const transport = runtime.createSgpTransport({ lookup: async () => { lookups++; throw new Error('unexpected DNS'); }, connect: options => {
