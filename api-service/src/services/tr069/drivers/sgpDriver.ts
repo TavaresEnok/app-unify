@@ -1,13 +1,28 @@
 import { ApiError } from "../../../middlewares/errorHandler";
 import { proxyToSgp } from "../../proxySgpClient";
 import { createSgpSession, resolveSgpCredentials } from "../../sgpClient";
-import type {
-  CpeConnectedHost,
-  CpeDiagnosticResult,
-  CpeStatusOverview,
-  CpeWifiNetwork,
-  Tr069Driver,
+import {
+  classifySignalQuality,
+  type CpeConnectedHost,
+  type CpeDiagnosticResult,
+  type CpeIdentity,
+  type CpeStatusOverview,
+  type CpeWifiNetwork,
+  type Tr069Driver,
 } from "../types";
+
+type ProxyCpeHost = { hostname?: string; mac?: string; ip?: string; interfaceType?: string; rssiDbm?: number | null };
+type ProxyCpeDevice = {
+  manager?: string;
+  manufacturer?: string;
+  model?: string;
+  firmware?: string;
+  wanIp?: string;
+  wanUptimeSeconds?: number | null;
+  lastBoot?: string | null;
+  hosts?: ProxyCpeHost[];
+};
+type ProxyCpeList = { networks: CpeWifiNetwork[]; device: ProxyCpeDevice | null; servicoId: string };
 
 function mapSgpWifi(rawList: unknown): CpeWifiNetwork[] {
   if (!Array.isArray(rawList)) return [];
@@ -26,6 +41,43 @@ function mapSgpWifi(rawList: unknown): CpeWifiNetwork[] {
   });
 }
 
+function mapHost(h: ProxyCpeHost): CpeConnectedHost {
+  const interfaceType: CpeConnectedHost["interfaceType"] =
+    h?.interfaceType === "wifi_2g" || h?.interfaceType === "wifi_5g" || h?.interfaceType === "ethernet" ? h.interfaceType : "unknown";
+  const rssiDbm = typeof h?.rssiDbm === "number" && Number.isFinite(h.rssiDbm) ? h.rssiDbm : null;
+  return {
+    hostname: String(h?.hostname || h?.mac || "Dispositivo"),
+    mac: String(h?.mac || "").toUpperCase(),
+    ip: String(h?.ip || ""),
+    interfaceType,
+    rssiDbm,
+    signalQuality: classifySignalQuality(interfaceType, rssiDbm),
+    active: true,
+  };
+}
+
+// O proxy resolve o ID do serviço (o CPE Manager do SGP não aceita o ID do
+// contrato), confirma a posse do contrato e normaliza a resposta real.
+async function fetchCpeList(identity: CpeIdentity): Promise<ProxyCpeList> {
+  if (!identity.contratoId) {
+    throw new ApiError(404, "Contrato não localizado para consulta no SGP CPE Manager.", "not-found");
+  }
+  const res = await proxyToSgp("/cpe/wifi/list", {
+    cpfCnpj: identity.cpfCnpj,
+    contrato: identity.contratoId,
+    providerId: identity.providerId,
+  }, identity.authHeader);
+  const body = (res.data ?? {}) as Record<string, any>;
+  if (res.status >= 400) {
+    throw new ApiError(res.status, body?.error?.message || "SGP CPE Manager indisponível para este contrato.", "upstream-error");
+  }
+  return {
+    networks: mapSgpWifi(body?.data ?? body),
+    device: body?.device && typeof body.device === "object" ? body.device as ProxyCpeDevice : null,
+    servicoId: typeof body?.servicoId === "string" ? body.servicoId : "",
+  };
+}
+
 export const sgpDriver: Tr069Driver = {
   async testConnection(config) {
     return {
@@ -35,62 +87,34 @@ export const sgpDriver: Tr069Driver = {
   },
 
   async getOverview(_config, identity): Promise<CpeStatusOverview> {
-    if (!identity.contratoId) {
-      throw new ApiError(404, "Contrato não localizado para consulta no SGP CPE Manager.", "not-found");
-    }
-    const res = await proxyToSgp("/cpe/wifi/list", {
-      cpfCnpj: identity.cpfCnpj,
-      contrato: identity.contratoId,
-      providerId: identity.providerId,
-    }, identity.authHeader);
-    const body = (res.data ?? {}) as Record<string, any>;
-    if (res.status >= 400) {
-      throw new ApiError(res.status, body?.error?.message || "SGP CPE Manager indisponível para este contrato.", "upstream-error");
-    }
-    const wifiNetworks = mapSgpWifi(body?.data ?? body);
+    const { networks, device } = await fetchCpeList(identity);
+    const hosts = (device?.hosts ?? []).map(mapHost);
     return {
-      online: wifiNetworks.length > 0,
+      online: Boolean(device) || networks.length > 0,
       driver: "sgp",
       deviceId: identity.serial || identity.contratoId,
-      manufacturer: "",
-      model: "CPE gerenciada via SGP",
+      manufacturer: device?.manufacturer || "",
+      model: device?.model || "CPE gerenciada via SGP",
       serial: identity.serial,
       mac: identity.mac,
-      firmware: "",
-      uptimeSeconds: null,
-      wanIp: "",
+      firmware: device?.firmware || "",
+      uptimeSeconds: device?.wanUptimeSeconds ?? null,
+      wanIp: device?.wanIp || "",
       opticalRxDbm: null,
       lanPorts: [],
       lanBottleneck100Mbps: false,
       planDownloadMbps: identity.planDownloadMbps,
-      wifiNetworks,
-      hostsCount: 0,
+      wifiNetworks: networks,
+      hostsCount: hosts.length,
       lastInform: new Date().toISOString(),
     };
   },
 
   async listHosts(_config, identity): Promise<CpeConnectedHost[]> {
     if (!identity.contratoId) return [];
-    const creds = await resolveSgpCredentials(identity.providerId);
-    const session = createSgpSession(creds.providerId, creds.baseUrl, creds);
-    try {
-      const resp = await session.post(`${creds.baseUrl}/api/cpemanager/servico/${identity.contratoId}/hosts/`, {
-        token: creds.token,
-        app: creds.app,
-      });
-      const list = Array.isArray(resp.data?.hosts) ? resp.data.hosts : Array.isArray(resp.data) ? resp.data : [];
-      return list.map((h: any) => ({
-        hostname: String(h?.hostname || h?.name || h?.mac || "Dispositivo"),
-        mac: String(h?.mac || "").toUpperCase(),
-        ip: String(h?.ip || ""),
-        interfaceType: String(h?.interface || "").toLowerCase().includes("eth") ? "ethernet" : "wifi_2g",
-        rssiDbm: h?.rssi != null ? Number(h.rssi) : null,
-        signalQuality: "unknown" as const,
-        active: h?.active !== false,
-      }));
-    } catch {
-      return [];
-    }
+    // Esta versão do SGP não tem /hosts/: os dispositivos vêm em lan_devices do wifi/list.
+    const { device } = await fetchCpeList(identity);
+    return (device?.hosts ?? []).map(mapHost);
   },
 
   async updateWifi(_config, identity, input) {
@@ -116,10 +140,14 @@ export const sgpDriver: Tr069Driver = {
     if (!identity.contratoId) {
       throw new ApiError(400, "Contrato obrigatório para reiniciar CPE via SGP.", "invalid-argument");
     }
+    const { servicoId } = await fetchCpeList(identity);
+    if (!servicoId) {
+      throw new ApiError(404, "Serviço de internet não localizado no SGP para este contrato.", "not-found");
+    }
     const creds = await resolveSgpCredentials(identity.providerId);
     const session = createSgpSession(creds.providerId, creds.baseUrl, creds);
     try {
-      await session.post(`${creds.baseUrl}/api/cpemanager/servico/${identity.contratoId}/reboot/`, {
+      await session.post(`${creds.baseUrl}/api/cpemanager/servico/${servicoId}/reboot/`, {
         token: creds.token,
         app: creds.app,
       });

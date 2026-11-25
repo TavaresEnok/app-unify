@@ -29,7 +29,7 @@ for (const target of ["proxy-sgp/lib/invoice-amount.js", "api-service/src/servic
   await writeFile(resolve(root, target), invoiceAmount);
 }
 const dashboard = await readFile(resolve(root, "shared/runtime/dashboard.ts"), "utf8");
-for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/services/dashboardData.ts"]) {
+for (const target of ["functions/src/app/dashboardData.ts"]) {
   await writeFile(resolve(root, target), dashboard);
 }
 const sgp = await readFile(resolve(root, "shared/runtime/sgp-outbound.js"), "utf8");
@@ -47,6 +47,10 @@ for (const target of ["proxy-sgp/lib/ixc-gateway.js", "api-service/src/services/
 const coreSchemaDdl = await readFile(resolve(root, "shared/runtime/core-schema-ddl.js"), "utf8");
 for (const target of ["proxy-sgp/lib/core-schema-ddl.js", "api-service/src/services/core-schema-ddl.js"]) {
   await writeFile(resolve(root, target), coreSchemaDdl);
+}
+const legacyAuth = await readFile(resolve(root, "shared/runtime/legacy-firebase-auth.js"), "utf8");
+for (const target of ["proxy-sgp/lib/legacy-firebase-auth.js", "api-service/src/services/legacy-firebase-auth.js"]) {
+  await writeFile(resolve(root, target), legacyAuth);
 }
 const selfAuth = await readFile(resolve(root, "shared/runtime/self-auth.js"), "utf8");
 for (const target of ["proxy-sgp/lib/self-auth.js", "api-service/src/services/self-auth.js"]) {

@@ -3,7 +3,6 @@ import 'core/vibe/vibe_logo.dart';
 import 'dart:ui'; // For PlatformDispatcher
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -40,20 +39,14 @@ void main() async {
     debugPrint('ℹ️ Firebase (FCM) indisponível neste dispositivo: $e');
   }
 
-  // Crashlytics Setup + ErrorWidget customizado para debug
+  // Log local de erros + ErrorWidget customizado para debug
   FlutterError.onError = (errorDetails) {
-    try {
-      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-    } catch (_) {}
     debugPrint('🚨 FLUTTER ERROR: ${errorDetails.exception}');
     debugPrint('📍 ${errorDetails.stack}');
   };
 
   // Async errors
   PlatformDispatcher.instance.onError = (error, stack) {
-    try {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    } catch (_) {}
     debugPrint('🚨 ZONE ERROR: $error');
     debugPrint('📍 $stack');
     return true;

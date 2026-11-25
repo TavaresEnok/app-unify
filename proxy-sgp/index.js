@@ -11,6 +11,9 @@ const Redis = require('ioredis');
 const { randomUUID } = require('crypto');
 const { secretMatches } = require('./lib/internal-secret');
 const { verifyJwt, verifyLiveSession, signJwt, decryptSecret } = require('./lib/self-auth');
+const { verifySessionWithLegacy, issueLegacyCustomToken } = require('./lib/legacy-firebase-auth');
+const { persistSubscriber } = require('./lib/current-auth');
+const { pickInternetServiceId, normalizeCpeWifiResponse } = require('./lib/cpe-service');
 const { CORE_SCHEMA_STATEMENTS } = require('./lib/core-schema-ddl');
 const stateRedis = process.env.JOBS_REDIS_URL ? new Redis(process.env.JOBS_REDIS_URL, { maxRetriesPerRequest: 1 }) : null;
 stateRedis?.on('error', () => undefined);
@@ -214,7 +217,8 @@ async function rawSgpApi(params) {
         console.error(`[SGP-API] Erro ao chamar ${url}:`, error.message);
         if (error.response) {
             secureLog(`[SGP-API] Response data:`, error.response.data);
-            throw Object.assign(new Error(`SGP retornou erro HTTP ${error.response.status}`), { response: { status: error.response.status } });
+            const sgpMessage = typeof error.response.data?.msg === 'string' ? error.response.data.msg.slice(0, 200) : undefined;
+            throw Object.assign(new Error(`SGP retornou erro HTTP ${error.response.status}`), { response: { status: error.response.status }, sgpMessage });
         }
         throw new Error(`Erro de conexão com SGP: ${error.message}`);
     }
@@ -273,7 +277,8 @@ async function loadSgpCredentials(body) {
     );
     const row = rows[0];
     if (!row) throw Object.assign(new Error('Provedor indisponível.'), { status: 503 });
-    const decrypted = row.ciphertext ? JSON.parse(decryptSecret(row.ciphertext)) : null;
+    const rawDecrypted = row.ciphertext ? decryptSecret(row.ciphertext) : null;
+    const decrypted = typeof rawDecrypted === 'string' ? JSON.parse(rawDecrypted) : rawDecrypted;
     const integration = outbound.privateIntegration(decrypted);
     // IXC não tem "app": usa marcador para o restante do fluxo SGP seguir idêntico.
     return { sgpParams: { providerId, token: integration.token, app: integration.erp === 'ixc' ? 'ixc' : integration.app, erp: integration.erp }, sgpBaseUrl: integration.baseUrl, erp: integration.erp };
@@ -324,7 +329,7 @@ async function verifyFirebaseToken(req, res, next) {
     const token = authHeader.split('Bearer ')[1];
     try {
         await ensureCoreTables();
-        const decodedToken = await verifyLiveSession(pool, token);
+        const decodedToken = await verifySessionWithLegacy(pool, token, verifyLiveSession);
         const reqCpf = (req.body.cpfCnpj || req.body.cpf || '').replace(/[^0-9]/g, '');
 
         if (!reqCpf) return res.status(400).json({ error: { message: 'CPF/CNPJ obrigatório.' } });
@@ -796,7 +801,9 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                     { ttlSeconds: 30 * 24 * 3600 },
                 );
                 responseData.accessToken = jwt;
-                responseData.customToken = jwt;
+                // Apps antigos fazem signInWithCustomToken(customToken): durante a
+                // transição recebem um custom token real do Firebase.
+                responseData.customToken = (await issueLegacyCustomToken(identity, { persistSubscriber })) || jwt;
                 responseData.tokenType = 'jwt';
                 console.log('[Check-CPF] JWT gerado para contrato elegível.');
             } catch (tokenError) {
@@ -899,6 +906,16 @@ app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
     });
 });
 // 5. Rotas CPE Manager (Wi-Fi)
+// O CPE Manager do SGP é endereçado pelo ID do serviço de internet, não do contrato.
+async function resolveCpeServiceId({ sgpParams, sgpBaseUrl, cpfCnpjUnformatted, contratoId }) {
+    const clientes = await callSgpApi({ ...sgpParams, contrato: String(contratoId),
+        url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/') });
+    return pickInternetServiceId(clientes, contratoId, cpfCnpjUnformatted);
+}
+function cpeFailure(res, error, fallback) {
+    if (error.sgpMessage) return res.status(422).json({ error: { message: error.sgpMessage } });
+    return res.status(error.status || 502).json({ error: { message: error.publicMessage || fallback } });
+}
 app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj, senha: senhaInput, contrato } = req.body;
     const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
@@ -927,7 +944,8 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
             return res.status(503).json({ error: { message: 'Credenciais do contrato indisponíveis para listar Wi-Fi.' } });
         }
 
-        const fullUrl = formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contratoId}/wifi/list/`);
+        const servicoId = await resolveCpeServiceId({ sgpParams, sgpBaseUrl, cpfCnpjUnformatted, contratoId });
+        const fullUrl = formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${servicoId}/wifi/list/`);
         console.log(`[WIFI-LIST] URL SGP: ${fullUrl}`);
         const wifiParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, url: fullUrl };
         const response = await callSgpApi(wifiParams);
@@ -937,10 +955,11 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
         } else {
             console.log(`[WIFI-LIST] Sucesso. Itens encontrados:`, Array.isArray(response) ? response.length : 'Obj');
         }
-        res.status(200).json({ success: true, data: wifiNetworks(response) });
+        const { networks, device } = normalizeCpeWifiResponse(response, wifiNetworks);
+        res.status(200).json({ success: true, data: networks, device, servicoId });
     } catch (error) {
-        console.error(`[WIFI-LIST] CRITICAL ERROR:`, error.message);
-        (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } }));
+        console.error(`[WIFI-LIST] ERROR:`, error.message);
+        cpeFailure(res, error, 'Erro interno.');
     }
 });
 app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
@@ -966,20 +985,21 @@ app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
             return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para atualizar Wi-Fi.' } });
         }
 
+        const servicoId = await resolveCpeServiceId({ sgpParams, sgpBaseUrl, cpfCnpjUnformatted, contratoId: contrato });
         let nextPassword = password;
         if (!nextPassword) {
             const current = await callSgpApi({ ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha,
-                cache: false, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/list/`) });
-            nextPassword = preservedWifiPassword(wifiNetworks(current), wifiId);
+                cache: false, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${servicoId}/wifi/list/`) });
+            nextPassword = preservedWifiPassword(normalizeCpeWifiResponse(current, wifiNetworks).networks, wifiId);
         }
 
-        const updateParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, wifi_id: wifiId, ssid, password: nextPassword, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${contrato}/wifi/update/`) };
+        const updateParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, wifi_id: wifiId, ssid, password: nextPassword, url: formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${servicoId}/wifi/update/`) };
         const response = assertWifiResponse(await callSgpApi(updateParams));
         secureLog(`[WIFI-UPDATE] Resposta SGP:`, response);
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         console.error(`[WIFI-UPDATE] ERROR:`, error.message);
-        (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: error.publicMessage || "Erro interno." } }));
+        cpeFailure(res, error, 'Erro interno.');
     }
 });
 

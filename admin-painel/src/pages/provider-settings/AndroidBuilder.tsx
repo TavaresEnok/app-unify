@@ -12,7 +12,7 @@ import { publicDownloadUrl, runtimeConfig } from '@/shared/config/runtime';
 import { resolvePublicApiBaseUrl } from '@/shared/config/publicApi';
 import { getErrorMessage } from '@/shared/errors';
 import BuildConfirmationDialog from '@/components/BuildConfirmationDialog';
-import { confirmBuildSession, needsBuildConfirmation } from '@/shared/firebase/buildSession';
+import { confirmBuildSession, needsBuildConfirmation } from '@/shared/settings/buildSession';
 
 interface BuildResult {
     success: boolean;

@@ -126,6 +126,8 @@ services:
       - NODE_ENV=production
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
+      # Transição Firebase Auth → JWT próprio para apps antigos (desliga sozinho na data).
+      - LEGACY_FIREBASE_AUTH_UNTIL=${LEGACY_FIREBASE_AUTH_UNTIL:-2027-01-31}
       - JWT_SECRET_FILE=/run/secrets/jwt-secret.key
       - APP_SECRETS_KEY_FILE=/run/secrets/app-secrets.key
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
@@ -282,8 +284,8 @@ services:
       - DATABASE_URL=postgresql://sgp_user:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/sgp_cache
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/service-account.json
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
-      # Bucket dos relatórios/anexos enviados pelo app (o mesmo do firebase_options).
-      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET:-app-ajust-provedor.firebasestorage.app}
+      # Transição Firebase Auth → JWT próprio para apps antigos (desliga sozinho na data).
+      - LEGACY_FIREBASE_AUTH_UNTIL=${LEGACY_FIREBASE_AUTH_UNTIL:-2027-01-31}
       - JWT_SECRET_FILE=/run/secrets/jwt-secret.key
       - APP_SECRETS_KEY_FILE=/run/secrets/app-secrets.key
       - UPLOADS_DIR=/srv/uploads

@@ -41,7 +41,7 @@ async function dispatchRestFunction<T extends FunctionRequestType>(
       const p = payload as FunctionRequestPayloadMap['CREATE_PROVIDER'];
       const res = await panelRequest<Record<string, unknown>>('/admin/providers', {
         method: 'POST',
-        body: { providerId: p.providerId, name: p.name },
+        body: { id: p.providerId, name: p.name },
       });
       clearPanelReads();
       return { success: true, message: 'Provedor criado com sucesso.', providerId: String(res.id || p.providerId) } as FunctionResultMap[T];

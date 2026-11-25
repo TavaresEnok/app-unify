@@ -125,15 +125,17 @@ providersRouter.patch("/:providerId/details", asyncRoute(async (req, res) => {
 
 providersRouter.post("/", asyncRoute(async (req, res) => {
   if (!req.body || typeof req.body !== "object" || Array.isArray(req.body) ||
-      (req.body.id !== undefined && typeof req.body.id !== "string")) {
+      (req.body.id !== undefined && typeof req.body.id !== "string") ||
+      (req.body.providerId !== undefined && typeof req.body.providerId !== "string")) {
     throw new ApiError(400, "Configuração inválida.", "invalid-argument");
   }
-  const id = typeof req.body?.id === "string" ? req.body.id.trim() : "";
+  const rawId = typeof req.body?.id === "string" ? req.body.id : typeof req.body?.providerId === "string" ? req.body.providerId : "";
+  const id = rawId.trim();
   if (!id && req.user?.superAdmin !== true) throw new ApiError(403, "Apenas Super Admin pode criar provedores.", "permission-denied");
   if (id && !canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para alterar este provedor.", "permission-denied");
   if (id && !/^[a-z0-9_-]+$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
 
-  const { id: _id, ...input } = req.body;
+  const { id: _id, providerId: _providerId, ...input } = req.body;
   let data: Record<string, unknown>;
   try { data = parseProviderInput(input, req.user?.superAdmin === true); }
   catch { throw new ApiError(400, "Configuração inválida ou campo não permitido.", "invalid-argument"); }

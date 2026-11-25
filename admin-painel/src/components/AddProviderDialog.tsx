@@ -9,7 +9,7 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { getErrorMessage } from "@/shared/errors";
 import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";
-import { saveProviderSettings } from "@/shared/firebase/providerSettingsService";
+import { saveProviderSettings } from "@/shared/settings/providerSettingsService";
 
 export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }) {
     const [name, setName] = useState('');

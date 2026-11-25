@@ -50,11 +50,11 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
 
     for (const provider of ['a', 'b', 'incomplete']) {
         providersMap.set(provider, { id: provider, details: { systemUrl: base, appName: 'public-forged' } });
-        secretsMap.set(provider, selfAuth.encryptSecret(JSON.stringify({
+        secretsMap.set(provider, selfAuth.encryptSecret({
             sgpBaseUrl: base,
             appName: `app-${provider}`,
             ...(provider !== 'incomplete' ? { apiToken: `synthetic-${provider}` } : {}),
-        })));
+        }));
     }
     for (const provider of ['a', 'b']) {
         adminUsersMap.set(`provider:${provider}`, {

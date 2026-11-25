@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { requirePgPool } from "../services/postgres";
 import { verifyLiveSession } from "../services/self-auth";
+import { verifySessionWithLegacy } from "../services/legacy-firebase-auth";
 import { ApiError } from "./errorHandler";
 
 // Reuse only within this HTTP request. Never trust a pre-populated req.user or
@@ -32,7 +33,7 @@ export const verifyToken: RequestHandler = async (req, _res, next) => {
       return;
     }
     verifiedRequests.delete(req);
-    const identity = await verifyLiveSession(requirePgPool(), token);
+    const identity = await verifySessionWithLegacy(requirePgPool(), token, verifyLiveSession);
     if (identity.superAdmin === true && ["subscriber", "providerAdmin"].includes(identity.role)) {
       throw new ApiError(403, "Papel inconsistente.", "permission-denied");
     }

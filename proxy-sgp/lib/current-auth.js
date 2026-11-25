@@ -5,16 +5,6 @@ function authFailure(error) {
     const denied = invalidCodes.has(error?.code);
     return { status: denied ? 401 : 503, code: denied ? 'unauthenticated' : 'authorization-unavailable' };
 }
-async function currentIdentity(auth, token) {
-    const identity = await auth.verifyIdToken(token, true);
-    const current = await auth.getUser(identity.uid);
-    if (current.disabled) throw Object.assign(new Error('Session denied'), { code: 'auth/user-disabled' });
-    const claims = current.customClaims || {};
-    if (claims.superAdmin === true && ['subscriber', 'providerAdmin'].includes(claims.role)) throw Object.assign(new Error('Conflicting role'), { code: 'access/scope-changed' });
-    if ((identity.role || '') !== (claims.role || '') || (identity.providerId || '') !== (claims.providerId || '') ||
-        (identity.superAdmin === true) !== (claims.superAdmin === true)) throw Object.assign(new Error('Access changed'), { code: 'access/scope-changed' });
-    return { ...current.customClaims, uid: identity.uid };
-}
 // Called only after SGP password/contract verification. Never adopts another
 // tenant or overwrites an administrative account, including in create races.
 async function persistSubscriber(auth, identity) {
@@ -38,4 +28,4 @@ async function persistSubscriber(auth, identity) {
     await auth.setCustomUserClaims(identity.uid, identity.claims);
     return auth.createCustomToken(identity.uid, identity.claims);
 }
-module.exports = { currentIdentity, authFailure, persistSubscriber };
+module.exports = { authFailure, persistSubscriber };

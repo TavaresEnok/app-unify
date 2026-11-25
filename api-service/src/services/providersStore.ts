@@ -113,7 +113,8 @@ export async function getProviderSecret<T = Record<string, any>>(
   );
   const row = res.rows[0];
   if (!row?.ciphertext) return null;
-  return decryptSecret(row.ciphertext) as T;
+  const decoded = decryptSecret(row.ciphertext);
+  return (typeof decoded === "string" ? JSON.parse(decoded) : decoded) as T;
 }
 
 export async function saveProviderSecret(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart' show Color;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import '../services/notification_service.dart';
-import '../services/analytics_service.dart';
 import '../services/review_service.dart';
 import '../services/deep_link_service.dart';
 import '../services/speed_test_history_service.dart';
@@ -234,11 +233,7 @@ final themeProvider = ChangeNotifierProvider<DynamicThemeProvider>((ref) {
   return themeNotifer;
 });
 
-// ANALYTICS & ENGAGEMENT
-final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
-  return AnalyticsService();
-});
-
+// ENGAGEMENT
 final reviewServiceProvider = Provider<ReviewService>((ref) {
   return ReviewService();
 });

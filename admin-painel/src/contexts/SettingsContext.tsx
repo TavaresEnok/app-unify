@@ -15,7 +15,7 @@ import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";
 import {
   saveProviderSettings,
   subscribeProviderSettings,
-} from "@/shared/firebase/providerSettingsService";
+} from "@/shared/settings/providerSettingsService";
 
 export type { ProviderConfig, LayoutType } from "@/shared/contracts";
 export type ProviderConfigLegacy = ProviderConfig;

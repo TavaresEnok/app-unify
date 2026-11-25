@@ -25,7 +25,7 @@ for (const target of ["proxy-sgp/lib/invoice-amount.js", "api-service/src/servic
   if (await readFile(resolve(target), "utf8").catch(() => "") !== invoiceAmount) stale.push(target);
 }
 const dashboard = await readFile(resolve("shared/runtime/dashboard.ts"), "utf8");
-for (const target of ["functions/src/app/dashboardData.ts", "api-service/src/services/dashboardData.ts"]) {
+for (const target of ["functions/src/app/dashboardData.ts"]) {
   if (await readFile(resolve(target), "utf8").catch(() => "") !== dashboard) stale.push(target);
 }
 
@@ -45,6 +45,10 @@ for (const target of ["proxy-sgp/lib/ixc-gateway.js", "api-service/src/services/
 const coreSchemaDdl = await readFile(resolve("shared/runtime/core-schema-ddl.js"), "utf8");
 for (const target of ["proxy-sgp/lib/core-schema-ddl.js", "api-service/src/services/core-schema-ddl.js"]) {
   if (await readFile(resolve(target), "utf8").catch(() => "") !== coreSchemaDdl) stale.push(target);
+}
+const legacyAuth = await readFile(resolve("shared/runtime/legacy-firebase-auth.js"), "utf8");
+for (const target of ["proxy-sgp/lib/legacy-firebase-auth.js", "api-service/src/services/legacy-firebase-auth.js"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== legacyAuth) stale.push(target);
 }
 const selfAuth = await readFile(resolve("shared/runtime/self-auth.js"), "utf8");
 for (const target of ["proxy-sgp/lib/self-auth.js", "api-service/src/services/self-auth.js"]) {

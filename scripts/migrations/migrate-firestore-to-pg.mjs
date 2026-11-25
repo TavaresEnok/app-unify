@@ -125,7 +125,7 @@ async function migrateFirestore(pool, db) {
            ON CONFLICT (provider_id, kind) DO UPDATE SET
              ciphertext = EXCLUDED.ciphertext,
              updated_at = NOW()`,
-          [id, encryptSecret(JSON.stringify(secretPayload))],
+          [id, encryptSecret(secretPayload)],
         );
       }
     }
@@ -139,7 +139,7 @@ async function migrateFirestore(pool, db) {
            ON CONFLICT (provider_id, kind) DO UPDATE SET
              ciphertext = EXCLUDED.ciphertext,
              updated_at = NOW()`,
-          [id, encryptSecret(JSON.stringify(acsPayload))],
+          [id, encryptSecret(acsPayload)],
         );
       }
     }
@@ -295,7 +295,7 @@ async function registerUpConnect(pool) {
        ON CONFLICT (provider_id, kind) DO UPDATE SET
          ciphertext = EXCLUDED.ciphertext,
          updated_at = NOW()`,
-      [encryptSecret(JSON.stringify(secretPayload))],
+      [encryptSecret(secretPayload)],
     );
     secretSaved = true;
   }
