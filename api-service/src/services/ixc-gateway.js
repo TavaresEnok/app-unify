@@ -12,6 +12,9 @@
 
 const MAX_PAGES = 5;
 const ID_CHUNK = 100;
+// PIX copia e cola: o IXC não grava o EMV em fn_areceber; vem de /get_pix.
+// Limitado às próximas faturas em aberto para não multiplicar chamadas.
+const MAX_PIX_LOOKUPS = 6;
 // O SGP exige senha da central; no IXC o acesso é pelo token do provedor.
 // Marcador não secreto só para o código SGP considerar o contrato "consultável".
 const CENTRAL_MARKER = 'ixc';
@@ -69,7 +72,7 @@ function chunks(items, size) {
 }
 const unique = items => [...new Set(items.filter(item => item !== undefined && item !== null && item !== '').map(String))];
 
-function createIxcGateway({ call, allowWrites = true, now = () => new Date() }) {
+function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = () => new Date() }) {
     const cityCache = new Map();
 
     async function list(table, qtype, query, options = {}) {
@@ -249,7 +252,27 @@ function createIxcGateway({ call, allowWrites = true, now = () => new Date() }) 
                 rows.push(...await listAll('fn_areceber', 'id_cliente', part.join(','), { ...options, oper: 'IN', rp: paid ? 36 : 100, maxPages: paid ? 1 : MAX_PAGES }));
             }
         }
-        return { titulos: rows.map(row => invoiceView(row, paid)) };
+        const view = rows.map(row => invoiceView(row, paid));
+        if (!paid && pixLookup) await attachPix(view);
+        return { titulos: view };
+    }
+
+    function emvFrom(data) {
+        const code = data?.pix?.qrCode?.qrcode ?? data?.pix?.qrcode ?? data?.qrcode;
+        return typeof code === 'string' && code.trim().startsWith('000201') ? code.trim() : null;
+    }
+
+    // Leitura do PIX de cada fatura (equivale ao cliente abrir o PIX na central).
+    // Falha numa fatura nunca derruba a lista: o campo só fica vazio.
+    async function attachPix(view) {
+        const pending = view.filter(i => !i.codigoPix).slice(0, MAX_PIX_LOOKUPS);
+        for (const invoice of pending) {
+            try {
+                const data = await call('get_pix', { id_areceber: invoice.id }, '');
+                if (data && data.type === 'error') continue;
+                invoice.codigoPix = emvFrom(data);
+            } catch { /* mantém null */ }
+        }
     }
 
     async function loginsOfContract(contractId) {

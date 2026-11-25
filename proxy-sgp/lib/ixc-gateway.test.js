@@ -256,3 +256,26 @@ test('integração privada: erp padrão sgp exige app; ixc dispensa app', () => 
     assert.deepEqual(outbound.privateIntegration({ ...base, erp: 'ixc' }), { baseUrl: 'https://erp.example.com', token: 'tok', app: '', erp: 'ixc' });
     assert.throws(() => outbound.privateIntegration({ ...base, appName: 'app', erp: 'outro' }));
 });
+
+test('titulos: busca o PIX copia e cola no get_pix só para faturas em aberto sem EMV', async () => {
+    const emv = id => `00020101021226${id}EMV`;
+    const g = gateway({ onCall: (table, body) => table === 'get_pix'
+        ? (body.id_areceber === '902' ? { type: 'error', message: 'Gateway sem PIX' } : { type: 'success', pix: { qrCode: { qrcode: emv(body.id_areceber) } } })
+        : undefined });
+    const open = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos' })).titulos;
+    assert.equal(open[0].codigoPix, emv('900'));
+    assert.equal(open[1].codigoPix, '000201010212...EMV', 'EMV já gravado não gera chamada');
+    assert.equal(open[2].codigoPix, null, 'erro do IXC deixa o campo vazio sem derrubar a lista');
+    assert.deepEqual(g.calls.filter(c => c.table === 'get_pix').map(c => c.body.id_areceber), ['900', '902']);
+    await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'pagos' });
+    assert.equal(g.calls.filter(c => c.table === 'get_pix').length, 2, 'faturas pagas não buscam PIX');
+});
+
+test('titulos: resposta de PIX que não é EMV é descartada e a busca pode ser desligada', async () => {
+    const g = gateway({ onCall: table => table === 'get_pix' ? { type: 'success', pix: { qrCode: { qrcode: 'txid-solto' } } } : undefined });
+    const open = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos' })).titulos;
+    assert.equal(open[0].codigoPix, null);
+    const off = gateway({ gateway: { pixLookup: false } });
+    await off.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos' });
+    assert.equal(off.calls.some(c => c.table === 'get_pix'), false);
+});

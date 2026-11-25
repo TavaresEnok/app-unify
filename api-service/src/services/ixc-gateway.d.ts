@@ -4,6 +4,7 @@ export interface IxcGateway {
 export function createIxcGateway(options: {
   call: (table: string, body: Record<string, unknown>, action: string) => Promise<any>;
   allowWrites?: boolean;
+  pixLookup?: boolean;
   now?: () => Date;
 }): IxcGateway;
 export function ixcHeaders(token: string, action?: string): Record<string, string>;
