@@ -1,12 +1,11 @@
 import { Router, type Request } from "express";
 import { canAccessProvider, verifyAdmin, verifyToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore, messaging } from "../services/firebaseAdmin";
+import { getMessaging } from "../services/firebaseAdmin";
 import { getPgPool } from "../services/postgres";
 import {
   cancelScheduledCampaign,
   getBillingPushRule,
-  importLegacyTokensFromFirestore,
   listCampaignHistory,
   listSegmentOptions,
   previewAudience,
@@ -94,7 +93,7 @@ notificationsRouter.post("/send", asyncRoute(async (req, res) => {
 
   let campaign;
   try {
-    campaign = await sendCampaign(pool, messaging, {
+    campaign = await sendCampaign(pool, getMessaging(), {
       providerId,
       title,
       body,
@@ -162,17 +161,11 @@ notificationsRouter.post("/sync-segments", asyncRoute(async (req, res) => {
   const providerId = resolveProviderId(req);
   const pool = requireDatabase();
   const projected = await projectSegmentsFromSgpClients(pool, providerId);
-  let importedTokens = 0;
-  if (req.body?.importLegacyTokens === true) {
-    importedTokens = await importLegacyTokensFromFirestore(pool, firestore, providerId);
-  }
   const options = await listSegmentOptions(pool, providerId);
   res.json({
     success: true,
-    message: importedTokens > 0
-      ? `Segmentos atualizados (${projected} registro(s)) e ${importedTokens} token(s) importado(s).`
-      : `Segmentos atualizados (${projected} registro(s) indexados a partir do cache SGP).`,
-    data: { projected, importedTokens, totals: options.totals },
+    message: `Segmentos atualizados (${projected} registro(s) indexados a partir do cache ERP).`,
+    data: { projected, importedTokens: 0, totals: options.totals },
   });
 }));
 

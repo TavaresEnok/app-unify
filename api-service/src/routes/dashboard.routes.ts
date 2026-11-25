@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore } from "../services/firebaseAdmin";
-import { getPgPool } from "../services/postgres";
-import { loadGlobalDashboard, loadProviderDashboard } from "../services/dashboardData";
+import { ensureCoreSchema, getPgPool, requirePgPool } from "../services/postgres";
+import { loadGlobalDashboardPg, loadProviderDashboardPg } from "../services/dashboardPg";
 
 export const dashboardRouter = Router();
 dashboardRouter.use(verifyToken, verifyAdmin);
@@ -19,13 +18,11 @@ async function cachedDashboard(key: string, load: () => Promise<unknown>) {
 }
 
 export async function warmDashboardData() {
-  // Establish Firestore connections and prepare the first read at process start,
-  // rather than charging this initialization to the first administrator.
-  await cachedDashboard("global", () => loadGlobalDashboard(firestore, getPgPool()));
+  const pool = getPgPool();
+  if (!pool) return;
+  await cachedDashboard("global", () => loadGlobalDashboardPg(pool));
 }
 
-// Keep the fresh account/role check used by the queue handlers: a revoked role
-// must not regain access through an older, still cryptographically valid token.
 function authorizePanel(claims: Express.Request["user"], providerId?: string) {
   if (!claims || (claims?.superAdmin !== true &&
       (!providerId || claims?.role !== "providerAdmin" || claims.providerId !== providerId))) {
@@ -36,37 +33,44 @@ function authorizePanel(claims: Express.Request["user"], providerId?: string) {
 dashboardRouter.get("/panel", asyncRoute(async (req, res) => {
   authorizePanel(req.user);
   res.setHeader("Cache-Control", "private, no-store");
-  res.json({ data: await cachedDashboard("global", () => loadGlobalDashboard(firestore, getPgPool())) });
+  res.json({ data: await cachedDashboard("global", () => loadGlobalDashboardPg(requirePgPool())) });
 }));
 
 dashboardRouter.get("/panel/providers/:providerId", asyncRoute(async (req, res) => {
   const providerId = String(req.params.providerId);
   authorizePanel(req.user, providerId);
   res.setHeader("Cache-Control", "private, no-store");
-  res.json({ data: await cachedDashboard(`provider:${providerId}`, () => loadProviderDashboard(firestore, providerId, getPgPool())) });
+  res.json({ data: await cachedDashboard(`provider:${providerId}`, () => loadProviderDashboardPg(requirePgPool(), providerId)) });
 }));
 
 dashboardRouter.get("/", asyncRoute(async (req, res) => {
+  const pool = requirePgPool();
+  await ensureCoreSchema(pool);
   if (req.user?.superAdmin === true) {
     const [providers, openTickets, tickets, users] = await Promise.all([
-      firestore.collection("provedores").count().get(),
-      firestore.collection("tickets").where("status", "in", ["Aberto", "Em Andamento"]).count().get(),
-      firestore.collection("tickets").count().get(),
-      firestore.collection("clientes").count().get(),
+      pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM providers`),
+      pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tickets WHERE status IN ('Aberto', 'Em Andamento')`),
+      pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tickets`),
+      pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM sgp_clients`),
     ]);
     return res.json({ data: {
-      totalProviders: providers.data().count,
-      totalTickets: tickets.data().count,
-      openTickets: openTickets.data().count,
-      totalUsers: users.data().count,
+      totalProviders: Number(providers.rows[0]?.count || 0),
+      totalTickets: Number(tickets.rows[0]?.count || 0),
+      openTickets: Number(openTickets.rows[0]?.count || 0),
+      totalUsers: Number(users.rows[0]?.count || 0),
     } });
   }
   const providerId = typeof req.user?.providerId === "string" ? req.user.providerId : "";
   if (!providerId) throw new ApiError(403, "Sem provedor associado.", "permission-denied");
   const [openTickets, tickets, clients] = await Promise.all([
-    firestore.collection("tickets").where("providerId", "==", providerId).where("status", "in", ["Aberto", "Em Andamento"]).count().get(),
-    firestore.collection("tickets").where("providerId", "==", providerId).count().get(),
-    firestore.collection("clientes").where("providerId", "==", providerId).count().get(),
+    pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tickets WHERE provider_id = $1 AND status IN ('Aberto', 'Em Andamento')`, [providerId]),
+    pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tickets WHERE provider_id = $1`, [providerId]),
+    pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM sgp_clients WHERE provider_id = $1`, [providerId]),
   ]);
-  return res.json({ data: { totalProviders: 1, totalTickets: tickets.data().count, openTickets: openTickets.data().count, totalUsers: clients.data().count } });
+  return res.json({ data: {
+    totalProviders: 1,
+    totalTickets: Number(tickets.rows[0]?.count || 0),
+    openTickets: Number(openTickets.rows[0]?.count || 0),
+    totalUsers: Number(clients.rows[0]?.count || 0),
+  } });
 }));

@@ -11,7 +11,6 @@ function listEnv(name: string, fallback: string[]): string[] {
 export const env = {
   port: numberEnv("PORT", 9136),
   nodeEnv: process.env.NODE_ENV || "development",
-  firebaseApiKey: process.env.FIREBASE_API_KEY || "",
   proxySgpUrl: (process.env.PROXY_SGP_INTERNAL_URL || "http://backend-proxy:3002").replace(/\/$/, ""),
   allowedOrigins: listEnv("ALLOWED_ORIGINS", [
     "http://localhost:5173",
@@ -21,7 +20,5 @@ export const env = {
 } as const;
 
 export function environmentWarnings(): string[] {
-  const warnings: string[] = [];
-  if (!env.firebaseApiKey) warnings.push("FIREBASE_API_KEY ausente; login REST ficará indisponível.");
-  return warnings;
+  return [];
 }

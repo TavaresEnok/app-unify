@@ -1,5 +1,4 @@
-import type { User } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { auth, type SessionUser } from '@/shared/auth/session';
 import { resolvePublicApiBaseUrl } from '@/shared/config/publicApi';
 
 export type PrivateResource = { ticketId: string } | { providerId: string; resultId: string };
@@ -12,7 +11,7 @@ export function privateAttachmentPath(resource: PrivateResource, attachmentId: s
     : `/providers/${opaque(resource.providerId)}/results/${opaque(resource.resultId)}/reports`;
   return `/private${parent}/${opaque(attachmentId)}`;
 }
-export async function privateAttachmentRequest(user: User, resource: PrivateResource, attachmentId: string, signal: AbortSignal, file?: File): Promise<Blob | void> {
+export async function privateAttachmentRequest(user: Pick<SessionUser, 'uid' | 'getIdToken'>, resource: PrivateResource, attachmentId: string, signal: AbortSignal, file?: File): Promise<Blob | void> {
   const path = privateAttachmentPath(resource, attachmentId);
   if (signal.aborted || auth.currentUser !== user) throw new Error('Sessão alterada.');
   const token = await user.getIdToken();
@@ -33,7 +32,7 @@ export class PrivateBlob {
   private abort = new AbortController();
   private url?: string;
   dispose() { this.abort.abort(); if (this.url) URL.revokeObjectURL(this.url); this.url = undefined; }
-  async load(user: User, resource: PrivateResource, attachmentId: string) {
+  async load(user: Pick<SessionUser, 'uid' | 'getIdToken'>, resource: PrivateResource, attachmentId: string) {
     const blob = await privateAttachmentRequest(user, resource, attachmentId, this.abort.signal);
     if (this.abort.signal.aborted || !blob) throw new Error('Leitura cancelada.');
     this.url = URL.createObjectURL(blob);

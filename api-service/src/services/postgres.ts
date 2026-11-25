@@ -1,4 +1,6 @@
 import { Pool, type QueryResult, type QueryResultRow } from "pg";
+import { ApiError } from "../middlewares/errorHandler";
+import { CORE_SCHEMA_STATEMENTS } from "./core-schema-ddl";
 import {
   SUBSCRIBER_SEGMENTS_INDEXES_SQL,
   SUBSCRIBER_SEGMENTS_TABLE_SQL,
@@ -10,6 +12,7 @@ export interface SqlQueryable {
 
 let poolInstance: Pool | null = null;
 let schemaReady: Promise<void> | null = null;
+let coreSchemaPromises = new WeakMap<object, Promise<void>>();
 
 export function getPgPool(): Pool | null {
   if (poolInstance) return poolInstance;
@@ -27,10 +30,36 @@ export function getPgPool(): Pool | null {
   return poolInstance;
 }
 
+export function requirePgPool(): Pool {
+  const pool = getPgPool();
+  if (!pool) {
+    throw new ApiError(503, "Banco de dados indisponível.", "service-unavailable");
+  }
+  return pool;
+}
+
+export async function ensureCoreSchema(db: SqlQueryable): Promise<void> {
+  const existing = coreSchemaPromises.get(db as unknown as object);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    await db.query(SUBSCRIBER_SEGMENTS_TABLE_SQL);
+    for (const stmt of CORE_SCHEMA_STATEMENTS) {
+      await db.query(stmt);
+    }
+  })().catch((error) => {
+    coreSchemaPromises.delete(db as unknown as object);
+    throw error;
+  });
+
+  coreSchemaPromises.set(db as unknown as object, promise);
+  return promise;
+}
+
 export async function ensureNotificationSchema(db: SqlQueryable): Promise<void> {
   if (!schemaReady) {
     schemaReady = (async () => {
-      await db.query(SUBSCRIBER_SEGMENTS_TABLE_SQL);
+      await ensureCoreSchema(db);
       for (const idxSql of SUBSCRIBER_SEGMENTS_INDEXES_SQL) {
         await db.query(idxSql);
       }
@@ -102,6 +131,8 @@ export async function ensureNotificationSchema(db: SqlQueryable): Promise<void> 
           olt_name TEXT NOT NULL DEFAULT '',
           bairro TEXT NOT NULL DEFAULT '',
           cidade TEXT NOT NULL DEFAULT '',
+          created_by_uid TEXT NOT NULL DEFAULT '',
+          report_attachment_id TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
@@ -126,5 +157,5 @@ export async function ensureNotificationSchema(db: SqlQueryable): Promise<void> 
 
 export function resetPgSchemaForTests(): void {
   schemaReady = null;
+  coreSchemaPromises = new WeakMap<object, Promise<void>>();
 }
-

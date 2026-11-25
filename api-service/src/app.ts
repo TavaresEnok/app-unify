@@ -10,6 +10,7 @@ import { ApiError, correlationId, errorHandler, notFoundHandler } from "./middle
 import { globalLimiter } from "./middlewares/rateLimits";
 import { adminAuthRouter } from "./routes/adminAuth.routes";
 import { providersRouter } from "./routes/providers.routes";
+import { incidentsRouter } from "./routes/incidents.routes";
 import { ticketsRouter } from "./routes/tickets.routes";
 import { privateAttachmentsRouter } from "./routes/privateAttachments.routes";
 import { usersRouter } from "./routes/users.routes";
@@ -45,6 +46,7 @@ export function createApp() {
 
   app.use("/admin/auth", adminAuthRouter);
   app.use("/admin/providers", providersRouter);
+  app.use("/admin/incidents", incidentsRouter);
   app.use("/admin/tickets", ticketsRouter);
   app.use("/private", privateAttachmentsRouter);
   app.use("/admin/users", usersRouter);

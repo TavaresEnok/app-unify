@@ -7,11 +7,11 @@ const outbound = require('./lib/sgp-outbound');
 const { formatSgpUrl } = outbound;
 const { createIxcGateway, ixcHeaders, ixcUrl } = require('./lib/ixc-gateway');
 const { Pool } = require('pg');
-const admin = require('firebase-admin');
 const Redis = require('ioredis');
 const { randomUUID } = require('crypto');
-const fs = require('fs');
 const { secretMatches } = require('./lib/internal-secret');
+const { verifyJwt, verifyLiveSession, signJwt, decryptSecret } = require('./lib/self-auth');
+const { CORE_SCHEMA_STATEMENTS } = require('./lib/core-schema-ddl');
 const stateRedis = process.env.JOBS_REDIS_URL ? new Redis(process.env.JOBS_REDIS_URL, { maxRetriesPerRequest: 1 }) : null;
 stateRedis?.on('error', () => undefined);
 const { createUpstream, readTtl } = require('./lib/upstream');
@@ -25,16 +25,6 @@ const { canIssueClientToken, subscriberIdentity } = require('./lib/client-access
 const { createRateLimiter } = require('./lib/rate-limiter');
 
 const config = loadConfig();
-
-// Initialize Firebase Admin (Uses ADC)
-const firebaseCredentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-if (firebaseCredentialsPath && !fs.existsSync(firebaseCredentialsPath)) {
-    throw new Error(`Firebase credentials file not found: ${firebaseCredentialsPath}`);
-}
-if (!admin.apps.length) {
-    admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT || undefined });
-}
-const firestoreDb = admin.firestore();
 
 const app = express();
 
@@ -94,7 +84,7 @@ const rateLimiter = createRateLimiter({
         const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
         if (token) {
             try {
-                const hint = await admin.auth().verifyIdToken(token);
+                const hint = verifyJwt(token);
                 return `user:${hint.providerId || 'global'}:${hint.uid}`;
             } catch { return `invalid:${req.ip}`; }
         }
@@ -151,6 +141,21 @@ const pool = new Pool({
 pool.on('error', (err) => {
     console.error("Erro inesperado no banco de dados PostgreSQL", err);
 });
+
+let coreReady = null;
+async function ensureCoreTables() {
+    if (!coreReady) {
+        coreReady = (async () => {
+            for (const stmt of CORE_SCHEMA_STATEMENTS) {
+                await pool.query(stmt);
+            }
+        })().catch((err) => {
+            coreReady = null;
+            throw err;
+        });
+    }
+    return coreReady;
+}
 // Função para chamar a API do SGP diretamente via HTTP (substitui o PHP)
 async function rawSgpApi(params) {
     const { url, ...rest } = params;
@@ -258,12 +263,20 @@ function parseSignalValue(value) {
 async function loadSgpCredentials(body) {
     const providerId = body.providerId;
     if (typeof providerId !== 'string' || !/^[a-z0-9_-]+$/i.test(providerId)) throw Object.assign(new Error('Provedor obrigatório.'), { status: 503 });
-    const ref = firestoreDb.collection('provedores').doc(providerId);
-    const [provider, secret] = await Promise.all([ref.get(), ref.collection('secrets').doc('sgp').get()]);
-    if (!provider.exists) throw Object.assign(new Error('Provedor indisponível.'), { status: 503 });
-    const integration = outbound.privateIntegration(secret.data()?.integrations);
+    await ensureCoreTables();
+    const { rows } = await pool.query(
+        `SELECT p.id, ps.ciphertext
+         FROM providers p
+         LEFT JOIN provider_secrets ps ON ps.provider_id = p.id AND ps.kind = 'erp'
+         WHERE p.id = $1`,
+        [providerId]
+    );
+    const row = rows[0];
+    if (!row) throw Object.assign(new Error('Provedor indisponível.'), { status: 503 });
+    const decrypted = row.ciphertext ? JSON.parse(decryptSecret(row.ciphertext)) : null;
+    const integration = outbound.privateIntegration(decrypted);
     // IXC não tem "app": usa marcador para o restante do fluxo SGP seguir idêntico.
-    return { sgpParams: { providerId, token: integration.token, app: integration.erp === 'ixc' ? 'ixc' : integration.app }, sgpBaseUrl: integration.baseUrl, erp: integration.erp };
+    return { sgpParams: { providerId, token: integration.token, app: integration.erp === 'ixc' ? 'ixc' : integration.app, erp: integration.erp }, sgpBaseUrl: integration.baseUrl, erp: integration.erp };
 }
 
 const credentialCache = new Map();
@@ -302,7 +315,7 @@ function assertProxySecret(secret, res) {
     return true;
 }
 
-// Middleware de Autenticação Firebase
+// Middleware de Autenticação Self-Hosted (JWT + validação viva no PostgreSQL)
 async function verifyFirebaseToken(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -310,18 +323,24 @@ async function verifyFirebaseToken(req, res, next) {
     }
     const token = authHeader.split('Bearer ')[1];
     try {
-        const decodedToken = await require('./lib/current-auth').currentIdentity(admin.auth(), token);
+        await ensureCoreTables();
+        const decodedToken = await verifyLiveSession(pool, token);
         const reqCpf = (req.body.cpfCnpj || req.body.cpf || '').replace(/[^0-9]/g, '');
-        
+
         if (!reqCpf) return res.status(400).json({ error: { message: 'CPF/CNPJ obrigatório.' } });
         if (decodedToken.superAdmin === true) {
             if (!req.body.providerId) return res.status(400).json({ error: { message: 'Provedor obrigatório.' } });
         } else if (decodedToken.role === 'providerAdmin' && decodedToken.providerId) {
             const providerId = decodedToken.providerId;
             if (req.body.providerId && req.body.providerId !== providerId) return res.status(403).json({ error: { message: 'Provedor inválido.' } });
-            const cached = await firestoreDb.collection('provedores').doc(providerId).collection('clientes').doc(reqCpf).get();
-            const installed = await firestoreDb.collection('clientes').where('providerId', '==', providerId).where('cpfCnpj', '==', reqCpf).limit(1).get();
-            if (!cached.exists && installed.empty) return res.status(403).json({ error: { message: 'Cliente não pertence ao provedor.' } });
+            const owned = await pool.query(
+                `SELECT 1 FROM subscribers WHERE provider_id = $1 AND cpfcnpj = $2
+                 UNION ALL
+                 SELECT 1 FROM sgp_clients WHERE provider_id = $1 AND cpfcnpj = $2
+                 LIMIT 1`,
+                [providerId, reqCpf],
+            ).catch(() => ({ rows: [] }));
+            if (!owned.rows.length) return res.status(403).json({ error: { message: 'Cliente não pertence ao provedor.' } });
             req.body.providerId = providerId;
         } else {
             if (decodedToken.role !== 'subscriber' || !decodedToken.providerId || decodedToken.cpfCnpj !== reqCpf ||
@@ -495,13 +514,8 @@ async function authorizeInternalOrAdmin(req, res, targetProviderId) {
         return false;
     }
     try {
-        const verified = await admin.auth().verifyIdToken(header.slice(7).trim(), true);
-        const current = await admin.auth().getUser(verified.uid);
-        if (current.disabled) {
-            res.status(401).json({ error: { message: 'Sessão inválida.' } });
-            return false;
-        }
-        const claims = current.customClaims || {};
+        await ensureCoreTables();
+        const claims = await verifyLiveSession(pool, header.slice(7).trim());
         const allowed = claims.superAdmin === true ||
             (claims.role === 'providerAdmin' && targetProviderId && claims.providerId === targetProviderId);
         if (!allowed) {
@@ -731,13 +745,60 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
         // O acesso ao app depende do contrato, não do estado momentâneo da conexão.
         if (canIssueClientToken(contractAccountStatus)) {
             try {
-                // Vincula o provedor ao token (A2): downstream a identidade do
-                // tenant vem do claim verificado, não do corpo da requisição.
+                await ensureCoreTables();
                 const identity = subscriberIdentity(req.body.providerId, cpfCnpjUnformatted);
-                const customToken = await require('./lib/current-auth').persistSubscriber(admin.auth(), identity);
-                await require('./lib/subscriber-profile').migrateSubscriberProfile(firestoreDb, identity, responseData, () => admin.firestore.FieldValue.serverTimestamp());
-                responseData.customToken = customToken;
-                console.log('[Check-CPF] Custom Token gerado para contrato elegível.');
+                const existingAdmin = await pool.query(`SELECT 1 FROM admin_users WHERE uid = $1 LIMIT 1`, [identity.uid]);
+                if (existingAdmin.rows.length) {
+                    throw Object.assign(new Error('Identity conflict'), { code: 'access/identity-conflict' });
+                }
+                const upserted = await pool.query(
+                    `INSERT INTO subscribers (uid, provider_id, cpfcnpj, nome, plano, status, contract_status, contrato_id, email, disabled, token_version, last_login_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE, 1, NOW(), NOW())
+                     ON CONFLICT (uid) DO UPDATE SET
+                       nome = EXCLUDED.nome,
+                       plano = EXCLUDED.plano,
+                       status = EXCLUDED.status,
+                       contract_status = EXCLUDED.contract_status,
+                       contrato_id = EXCLUDED.contrato_id,
+                       email = COALESCE(NULLIF(EXCLUDED.email, ''), subscribers.email),
+                       last_login_at = NOW(),
+                       updated_at = NOW()
+                     WHERE subscribers.provider_id = EXCLUDED.provider_id AND subscribers.cpfcnpj = EXCLUDED.cpfcnpj
+                     RETURNING disabled, token_version, provider_id, cpfcnpj`,
+                    [
+                        identity.uid,
+                        identity.claims.providerId,
+                        identity.claims.cpfCnpj,
+                        responseData.nome || 'Cliente',
+                        responseData.plano || '',
+                        responseData.status || '',
+                        responseData.contractStatus || '',
+                        responseData.contratoId != null ? String(responseData.contratoId) : '',
+                        responseData.email || '',
+                    ],
+                );
+                const subRow = upserted.rows[0];
+                if (!subRow) {
+                    throw Object.assign(new Error('Identity conflict'), { code: 'access/identity-conflict' });
+                }
+                if (subRow.disabled) {
+                    throw Object.assign(new Error('Session denied'), { code: 'auth/user-disabled' });
+                }
+                const jwt = signJwt(
+                    {
+                        uid: identity.uid,
+                        role: 'subscriber',
+                        providerId: subRow.provider_id,
+                        cpfCnpj: subRow.cpfcnpj,
+                        email: responseData.email || '',
+                        tv: Number(subRow.token_version || 1),
+                    },
+                    { ttlSeconds: 30 * 24 * 3600 },
+                );
+                responseData.accessToken = jwt;
+                responseData.customToken = jwt;
+                responseData.tokenType = 'jwt';
+                console.log('[Check-CPF] JWT gerado para contrato elegível.');
             } catch (tokenError) {
                 const failure = require('./lib/current-auth').authFailure(tokenError);
                 return res.status(failure.status).json({ error: { code: failure.code, message: 'Não foi possível autorizar a sessão.' } });
@@ -1063,7 +1124,7 @@ app.get('/ready', async (req, res) => {
 
 const PORT = config.port;
 // Iniciar Cron Jobs
-module.exports = { app, pool, firestoreDb, admin, ensureSgpCredentials, callSgpApi, formatSgpUrl };
+module.exports = { app, pool, ensureCoreTables, ensureSgpCredentials, callSgpApi, formatSgpUrl };
 if (require.main === module) {
     app.use((error, _req, res, _next) => {
         console.error("[proxy] request failed", error.message);

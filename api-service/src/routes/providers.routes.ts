@@ -1,60 +1,95 @@
-import { Router } from "express";
-import { canAccessProvider, verifyToken, verifyAdmin } from "../middlewares/auth";
+import express, { Router } from "express";
+import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { canAccessProvider, verifyFreshToken, verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore, serverTimestamp, firebaseAuth } from "../services/firebaseAdmin";
 import { recordAdminAudit } from "../services/auditService";
+import { requirePgPool } from "../services/postgres";
+import {
+  createProviderBackup,
+  deleteProviderBackup,
+  deleteProviderRow,
+  getProviderBackup,
+  getProviderRow,
+  listProviderBackups,
+  listProviderRows,
+  saveProviderSecret,
+  serializeProviderRow,
+  upsertProvider,
+} from "../services/providersStore";
 import sgpOutbound from "../services/sgp-outbound";
-import { FieldValue } from "firebase-admin/firestore";
 import { publicConfigCache } from "../services/publicConfigCache";
 import { proxyToSgp } from "../services/proxySgpClient";
-
-import { parseProviderInput, publicProviderData, parsePrivateIntegration, parsePersonalization } from "../services/providerConfig";
+import {
+  parseDetails,
+  parsePersonalization,
+  parsePrivateIntegration,
+  parseProviderInput,
+  restoredPersonalization,
+} from "../services/providerConfig";
 
 export const providersRouter = Router();
 providersRouter.use(verifyToken, verifyAdmin);
 providersRouter.use((_req, res, next) => { res.setHeader("Cache-Control", "private, no-store"); next(); });
 
-function serialize(id: string, input: FirebaseFirestore.DocumentData) {
-  const data = { ...input };
-  for (const key of ["createdAt", "updatedAt"]) {
-    if (data[key]?.toDate) data[key] = data[key].toDate().toISOString();
+const MAX_ASSET_BYTES = 2 * 1024 * 1024;
+const rawAssetBody = express.raw({ type: () => true, limit: MAX_ASSET_BYTES, inflate: false });
+
+function detectAssetExtension(bytes: Buffer, mime: string): string | null {
+  if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > MAX_ASSET_BYTES) return null;
+  if (mime === "image/png" && bytes.length >= 24 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    return "png";
   }
-  delete data.integrations;
-  if (data.config && typeof data.config === "object" && !Array.isArray(data.config)) {
-    data.config = { ...data.config };
-    delete data.config.integrations;
+  if (mime === "image/jpeg" && bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "jpg";
   }
-  return { ...publicProviderData(data), id };
+  if (mime === "image/webp" && bytes.length >= 12 && bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP") {
+    return "webp";
+  }
+  return null;
 }
 
 providersRouter.get("/", asyncRoute(async (req, res) => {
+  const pool = requirePgPool();
   if (req.user?.superAdmin === true) {
-    const snapshot = await firestore.collection("provedores").get();
-    return res.json({ data: snapshot.docs.map((provider) => serialize(provider.id, provider.data())) });
+    const rows = await listProviderRows(pool);
+    return res.json({ data: rows.map(serializeProviderRow) });
   }
   const providerId = typeof req.user?.providerId === "string" ? req.user.providerId : "";
   if (!providerId) throw new ApiError(403, "Sem permissão para listar provedores.", "permission-denied");
-  const provider = await firestore.collection("provedores").doc(providerId).get();
-  return res.json({ data: provider.exists ? [serialize(provider.id, provider.data() || {})] : [] });
+  const row = await getProviderRow(pool, providerId);
+  return res.json({ data: row ? [serializeProviderRow(row)] : [] });
 }));
 
-// A directory needs metadata, never every tenant's complete customization.
-providersRouter.get('/summaries', asyncRoute(async (req, res) => {
-  if (req.user?.superAdmin !== true) throw new ApiError(403, 'Acesso SaaS obrigatório.', 'permission-denied');
-  const snapshot = await firestore.collection('provedores').select('name', 'active', 'details.cnpj', 'plan', 'plano', 'appStatus', 'statusApp', 'cnpj').get();
-  res.json({ data: snapshot.docs.map(doc => serialize(doc.id, doc.data())) });
+providersRouter.get("/summaries", asyncRoute(async (req, res) => {
+  if (req.user?.superAdmin !== true) throw new ApiError(403, "Acesso SaaS obrigatório.", "permission-denied");
+  const rows = await listProviderRows(requirePgPool());
+  res.json({
+    data: rows.map((row) => {
+      const d = row.data || {};
+      const details = (d.details && typeof d.details === "object" ? d.details : {}) as Record<string, unknown>;
+      return {
+        id: row.id,
+        name: row.name,
+        active: row.active,
+        plan: d.plan ?? d.plano,
+        appStatus: d.appStatus ?? d.statusApp,
+        details: { cnpj: details.cnpj ?? d.cnpj ?? "" },
+      };
+    }),
+  });
 }));
 
 providersRouter.get("/:providerId", asyncRoute(async (req, res) => {
   const id = req.params.providerId;
   if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
   if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para este provedor.", "permission-denied");
-  const provider = await firestore.collection("provedores").doc(id).get();
-  if (!provider.exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
-  res.json({ data: serialize(provider.id, provider.data() || {}) });
+  const row = await getProviderRow(requirePgPool(), id);
+  if (!row) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  res.json({ data: serializeProviderRow(row) });
 }));
 
-// Same writer/schema as the legacy command, without a Firestore RPC queue.
 providersRouter.patch("/:providerId/config", asyncRoute(async (req, res) => {
   const id = req.params.providerId;
   if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
@@ -62,12 +97,30 @@ providersRouter.patch("/:providerId/config", asyncRoute(async (req, res) => {
   let config: Record<string, unknown>;
   try { config = parsePersonalization(req.body); }
   catch { throw new ApiError(400, "Configuração inválida ou campo não permitido.", "invalid-argument"); }
-  const provider = firestore.collection("provedores").doc(id);
-  if (!(await provider.get()).exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
-  await provider.update({ ...config, integrations: FieldValue.delete(), "config.integrations": FieldValue.delete(), updatedAt: serverTimestamp() });
+  const pool = requirePgPool();
+  if (!(await getProviderRow(pool, id))) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  await upsertProvider(pool, id, config);
   publicConfigCache.delete(id);
   await recordAdminAudit({ type: "UPDATE_PROVIDER_CONFIG", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId, payload: config });
   res.json({ success: true, providerId: id });
+}));
+
+providersRouter.patch("/:providerId/details", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para este provedor.", "permission-denied");
+  const rawDetails = req.body?.details && typeof req.body.details === "object" ? req.body.details : req.body;
+  let details: Record<string, unknown>;
+  try { details = parseDetails(rawDetails); }
+  catch { throw new ApiError(400, "Detalhes inválidos ou campo não permitido.", "invalid-argument"); }
+  const pool = requirePgPool();
+  if (!(await getProviderRow(pool, id))) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  const patch: Record<string, unknown> = { details };
+  if (typeof details.name === "string" && details.name.trim()) patch.name = details.name.trim();
+  await upsertProvider(pool, id, patch);
+  publicConfigCache.delete(id);
+  await recordAdminAudit({ type: "UPDATE_PROVIDER_DETAILS", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId, payload: details });
+  res.json({ success: true, id });
 }));
 
 providersRouter.post("/", asyncRoute(async (req, res) => {
@@ -84,32 +137,42 @@ providersRouter.post("/", asyncRoute(async (req, res) => {
   let data: Record<string, unknown>;
   try { data = parseProviderInput(input, req.user?.superAdmin === true); }
   catch { throw new ApiError(400, "Configuração inválida ou campo não permitido.", "invalid-argument"); }
-  data.updatedAt = serverTimestamp();
-  if (id) {
-    await firestore.collection("provedores").doc(id).set(data, { merge: true });
-    publicConfigCache.delete(id);
-    await recordAdminAudit({ type: "UPDATE_PROVIDER", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId, payload: data });
-    return res.json({ success: true, id });
+
+  const pool = requirePgPool();
+  const existed = id ? Boolean(await getProviderRow(pool, id)) : false;
+  if (!existed && req.user?.superAdmin !== true) {
+    throw new ApiError(403, "Apenas Super Admin pode criar provedores.", "permission-denied");
   }
-  data.createdAt = serverTimestamp();
-  const provider = await firestore.collection("provedores").add(data);
-  await recordAdminAudit({ type: "CREATE_PROVIDER", requesterUid: req.user!.uid, providerId: provider.id, correlationId: req.correlationId, payload: data });
-  return res.status(201).json({ success: true, id: provider.id });
+  const saved = await upsertProvider(pool, id || null, data);
+  publicConfigCache.delete(saved.id);
+  await recordAdminAudit({
+    type: existed ? "UPDATE_PROVIDER" : "CREATE_PROVIDER",
+    requesterUid: req.user!.uid,
+    providerId: saved.id,
+    correlationId: req.correlationId,
+    payload: data,
+  });
+  return res.status(existed ? 200 : 201).json({ success: true, id: saved.id });
 }));
 
-providersRouter.post("/:providerId/integration", asyncRoute(async (req, res) => {
+providersRouter.delete("/:providerId", asyncRoute(async (req, res) => {
+  if (req.user?.superAdmin !== true) throw new ApiError(403, "Apenas Super Admin pode excluir provedores.", "permission-denied");
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  const removed = await deleteProviderRow(requirePgPool(), id);
+  if (!removed) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  publicConfigCache.delete(id);
+  await recordAdminAudit({ type: "DELETE_PROVIDER", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId });
+  res.json({ success: true });
+}));
+
+providersRouter.post("/:providerId/integration", verifyFreshToken, asyncRoute(async (req, res) => {
   if (req.user?.superAdmin !== true) throw new ApiError(403, "Apenas SaaS pode substituir integração.", "permission-denied");
-  const token = req.headers.authorization?.slice(7) || "";
-  let current;
-  try {
-    const verified = await firebaseAuth.verifyIdToken(token, true);
-    current = await firebaseAuth.getUser(verified.uid);
-    if (current.disabled || current.customClaims?.superAdmin !== true || !verified.auth_time || Date.now() / 1000 - verified.auth_time > 300) throw new Error("reauthentication");
-  } catch (error) {
-    const denied = (error instanceof Error && error.message === "reauthentication") ||
-      ["auth/id-token-revoked", "auth/id-token-expired", "auth/invalid-id-token", "auth/argument-error", "auth/user-disabled", "auth/user-not-found"].includes((error as { code: string }).code);
-    throw new ApiError(denied ? 403 : 503, denied ? "Autentique-se novamente para substituir a integração." : "Autorização indisponível.", denied ? "permission-denied" : "authorization-unavailable");
+  const authTime = Number(req.user.auth_time || 0);
+  if (!Number.isFinite(authTime) || Date.now() / 1000 - authTime > 300) {
+    throw new ApiError(403, "Autentique-se novamente para substituir a integração.", "permission-denied");
   }
+
   const id = req.params.providerId;
   if (!/^[a-z0-9_-]+$/i.test(id)) throw new ApiError(400, "ID inválido.", "invalid-argument");
   let integrations: Record<string, string>;
@@ -117,10 +180,12 @@ providersRouter.post("/:providerId/integration", asyncRoute(async (req, res) => 
   catch { throw new ApiError(400, "Integração inválida.", "invalid-argument"); }
   try { await sgpOutbound.assertSafeSgpBaseUrl(integrations.sgpBaseUrl); }
   catch { throw new ApiError(400, "Destino SGP inválido ou interno.", "invalid-argument"); }
-  const provider = firestore.collection("provedores").doc(id);
-  if (!(await provider.get()).exists) throw new ApiError(404, "Provedor não encontrado.", "not-found");
-  await provider.collection("secrets").doc("sgp").set({ integrations }, { merge: true });
+
+  const pool = requirePgPool();
+  if (!(await getProviderRow(pool, id))) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  await saveProviderSecret(pool, id, "erp", integrations);
   await recordAdminAudit({ type: "REPLACE_PROVIDER_INTEGRATION", requesterUid: req.user!.uid, providerId: id, payload: { replaced: true } });
+
   let syncQueued = false;
   if (process.env.NODE_ENV !== "test") {
     try {
@@ -131,4 +196,75 @@ providersRouter.post("/:providerId/integration", asyncRoute(async (req, res) => 
     }
   }
   res.json(syncQueued ? { success: true, syncQueued: true } : { success: true });
+}));
+
+providersRouter.get("/:providerId/backups", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão.", "permission-denied");
+  const backups = await listProviderBackups(requirePgPool(), id);
+  res.json({ data: backups });
+}));
+
+providersRouter.post("/:providerId/backups", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão.", "permission-denied");
+  const label = typeof req.body?.label === "string" ? req.body.label.trim().slice(0, 120) : "";
+  const created = await createProviderBackup(requirePgPool(), id, req.user!.uid, label);
+  await recordAdminAudit({ type: "BACKUP_PROVIDER_CONFIG", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId });
+  res.status(201).json({ success: true, ...created });
+}));
+
+providersRouter.post("/:providerId/backups/:backupId/restore", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  const backupId = req.params.backupId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id) || !/^[a-z0-9_-]{1,64}$/i.test(backupId)) {
+    throw new ApiError(400, "Identificador inválido.", "invalid-argument");
+  }
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão.", "permission-denied");
+  const pool = requirePgPool();
+  const [provider, backup] = await Promise.all([
+    getProviderRow(pool, id),
+    getProviderBackup(pool, id, backupId),
+  ]);
+  if (!provider) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  if (!backup) throw new ApiError(404, "Backup não encontrado.", "not-found");
+
+  const nextData = restoredPersonalization(provider.data || {}, backup.snapshot || {});
+  await upsertProvider(pool, id, nextData, { replaceData: true });
+  publicConfigCache.delete(id);
+  await recordAdminAudit({ type: "RESTORE_PROVIDER_CONFIG", requesterUid: req.user!.uid, providerId: id, correlationId: req.correlationId });
+  res.json({ success: true });
+}));
+
+providersRouter.delete("/:providerId/backups/:backupId", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  const backupId = req.params.backupId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id) || !/^[a-z0-9_-]{1,64}$/i.test(backupId)) {
+    throw new ApiError(400, "Identificador inválido.", "invalid-argument");
+  }
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão.", "permission-denied");
+  const removed = await deleteProviderBackup(requirePgPool(), id, backupId);
+  if (!removed) throw new ApiError(404, "Backup não encontrado.", "not-found");
+  res.json({ success: true });
+}));
+
+providersRouter.post("/:providerId/assets", (req, res, next) => rawAssetBody(req, res, (err) =>
+  next(err ? new ApiError((err as { status?: number }).status === 413 ? 413 : 400, "Imagem inválida ou maior que 2 MiB.") : undefined)),
+asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para este provedor.", "permission-denied");
+  if (!(await getProviderRow(requirePgPool(), id))) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+
+  const mime = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+  const ext = detectAssetExtension(req.body, mime);
+  if (!ext) throw new ApiError(415, "Formato de imagem não suportado (use PNG, JPG ou WebP até 2 MiB).");
+
+  const filename = `${randomUUID().replace(/-/g, "")}.${ext}`;
+  const dir = path.resolve(process.env.UPLOADS_DIR?.trim() || "/srv/uploads", "public", id);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, filename), req.body, { flag: "wx" });
+  res.status(201).json({ url: `/api/public/assets/${id}/${filename}` });
 }));

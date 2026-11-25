@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { User } from 'firebase/auth';
+import type { SessionUser } from '@/shared/auth/session';
 import { clearDashboardPrefetch, fetchDashboard } from './dashboard';
 
 const fetchMock = vi.fn();
-const user = (uid: string) => ({ uid, getIdToken: async () => `test-${uid}` }) as User;
+const user = (uid: string) => ({ uid, getIdToken: async () => `test-${uid}` }) as Pick<SessionUser, 'uid' | 'getIdToken'>;
 beforeEach(() => {
   clearDashboardPrefetch();
   vi.stubGlobal('window', { location: { protocol: 'https:', hostname: 'panel.test', port: '', origin: 'https://panel.test' } });

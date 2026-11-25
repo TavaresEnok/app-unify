@@ -1,10 +1,20 @@
 import type { RequestHandler } from "express";
-import { firebaseAuth } from "../services/firebaseAdmin";
+import { requirePgPool } from "../services/postgres";
+import { verifyLiveSession } from "../services/self-auth";
 import { ApiError } from "./errorHandler";
 
 // Reuse only within this HTTP request. Never trust a pre-populated req.user or
 // cache authorization across requests: revocations and role changes stay live.
-const verifiedRequests = new WeakMap<Express.Request, { token: string; user: NonNullable<Express.Request['user']> }>();
+const verifiedRequests = new WeakMap<Express.Request, { token: string; user: NonNullable<Express.Request["user"]> }>();
+
+const UNAUTHENTICATED_CODES = new Set([
+  "auth/id-token-revoked",
+  "auth/id-token-expired",
+  "auth/invalid-id-token",
+  "auth/argument-error",
+  "auth/user-disabled",
+  "auth/user-not-found",
+]);
 
 function bearerToken(header: string | undefined): string {
   if (!header?.startsWith("Bearer ")) throw new ApiError(401, "Token não fornecido.", "unauthenticated");
@@ -22,25 +32,28 @@ export const verifyToken: RequestHandler = async (req, _res, next) => {
       return;
     }
     verifiedRequests.delete(req);
-    const identity = await firebaseAuth.verifyIdToken(token, true);
-    const current = await firebaseAuth.getUser(identity.uid);
-    if (current.disabled) throw new ApiError(401, "Sessão inválida.", "unauthenticated");
-    const claims = current.customClaims || {};
-    if (claims.superAdmin === true && ["subscriber", "providerAdmin"].includes(claims.role)) throw new ApiError(403, "Papel inconsistente.", "permission-denied");
-    if ((identity.role || "") !== (claims.role || "") || (identity.providerId || "") !== (claims.providerId || "") ||
-        (identity.superAdmin === true) !== (claims.superAdmin === true)) throw new ApiError(403, "Acesso alterado. Autentique novamente.", "permission-denied");
-    // Token proves identity only. Access always comes from the current Auth record.
-    req.user = { uid: identity.uid, sub: identity.uid, aud: identity.aud, iss: identity.iss,
-      iat: identity.iat, exp: identity.exp, auth_time: identity.auth_time, firebase: identity.firebase,
-      role: claims.role, providerId: claims.providerId, cpfCnpj: claims.cpfCnpj, superAdmin: claims.superAdmin === true } as typeof identity;
+    const identity = await verifyLiveSession(requirePgPool(), token);
+    if (identity.superAdmin === true && ["subscriber", "providerAdmin"].includes(identity.role)) {
+      throw new ApiError(403, "Papel inconsistente.", "permission-denied");
+    }
+    req.user = { ...identity } as unknown as NonNullable<Express.Request["user"]>;
     verifiedRequests.set(req, { token, user: Object.freeze(req.user) });
     next();
   } catch (error) {
-    const code = (error as { code?: string }).code;
-    const denied = ["auth/id-token-revoked", "auth/id-token-expired", "auth/invalid-id-token", "auth/argument-error", "auth/user-disabled", "auth/user-not-found"].includes(code || "");
-    next(error instanceof ApiError ? error : denied
-      ? new ApiError(401, "Sessão inválida.", "unauthenticated")
-      : new ApiError(503, "Autorização indisponível. Preserve os dados e tente mais tarde.", "authorization-unavailable"));
+    if (error instanceof ApiError) {
+      next(error);
+      return;
+    }
+    const code = (error as { code?: string })?.code || "";
+    if (code === "access/scope-changed" || code === "access/identity-conflict") {
+      next(new ApiError(403, "Acesso alterado. Autentique novamente.", "permission-denied"));
+      return;
+    }
+    if (UNAUTHENTICATED_CODES.has(code)) {
+      next(new ApiError(401, "Sessão inválida.", "unauthenticated"));
+      return;
+    }
+    next(new ApiError(503, "Autorização indisponível. Preserve os dados e tente mais tarde.", "authorization-unavailable"));
   }
 };
 

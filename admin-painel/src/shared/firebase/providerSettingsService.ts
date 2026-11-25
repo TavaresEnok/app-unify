@@ -1,9 +1,10 @@
-import type { Unsubscribe } from "firebase/firestore";
 import { subscribeProvider } from "@/features/providers/providerService";
 import type { ProviderConfig } from "@/shared/contracts";
 import { fromFirestoreProviderConfig, toFirestoreProviderConfig } from "@/features/provider-settings/normalizers";
 import { publicProviderData } from "@/features/provider-settings/configBoundary";
 import { panelRequest, clearPanelReads } from "@/shared/api/panelHttp";
+
+export type Unsubscribe = () => void;
 
 export interface ProviderSettingsSnapshot {
   config: ProviderConfig;

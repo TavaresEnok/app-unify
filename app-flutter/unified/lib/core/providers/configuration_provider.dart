@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/provider_config.dart';
@@ -13,14 +12,14 @@ class ConfigurationProvider with ChangeNotifier {
   ConfigurationProvider({
     ProviderConfigApi? api,
     String apiBaseUrl = ProviderConfigApi.compiledBaseUrl,
-    ProviderDocumentLoader? firestoreLoader,
+    ProviderDocumentLoader? fallbackLoader,
   })  : _api = api ?? ProviderConfigApi(),
         _apiBaseUrl = apiBaseUrl,
-        _firestoreLoader = firestoreLoader ?? _loadFromFirestore;
+        _fallbackLoader = fallbackLoader;
 
   final ProviderConfigApi _api;
   final String _apiBaseUrl;
-  final ProviderDocumentLoader _firestoreLoader;
+  final ProviderDocumentLoader? _fallbackLoader;
 
   ProviderConfig? _providerConfig;
   bool _isLoading = true;
@@ -61,11 +60,12 @@ class ConfigurationProvider with ChangeNotifier {
     }
 
     try {
-      // 2. Busca do servidor: primeiro a API (configuração sanitizada); o
-      // Firestore direto fica como fallback para builds sem URL gravada e
-      // enquanto as regras antigas ainda estiverem publicadas.
+      // 2. Busca do servidor via API pública sanitizada (self-hosted PostgreSQL)
       var safeData = await _loadFromApi(providerId);
-      safeData ??= await _firestoreLoader(providerId);
+      final loader = _fallbackLoader;
+      if (safeData == null && loader != null) {
+        safeData = await loader(providerId);
+      }
 
       if (safeData != null) {
         _providerConfig =
@@ -107,16 +107,6 @@ class ConfigurationProvider with ChangeNotifier {
     return null;
   }
 
-  static Future<Map<String, dynamic>?> _loadFromFirestore(
-      String providerId) async {
-    final doc = await FirebaseFirestore.instance
-        .collection('provedores')
-        .doc(providerId)
-        .get(const GetOptions(source: Source.server));
-    final data = doc.data();
-    return doc.exists && data != null ? Map<String, dynamic>.from(data) : null;
-  }
-
   Future<void> _loadFromCache(String providerId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -146,13 +136,9 @@ class ConfigurationProvider with ChangeNotifier {
     }
   }
 
-  /// Converte Firestore Timestamps e outros objetos não-serializáveis para tipos JSON
+  /// Converte objetos não-serializáveis para tipos JSON
   dynamic _sanitizeForJson(dynamic value) {
     if (value == null) return null;
-
-    if (value is Timestamp) {
-      return value.toDate().toIso8601String();
-    }
 
     if (value is DateTime) {
       return value.toIso8601String();

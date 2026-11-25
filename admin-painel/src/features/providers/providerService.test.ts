@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ user: { uid: 'a', getIdToken: async () => 'synthetic-token' } }));
-vi.mock('@/firebase/auth', () => ({ auth: { get currentUser() { return state.user; } } }));
+vi.mock('@/shared/auth/session', () => ({ auth: { get currentUser() { return state.user; } } }));
 import { getProvider, subscribeProvider, subscribeProviders } from './providerService';
 import { clearPanelReads } from '@/shared/api/panelHttp';
 let listeners: Map<string, () => void>;

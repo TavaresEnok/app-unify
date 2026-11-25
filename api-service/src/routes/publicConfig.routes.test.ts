@@ -3,10 +3,29 @@ import request from "supertest";
 import { beforeEach, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({ docs: new Map<string, any>(), reads: 0 }));
-vi.mock("../services/firebaseAdmin", () => ({
-  firestore: { collection: (name: string) => ({ doc: (id: string) => ({
-    get: async () => { state.reads++; const path = `${name}/${id}`; return { exists: state.docs.has(path), data: () => state.docs.get(path) }; },
-  }) }) },
+
+vi.mock("../services/postgres", () => ({
+  requirePgPool: () => ({
+    query: async (sql: string, params: unknown[]) => {
+      if (!sql.includes("FROM providers")) return { rows: [] };
+      state.reads++;
+      const id = String(params?.[0] || "");
+      const row = state.docs.get(id);
+      if (!row) return { rows: [] };
+      return {
+        rows: [{
+          id,
+          name: row.name || id,
+          active: row.active !== false,
+          data: row,
+          created_at: new Date("2026-11-24T00:00:00Z"),
+          updated_at: new Date("2026-11-24T00:00:00Z"),
+        }],
+      };
+    },
+  }),
+  getPgPool: () => null,
+  ensureCoreSchema: async () => undefined,
 }));
 vi.mock("../middlewares/rateLimits", () => ({ publicConfigLimiter: (_req: unknown, _res: unknown, next: () => void) => next() }));
 
@@ -21,7 +40,7 @@ beforeEach(() => {
   state.docs.clear();
   state.reads = 0;
   clearPublicConfigCache();
-  state.docs.set("provedores/vibe", {
+  state.docs.set("vibe", {
     name: "Vibe", layoutType: "layout_05", themeColor: "#112233",
     apiUrl: "http://10.0.0.5:8034",
     integrations: { apiToken: "synthetic-secret", sgpBaseUrl: "https://sgp.example" },
@@ -37,13 +56,17 @@ it("serves the sanitized personalization without login", async () => {
   const response = await request(app).get("/public/providers/vibe/config").expect(200);
   expect(response.headers["cache-control"]).toBe("public, max-age=30");
   const data = response.body.data;
-  expect(data).toMatchObject({ id: "vibe", name: "Vibe", layoutType: "layout_05", themeColor: "#112233",
-    menuConfig: { order: ["invoices"], items: { invoices: { enabled: true, name: "Faturas" } } } });
+  expect(data).toMatchObject({
+    id: "vibe", name: "Vibe", layoutType: "layout_05", themeColor: "#112233",
+    menuConfig: { order: ["invoices"], items: { invoices: { enabled: true, name: "Faturas" } } },
+  });
   expect(data.logoFraming).toEqual({ shape: "wide", fit: "cover", zoom: 1.4, x: 35, y: 65 });
   expect(data.config.faq).toEqual([{ id: "1", question: "Q", answer: "A" }]);
   expect(data.details).toEqual({ phone: "8899" });
   const body = JSON.stringify(data);
-  for (const secret of ["synthetic-secret", "sgp.example", "integrations", "apiUrl", "10.0.0.5", "unknownField"]) expect(body).not.toContain(secret);
+  for (const secret of ["synthetic-secret", "sgp.example", "integrations", "apiUrl", "10.0.0.5", "unknownField"]) {
+    expect(body).not.toContain(secret);
+  }
 });
 
 it("returns 404 for unknown providers and 400 for malformed ids without reading", async () => {
@@ -54,15 +77,15 @@ it("returns 404 for unknown providers and 400 for malformed ids without reading"
   expect(state.reads).toBe(reads);
 });
 
-it("caches briefly to spare Firestore reads", async () => {
+it("caches briefly to spare PostgreSQL reads", async () => {
   await request(app).get("/public/providers/vibe/config").expect(200);
   await request(app).get("/public/providers/vibe/config").expect(200);
   expect(state.reads).toBe(1);
 });
 
 it("coalesces simultaneous app startup reads and isolates providers", async () => {
-  state.docs.set('provedores/other', { name: 'Other', themeColor: '#fff' });
-  const responses = await Promise.all(Array.from({ length: 40 }, (_, i) => request(app).get(`/public/providers/${i % 2 ? 'vibe' : 'other'}/config`)));
+  state.docs.set("other", { name: "Other", themeColor: "#fff" });
+  const responses = await Promise.all(Array.from({ length: 40 }, (_, i) => request(app).get(`/public/providers/${i % 2 ? "vibe" : "other"}/config`)));
   expect(state.reads).toBe(2);
-  responses.forEach((r, i) => { expect(r.status).toBe(200); expect(r.body.data.id).toBe(i % 2 ? 'vibe' : 'other'); });
+  responses.forEach((r, i) => { expect(r.status).toBe(200); expect(r.body.data.id).toBe(i % 2 ? "vibe" : "other"); });
 });

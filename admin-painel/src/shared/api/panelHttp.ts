@@ -1,4 +1,4 @@
-import { auth } from '@/firebase/auth';
+import { auth } from '@/shared/auth/session';
 import { resolvePublicApiBaseUrl } from '@/shared/config/publicApi';
 
 export class PanelHttpError extends Error {

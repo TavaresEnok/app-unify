@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ user: { uid: 'a1', getIdToken: vi.fn().mockResolvedValue('secret-bearer') } }));
-vi.mock('@/firebase/config', () => ({ auth: { get currentUser() { return state.user; } } }));
+vi.mock('@/shared/auth/session', () => ({ auth: { get currentUser() { return state.user; } } }));
 import { PrivateBlob, privateAttachmentPath, privateAttachmentRequest } from './privateAttachments';
 beforeEach(() => { vi.stubGlobal('window', { location: { origin: 'http://localhost', hostname: 'localhost' } }); });
 afterEach(() => vi.unstubAllGlobals());

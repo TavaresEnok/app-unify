@@ -6,35 +6,23 @@ const tokens = new Map<string, Record<string, unknown>>();
 const mockQuery = vi.fn();
 const mockIncidentsGet = vi.fn();
 
-vi.mock("../services/firebaseAdmin", () => ({
-  firestore: {
-    collection: () => ({
-      doc: () => ({
-        collection: () => ({
-          where: () => ({
-            limit: () => ({
-              get: mockIncidentsGet,
-            }),
-          }),
-        }),
-      }),
-    }),
-  },
-  firebaseAuth: {
-    getUser: async (uid: string) => ({
-      uid,
-      customClaims: [...tokens.values()].find((user) => user.uid === uid) || {},
-    }),
-    verifyIdToken: async (token: string) => {
-      const user = tokens.get(token);
-      if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
-      return user;
-    },
+vi.mock("../services/self-auth", () => ({
+  verifyLiveSession: async (_pool: unknown, token: string) => {
+    const user = tokens.get(token);
+    if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
+    return user;
   },
 }));
 
 vi.mock("../services/postgres", () => ({
-  getPgPool: () => ({ query: mockQuery }),
+  getPgPool: () => ({
+    query: (sql: string, params?: unknown[]) => {
+      if (String(sql).includes("FROM incidents")) return mockIncidentsGet();
+      return mockQuery(sql, params);
+    },
+  }),
+  requirePgPool: () => ({ query: mockQuery }),
+  ensureCoreSchema: vi.fn(async () => undefined),
   ensureNotificationSchema: vi.fn(async () => undefined),
 }));
 
@@ -147,27 +135,24 @@ describe("diagnostics & subscriber incidents routes", () => {
 
   it("retorna incidentes ativos com cache de 30s e correspondência de área pelo PostgreSQL", async () => {
     mockIncidentsGet.mockResolvedValue({
-      docs: [
+      rows: [
         {
           id: "inc-1",
-          data: () => ({
-            title: "Manutenção na OLT Pau Amarelo",
-            message: "Troca de placa programada até 16h.",
-            severity: "warning",
-            area: "Pau Amarelo",
-            estimatedResolution: "16:00",
-            createdAt: "2026-11-23T11:00:00Z",
-          }),
+          title: "Manutenção na OLT Pau Amarelo",
+          message: "Troca de placa programada até 16h.",
+          severity: "warning",
+          area: "Pau Amarelo",
+          estimated_resolution: "16:00",
+          created_at: new Date("2026-11-23T11:00:00Z"),
         },
         {
           id: "inc-2",
-          data: () => ({
-            title: "Instabilidade Centro",
-            message: "Equipe em campo.",
-            severity: "critical",
-            area: "Centro",
-            createdAt: "2026-11-23T11:30:00Z",
-          }),
+          title: "Instabilidade Centro",
+          message: "Equipe em campo.",
+          severity: "critical",
+          area: "Centro",
+          estimated_resolution: null,
+          created_at: new Date("2026-11-23T11:30:00Z"),
         },
       ],
     });

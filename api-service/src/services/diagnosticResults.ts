@@ -4,6 +4,7 @@ import { ensureNotificationSchema, type SqlQueryable } from "./postgres";
 export interface DiagnosticResultInput {
   providerId: string;
   cpfCnpj: string;
+  createdByUid?: string;
   contratoId?: string;
   clientName?: string;
   planName?: string;
@@ -113,8 +114,8 @@ export async function saveDiagnosticResult(
   const inserted = await db.query<{ created_at: Date }>(
     `INSERT INTO diagnostic_results (
        id, provider_id, cpfcnpj, contrato_id, client_name, plan_name,
-       mode, verdict, verdict_headline, cause, summary, olt_name, bairro, cidade
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14)
+       mode, verdict, verdict_headline, cause, summary, olt_name, bairro, cidade, created_by_uid
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15)
      RETURNING created_at`,
     [
       id,
@@ -131,6 +132,7 @@ export async function saveDiagnosticResult(
       oltName,
       bairro,
       cidade,
+      cleanText(input.createdByUid, 128),
     ],
   );
 

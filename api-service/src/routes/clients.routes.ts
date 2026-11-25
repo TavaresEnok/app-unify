@@ -1,7 +1,6 @@
 import { Router, type Request } from "express";
 import { canAccessProvider, verifyAdmin, verifyToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { firestore } from "../services/firebaseAdmin";
 import { ensureNotificationSchema, getPgPool } from "../services/postgres";
 import { proxyToSgp } from "../services/proxySgpClient";
 
@@ -268,9 +267,6 @@ clientsRouter.delete("/:identifier", asyncRoute(async (req, res) => {
     cpf ? pool.query(`DELETE FROM subscriber_devices WHERE provider_id = $1 AND cpfcnpj = $2`, [providerId, cpf]).catch(() => undefined) : Promise.resolve(),
   ]);
 
-  if (cpf) {
-    await firestore.collection("provedores").doc(providerId).collection("clientes").doc(cpf).delete().catch(() => undefined);
-  }
   res.json({ success: true, message: "Registro do cliente removido do cache local e push." });
 }));
 

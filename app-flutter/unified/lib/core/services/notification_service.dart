@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import '../models/in_app_notification.dart';
 import '../models/usuario.dart';
+import 'session_token_store.dart';
 
 class NotificationService with ChangeNotifier {
   List<InAppNotification> _notifications = [];
@@ -97,118 +96,8 @@ class NotificationService with ChangeNotifier {
     final generation = _generation;
 
     final apiUrl = _apiUrl;
-    if (apiUrl != null && apiUrl.isNotEmpty) {
-      final syncedFromApi = await _syncFromApi(apiUrl, generation);
-      if (syncedFromApi) return;
-    }
-
-    try {
-      // 1. Fetch recent notifications (last 7 days to avoid fetching excessively)
-      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
-
-      // Query 1: Targeted specifically to CPF
-      final cpfQuery = await FirebaseFirestore.instance
-          .collection('notifications')
-          .where('targetCpf', isEqualTo: user.cpfCnpj)
-          .where('providerId', isEqualTo: providerId)
-          .where('createdAt', isGreaterThanOrEqualTo: sevenDaysAgo)
-          .limit(50)
-          .get();
-
-      // Apenas broadcasts do provedor (targetCpf == null). Notificações
-      // direcionadas a outros CPFs não são legíveis por este cliente (regras
-      // do Firestore), então filtramos aqui para não estourar permission-denied.
-      final providerQuery = await FirebaseFirestore.instance
-          .collection('notifications')
-          .where('providerId', isEqualTo: providerId)
-          .where('targetCpf', isEqualTo: null)
-          .limit(50)
-          .get();
-
-      if (generation != _generation) return;
-
-      final allDocs = [...cpfQuery.docs, ...providerQuery.docs];
-      // Deduplicate by ID
-      final uniqueDocs = {for (var d in allDocs) d.id: d}.values;
-
-      bool changed = false;
-
-      for (var doc in uniqueDocs) {
-        final data = doc.data();
-        final String nId = doc.id;
-        final timestamp = (data['createdAt'] as Timestamp?)?.toDate();
-
-        // Memory Date Filter
-        if (timestamp != null && timestamp.isBefore(sevenDaysAgo)) continue;
-
-        // Check if we already have this notification
-        if (_dismissed.contains(nId) ||
-            _notifications.any((n) => n.id == nId)) {
-          continue;
-        }
-
-        // --- FILTERING LOGIC ---
-        bool shouldShow = false;
-
-        // 1. Target All
-        if (data['targetAll'] == true) shouldShow = true;
-
-        // 2. Target CPF
-        if (data['targetCpf'] == user.cpfCnpj) shouldShow = true;
-
-        // 3. Segmented (Status/Plan)
-        if (data['category'] == 'segmented') {
-          bool matchesStatus = true;
-          bool matchesPlan = true;
-
-          final String? statusFilter = data['statusFilter'];
-          final String? planFilter = data['planFilter'];
-
-          if (statusFilter != null && statusFilter != 'all') {
-            final userStatus = (user.status).toLowerCase().trim();
-            if (!userStatus.contains(statusFilter.toLowerCase().trim())) {
-              matchesStatus = false;
-            }
-          }
-
-          if (planFilter != null && planFilter != 'all') {
-            final userPlan = (user.plano).toLowerCase().trim();
-            if (!userPlan.contains(planFilter.toLowerCase().trim())) {
-              matchesPlan = false;
-            }
-          }
-
-          if (matchesStatus && matchesPlan) shouldShow = true;
-        }
-
-        if (shouldShow) {
-          // Add to local list
-          _notifications.insert(
-              0,
-              InAppNotification(
-                id: nId,
-                type: NotificationType.info,
-                title: data['title'] ?? 'Nova Notificação',
-                message: data['body'] ?? '',
-                createdAt: timestamp ?? DateTime.now(),
-                read: false,
-                actionUrl: data['route'],
-              ));
-          changed = true;
-        }
-      }
-
-      if (changed) {
-        // Sort by date desc
-        _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        notifyListeners();
-        await _saveToPrefs();
-        debugPrint(
-            '✅ Notificações sincronizadas. ${uniqueDocs.length} analisadas.');
-      }
-    } catch (e) {
-      debugPrint('❌ Erro ao sincronizar notificações remotas: $e');
-    }
+    if (apiUrl == null || apiUrl.isEmpty) return;
+    await _syncFromApi(apiUrl, generation);
   }
 
   Future<bool> _syncFromApi(
@@ -219,7 +108,7 @@ class NotificationService with ChangeNotifier {
     final httpClient = client ?? http.Client();
     final ownsClient = client == null;
     try {
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final idToken = await SessionTokenStore.instance.getToken();
       if (idToken == null || idToken.isEmpty) return false;
       final base = apiUrl.replaceAll(RegExp(r'/+$'), '');
       final response = await httpClient.get(

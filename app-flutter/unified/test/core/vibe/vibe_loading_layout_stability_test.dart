@@ -253,7 +253,6 @@ void main() {
         }),
       ),
       apiBaseUrl: 'https://appisp.com.br/api',
-      firestoreLoader: (_) async => null,
     );
 
     await provider.loadConfig('vibe');

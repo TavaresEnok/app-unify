@@ -4,18 +4,17 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/test_history.dart';
+import 'session_token_store.dart';
 
 class TestHistoryService {
   static const String _key = 'test_history';
   static const int _maxEntries = 30;
-
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Save test result locally
   Future<void> saveTest(TestHistoryEntry entry) async {
@@ -35,44 +34,51 @@ class TestHistoryService {
     await prefs.setString(_key, jsonEncode(jsonList));
   }
 
-  /// Save test result to Firestore for remote access
-  /// [entry] - The test result to save
-  /// [providerId] - The provider's Firebase document ID
-  /// [clientInfo] - Map containing 'id', 'name', 'plan' from SGP
+  /// Save test result to backend REST API when available
   Future<void> saveTestToCloud({
     required TestHistoryEntry entry,
     required String providerId,
     required Map<String, dynamic> clientInfo,
+    String? apiUrl,
   }) async {
+    final base = apiUrl?.trim().replaceAll(RegExp(r'/+$'), '') ?? '';
+    if (base.isEmpty) return;
     try {
+      final token = await SessionTokenStore.instance.getToken();
+      if (token == null || token.isEmpty) return;
+
       final deviceInfo = await _getDeviceInfo();
       final connectionType = await _getConnectionType();
 
-      await _firestore
-          .collection('provedores')
-          .doc(providerId)
-          .collection('diagnostic_results')
-          .add({
-        // Test data
-        ...entry.toJson(),
-        // Client info from SGP
-        'clientId': clientInfo['id'] ?? '',
-        'clientName': clientInfo['name'] ?? 'Desconhecido',
-        'clientPlan': clientInfo['plan'] ?? '',
-        // Connection info
-        'connectionType': connectionType,
-        // Device info
-        'deviceInfo': deviceInfo,
-        // Server timestamp for consistency
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await http
+          .post(
+            Uri.parse('$base/diagnostic/results'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'providerId': providerId,
+              'contractId': clientInfo['id'],
+              'planName': clientInfo['plan'] ?? '',
+              'verdict': entry.healthScore >= 70 ? 'healthy' : 'degraded',
+              'cause': 'speed_test_history',
+              'summary': {
+                ...entry.toJson(),
+                'clientName': clientInfo['name'] ?? 'Desconhecido',
+                'connectionType': connectionType,
+                'deviceInfo': deviceInfo,
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
 
       debugPrint(
-        '✅ Diagnostic result saved to cloud for client: ${clientInfo['name']}',
+        '✅ Diagnostic result saved to server for client: ${clientInfo['name']}',
       );
     } catch (e) {
-      debugPrint('Error saving diagnostic to cloud: $e');
-      // Don't throw - cloud save failure shouldn't break the app flow
+      debugPrint('Error saving diagnostic to server: $e');
+      // Don't throw - server save failure shouldn't break the app flow
     }
   }
 

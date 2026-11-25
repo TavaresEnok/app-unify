@@ -17,43 +17,35 @@ const tokens = new Map<string, Record<string, unknown>>();
 const acsDocs = new Map<string, Record<string, unknown>>();
 const mockQuery = vi.fn();
 
-vi.mock("../services/firebaseAdmin", () => ({
-  firestore: {
-    collection: (col: string) => ({
-      doc: (id: string) => ({
-        collection: (sub: string) => ({
-          doc: (subId: string) => ({
-            get: async () => {
-              const key = `${col}/${id}/${sub}/${subId}`;
-              const data = acsDocs.get(key);
-              return { exists: Boolean(data), data: () => data };
-            },
-            set: async (data: Record<string, unknown>) => {
-              acsDocs.set(`${col}/${id}/${sub}/${subId}`, data);
-            },
-          }),
-        }),
-        set: async () => undefined,
-      }),
-      add: async () => ({ id: "audit-1" }),
-    }),
-  },
-  serverTimestamp: () => "2026-11-23T23:00:00Z",
-  firebaseAuth: {
-    getUser: async (uid: string) => ({
-      uid,
-      customClaims: [...tokens.values()].find((user) => user.uid === uid) || {},
-    }),
-    verifyIdToken: async (token: string) => {
+vi.mock("../services/self-auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/self-auth")>();
+  return {
+    ...actual,
+    verifyLiveSession: async (_pool: unknown, token: string) => {
       const user = tokens.get(token);
       if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
       return user;
     },
+  };
+});
+
+vi.mock("../services/auditService", () => ({
+  recordAdminAudit: vi.fn(async () => undefined),
+}));
+
+vi.mock("../services/providersStore", () => ({
+  getProviderSecret: async (_pool: unknown, providerId: string, kind: string) => {
+    return acsDocs.get(`${providerId}:${kind}`) || null;
+  },
+  saveProviderSecret: async (_pool: unknown, providerId: string, kind: string, val: Record<string, unknown>) => {
+    acsDocs.set(`${providerId}:${kind}`, val);
   },
 }));
 
 vi.mock("../services/postgres", () => ({
   getPgPool: () => ({ query: mockQuery }),
+  requirePgPool: () => ({ query: mockQuery }),
+  ensureCoreSchema: vi.fn(async () => undefined),
 }));
 
 vi.mock("../services/sgp-outbound", () => ({

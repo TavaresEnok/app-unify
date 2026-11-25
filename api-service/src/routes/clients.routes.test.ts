@@ -6,27 +6,18 @@ import { formatSgpAddress, normalizeSgpClientRow } from "./clients.routes";
 const tokens = new Map<string, Record<string, unknown>>();
 const mockQuery = vi.fn();
 
-vi.mock("../services/firebaseAdmin", () => ({
-  firestore: {
-    collection: () => ({
-      doc: () => ({ collection: () => ({ doc: () => ({ delete: async () => undefined }) }) }),
-    }),
-  },
-  firebaseAuth: {
-    getUser: async (uid: string) => ({
-      uid,
-      customClaims: [...tokens.values()].find((user) => user.uid === uid) || {},
-    }),
-    verifyIdToken: async (token: string) => {
-      const user = tokens.get(token);
-      if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
-      return user;
-    },
+vi.mock("../services/self-auth", () => ({
+  verifyLiveSession: async (_pool: unknown, token: string) => {
+    const user = tokens.get(token);
+    if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
+    return user;
   },
 }));
 
 vi.mock("../services/postgres", () => ({
   getPgPool: () => ({ query: mockQuery }),
+  requirePgPool: () => ({ query: mockQuery }),
+  ensureCoreSchema: vi.fn(async () => undefined),
   ensureNotificationSchema: vi.fn(async () => undefined),
 }));
 
@@ -43,8 +34,8 @@ describe("clients.routes", () => {
   beforeEach(() => {
     tokens.clear();
     mockQuery.mockReset();
-    tokens.set("adm-vibe", { uid: "u1", role: "providerAdmin", providerId: "vibe" });
-    tokens.set("adm-other", { uid: "u2", role: "providerAdmin", providerId: "other" });
+    tokens.set("adm-vibe", { uid: "u1", role: "providerAdmin", providerId: "vibe", superAdmin: false });
+    tokens.set("adm-other", { uid: "u2", role: "providerAdmin", providerId: "other", superAdmin: false });
   });
 
   it("normaliza endereço objeto, plano, OLT, PON e CTO do JSON real do SGP", () => {
@@ -127,4 +118,3 @@ describe("clients.routes", () => {
     expect(listQuery[1]).toContain("407");
   });
 });
-

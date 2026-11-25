@@ -1,7 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ snapshot: vi.fn(), rpc: vi.fn() }));
 vi.mock("@/features/providers/providerService", () => ({ subscribeProvider: mocks.snapshot }));
-vi.mock("@/firebase/config", () => ({ db: {}, auth: { currentUser: { uid: "provider" } } }));
 vi.mock("@/shared/api/panelHttp", () => ({ panelRequest: mocks.rpc, clearPanelReads: vi.fn() }));
 import { subscribeProviderSettings, saveProviderSettings } from "./providerSettingsService";
 import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";

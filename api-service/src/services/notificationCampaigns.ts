@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { messaging as FirebaseMessagingNs, firestore as FirestoreNs } from "firebase-admin";
+import type { messaging as FirebaseMessagingNs } from "firebase-admin";
 import { ensureNotificationSchema, type SqlQueryable } from "./postgres";
 
 export interface SegmentFilters {
@@ -563,7 +563,7 @@ async function resolveTargetTokens(
 
 async function deliverCampaignFcm(
   db: SqlQueryable,
-  messagingClient: MessagingLike,
+  messagingClient: MessagingLike | null | undefined,
   params: {
     id: string;
     providerId: string;
@@ -598,26 +598,9 @@ async function deliverCampaignFcm(
     matchedSubscribers = preview.matchedSubscribers;
     targetedDevices = preview.reachableDevices;
 
-    await messagingClient.send({
-      topic: `provider_${params.providerId}`,
-      notification: { title: params.title, body: params.body },
-      data: dataPayload,
-      android: {
-        priority: "high",
-        notification: { channelId: "high_importance_channel", priority: "high" },
-      },
-    });
-    successCount = Math.max(1, targetedDevices);
-  } else {
-    const resolved = await resolveTargetTokens(db, params.providerId, params.filters);
-    matchedSubscribers = resolved.matchedSubscribers;
-    targetedDevices = resolved.tokens.length;
-
-    const invalidTokens: string[] = [];
-    for (let i = 0; i < resolved.tokens.length; i += 500) {
-      const chunk = resolved.tokens.slice(i, i + 500);
-      const response = await messagingClient.sendEachForMulticast({
-        tokens: chunk,
+    if (messagingClient) {
+      await messagingClient.send({
+        topic: `provider_${params.providerId}`,
         notification: { title: params.title, body: params.body },
         data: dataPayload,
         android: {
@@ -625,13 +608,34 @@ async function deliverCampaignFcm(
           notification: { channelId: "high_importance_channel", priority: "high" },
         },
       });
-      successCount += response.successCount;
-      failureCount += response.failureCount;
-      response.responses.forEach((item, idx) => {
-        if (!item.success && item.error?.code && INVALID_TOKEN_CODES.has(item.error.code)) {
-          invalidTokens.push(chunk[idx]);
-        }
-      });
+      successCount = Math.max(1, targetedDevices);
+    }
+  } else {
+    const resolved = await resolveTargetTokens(db, params.providerId, params.filters);
+    matchedSubscribers = resolved.matchedSubscribers;
+    targetedDevices = resolved.tokens.length;
+
+    const invalidTokens: string[] = [];
+    if (messagingClient) {
+      for (let i = 0; i < resolved.tokens.length; i += 500) {
+        const chunk = resolved.tokens.slice(i, i + 500);
+        const response = await messagingClient.sendEachForMulticast({
+          tokens: chunk,
+          notification: { title: params.title, body: params.body },
+          data: dataPayload,
+          android: {
+            priority: "high",
+            notification: { channelId: "high_importance_channel", priority: "high" },
+          },
+        });
+        successCount += response.successCount;
+        failureCount += response.failureCount;
+        response.responses.forEach((item, idx) => {
+          if (!item.success && item.error?.code && INVALID_TOKEN_CODES.has(item.error.code)) {
+            invalidTokens.push(chunk[idx]);
+          }
+        });
+      }
     }
 
     if (invalidTokens.length > 0) {
@@ -647,7 +651,7 @@ async function deliverCampaignFcm(
 
 export async function sendCampaign(
   db: SqlQueryable,
-  messagingClient: MessagingLike,
+  messagingClient: MessagingLike | null | undefined,
   input: SendCampaignInput,
 ): Promise<CampaignRecord> {
   await ensureProviderSegments(db, input.providerId);
@@ -789,7 +793,7 @@ export async function cancelScheduledCampaign(
  */
 export async function processDueScheduledCampaigns(
   db: SqlQueryable,
-  messagingClient: MessagingLike,
+  messagingClient: MessagingLike | null | undefined,
 ): Promise<number> {
   await ensureNotificationSchema(db);
   const claimed = await db.query<{
@@ -1149,42 +1153,9 @@ export async function listSubscriberNotifications(
 }
 
 /**
- * Importa sob demanda (1x quando solicitado pelo admin) tokens FCM legados que
- * ainda estejam só no Firestore `clientes` para `subscriber_devices` no Postgres.
+ * Legado removido: tokens de assinantes agora residem exclusivamente em `subscriber_devices`.
  */
-export async function importLegacyTokensFromFirestore(
-  db: SqlQueryable,
-  fsDb: FirestoreNs.Firestore,
-  providerId: string,
-): Promise<number> {
-  await ensureNotificationSchema(db);
-  let imported = 0;
-  let query: FirebaseFirestore.Query = fsDb
-    .collection("clientes")
-    .where("providerId", "==", providerId)
-    .orderBy("__name__");
-
-  while (true) {
-    const page = await query.limit(500).get();
-    for (const doc of page.docs) {
-      const data = doc.data();
-      const token = typeof data.fcmToken === "string" ? data.fcmToken.trim() : "";
-      const cpf = String(data.cpfCnpj || doc.id || "").replace(/\D/g, "");
-      if (!token || !cpf) continue;
-      await registerSubscriberDevice(db, {
-        providerId,
-        cpfCnpj: cpf,
-        authUid: typeof data.authUid === "string" ? data.authUid : doc.id,
-        fcmToken: token,
-        plano: typeof data.plano === "string" ? data.plano : "",
-        contractStatus: typeof data.contractStatus === "string" ? data.contractStatus : "",
-        connectionStatus: typeof data.status === "string" ? data.status : "",
-      });
-      imported++;
-    }
-    if (page.size < 500) break;
-    query = query.startAfter(page.docs[page.docs.length - 1]);
-  }
-  return imported;
+export async function importLegacyTokensFromFirestore(): Promise<number> {
+  return 0;
 }
 

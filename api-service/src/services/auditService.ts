@@ -1,4 +1,4 @@
-import { firestore, serverTimestamp } from "./firebaseAdmin";
+import { ensureCoreSchema, getPgPool } from "./postgres";
 
 const SENSITIVE_KEYS = new Set(["password", "senha", "token", "apitoken", "authorization", "secret", "privatekey", "credential", "integrations", "secrets", "sgpbaseurl", "systemurl", "appname", "secretref", "secretversion"]);
 
@@ -24,13 +24,23 @@ export async function recordAdminAudit(entry: {
   payload?: unknown;
 }): Promise<void> {
   try {
-    await firestore.collection("audit_logs").add({
-      ...entry,
-      payload: /PROVIDER/.test(entry.type) ? { configurationChanged: true } : redact(entry.payload),
-      source: "api-service",
-      outcome: "success",
-      createdAt: serverTimestamp(),
-    });
+    const pool = getPgPool();
+    if (!pool) return;
+    await ensureCoreSchema(pool);
+    const payload = /PROVIDER/.test(entry.type)
+      ? { configurationChanged: true }
+      : redact(entry.payload ?? {});
+    await pool.query(
+      `INSERT INTO audit_logs (type, requester_uid, provider_id, correlation_id, payload, source, outcome, created_at)
+       VALUES ($1, $2, $3, $4, $5::jsonb, 'api-service', 'success', NOW())`,
+      [
+        entry.type,
+        entry.requesterUid,
+        entry.providerId || null,
+        entry.correlationId || null,
+        JSON.stringify(payload ?? {}),
+      ],
+    );
   } catch (error) {
     console.error(JSON.stringify({
       severity: "ERROR",

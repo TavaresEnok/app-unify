@@ -5,7 +5,7 @@ import 'api_response.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'session_token_store.dart';
 
 class ConsumoService {
   final String apiUrl;
@@ -39,7 +39,7 @@ class ConsumoService {
       };
       String? token;
       try {
-        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        token = await SessionTokenStore.instance.getToken();
       } catch (_) {}
 
       final response = await http

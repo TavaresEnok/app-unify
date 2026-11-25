@@ -1,17 +1,4 @@
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  type Unsubscribe,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { clearPanelReads, panelRequest, readPanel } from "@/shared/api/panelHttp";
 
 export type IncidentSeverity = "info" | "warning" | "critical";
 
@@ -27,24 +14,86 @@ export interface Incident {
   resolvedAt?: { toDate: () => Date } | null;
 }
 
+interface RawIncident {
+  id: string;
+  title: string;
+  message: string;
+  area?: string | null;
+  severity?: IncidentSeverity;
+  estimatedResolution?: string | null;
+  active: boolean;
+  createdAt?: string | null;
+  resolvedAt?: string | null;
+}
+
+function toTimestampAdapter(iso?: string | null): { toDate: () => Date } | undefined {
+  if (!iso) return undefined;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return { toDate: () => parsed };
+}
+
+function mapIncident(raw: RawIncident): Incident {
+  return {
+    id: raw.id,
+    title: raw.title,
+    message: raw.message,
+    area: raw.area ?? null,
+    severity: raw.severity ?? "warning",
+    estimatedResolution: raw.estimatedResolution ?? null,
+    active: Boolean(raw.active),
+    createdAt: toTimestampAdapter(raw.createdAt),
+    resolvedAt: toTimestampAdapter(raw.resolvedAt) ?? null,
+  };
+}
+
+export async function listIncidents(providerId: string): Promise<Incident[]> {
+  const body = await readPanel<{ data: RawIncident[] }>(`/admin/incidents?providerId=${encodeURIComponent(providerId)}`);
+  return Array.isArray(body.data) ? body.data.map(mapIncident) : [];
+}
+
 export function subscribeIncidents(
   providerId: string,
   onValue: (items: Incident[]) => void,
   onError: (error: Error) => void,
-): Unsubscribe {
-  const incidents = query(
-    collection(db, "provedores", providerId, "incidents"),
-    orderBy("createdAt", "desc"),
-    limit(100),
-  );
-  return onSnapshot(
-    incidents,
-    (snapshot) => onValue(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Incident)),
-    onError,
-  );
+): () => void {
+  let stopped = false;
+  let pending = false;
+  let lastSerialized = "";
+
+  const refresh = async () => {
+    if (stopped || pending || document.visibilityState === "hidden") return;
+    pending = true;
+    try {
+      const body = await readPanel<{ data: RawIncident[] }>(`/admin/incidents?providerId=${encodeURIComponent(providerId)}`);
+      const raw = Array.isArray(body.data) ? body.data : [];
+      const serialized = JSON.stringify(raw);
+      if (!stopped && serialized !== lastSerialized) {
+        lastSerialized = serialized;
+        onValue(raw.map(mapIncident));
+      }
+    } catch (error) {
+      if (!stopped) onError(error instanceof Error ? error : new Error("Erro ao carregar instabilidades."));
+    } finally {
+      pending = false;
+    }
+  };
+
+  void refresh();
+  const timer = setInterval(() => { void refresh(); }, 15_000);
+  const resume = () => { if (document.visibilityState === "visible") void refresh(); };
+  const onRefresh = () => { lastSerialized = ""; void refresh(); };
+  document.addEventListener("visibilitychange", resume);
+  if (typeof window !== "undefined") window.addEventListener("unify:refresh-incidents", onRefresh);
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+    document.removeEventListener("visibilitychange", resume);
+    if (typeof window !== "undefined") window.removeEventListener("unify:refresh-incidents", onRefresh);
+  };
 }
 
-export function createIncident(
+export async function createIncident(
   providerId: string,
   data: {
     title: string;
@@ -54,29 +103,39 @@ export function createIncident(
     estimatedResolution?: string;
   },
 ): Promise<unknown> {
-  return addDoc(collection(db, "provedores", providerId, "incidents"), {
-    title: data.title.trim(),
-    message: data.message.trim(),
-    area: data.area?.trim() || null,
-    severity: data.severity || "warning",
-    estimatedResolution: data.estimatedResolution?.trim() || null,
-    active: true,
-    createdAt: serverTimestamp(),
-    resolvedAt: null,
+  const res = await panelRequest("/admin/incidents", {
+    method: "POST",
+    body: {
+      providerId,
+      title: data.title.trim(),
+      message: data.message.trim(),
+      area: data.area?.trim() || null,
+      severity: data.severity || "warning",
+      estimatedResolution: data.estimatedResolution?.trim() || null,
+    },
   });
+  clearPanelReads();
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("unify:refresh-incidents"));
+  return res;
 }
 
-export function setIncidentActive(
+export async function setIncidentActive(
   providerId: string,
   incidentId: string,
   active: boolean,
 ): Promise<void> {
-  return updateDoc(doc(db, "provedores", providerId, "incidents", incidentId), {
-    active,
-    resolvedAt: active ? null : serverTimestamp(),
+  await panelRequest(`/admin/incidents/${encodeURIComponent(incidentId)}?providerId=${encodeURIComponent(providerId)}`, {
+    method: "PATCH",
+    body: { providerId, active },
   });
+  clearPanelReads();
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("unify:refresh-incidents"));
 }
 
-export function deleteIncident(providerId: string, incidentId: string): Promise<void> {
-  return deleteDoc(doc(db, "provedores", providerId, "incidents", incidentId));
+export async function deleteIncident(providerId: string, incidentId: string): Promise<void> {
+  await panelRequest(`/admin/incidents/${encodeURIComponent(incidentId)}?providerId=${encodeURIComponent(providerId)}`, {
+    method: "DELETE",
+  });
+  clearPanelReads();
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("unify:refresh-incidents"));
 }

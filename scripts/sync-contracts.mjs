@@ -44,3 +44,11 @@ const ixcGateway = await readFile(resolve(root, "shared/runtime/ixc-gateway.js")
 for (const target of ["proxy-sgp/lib/ixc-gateway.js", "api-service/src/services/ixc-gateway.js"]) {
   await writeFile(resolve(root, target), ixcGateway);
 }
+const coreSchemaDdl = await readFile(resolve(root, "shared/runtime/core-schema-ddl.js"), "utf8");
+for (const target of ["proxy-sgp/lib/core-schema-ddl.js", "api-service/src/services/core-schema-ddl.js"]) {
+  await writeFile(resolve(root, target), coreSchemaDdl);
+}
+const selfAuth = await readFile(resolve(root, "shared/runtime/self-auth.js"), "utf8");
+for (const target of ["proxy-sgp/lib/self-auth.js", "api-service/src/services/self-auth.js"]) {
+  await writeFile(resolve(root, target), selfAuth);
+}

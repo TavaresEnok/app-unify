@@ -6,38 +6,51 @@ import net from "node:net";
 import { once } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Firestore em memória: { "provedores/p1": {...}, "provedores/p1/secrets/sgp": {...} }.
+// Armazenamento em memória emulando providers/secrets/clientes.
 const docs = new Map<string, Record<string, unknown>>();
 const tokens = new Map<string, Record<string, unknown>>();
 
-function docRef(path: string): any {
-  return {
-    get: async () => ({ exists: docs.has(path), data: () => docs.get(path) }),
-    collection: (name: string) => collectionRef(`${path}/${name}`),
-  };
-}
+vi.mock("../services/postgres", () => ({
+  getPgPool: () => ({
+    query: async (sql: string, params: unknown[]) => {
+      if (sql.includes("FROM subscribers")) {
+        const expected = String(params?.[0] || "");
+        const digits = String(params?.[1] || "");
+        const row = docs.get(`clientes/${digits}`);
+        if (row && row.providerId === expected) return { rows: [{ provider_id: expected }] };
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  }),
+  requirePgPool: () => ({ query: async () => ({ rows: [] }) }),
+  ensureCoreSchema: async () => undefined,
+  ensureNotificationSchema: async () => undefined,
+}));
 
-function collectionRef(path: string, filters: Array<[string, unknown]> = []): any {
-  return {
-    doc: (id: string) => docRef(`${path}/${id}`),
-    where: (field: string, _op: string, value: unknown) => collectionRef(path, [...filters, [field, value]]),
-    limit: () => ({ get: async () => ({ docs: [...docs.entries()]
-      .filter(([key, data]) => key.startsWith(`${path}/`) && filters.every(([field, value]) => data[field] === value))
-      .map(([, data]) => ({ exists: true, data: () => data })) }) }),
-  };
-}
+vi.mock("../services/providersStore", () => ({
+  getProviderRow: async (_pool: unknown, providerId: string) => {
+    const data = docs.get(`provedores/${providerId}`);
+    return data ? { id: providerId, name: String(data.name || providerId), active: true, data, created_at: new Date(), updated_at: new Date() } : null;
+  },
+  getProviderSecret: async (_pool: unknown, providerId: string, kind: string) => {
+    if (kind !== "erp") return null;
+    const sec = docs.get(`provedores/${providerId}/secrets/sgp`);
+    return sec?.integrations || null;
+  },
+}));
 
-vi.mock("../services/firebaseAdmin", () => ({
-  firestore: { collection: (name: string) => collectionRef(name) },
-  firebaseAuth: {
-    getUser: async (uid: string) => ({ uid, customClaims: [...tokens.values()].find(user => user.uid === uid) || {} }),
-    verifyIdToken: async (token: string) => {
+vi.mock("../services/self-auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/self-auth")>();
+  return {
+    ...actual,
+    verifyLiveSession: async (_pool: unknown, token: string) => {
       const user = tokens.get(token);
       if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
       return user;
     },
-  },
-}));
+  };
+});
 
 const lookupMock = vi.hoisted(() => vi.fn());
 vi.mock("node:dns/promises", () => ({ lookup: lookupMock }));

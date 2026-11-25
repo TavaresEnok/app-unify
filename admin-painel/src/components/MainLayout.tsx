@@ -6,8 +6,7 @@ import {
   Menu,
   Search,
 } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { auth } from "@/firebase/auth";
+import { logoutSession } from "@/shared/auth/session";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,7 +52,7 @@ export default function MainLayout() {
 
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await logoutSession();
     navigate("/login");
   };
 

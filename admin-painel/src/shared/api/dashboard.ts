@@ -1,4 +1,4 @@
-import type { User } from 'firebase/auth';
+import type { SessionUser } from '@/shared/auth/session';
 import { resolvePublicApiBaseUrl } from '@/shared/config/publicApi';
 import { markDashboardRequest, markDashboardResponse } from './panelTiming';
 
@@ -6,7 +6,7 @@ const pending = new Map<string, { expires: number; value: Promise<Record<string,
 
 export function clearDashboardPrefetch() { pending.clear(); }
 
-export function fetchDashboard(user: User, providerId?: string): Promise<Record<string, unknown>> {
+export function fetchDashboard(user: Pick<SessionUser, 'uid' | 'getIdToken'>, providerId?: string): Promise<Record<string, unknown>> {
   const key = `${user.uid}:${providerId || 'global'}`;
   const current = pending.get(key);
   if (current && current.expires > Date.now()) return current.value;
@@ -20,7 +20,7 @@ export function fetchDashboard(user: User, providerId?: string): Promise<Record<
   return value;
 }
 
-async function requestDashboard(user: User, providerId?: string): Promise<Record<string, unknown>> {
+async function requestDashboard(user: Pick<SessionUser, 'uid' | 'getIdToken'>, providerId?: string): Promise<Record<string, unknown>> {
   markDashboardRequest();
   const base = resolvePublicApiBaseUrl(import.meta.env.VITE_API_URL, window.location);
   const path = providerId ? `/admin/dashboard/panel/providers/${encodeURIComponent(providerId)}` : '/admin/dashboard/panel';

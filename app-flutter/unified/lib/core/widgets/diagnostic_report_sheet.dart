@@ -53,7 +53,7 @@ Future<void> showDiagnosticReportSheet(
   // do mesmo problema (§ estudo 4.3). Best-effort: null não atrapalha o fluxo.
   ProviderIncident? incident;
   if (verdict.needsProviderSupport) {
-    incident = await IncidentService().activeIncident(config.id);
+    incident = await IncidentService.fetchActiveFromApi(config.apiUrl);
   }
 
   if (!context.mounted) return;
@@ -67,7 +67,7 @@ Future<void> showDiagnosticReportSheet(
       config: config,
       userEmail: user.email,
       incident: incident,
-      service: service ?? DiagnosticReportService(),
+      service: service ?? DiagnosticReportService(apiUrl: config.apiUrl),
     ),
   );
 }
@@ -130,6 +130,7 @@ class _ReportSheetState extends State<_ReportSheet> {
       report: widget.report,
       verdict: widget.verdict,
       providerLogo: await _logoBytes(),
+      resultId: _resultId,
     );
     _cachedUrl = url;
     final id = _resultId;

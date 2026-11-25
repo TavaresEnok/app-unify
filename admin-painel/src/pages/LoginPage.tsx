@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth } from '@/firebase/auth';
+import { loginWithEmailPassword, logoutSession } from '@/shared/auth/session';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,10 +66,9 @@ export default function LoginPage() {
         setIsLoading(true);
 
         try {
-            const credential = await signInWithEmailAndPassword(auth, email, password);
-            const { claims } = await credential.user.getIdTokenResult();
-            if (claims.superAdmin !== true && !(claims.role === 'providerAdmin' && typeof claims.providerId === 'string')) {
-                await signOut(auth);
+            const signedUser = await loginWithEmailPassword(email, password);
+            if (!signedUser.superAdmin && !(signedUser.role === 'providerAdmin' && signedUser.providerId)) {
+                await logoutSession();
                 toast.error('Esta conta não tem acesso ao painel administrativo.');
                 return;
             }
@@ -85,6 +83,10 @@ export default function LoginPage() {
             }
             if (code === 'auth/too-many-requests') {
                 toast.error('O serviço de autenticação limitou novas tentativas. Aguarde alguns minutos.');
+                return;
+            }
+            if (code === 'auth/user-disabled') {
+                toast.error('Esta conta administrativa está desativada.');
                 return;
             }
             if (!['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'].includes(code)) {
@@ -115,7 +117,7 @@ export default function LoginPage() {
     }
 
     const features = [
-        'Integração nativa com SGP e Firebase',
+        'Integração nativa com SGP e IXC',
         'Builds de APK automatizadas por provedor',
         'Notificações push segmentadas em escala',
     ];

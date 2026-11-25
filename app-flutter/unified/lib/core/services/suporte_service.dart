@@ -1,21 +1,33 @@
 // ARQUIVO: lib/core/services/suporte_service.dart
-// DESCRIÇÃO: Serviço para criar tickets de suporte
+// DESCRIÇÃO: Serviço para criar e acompanhar tickets de suporte via API REST
 
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'session_token_store.dart';
 
 class SuporteService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final http.Client _client;
+  final String? apiUrl;
 
-  SuporteService();
+  SuporteService({this.apiUrl, http.Client? client})
+      : _client = client ?? http.Client();
 
-  /// Cria um ticket de suporte
-  /// 1. Faz o upload da imagem (se houver) para o Firebase Storage
-  /// 2. Cria o documento no Firestore via Cloud Function
+  String? _normalizedBase(String? override) {
+    final candidate = (override ?? apiUrl)?.trim().replaceAll(RegExp(r'/+$'), '');
+    return (candidate == null || candidate.isEmpty) ? null : candidate;
+  }
+
+  Future<String> _requireToken() async {
+    final token = await SessionTokenStore.instance.getToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Sessão expirada. Entre novamente para abrir um chamado.');
+    }
+    return token;
+  }
+
+  /// Cria um ticket de suporte e faz upload opcional da imagem como anexo privado.
   Future<String> createTicket({
     required String subject,
     required String message,
@@ -23,79 +35,92 @@ class SuporteService {
     required String providerId,
     required String providerName,
     required String userEmail,
+    String? overrideApiUrl,
   }) async {
-    String? imageUrl;
-    final auth = FirebaseAuth.instance;
-    String? requesterUid = auth.currentUser?.uid;
+    final base = _normalizedBase(overrideApiUrl);
+    if (base == null) {
+      throw Exception('URL da API indisponível para abrir chamado.');
+    }
+    final token = await _requireToken();
 
-    if (requesterUid == null) {
-      final credential = await auth.signInAnonymously();
-      requesterUid = credential.user?.uid;
+    final response = await _client
+        .post(
+          Uri.parse('$base/subscriber/tickets'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'subject': subject,
+            'message': message,
+            'providerId': providerId,
+            'providerName': providerName,
+            if (userEmail.isNotEmpty) 'userEmail': userEmail,
+          }),
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final decoded = jsonDecode(response.body);
+    if (response.statusCode >= 400) {
+      final err = decoded is Map && decoded['error'] is Map
+          ? decoded['error']['message']?.toString()
+          : null;
+      throw Exception(err ?? 'Não foi possível criar o chamado.');
     }
 
-    if (requesterUid == null) {
-      throw Exception('Falha na autenticação Firebase. Usuário não logado.');
+    final ticketId = decoded is Map
+        ? (decoded['ticketId']?.toString() ?? decoded['data']?['id']?.toString())
+        : null;
+    if (ticketId == null || ticketId.isEmpty) {
+      throw Exception('Resposta incompleta do servidor ao abrir chamado.');
     }
 
     if (imageFile != null) {
-      // Faz upload da imagem
-      final fileExtension = imageFile.name.split('.').last;
-      final storageRef = _storage.ref().child(
-          'providers/$providerId/ticket_attachments/${DateTime.now().millisecondsSinceEpoch}.$fileExtension');
-
-      await storageRef.putData(await imageFile.readAsBytes());
-      imageUrl = await storageRef.getDownloadURL();
+      final bytes = await imageFile.readAsBytes();
+      final attId = 'att_${DateTime.now().millisecondsSinceEpoch}';
+      final lower = imageFile.name.toLowerCase();
+      final mime = lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      await _client
+          .put(
+            Uri.parse(
+                '$base/private/tickets/${Uri.encodeComponent(ticketId)}/attachments/${Uri.encodeComponent(attId)}'),
+            headers: {
+              'Content-Type': mime,
+              'Authorization': 'Bearer $token',
+            },
+            body: bytes,
+          )
+          .timeout(const Duration(seconds: 25));
     }
 
-    // Cria a requisição para a Cloud Function
-    final requestId = _firestore.collection('function_requests').doc().id;
-    final requestDocRef =
-        _firestore.collection('function_requests').doc(requestId);
-    final responseDocRef =
-        _firestore.collection('function_responses').doc(requestId);
+    return ticketId;
+  }
 
-    try {
-      // Envia a requisição
-      await requestDocRef.set({
-        'type': 'CREATE_TICKET',
-        'requesterUid': requesterUid,
-        'createdAt': FieldValue.serverTimestamp(),
-        'payload': {
-          'subject': subject,
-          'message': message,
-          'providerName': providerName,
-          'providerId': providerId,
-          'userEmail': userEmail,
-          'imageUrl': imageUrl,
-          'requesterUid': requesterUid,
-        },
-      });
+  Future<List<Map<String, dynamic>>> listTickets({String? overrideApiUrl}) async {
+    final base = _normalizedBase(overrideApiUrl);
+    if (base == null) return const [];
+    final token = await _requireToken();
+    final response = await _client.get(
+      Uri.parse('$base/subscriber/tickets'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (response.statusCode >= 400) return const [];
+    final decoded = jsonDecode(response.body);
+    final items = decoded is Map ? decoded['data'] : null;
+    if (items is! List) return const [];
+    return items
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+  }
 
-      // Aguarda a resposta com timeout de 60 segundos
-      final responseSnapshot = await responseDocRef
-          .snapshots()
-          .firstWhere((snap) => snap.exists)
-          .timeout(const Duration(seconds: 60));
-
-      final response = responseSnapshot.data();
-
-      if (response == null || response['completedAt'] == null) {
-        throw Exception('Resposta incompleta do servidor.');
-      }
-
-      if (response['error'] != null) {
-        throw Exception(response['error']);
-      }
-
-      return response['result']['ticketId'] ?? 'ID_NÃO_INFORMADO';
-    } on TimeoutException {
-      throw TimeoutException(
-          'O servidor demorou muito para processar o ticket.');
-    } catch (e) {
-      if (e.toString().contains('PERMISSION_DENIED')) {
-        throw Exception('Erro de permissão. Seu login pode estar inválido.');
-      }
-      rethrow;
+  Stream<List<Map<String, dynamic>>> watchTickets({
+    String? overrideApiUrl,
+    Duration interval = const Duration(seconds: 8),
+  }) async* {
+    yield await listTickets(overrideApiUrl: overrideApiUrl);
+    await for (final _ in Stream<void>.periodic(interval)) {
+      yield await listTickets(overrideApiUrl: overrideApiUrl);
     }
   }
 }

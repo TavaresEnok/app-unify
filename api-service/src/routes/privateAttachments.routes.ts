@@ -1,8 +1,10 @@
 import express, { Router, type RequestHandler } from "express";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { verifyToken, verifyFreshToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { admin, firestore, serverTimestamp } from "../services/firebaseAdmin";
+import { ensureCoreSchema, requirePgPool, type SqlQueryable } from "../services/postgres";
 
 const MAX = 5 * 1024 * 1024;
 const id = (value: unknown): string => {
@@ -11,13 +13,17 @@ const id = (value: unknown): string => {
 };
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const fail = () => new ApiError(409, "Anexo inconsistente ou indisponível.", "attachment-conflict");
-const allowedMetadata = (data: FirebaseFirestore.DocumentData) => Object.keys(data).every(key =>
-  ["version", "providerId", "ownerUid", "resourceId", "attachmentId", "path", "checksum", "size", "mime", "state", "generation", "createdAt"].includes(key));
-const validUploadState = (data: FirebaseFirestore.DocumentData) =>
-  (data.state === "pending" && !Object.prototype.hasOwnProperty.call(data, "generation")) ||
-  (data.state === "committed" && typeof data.generation === "string" && /^[1-9][0-9]*$/.test(data.generation));
-const privateObject = (object: { metadata?: Record<string, unknown>; contentEncoding?: string }) =>
-  !object.contentEncoding && Object.keys(object.metadata || {}).every(key => key === "checksum");
+
+function privateRootDir(): string {
+  return path.resolve(process.env.UPLOADS_DIR?.trim() || "/srv/uploads", "private");
+}
+
+function safeDiskPath(relPath: string): string {
+  const root = privateRootDir();
+  const full = path.resolve(root, relPath);
+  if (!full.startsWith(`${root}${path.sep}`)) throw fail();
+  return full;
+}
 
 export function validatePrivateBytes(bytes: Buffer, mime: string, report: boolean) {
   if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > MAX) throw new ApiError(400, "Arquivo vazio ou maior que 5 MiB.");
@@ -31,7 +37,6 @@ export function validatePrivateBytes(bytes: Buffer, mime: string, report: boolea
   if (!valid) throw new ApiError(415, "Tipo ou conteúdo de arquivo inválido.");
 }
 
-// Shared process cap includes body parsing, Storage I/O and response completion.
 let active = 0;
 const capacity: RequestHandler = (_req, res, next) => {
   if (active >= 8) return next(new ApiError(503, "Arquivos ocupados. Tente novamente."));
@@ -58,121 +63,194 @@ function privateRoute(handler: Parameters<typeof asyncRoute>[0]): RequestHandler
 export const privateAttachmentsRouter = Router();
 privateAttachmentsRouter.use(verifyToken, capacity);
 
-function location(req: Express.Request & { params: Record<string, string> }) {
-  const report = !!req.params.provider;
+interface ResourceMeta {
+  report: boolean;
+  providerParam?: string;
+  resourceKind: "ticket" | "diagnostic_result";
+  resourceId: string;
+  attachmentId: string;
+}
+
+function parseLocation(req: Express.Request & { params: Record<string, string> }): ResourceMeta {
+  const report = Boolean(req.params.provider);
+  const providerParam = report ? id(req.params.provider) : undefined;
   const resourceId = id(req.params.resource);
   const attachmentId = id(req.params.attachment);
-  const resource = report
-    ? firestore.collection("provedores").doc(id(req.params.provider)).collection("diagnostic_results").doc(resourceId)
-    : firestore.collection("tickets").doc(resourceId);
-  return { report, resourceId, attachmentId, resource };
+  return {
+    report,
+    providerParam,
+    resourceKind: report ? "diagnostic_result" : "ticket",
+    resourceId,
+    attachmentId,
+  };
 }
 
-function resourceData(snapshot: FirebaseFirestore.DocumentSnapshot, report: boolean) {
-  if (!snapshot.exists) return undefined;
-  if (report) {
-    // Old SDK documents could forge ownership. A body/schema flag alone cannot
-    // prove provenance: require canonical Firestore createTime after verified Rules.
-    const cutoff = Date.parse(process.env.PRIVATE_DIAGNOSTIC_RULES_ACTIVE_AFTER || "");
-    if (!Number.isFinite(cutoff) || !snapshot.createTime || snapshot.createTime.toMillis() <= cutoff || snapshot.data()?.schemaVersion !== 2) {
-      throw new ApiError(409, "Relatório legado ou gate de Rules pendente.", "legacy-remediation-required");
+async function fetchResourceAuthority(pool: SqlQueryable, loc: ResourceMeta, req: Express.Request) {
+  await ensureCoreSchema(pool);
+  let row: { provider_id: string; owner_uid: string } | undefined;
+  if (loc.report) {
+    const res = await pool.query<{ provider_id: string; created_by_uid: string }>(
+      `SELECT provider_id, created_by_uid FROM diagnostic_results WHERE id = $1 AND provider_id = $2 LIMIT 1`,
+      [loc.resourceId, loc.providerParam],
+    );
+    if (res.rows[0]) {
+      row = { provider_id: res.rows[0].provider_id, owner_uid: res.rows[0].created_by_uid };
+    }
+  } else {
+    const res = await pool.query<{ provider_id: string; created_by_uid: string }>(
+      `SELECT provider_id, created_by_uid FROM tickets WHERE id = $1 LIMIT 1`,
+      [loc.resourceId],
+    );
+    if (res.rows[0]) {
+      row = { provider_id: res.rows[0].provider_id, owner_uid: res.rows[0].created_by_uid };
     }
   }
-  return snapshot.data();
-}
-
-function authorize(req: Express.Request, data: FirebaseFirestore.DocumentData | undefined, report: boolean, provider?: string) {
-  if (!data) throw new ApiError(404, "Recurso não encontrado.");
-  const tenant = id(data.providerId);
-  const owner = data.createdByUid;
+  if (!row) throw new ApiError(404, "Recurso não encontrado.");
+  const tenant = id(row.provider_id);
+  const owner = row.owner_uid;
   if (typeof owner !== "string" || !owner || owner.length > 256) throw fail();
-  if (report && tenant !== provider) throw fail();
+  if (loc.report && tenant !== loc.providerParam) throw fail();
+
   const user = req.user!;
   if (!(user.superAdmin === true || (user.providerId === tenant &&
-    (user.role === "providerAdmin" || (user.role === "subscriber" && user.uid === owner))))) {
+      (user.role === "providerAdmin" || (user.role === "subscriber" && user.uid === owner))))) {
     throw new ApiError(403, "Sem permissão para este recurso.", "permission-denied");
   }
   return { tenant, owner };
 }
 
-const paths = ["/tickets/:resource/attachments/:attachment", "/providers/:provider/results/:resource/reports/:attachment"];
+interface AttachmentRow {
+  id: string;
+  resource_kind: string;
+  resource_id: string;
+  attachment_id: string;
+  provider_id: string;
+  owner_uid: string;
+  rel_path: string;
+  checksum: string;
+  size_bytes: number;
+  mime: string;
+  state: string;
+}
 
+const paths = ["/tickets/:resource/attachments/:attachment", "/providers/:provider/results/:resource/reports/:attachment"];
 const rawBody = express.raw({ type: () => true, limit: MAX, inflate: false });
-const boundedBody: RequestHandler = (req, res, next) => rawBody(req, res, error =>
+const boundedBody: RequestHandler = (req, res, next) => rawBody(req, res, (error) =>
   next(error ? new ApiError((error as { status?: number }).status === 413 ? 413 : 400, "Corpo inválido ou maior que 5 MiB.") : undefined));
+
 privateAttachmentsRouter.put(paths, boundedBody, privateRoute(async (req, res) => {
   if (Object.keys(req.query).length || req.headers["content-encoding"]) throw new ApiError(400, "Metadados não permitidos.");
-  const loc = location(req);
-  const mime = req.headers["content-type"] || "";
+  const loc = parseLocation(req);
+  const mime = String(req.headers["content-type"] || "").split(";")[0].trim();
   validatePrivateBytes(req.body, mime, loc.report);
   const checksum = digest(req.body);
-  const canonical = authorize(req, resourceData(await loc.resource.get(), loc.report), loc.report, req.params.provider);
-  const path = `private_v2/${canonical.tenant}/${loc.report ? "results" : "tickets"}/${loc.resourceId}/${loc.attachmentId}`;
-  const ref = loc.resource.collection("private_attachments").doc(loc.attachmentId);
-  const expected = { version: 2, providerId: canonical.tenant, ownerUid: canonical.owner, resourceId: loc.resourceId,
-    attachmentId: loc.attachmentId, path, checksum, size: req.body.length, mime };
-  const matches = (data: FirebaseFirestore.DocumentData) => allowedMetadata(data) && Object.entries(expected).every(([key, value]) => data[key] === value);
-  await firestore.runTransaction(async tx => {
-    const [resource, previous] = await Promise.all([tx.get(loc.resource), tx.get(ref)]);
-    const current = authorize(req, resourceData(resource, loc.report), loc.report, req.params.provider);
-    if (current.tenant !== canonical.tenant || current.owner !== canonical.owner) throw fail();
-    if (previous.exists) { if (!matches(previous.data()!) || !validUploadState(previous.data()!)) throw fail(); }
-    else tx.create(ref, { ...expected, state: "pending", createdAt: serverTimestamp() });
-  });
-  // Immutable create: a retry may recover only the exact reserved bytes. No overwrite.
-  const file = admin.storage().bucket().file(path);
-  try {
-    await file.save(req.body, { resumable: false, validation: "crc32c", preconditionOpts: { ifGenerationMatch: 0 },
-      metadata: { contentType: mime, cacheControl: "private, no-store", metadata: { checksum } } });
-  } catch (error) { if (Number((error as { code?: number }).code) !== 412) throw new ApiError(503, "Upload pendente. Tente novamente com o mesmo arquivo."); }
-  const [object] = await file.getMetadata();
-  if (Number(object.size) !== expected.size || object.contentType !== mime || object.metadata?.checksum !== checksum ||
-      !privateObject(object) || typeof object.generation !== "string" || !/^[1-9][0-9]*$/.test(object.generation)) throw fail();
-  const pinned = admin.storage().bucket().file(path, { generation: object.generation });
-  const [bytes] = await pinned.download({ validation: "crc32c" });
-  if (bytes.length !== expected.size || digest(bytes) !== checksum) throw fail();
-  // Revalidate current Auth after I/O; no long-lived authority snapshot.
-  await new Promise<void>((resolve, reject) => verifyFreshToken(req, res, error => error ? reject(error) : resolve()));
-  await firestore.runTransaction(async tx => {
-    const [resource, metadata] = await Promise.all([tx.get(loc.resource), tx.get(ref)]);
-    const current = authorize(req, resourceData(resource, loc.report), loc.report, req.params.provider);
-    if (current.tenant !== canonical.tenant || current.owner !== canonical.owner || !metadata.exists ||
-        !matches(metadata.data()!) || !validUploadState(metadata.data()!)) throw fail();
-    if (metadata.data()!.state === "committed") {
-      if (metadata.data()!.generation !== String(object.generation)) throw fail();
-      return;
+  const pool = requirePgPool();
+  const canonical = await fetchResourceAuthority(pool, loc, req);
+  const relPath = path.join(canonical.tenant, loc.report ? "results" : "tickets", loc.resourceId, loc.attachmentId);
+  const diskPath = safeDiskPath(relPath);
+
+  const existingRes = await pool.query<AttachmentRow>(
+    `SELECT * FROM private_attachments WHERE resource_kind = $1 AND resource_id = $2 AND attachment_id = $3 LIMIT 1`,
+    [loc.resourceKind, loc.resourceId, loc.attachmentId],
+  );
+  const existing = existingRes.rows[0];
+  if (existing) {
+    if (existing.provider_id !== canonical.tenant || existing.owner_uid !== canonical.owner ||
+        existing.checksum !== checksum || Number(existing.size_bytes) !== req.body.length ||
+        existing.mime !== mime || existing.rel_path !== relPath) {
+      throw fail();
     }
-    tx.set(ref, { ...expected, generation: String(object.generation), state: "committed", createdAt: serverTimestamp() });
-    if (loc.report) tx.update(loc.resource, { reportAttachmentId: loc.attachmentId });
-    else tx.set(loc.resource.collection("messages").doc(`attachment_${loc.attachmentId}`), {
-      attachmentId: loc.attachmentId, senderUid: req.user!.uid, senderEmail: "", createdAt: serverTimestamp(), message: "Anexo privado",
-    });
-  });
+    if (existing.state === "committed") {
+      return res.status(200).json({ attachmentId: loc.attachmentId, version: 2 });
+    }
+  } else {
+    const rowId = randomUUID().replace(/-/g, "").slice(0, 24);
+    await pool.query(
+      `INSERT INTO private_attachments (id, resource_kind, resource_id, attachment_id, provider_id, owner_uid, rel_path, checksum, size_bytes, mime, state, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', NOW())`,
+      [rowId, loc.resourceKind, loc.resourceId, loc.attachmentId, canonical.tenant, canonical.owner, relPath, checksum, req.body.length, mime],
+    );
+  }
+
+  await fs.mkdir(path.dirname(diskPath), { recursive: true });
+  try {
+    await fs.writeFile(diskPath, req.body, { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    if ((error as { code?: string }).code !== "EEXIST") {
+      throw new ApiError(503, "Falha ao gravar arquivo privado. Tente novamente.");
+    }
+  }
+
+  const storedBytes = await fs.readFile(diskPath);
+  if (storedBytes.length !== req.body.length || digest(storedBytes) !== checksum) throw fail();
+
+  await new Promise<void>((resolve, reject) => verifyFreshToken(req, res, (error) => (error ? reject(error) : resolve())));
+  const current = await fetchResourceAuthority(pool, loc, req);
+  if (current.tenant !== canonical.tenant || current.owner !== canonical.owner) throw fail();
+
+  await pool.query(
+    `UPDATE private_attachments SET state = 'committed'
+      WHERE resource_kind = $1 AND resource_id = $2 AND attachment_id = $3
+        AND provider_id = $4 AND owner_uid = $5 AND checksum = $6 AND size_bytes = $7 AND mime = $8`,
+    [loc.resourceKind, loc.resourceId, loc.attachmentId, canonical.tenant, canonical.owner, checksum, req.body.length, mime],
+  );
+
+  if (loc.report) {
+    await pool.query(
+      `UPDATE diagnostic_results SET report_attachment_id = $2 WHERE id = $1 AND provider_id = $3`,
+      [loc.resourceId, loc.attachmentId, canonical.tenant],
+    );
+  } else {
+    const msgId = `att_${loc.attachmentId}`;
+    await pool.query(
+      `INSERT INTO ticket_messages (id, ticket_id, sender_uid, sender_email, sender_role, message, attachment_id, read, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'Anexo privado', $6, FALSE, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [msgId, loc.resourceId, req.user!.uid, req.user?.email || "", req.user?.role || "subscriber", loc.attachmentId],
+    );
+  }
+
   res.status(200).json({ attachmentId: loc.attachmentId, version: 2 });
 }));
 
 privateAttachmentsRouter.get(paths, privateRoute(async (req, res) => {
   if (Object.keys(req.query).length) throw new ApiError(400, "Parâmetros não permitidos.");
-  const loc = location(req);
-  const canonical = authorize(req, resourceData(await loc.resource.get(), loc.report), loc.report, req.params.provider);
-  const ref = loc.resource.collection("private_attachments").doc(loc.attachmentId);
-  const metadata = (await ref.get()).data();
-  const path = `private_v2/${canonical.tenant}/${loc.report ? "results" : "tickets"}/${loc.resourceId}/${loc.attachmentId}`;
-  if (!metadata || !allowedMetadata(metadata) || metadata.state !== "committed" || metadata.version !== 2 || metadata.path !== path ||
-      metadata.ownerUid !== canonical.owner || metadata.providerId !== canonical.tenant || metadata.resourceId !== loc.resourceId ||
-      metadata.attachmentId !== loc.attachmentId || !/^[0-9]+$/.test(metadata.generation) ||
-      !Number.isInteger(metadata.size) || metadata.size <= 0 || metadata.size > MAX) throw fail();
-  const file = admin.storage().bucket().file(path, { generation: metadata.generation });
-  const [object] = await file.getMetadata();
-  if (String(object.generation) !== metadata.generation || Number(object.size) !== metadata.size ||
-      object.contentType !== metadata.mime || object.metadata?.checksum !== metadata.checksum || !privateObject(object)) throw fail();
-  const [bytes] = await file.download({ validation: "crc32c" });
-  if (bytes.length !== metadata.size || digest(bytes) !== metadata.checksum) throw fail();
+  const loc = parseLocation(req);
+  const pool = requirePgPool();
+  const canonical = await fetchResourceAuthority(pool, loc, req);
+
+  const metaRes = await pool.query<AttachmentRow>(
+    `SELECT * FROM private_attachments WHERE resource_kind = $1 AND resource_id = $2 AND attachment_id = $3 LIMIT 1`,
+    [loc.resourceKind, loc.resourceId, loc.attachmentId],
+  );
+  const metadata = metaRes.rows[0];
+  const expectedRelPath = path.join(canonical.tenant, loc.report ? "results" : "tickets", loc.resourceId, loc.attachmentId);
+  if (!metadata || metadata.state !== "committed" || metadata.rel_path !== expectedRelPath ||
+      metadata.owner_uid !== canonical.owner || metadata.provider_id !== canonical.tenant ||
+      !Number.isInteger(Number(metadata.size_bytes)) || metadata.size_bytes <= 0 || metadata.size_bytes > MAX) {
+    throw fail();
+  }
+
+  const diskPath = safeDiskPath(metadata.rel_path);
+  let bytes: Buffer;
+  try {
+    bytes = await fs.readFile(diskPath);
+  } catch {
+    throw fail();
+  }
+  if (bytes.length !== Number(metadata.size_bytes) || digest(bytes) !== metadata.checksum) throw fail();
   validatePrivateBytes(bytes, metadata.mime, loc.report);
-  await new Promise<void>((resolve, reject) => verifyFreshToken(req, res, error => error ? reject(error) : resolve()));
-  const current = authorize(req, resourceData(await loc.resource.get(), loc.report), loc.report, req.params.provider);
-  if (current.tenant !== canonical.tenant || current.owner !== canonical.owner || JSON.stringify((await ref.get()).data()) !== JSON.stringify(metadata)) throw fail();
-  res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'",
-    "Content-Type": metadata.mime, "Content-Disposition": `attachment; filename="attachment.${loc.report ? "pdf" : metadata.mime === "image/png" ? "png" : "jpg"}"` });
+
+  await new Promise<void>((resolve, reject) => verifyFreshToken(req, res, (error) => (error ? reject(error) : resolve())));
+  const current = await fetchResourceAuthority(pool, loc, req);
+  if (current.tenant !== canonical.tenant || current.owner !== canonical.owner) throw fail();
+
+  res.set({
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "sandbox; default-src 'none'",
+    "Content-Type": metadata.mime,
+    "Content-Disposition": `attachment; filename="attachment.${loc.report ? "pdf" : metadata.mime === "image/png" ? "png" : "jpg"}"`,
+  });
   res.send(bytes);
 }));

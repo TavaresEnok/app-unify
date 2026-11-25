@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'api_endpoint.dart';
 import 'api_response.dart';
+import 'session_token_store.dart';
 
 class TraceResult {
   final List<Map<String, dynamic>> hops;
@@ -23,8 +23,8 @@ class TracerouteService {
   final http.Client client;
   final Future<String?> Function() tokenProvider;
   TracerouteService(this.client, {Future<String?> Function()? tokenProvider})
-      : tokenProvider = tokenProvider ??
-            (() async => FirebaseAuth.instance.currentUser?.getIdToken());
+      : tokenProvider =
+            tokenProvider ?? (() => SessionTokenStore.instance.getToken());
 
   Future<TraceResult> run(String apiUrl, String target) async {
     final token = await tokenProvider();

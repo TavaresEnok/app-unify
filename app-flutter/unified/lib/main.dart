@@ -33,21 +33,27 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Public provider configuration does not require an anonymous Auth session.
-  // Client authentication starts only when the customer signs in.
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('ℹ️ Firebase (FCM) indisponível neste dispositivo: $e');
+  }
 
   // Crashlytics Setup + ErrorWidget customizado para debug
   FlutterError.onError = (errorDetails) {
-    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    try {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    } catch (_) {}
     debugPrint('🚨 FLUTTER ERROR: ${errorDetails.exception}');
     debugPrint('📍 ${errorDetails.stack}');
   };
 
   // Async errors
   PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    try {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    } catch (_) {}
     debugPrint('🚨 ZONE ERROR: $error');
     debugPrint('📍 $stack');
     return true;
@@ -150,7 +156,9 @@ class _AppInitializationWrapperState
   }
 
   Future<void> _initializeApp() async {
-    await FirebaseMessaging.instance.requestPermission();
+    try {
+      await FirebaseMessaging.instance.requestPermission();
+    } catch (_) {}
 
     // Initialize Push Notification Service for foreground handling
     final notificationService = ref.read(notificationProvider);

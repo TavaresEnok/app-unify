@@ -18,11 +18,8 @@ dependencies:
   google_fonts: ^6.2.1
   font_awesome_flutter: ^10.7.0
 
-  # FIREBASE
+  # FIREBASE (apenas FCM push + telemetria opcional; Auth/DB/Storage 100% self-hosted)
   firebase_core: ^2.32.0
-  cloud_firestore: ^4.17.4
-  firebase_auth: ^4.20.0
-  firebase_storage: ^11.7.5
   firebase_messaging: ^14.9.3
   firebase_analytics: ^10.8.0
   firebase_crashlytics: ^3.4.9

@@ -27,34 +27,47 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
     upstreamServer.listen(0, '127.0.0.1'); await once(upstreamServer, 'listening');
     const port = upstreamServer.address().port;
     const base = `http://sgp.synthetic.test:${port}`;
-    const docs = new Map(); const reads = []; let lookupFailure = false;
-    const users = new Map(); const issued = []; let authOutage = false;
-    const auth = {
-        verifyIdToken: async (token, revoked) => {
-            if (revoked === true && token === 'revoked') throw Object.assign(Error(), { code: 'auth/id-token-revoked' });
-            if (token.startsWith('provider:')) return { uid: token, role: 'providerAdmin', providerId: token.slice(9) };
-            if (token === 'old-admin') return { uid: 'subscriber:a:12345678901', superAdmin: true };
-            return { uid: `subscriber:${token}:12345678901`, role: 'subscriber', providerId: token, cpfCnpj: '12345678901' };
-        },
-        getUser: async uid => {
-            if (authOutage) throw Error('synthetic authority outage');
-            if (!users.has(uid)) throw Object.assign(Error(), { code: 'auth/user-not-found' });
-            return users.get(uid);
-        },
-        createUser: async ({ uid }) => { assert.equal(users.has(uid), false); const user = { uid, disabled: false, customClaims: {} }; users.set(uid, user); return user; },
-        setCustomUserClaims: async (uid, claims) => { users.get(uid).customClaims = claims; },
-        createCustomToken: async (uid, claims) => { assert.deepEqual(users.get(uid).customClaims, claims); issued.push(uid); return 'synthetic-custom-token'; },
+    const reads = []; let lookupFailure = false;
+    const providersMap = new Map();
+    const secretsMap = new Map();
+    const subscribersMap = new Map();
+    const sgpClientsSet = new Set();
+    const adminUsersMap = new Map();
+    const issued = []; let authOutage = false;
+
+    const before = {
+        SGP_TOKEN: process.env.SGP_TOKEN,
+        NODE_ENV: process.env.NODE_ENV,
+        JWT_SECRET: process.env.JWT_SECRET,
+        APP_SECRETS_KEY: process.env.APP_SECRETS_KEY,
     };
+    process.env.SGP_TOKEN = 'synthetic-global-never-send';
+    process.env.NODE_ENV = 'test';
+    process.env.JWT_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.APP_SECRETS_KEY = 'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210';
+    const selfAuth = require('./self-auth');
+    selfAuth.clearKeyCacheForTests();
+
     for (const provider of ['a', 'b', 'incomplete']) {
-        docs.set(`provedores/${provider}`, { details: { systemUrl: base, appName: 'public-forged' } });
-        docs.set(`provedores/${provider}/secrets/sgp`, { integrations: { sgpBaseUrl: base, appName: `app-${provider}`, ...(provider !== 'incomplete' ? { apiToken: `synthetic-${provider}` } : {}) } });
+        providersMap.set(provider, { id: provider, details: { systemUrl: base, appName: 'public-forged' } });
+        secretsMap.set(provider, selfAuth.encryptSecret(JSON.stringify({
+            sgpBaseUrl: base,
+            appName: `app-${provider}`,
+            ...(provider !== 'incomplete' ? { apiToken: `synthetic-${provider}` } : {}),
+        })));
     }
     for (const provider of ['a', 'b']) {
-        users.set('provider:' + provider, { uid: 'provider:' + provider, customClaims: { role: 'providerAdmin', providerId: provider } });
-        docs.set(`provedores/${provider}/clientes/12345678901`, { providerId: provider });
+        adminUsersMap.set(`provider:${provider}`, {
+            uid: `provider:${provider}`,
+            email: `${provider}@synthetic.test`,
+            role: 'providerAdmin',
+            provider_id: provider,
+            disabled: false,
+            token_version: 1,
+        });
+        sgpClientsSet.add(`${provider}:12345678901`);
     }
-    const ref = path => ({ path, get: async () => { reads.push(path); if (lookupFailure) throw new Error('synthetic lookup failure'); return { exists: docs.has(path), data: () => docs.get(path) }; }, collection: name => collection(`${path}/${name}`) });
-    const collection = path => ({ doc: id => ref(`${path}/${id}`), where: () => ({ where: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) }) }) });
+
     const transport = runtime.createSgpTransport({ lookup: async () => {
         if (failLookup) throw new Error('synthetic DNS failure');
         return mixedDns ? [{ address: '8.8.8.8', family: 4 }, { address: '127.0.0.1', family: 4 }] : [{ address: '8.8.8.8', family: 4 }];
@@ -64,15 +77,65 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         Object.defineProperty(socket, 'remoteAddress', { get: () => '8.8.8.8' }); return socket;
     } });
     class FakeRedis { on() {} connect() { return Promise.resolve(); } }
-    class FakePool { on() {} }
-    const before = { SGP_TOKEN: process.env.SGP_TOKEN, NODE_ENV: process.env.NODE_ENV };
-    process.env.SGP_TOKEN = 'synthetic-global-never-send'; process.env.NODE_ENV = 'test';
+    class FakePool {
+        on() {}
+        async query(sql, params = []) {
+            const text = String(sql).trim();
+            reads.push(text);
+            if (/^(CREATE|ALTER)/i.test(text)) return { rows: [] };
+            if (/FROM\s+providers\s+p/i.test(text)) {
+                if (lookupFailure) throw new Error('synthetic lookup failure');
+                const providerId = params[0];
+                if (!providersMap.has(providerId)) return { rows: [] };
+                return { rows: [{ id: providerId, ciphertext: secretsMap.get(providerId) || null }] };
+            }
+            if (/FROM\s+admin_users\b/i.test(text)) {
+                if (authOutage) throw Error('synthetic authority outage');
+                const row = adminUsersMap.get(params[0]);
+                return { rows: row ? [row] : [] };
+            }
+            if (/SELECT\s+1\s+FROM\s+subscribers\b/i.test(text)) {
+                const [providerId, cpfCnpj] = params;
+                const found = sgpClientsSet.has(`${providerId}:${cpfCnpj}`)
+                    || Array.from(subscribersMap.values()).some(s => s.provider_id === providerId && s.cpfcnpj === cpfCnpj);
+                return { rows: found ? [{ '?column?': 1 }] : [] };
+            }
+            if (/SELECT\s+uid,\s*provider_id,\s*cpfcnpj,\s*email,\s*disabled,\s*token_version\s+FROM\s+subscribers\b/i.test(text)) {
+                if (authOutage) throw Error('synthetic authority outage');
+                const row = subscribersMap.get(params[0]);
+                return { rows: row ? [row] : [] };
+            }
+            if (/INSERT\s+INTO\s+subscribers\b/i.test(text)) {
+                if (authOutage) throw Error('synthetic authority outage');
+                const [uid, providerId, cpfCnpj, nome, plano, status, contractStatus, contratoId, email] = params;
+                const existing = subscribersMap.get(uid);
+                if (existing && (existing.provider_id !== providerId || existing.cpfcnpj !== cpfCnpj)) {
+                    return { rows: [] };
+                }
+                const next = {
+                    uid,
+                    provider_id: providerId,
+                    cpfcnpj: cpfCnpj,
+                    nome,
+                    plano,
+                    status,
+                    contract_status: contractStatus,
+                    contrato_id: contratoId,
+                    email: email || existing?.email || '',
+                    disabled: existing ? existing.disabled : false,
+                    token_version: existing ? existing.token_version : 1,
+                };
+                subscribersMap.set(uid, next);
+                return { rows: [next] };
+            }
+            return { rows: [] };
+        }
+    }
     const load = Module._load;
     let api;
     try {
         Module._load = function(name, parent, ...args) {
             if (parent?.filename === require.resolve('../index')) {
-                if (name === 'firebase-admin') return { apps: [{}], firestore: Object.assign(() => ({ collection, runTransaction: async operation => operation({ get: r => r.get(), set: (r, value) => docs.set(r.path, value), delete: r => docs.delete(r.path) }) }), { FieldValue: { serverTimestamp: () => 'server-time' } }), auth: () => auth };
                 if (name === 'ioredis') return FakeRedis;
                 if (name === 'pg') return { Pool: FakePool };
                 if (name === './lib/upstream') return { createUpstream: () => ({ execute: async (_input, operation) => operation() }), readTtl: () => 0 };
@@ -83,7 +146,20 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         api = require('../index');
     } finally { Module._load = load; }
     const server = api.app.listen(0, '127.0.0.1'); await once(server, 'listening');
-    const post = (path, body, token = 'a') => fetch(`http://127.0.0.1:${server.address().port}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(3000) });
+    const tokenFor = (name) => {
+        if (name === 'provider:a' || name === 'provider:b') {
+            const p = name.slice(9);
+            return selfAuth.signJwt({ uid: name, role: 'providerAdmin', providerId: p, tv: 1 });
+        }
+        if (name === 'old-admin') {
+            return selfAuth.signJwt({ uid: 'subscriber:a:12345678901', role: 'subscriber', providerId: 'b', cpfCnpj: '12345678901', tv: 1 });
+        }
+        if (name === 'revoked') {
+            return selfAuth.signJwt({ uid: 'subscriber:incomplete:12345678901', role: 'subscriber', providerId: 'incomplete', cpfCnpj: '12345678901', tv: 0 });
+        }
+        return selfAuth.signJwt({ uid: `subscriber:${name}:12345678901`, role: 'subscriber', providerId: name, cpfCnpj: '12345678901', tv: 1 });
+    };
+    const post = (path, body, token = 'a') => fetch(`http://127.0.0.1:${server.address().port}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenFor(token)}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(3000) });
     try {
         // Exercise the historical subscriber login: CPF/CNPJ + provider only.
         // The central password is resolved server-side solely for SGP calls.
@@ -92,9 +168,12 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
             const start = received.length;
             const result = await post('/check-cpf', { providerId: tenant, cpf: '12345678901' });
             assert.equal(result.status, 200);
-            assert.equal((await result.json()).status, status ? 'Online' : 'Offline');
-            assert.equal(users.get(`subscriber:${tenant}:12345678901`).customClaims.role, 'subscriber');
-            assert.equal(issued.at(-1), `subscriber:${tenant}:12345678901`);
+            const payload = await result.json();
+            assert.equal(payload.status, status ? 'Online' : 'Offline');
+            assert.equal(payload.tokenType, 'jwt');
+            assert.ok(typeof payload.accessToken === 'string' && payload.accessToken.split('.').length === 3);
+            assert.equal(selfAuth.verifyJwt(payload.accessToken).role, 'subscriber');
+            issued.push(selfAuth.verifyJwt(payload.accessToken).uid);
             const requests = received.slice(start);
             const consulta = requests.find(item => item.url === '/api/ura/consultacliente/');
             assert.equal(new URLSearchParams(consulta.body).get('token'), `synthetic-${tenant}`);
@@ -108,23 +187,27 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         const uid = 'subscriber:a:12345678901';
         const login = () => post('/check-cpf', { providerId: 'a', cpf: '12345678901' });
         const beforeDenied = issued.length;
-        for (const claims of [{ superAdmin: true }, { role: 'providerAdmin', providerId: 'a' }, { role: 'subscriber', providerId: 'b' }]) {
-            users.set(uid, { uid, customClaims: claims }); assert.equal((await login()).status, 403);
+        for (const role of ['superAdmin', 'providerAdmin']) {
+            adminUsersMap.set(uid, { uid, role, provider_id: 'a', disabled: false, token_version: 1 });
+            assert.equal((await login()).status, 403);
         }
-        users.set(uid, { uid, disabled: true, customClaims: { role: 'subscriber', providerId: 'a' } });
+        adminUsersMap.delete(uid);
+        subscribersMap.set(uid, { uid, provider_id: 'b', cpfcnpj: '12345678901', disabled: false, token_version: 1 });
+        assert.equal((await login()).status, 403);
+        subscribersMap.set(uid, { uid, provider_id: 'a', cpfcnpj: '12345678901', disabled: true, token_version: 1 });
         assert.equal((await login()).status, 401);
         authOutage = true; assert.equal((await login()).status, 503); authOutage = false;
         assert.equal(issued.length, beforeDenied);
-        users.set(uid, { uid, customClaims: { role: 'subscriber', providerId: 'a', cpfCnpj: '12345678901' } });
+        subscribersMap.set(uid, { uid, provider_id: 'a', cpfcnpj: '12345678901', disabled: false, token_version: 1 });
         for (const provider of ['a', 'b']) {
             assert.equal((await post('/diagnostic/analyze', { cpfCnpj: '12345678901', user: { superAdmin: true } }, 'provider:' + provider)).status, 501);
             assert.equal((await post('/diagnostic/analyze', { cpfCnpj: '12345678901', providerId: provider === 'a' ? 'b' : 'a' }, 'provider:' + provider)).status, 403);
         }
         assert.equal((await post('/diagnostic/analyze', { cpfCnpj: '12345678901', providerId: 'b' }, 'old-admin')).status, 403);
-        users.get(uid).disabled = true;
+        subscribersMap.get(uid).disabled = true;
         assert.equal((await post('/diagnostic/analyze', { cpfCnpj: '12345678901' })).status, 401);
-        users.get(uid).disabled = false;
-        users.set('subscriber:incomplete:12345678901', { customClaims: { role: 'subscriber', providerId: 'incomplete', cpfCnpj: '12345678901' } });
+        subscribersMap.get(uid).disabled = false;
+        subscribersMap.set('subscriber:incomplete:12345678901', { uid: 'subscriber:incomplete:12345678901', provider_id: 'incomplete', cpfcnpj: '12345678901', disabled: false, token_version: 1 });
         assert.equal((await post('/diagnostic/analyze', { cpfCnpj: '12345678901' }, 'revoked')).status, 401);
         authOutage = true;
         const unavailable = await post('/diagnostic/analyze', { cpfCnpj: '12345678901' });
@@ -172,8 +255,9 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         const count = received.length;
         for (const forged of [{ token: 'forged' }, { app: 'forged' }, { sgpBaseUrl: 'http://127.0.0.1' }, { sgpParams: { token: 'forged' } }]) assert.equal((await post('/get-invoices', { cpfCnpj: '12345678901', ...forged })).status, 400);
         assert.equal((await post('/get-invoices', { cpfCnpj: '12345678901', providerId: 'b' })).status, 403);
+        const readsBeforeCred = reads.length;
         await assert.rejects(api.ensureSgpCredentials({ cpfCnpj: '12345678901' }));
-        assert.ok(!reads.some(path => path.startsWith('clientes/')));
+        assert.ok(!reads.slice(readsBeforeCred).some(q => /subscribers/i.test(q)));
         for (const providerId of ['incomplete', 'absent']) await assert.rejects(api.ensureSgpCredentials({ providerId }));
         lookupFailure = true;
         await assert.rejects(api.ensureSgpCredentials({ providerId: 'lookup-fails' }));
@@ -197,6 +281,7 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
     } finally {
         server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
         upstreamServer.closeAllConnections(); await new Promise(resolve => upstreamServer.close(resolve));
+        selfAuth.clearKeyCacheForTests();
         for (const [key, value] of Object.entries(before)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
 });

@@ -1,13 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/diagnostic_report.dart';
 import '../models/provider_config.dart';
 import '../utils/pdf_generator_service.dart';
 import 'diagnostic_verdict.dart';
+import 'session_token_store.dart';
 
 class ReportDeliveryException implements Exception {
   final String message;
@@ -17,26 +18,30 @@ class ReportDeliveryException implements Exception {
 }
 
 /// Orquestra o que acontece DEPOIS que o diagnóstico termina: gerar o PDF,
-/// publicá-lo, levá-lo ao atendimento do provedor e guardar o histórico.
-///
-/// Regra de ouro do WhatsApp: um deep link (`wa.me`) só carrega TEXTO — não é
-/// possível anexar arquivo programaticamente a um contato específico. Por isso o
-/// PDF é enviado ao Storage e o que segue na mensagem é o link.
+/// publicá-lo no backend self-hosted, levá-lo ao atendimento do provedor e guardar o histórico.
 class DiagnosticReportService {
-  final FirebaseStorage _storage;
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final String? _apiUrl;
+  final http.Client _client;
   final PdfGeneratorService _pdf;
 
   DiagnosticReportService({
-    FirebaseStorage? storage,
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
+    String? apiUrl,
+    http.Client? client,
     PdfGeneratorService? pdfGenerator,
-  })  : _storage = storage ?? FirebaseStorage.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance,
+  })  : _apiUrl = apiUrl,
+        _client = client ?? http.Client(),
         _pdf = pdfGenerator ?? PdfGeneratorService();
+
+  String? get _base {
+    final trimmed = _apiUrl?.trim().replaceAll(RegExp(r'/+$'), '') ?? '';
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static String _opaqueId(String prefix) {
+    final rng = math.Random.secure();
+    final rand = List.generate(8, (_) => rng.nextInt(36).toRadixString(36)).join();
+    return '${prefix}_${DateTime.now().millisecondsSinceEpoch}_$rand';
+  }
 
   // ── PDF ───────────────────────────────────────────────────────────────────
 
@@ -57,32 +62,46 @@ class DiagnosticReportService {
 
   // ── Publicação ────────────────────────────────────────────────────────────
 
-  /// Sobe o PDF e devolve a URL de download.
+  /// Sobe o PDF no backend self-hosted e devolve a URL privada do anexo.
   Future<String> uploadReport(
     DiagnosticReport report,
-    Uint8List pdfBytes,
-  ) async {
-    final uid = _auth.currentUser?.uid ?? 'anonimo';
-    final stamp = report.generatedAt.millisecondsSinceEpoch;
+    Uint8List pdfBytes, {
+    String? resultId,
+  }) async {
+    final base = _base;
+    final token = await SessionTokenStore.instance.getToken();
+    if (base == null || token == null || token.isEmpty) {
+      throw ReportDeliveryException(
+          'Sessão indisponível para publicar o relatório.');
+    }
+    final resId = (resultId != null && resultId.isNotEmpty)
+        ? resultId
+        : _opaqueId('res');
+    final attId = _opaqueId('rep');
     final path =
-        'providers/${report.provider.id}/diagnostic_reports/${uid}_$stamp.pdf';
+        '$base/private/providers/${Uri.encodeComponent(report.provider.id)}/results/${Uri.encodeComponent(resId)}/reports/${Uri.encodeComponent(attId)}';
 
     try {
-      final ref = _storage.ref().child(path);
-      await ref.putData(
-        pdfBytes,
-        SettableMetadata(
-          contentType: 'application/pdf',
-          customMetadata: {
-            'contractId': report.customer.contractId?.toString() ?? '',
-            'severity': '',
-          },
-        ),
-      );
-      return await ref.getDownloadURL();
-    } on FirebaseException catch (e) {
+      final response = await _client
+          .put(
+            Uri.parse(path),
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Authorization': 'Bearer $token',
+            },
+            body: pdfBytes,
+          )
+          .timeout(const Duration(seconds: 25));
+      if (response.statusCode >= 400) {
+        throw ReportDeliveryException(
+            'Não foi possível enviar o relatório (HTTP ${response.statusCode}).');
+      }
+      return path;
+    } on ReportDeliveryException {
+      rethrow;
+    } catch (_) {
       throw ReportDeliveryException(
-          'Não foi possível enviar o relatório (${e.code}). Verifique sua conexão e tente novamente.');
+          'Não foi possível enviar o relatório. Verifique sua conexão e tente novamente.');
     }
   }
 
@@ -179,18 +198,15 @@ class DiagnosticReportService {
   // ── Chamado ───────────────────────────────────────────────────────────────
 
   /// Abre um chamado no provedor já com o link do relatório no corpo.
-  ///
-  /// Usa a fila `function_requests`/`function_responses` (a Cloud Function é
-  /// quem escreve o ticket). O link vai no texto porque o contrato de
-  /// CREATE_TICKET só tem `imageUrl`, que o painel renderiza como imagem.
   Future<String> openSupportTicket({
     required DiagnosticReport report,
     required DiagnosticVerdict verdict,
     required String reportUrl,
     String? userEmail,
   }) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) {
+    final base = _base;
+    final token = await SessionTokenStore.instance.getToken();
+    if (base == null || token == null || token.isEmpty) {
       throw ReportDeliveryException(
           'Você precisa estar conectado para abrir um chamado.');
     }
@@ -214,39 +230,37 @@ class DiagnosticReportService {
       ..writeln()
       ..writeln('Relatório completo (PDF): $reportUrl');
 
-    final requestId = _firestore.collection('function_requests').doc().id;
-    final requestRef =
-        _firestore.collection('function_requests').doc(requestId);
-    final responseRef =
-        _firestore.collection('function_responses').doc(requestId);
-
-    await requestRef.set({
-      'type': 'CREATE_TICKET',
-      'requesterUid': uid,
-      'createdAt': FieldValue.serverTimestamp(),
-      'payload': {
-        'subject': 'Diagnóstico de rede — ${verdict.headline}',
-        'message': message.toString(),
-        'providerId': report.provider.id,
-        'providerName': report.provider.name,
-        'userEmail': userEmail,
-        'requesterUid': uid,
-      },
-    });
-
     try {
-      final snapshot = await responseRef
-          .snapshots()
-          .firstWhere((snap) => snap.exists)
-          .timeout(const Duration(seconds: 60));
-      final data = snapshot.data();
-      final error = data?['error'];
-      if (error != null) throw ReportDeliveryException(error.toString());
-      final ticketId = data?['result']?['ticketId'];
-      if (ticketId == null) {
+      final response = await _client
+          .post(
+            Uri.parse('$base/subscriber/tickets'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'subject': 'Diagnóstico de rede — ${verdict.headline}',
+              'message': message.toString(),
+              'providerName': report.provider.name,
+              if (userEmail != null && userEmail.isNotEmpty)
+                'userEmail': userEmail,
+            }),
+          )
+          .timeout(const Duration(seconds: 25));
+
+      final body = jsonDecode(response.body);
+      if (response.statusCode >= 400) {
+        final msg = body is Map && body['error'] is Map
+            ? body['error']['message']?.toString()
+            : null;
+        throw ReportDeliveryException(
+            msg ?? 'Não foi possível abrir o chamado.');
+      }
+      final ticketId = body is Map ? body['ticketId']?.toString() : null;
+      if (ticketId == null || ticketId.isEmpty) {
         throw ReportDeliveryException('O servidor não confirmou o chamado.');
       }
-      return ticketId.toString();
+      return ticketId;
     } on ReportDeliveryException {
       rethrow;
     } catch (_) {
@@ -257,72 +271,66 @@ class DiagnosticReportService {
 
   // ── Histórico ─────────────────────────────────────────────────────────────
 
-  /// Persiste o resultado em `provedores/{id}/diagnostic_results` e devolve o id
-  /// do documento (ou null em falha).
-  ///
-  /// Deve ser chamado UMA vez por diagnóstico, assim que o resultado é
-  /// apresentado — inclusive quando o cliente auto-resolve e não aciona o
-  /// suporte. É isso que faz a métrica de deflexão do painel refletir a
-  /// realidade (§ estudo 4.4). Falha aqui é silenciosa: histórico é acessório.
+  /// Persiste o resultado via `POST /diagnostic/results` e devolve o id (ou null).
   Future<String?> persistResult({
     required DiagnosticReport report,
     required DiagnosticVerdict verdict,
     String? reportUrl,
   }) async {
+    final base = _base;
+    final token = await SessionTokenStore.instance.getToken();
+    if (base == null || token == null || token.isEmpty) return null;
     try {
-      final ref = await _firestore
-          .collection('provedores')
-          .doc(report.provider.id)
-          .collection('diagnostic_results')
-          .add({
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdByUid': _auth.currentUser?.uid,
-        'contractId': report.customer.contractId,
-        'planName': report.customer.planName,
-        'severity': verdict.severity.name,
-        'headline': verdict.headline,
-        'needsProviderSupport': verdict.needsProviderSupport,
-        'findings': verdict.findings.map((f) => f.toJson()).toList(),
-        'measurements': report.toJson(),
-        if (reportUrl != null) 'reportUrl': reportUrl,
-      });
-      return ref.id;
+      final response = await _client
+          .post(
+            Uri.parse('$base/diagnostic/results'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'providerId': report.provider.id,
+              'contractId': report.customer.contractId,
+              'planName': report.customer.planName,
+              'verdict': verdict.severity.name,
+              'cause': verdict.headline,
+              'needsProviderSupport': verdict.needsProviderSupport,
+              'findings': verdict.findings.map((f) => f.toJson()).toList(),
+              'summary': report.toJson(),
+              if (reportUrl != null) 'reportUrl': reportUrl,
+            }),
+          )
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode >= 400) return null;
+      final body = jsonDecode(response.body);
+      if (body is Map && body['data'] is Map) {
+        return body['data']['id']?.toString();
+      }
+      return null;
     } catch (e) {
       debugPrint('[Diagnóstico] Falha ao salvar histórico: $e');
       return null;
     }
   }
 
-  /// Anexa a URL do PDF ao registro já persistido (quando o cliente publica o
-  /// relatório após o diagnóstico). Evita gravar um segundo documento.
+  /// Anexa a URL do PDF ao registro já persistido (vinculado via `resultId`).
   Future<void> attachReportUrl({
     required String providerId,
     required String resultId,
     required String reportUrl,
   }) async {
-    try {
-      await _firestore
-          .collection('provedores')
-          .doc(providerId)
-          .collection('diagnostic_results')
-          .doc(resultId)
-          .set({'reportUrl': reportUrl}, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('[Diagnóstico] Falha ao anexar URL ao histórico: $e');
-    }
+    // O anexo privado já fica vinculado a `resultId` via PUT /private/.../reports/:attachmentId.
   }
 
   // ── Fluxo completo ────────────────────────────────────────────────────────
 
-  /// Gera o PDF e o publica no Storage, devolvendo a URL. NÃO grava histórico —
-  /// a persistência acontece uma vez na abertura da folha; aqui só atualizamos a
-  /// URL via [attachReportUrl] quando aplicável.
   Future<String> publishReport({
     required DiagnosticReport report,
     required DiagnosticVerdict verdict,
     Uint8List? providerLogo,
+    String? resultId,
   }) async {
     final bytes = await buildPdf(report, verdict, providerLogo: providerLogo);
-    return uploadReport(report, bytes);
+    return uploadReport(report, bytes, resultId: resultId);
   }
 }

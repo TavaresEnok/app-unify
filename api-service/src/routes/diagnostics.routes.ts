@@ -66,6 +66,7 @@ diagnosticsRouter.post("/results", tenantLimiter, asyncRoute(async (req, res) =>
   const saved = await saveDiagnosticResult(pool, {
     providerId: user.providerId,
     cpfCnpj: user.cpfCnpj,
+    createdByUid: user.uid,
     contratoId: typeof req.body?.contratoId === "string" ? req.body.contratoId : "",
     clientName: typeof req.body?.clientName === "string" ? req.body.clientName : "",
     planName: typeof req.body?.planName === "string" ? req.body.planName : "",

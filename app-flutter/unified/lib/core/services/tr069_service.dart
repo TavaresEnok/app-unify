@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'session_token_store.dart';
 
 @immutable
 class Tr069Features {
@@ -232,7 +232,7 @@ class Tr069Service {
 
   Future<String?> _token() async {
     try {
-      return await FirebaseAuth.instance.currentUser?.getIdToken();
+      return await SessionTokenStore.instance.getToken();
     } catch (_) {
       return null;
     }

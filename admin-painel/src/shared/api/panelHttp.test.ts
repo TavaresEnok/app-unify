@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ user: { uid: 'a', getIdToken: async () => 'synthetic' } as any }));
-vi.mock('@/firebase/auth', () => ({ auth: { get currentUser() { return state.user; } } }));
+vi.mock('@/shared/auth/session', () => ({ auth: { get currentUser() { return state.user; } } }));
 import { panelRequest, readPanel, resetPanelSession, clearPanelReads } from './panelHttp';
 beforeEach(() => { resetPanelSession(); state.user = { uid:'a', getIdToken: async () => 'synthetic' }; vi.stubGlobal('window', { location: { protocol:'https:', hostname:'panel.test', origin:'https://panel.test', port:'' } }); });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });

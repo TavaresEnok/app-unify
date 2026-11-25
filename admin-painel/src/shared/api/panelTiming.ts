@@ -1,4 +1,4 @@
-import type { User } from 'firebase/auth';
+import type { SessionUser } from '@/shared/auth/session';
 import { resolvePublicApiBaseUrl } from '@/shared/config/publicApi';
 
 let sample = { start: performance.now(), flow: 'restore', auth: 0, apiStart: 0, apiEnd: 0, sent: false };
@@ -7,7 +7,7 @@ export function markPanelAuthReady() { if (!sample.auth) sample.auth = performan
 export function markDashboardRequest() { if (!sample.apiStart) sample.apiStart = performance.now(); }
 export function markDashboardResponse() { if (!sample.apiEnd) sample.apiEnd = performance.now(); }
 
-export function reportPanelReady(user: User) {
+export function reportPanelReady(user: Pick<SessionUser, 'getIdToken'>) {
   if (sample.sent || !sample.auth || !sample.apiEnd) return;
   sample.sent = true;
   const data = { flow: sample.flow, totalMs: Math.round(performance.now() - sample.start),

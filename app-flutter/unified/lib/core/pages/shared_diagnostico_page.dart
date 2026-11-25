@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/session_token_store.dart';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart';
@@ -180,7 +180,7 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
     final base = apiUrl?.trim().replaceAll(RegExp(r'/+$'), '') ?? '';
     if (base.isEmpty) return;
     try {
-      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final token = await SessionTokenStore.instance.getToken();
       if (token == null || token.isEmpty) return;
 
       final onuEntry = state.testResultsDisplay['onuInfo'];

@@ -1,6 +1,6 @@
 import { ApiError } from "../../middlewares/errorHandler";
-import { firestore, serverTimestamp } from "../firebaseAdmin";
-import type { SqlQueryable } from "../postgres";
+import { requirePgPool, type SqlQueryable } from "../postgres";
+import { getProviderSecret, saveProviderSecret } from "../providersStore";
 import sgpOutbound from "../sgp-outbound";
 import { flashmanDriver } from "./drivers/flashmanDriver";
 import { genieacsDriver } from "./drivers/genieacsDriver";
@@ -40,13 +40,8 @@ function toIso(raw: unknown): string | null {
 }
 
 export async function getAcsPrivateConfig(providerId: string): Promise<AcsPrivateConfig> {
-  const snap = await firestore
-    .collection("provedores")
-    .doc(providerId)
-    .collection("private")
-    .doc("acs")
-    .get();
-  if (!snap.exists) {
+  const d = await getProviderSecret<Record<string, any>>(requirePgPool(), providerId, "acs");
+  if (!d) {
     return {
       driver: "none",
       enabled: false,
@@ -58,7 +53,6 @@ export async function getAcsPrivateConfig(providerId: string): Promise<AcsPrivat
       updatedAt: null,
     };
   }
-  const d = snap.data() || {};
   const driver = ALLOWED_DRIVERS.has(d.driver) ? (d.driver as AcsDriverType) : "none";
   return {
     driver,
@@ -121,22 +115,18 @@ export async function saveAcsPrivateConfig(
       : existing.apiKey;
 
   const features = input.features !== undefined ? parseFeatures(input.features) : existing.features;
+  const updatedAt = new Date().toISOString();
 
-  await firestore
-    .collection("provedores")
-    .doc(providerId)
-    .collection("private")
-    .doc("acs")
-    .set({
-      driver,
-      enabled,
-      url,
-      username,
-      password,
-      apiKey,
-      features,
-      updatedAt: serverTimestamp(),
-    });
+  await saveProviderSecret(requirePgPool(), providerId, "acs", {
+    driver,
+    enabled,
+    url,
+    username,
+    password,
+    apiKey,
+    features,
+    updatedAt,
+  });
 
   return {
     driver,
@@ -146,7 +136,7 @@ export async function saveAcsPrivateConfig(
     password,
     apiKey,
     features,
-    updatedAt: new Date().toISOString(),
+    updatedAt,
   };
 }
 

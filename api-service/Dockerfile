@@ -20,6 +20,7 @@ COPY --chown=node:node package*.json ./
 RUN npm ci --omit=dev --loglevel=error
 
 COPY --chown=node:node --from=builder /app/dist ./dist
+RUN mkdir -p /srv/uploads/private /srv/uploads/public && chown -R node:node /srv/uploads
 
 USER node
 

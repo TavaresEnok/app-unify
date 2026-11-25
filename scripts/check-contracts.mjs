@@ -42,6 +42,14 @@ const ixcGateway = await readFile(resolve("shared/runtime/ixc-gateway.js"), "utf
 for (const target of ["proxy-sgp/lib/ixc-gateway.js", "api-service/src/services/ixc-gateway.js"]) {
   if (await readFile(resolve(target), "utf8").catch(() => "") !== ixcGateway) stale.push(target);
 }
+const coreSchemaDdl = await readFile(resolve("shared/runtime/core-schema-ddl.js"), "utf8");
+for (const target of ["proxy-sgp/lib/core-schema-ddl.js", "api-service/src/services/core-schema-ddl.js"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== coreSchemaDdl) stale.push(target);
+}
+const selfAuth = await readFile(resolve("shared/runtime/self-auth.js"), "utf8");
+for (const target of ["proxy-sgp/lib/self-auth.js", "api-service/src/services/self-auth.js"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== selfAuth) stale.push(target);
+}
 
 if (stale.length) {
   console.error(`Contratos desatualizados: ${stale.join(", ")}. Execute npm run contracts:sync.`);

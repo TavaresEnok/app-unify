@@ -1,6 +1,6 @@
-import { invoiceAmount } from "../services/invoice-amount";
+import { randomUUID } from "node:crypto";
 import { Router, type Request } from "express";
-import { URLSearchParams } from "node:url";
+import { invoiceAmount } from "../services/invoice-amount";
 import { verifyToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { sgpLimiter, tenantLimiter } from "../middlewares/rateLimits";
@@ -13,8 +13,8 @@ import {
   type SgpContract,
 } from "../services/sgpClient";
 import { mapWithConcurrency } from "../services/boundedWork";
-import { firestore } from "../services/firebaseAdmin";
-import { getPgPool } from "../services/postgres";
+import { ensureCoreSchema, getPgPool, requirePgPool } from "../services/postgres";
+import { getProviderRow } from "../services/providersStore";
 import {
   listSubscriberNotifications,
   registerSubscriberDevice,
@@ -39,14 +39,8 @@ export function clearIncidentCacheForTests(): void {
   incidentCache.clear();
 }
 
-function toIsoDate(raw: unknown): string | null {
-  if (!raw) return null;
-  if (typeof raw === "string") return raw;
-  if (typeof raw === "object" && raw !== null && typeof (raw as { toDate?: () => Date }).toDate === "function") {
-    return (raw as { toDate: () => Date }).toDate().toISOString();
-  }
-  if (raw instanceof Date) return raw.toISOString();
-  return null;
+export function invalidateSubscriberIncidentCache(providerId: string): void {
+  incidentCache.delete(providerId);
 }
 
 async function getActiveProviderIncidents(providerId: string): Promise<CachedIncident[]> {
@@ -55,28 +49,36 @@ async function getActiveProviderIncidents(providerId: string): Promise<CachedInc
   if (cached && cached.expiresAt > now) {
     return cached.items;
   }
-  const snap = await firestore
-    .collection("provedores")
-    .doc(providerId)
-    .collection("incidents")
-    .where("active", "==", true)
-    .limit(10)
-    .get();
+  const pool = getPgPool();
+  if (!pool) return [];
+  await ensureCoreSchema(pool);
 
-  const items: CachedIncident[] = snap.docs
-    .map((doc) => {
-      const d = doc.data() || {};
-      return {
-        id: doc.id,
-        title: String(d.title || "Aviso de rede"),
-        message: String(d.message || ""),
-        severity: String(d.severity || "warning"),
-        area: String(d.area || ""),
-        estimatedResolution: String(d.estimatedResolution || ""),
-        createdAt: toIsoDate(d.createdAt),
-      };
-    })
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const res = await pool.query<{
+    id: string;
+    title: string;
+    message: string;
+    severity: string;
+    area: string | null;
+    estimated_resolution: string | null;
+    created_at: Date;
+  }>(
+    `SELECT id, title, message, severity, area, estimated_resolution, created_at
+       FROM incidents
+      WHERE provider_id = $1 AND active = TRUE
+      ORDER BY created_at DESC
+      LIMIT 10`,
+    [providerId],
+  );
+
+  const items: CachedIncident[] = res.rows.map((d) => ({
+    id: d.id,
+    title: String(d.title || "Aviso de rede"),
+    message: String(d.message || ""),
+    severity: String(d.severity || "warning"),
+    area: String(d.area || ""),
+    estimatedResolution: String(d.estimated_resolution || ""),
+    createdAt: d.created_at instanceof Date ? d.created_at.toISOString() : null,
+  }));
 
   incidentCache.set(providerId, { expiresAt: now + INCIDENT_CACHE_TTL_MS, items });
   return items;
@@ -92,32 +94,20 @@ function incidentMatchesSubscriber(area: string, tokens: string[]): boolean {
 
 export const subscriberRouter = Router();
 
-// Todas as rotas de assinante exigem autenticação (verifyToken por rota — o
-// router é montado na raiz, então middleware de router-level rodaria também em
-// rotas não correspondentes como /health e 404). Sem isto, qualquer anônimo
-// poderia colher PII e instrumentos de pagamento (linha digitável/PIX) e até
-// disparar promessas de pagamento informando um CPF arbitrário no corpo.
-
 interface SubscriberContext {
   cpfCnpj: string;
   providerId?: string;
 }
 
-/**
- * Resolve o CPF alvo e o provedor dono dele, cujo SGP será consultado.
- *
- * - assinante (uid = CPF em dígitos): só o próprio CPF; provedor do claim do
- *   token, sem inferência por CPF de tokens legados.
- * - providerAdmin: só CPFs cujo `clientes/{cpf}.providerId` seja o seu.
- * - superAdmin: qualquer CPF, com `providerId` explícito no corpo.
- */
 async function subscriberContext(req: Request): Promise<SubscriberContext> {
   const cpfCnpj = typeof req.body?.cpfCnpj === "string" ? req.body.cpfCnpj.trim() : "";
   if (!cpfCnpj) throw new ApiError(400, "CPF/CNPJ é obrigatório.", "invalid-argument");
   const digits = cpfCnpj.replace(/\D/g, "");
   if (!/^\d{11}(\d{3})?$/.test(digits)) throw new ApiError(400, "CPF/CNPJ inválido.", "invalid-argument");
   const user = req.user;
-  if (user?.superAdmin !== true && req.body?.providerId && req.body.providerId !== user?.providerId) throw new ApiError(403, "Provedor inválido.", "permission-denied");
+  if (user?.superAdmin !== true && req.body?.providerId && req.body.providerId !== user?.providerId) {
+    throw new ApiError(403, "Provedor inválido.", "permission-denied");
+  }
 
   if (user?.superAdmin === true) {
     const fromBody = typeof req.body?.providerId === "string" && req.body.providerId ? req.body.providerId : undefined;
@@ -138,14 +128,14 @@ async function subscriberContext(req: Request): Promise<SubscriberContext> {
 }
 
 async function sgpForRequest(req: Request) {
-  if (["url", "token", "app", "sgpBaseUrl", "sgpParams", "apiToken", "appName"].some(key => Object.prototype.hasOwnProperty.call(req.body || {}, key))) throw new ApiError(400, "Configuração SGP não permitida no pedido.", "invalid-argument");
+  if (["url", "token", "app", "sgpBaseUrl", "sgpParams", "apiToken", "appName"].some((key) => Object.prototype.hasOwnProperty.call(req.body || {}, key))) {
+    throw new ApiError(400, "Configuração SGP não permitida no pedido.", "invalid-argument");
+  }
   const context = await subscriberContext(req);
   const credentials = await resolveSgpCredentials(context.providerId);
   return { ...context, credentials, session: createSgpSession(credentials.providerId, credentials.baseUrl, credentials) };
 }
 
-// Loga o detalhe do erro upstream no servidor e devolve uma mensagem genérica —
-// sem vazar texto/estruturas internas do SGP para o cliente (M5).
 function upstreamError(req: Request, message: string, error: unknown): ApiError {
   console.warn(JSON.stringify({
     severity: "WARNING",
@@ -178,8 +168,6 @@ subscriberRouter.post("/getClientData", verifyToken, sgpLimiter, tenantLimiter, 
   const { cpfCnpj, credentials, session } = await sgpForRequest(req);
   try {
     const contracts = await listContracts(session, credentials, cpfCnpj);
-    // Campos de topo descrevem o contrato pedido (ou o primeiro), como antes;
-    // `contratos` traz todos para o app oferecer a troca.
     const [selected] = pickContracts(contracts, req.body?.contratoId);
     const { contrato, contratoId, senhaCentral } = selected;
     let connectionStatus = "Offline";
@@ -244,7 +232,6 @@ subscriberRouter.post("/getConsumptionData", verifyToken, sgpLimiter, tenantLimi
         ano: String(now.getFullYear()),
       });
       const response = await session.post(`${credentials.baseUrl}/api/central/extratouso/`, form);
-      // A velocidade em megabits do plano não é franquia de dados.
       const quota = String(response.data?.plano || "").match(/(\d+(?:[.,]\d+)?)\s*GB\b/i);
       const total = response.data?.total;
       const totalBytes = total == null || total === "" ? null : Number(total);
@@ -271,7 +258,6 @@ subscriberRouter.post("/getConsumptionData", verifyToken, sgpLimiter, tenantLimi
 
 subscriberRouter.post("/getInvoices", verifyToken, sgpLimiter, tenantLimiter, asyncRoute(async (req, res) => {
   const { cpfCnpj, credentials, session } = await sgpForRequest(req);
-  // Sem `contratoId`, o SGP devolve os títulos de todos os contratos do CPF.
   const payload: Record<string, string> = { token: credentials.token, app: credentials.app, cpfcnpj: cpfCnpj };
   try {
     if (req.body?.contratoId) {
@@ -316,8 +302,6 @@ subscriberRouter.post("/makePaymentPromise", verifyToken, sgpLimiter, tenantLimi
   const { cpfCnpj, credentials, session } = await sgpForRequest(req);
   try {
     const contracts = await listContracts(session, credentials, cpfCnpj);
-    // Sem contrato informado: todos os contratos com valor em aberto (antes só
-    // o primeiro era liberado, e o assinante seguia bloqueado nos demais).
     let targets = pickContracts(contracts, req.body?.contratoId);
     if (!req.body?.contratoId) {
       const withDebt = targets.filter((item) => openValue(item) > 0);
@@ -343,7 +327,6 @@ subscriberRouter.post("/makePaymentPromise", verifyToken, sgpLimiter, tenantLimi
   }
 }));
 
-// Registro de token FCM e caixa de notificações do assinante no PostgreSQL (custo zero de Firestore).
 subscriberRouter.post("/subscriber/device-token", verifyToken, asyncRoute(async (req, res) => {
   if (req.user?.role !== "subscriber" || !req.user.providerId || !req.user.cpfCnpj) {
     throw new ApiError(403, "Apenas assinantes podem registrar dispositivo.", "permission-denied");
@@ -396,8 +379,6 @@ subscriberRouter.get("/subscriber/notifications", verifyToken, asyncRoute(async 
   res.json({ data });
 }));
 
-// Avisos/incidentes ativos do provedor com cache em memória (30s) para evitar
-// tempestade de leituras no Firestore durante quedas em massa.
 subscriberRouter.get("/subscriber/incidents", verifyToken, asyncRoute(async (req, res) => {
   const user = req.user;
   const providerId = user?.role === "subscriber"
@@ -440,4 +421,142 @@ subscriberRouter.get("/subscriber/incidents", verifyToken, asyncRoute(async (req
     .sort((a, b) => Number(b.matchesArea) - Number(a.matchesArea));
 
   res.json({ data: enriched });
+}));
+
+subscriberRouter.get("/subscriber/tickets", verifyToken, asyncRoute(async (req, res) => {
+  if (req.user?.role !== "subscriber" || !req.user.providerId) {
+    throw new ApiError(403, "Apenas assinantes podem consultar seus chamados.", "permission-denied");
+  }
+  const pool = requirePgPool();
+  await ensureCoreSchema(pool);
+  const rows = await pool.query<{
+    id: string;
+    subject: string;
+    status: string;
+    last_message: string;
+    created_at: Date;
+    updated_at: Date;
+  }>(
+    `SELECT id, subject, status, last_message, created_at, updated_at
+       FROM tickets
+      WHERE provider_id = $1 AND created_by_uid = $2
+      ORDER BY updated_at DESC
+      LIMIT 50`,
+    [req.user.providerId, req.user.uid],
+  );
+  res.json({
+    data: rows.rows.map((r) => ({
+      id: r.id,
+      subject: r.subject,
+      status: r.status,
+      lastMessage: r.last_message,
+      createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+      updatedAt: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
+    })),
+  });
+}));
+
+subscriberRouter.post("/subscriber/tickets", verifyToken, asyncRoute(async (req, res) => {
+  if (req.user?.role !== "subscriber" || !req.user.providerId || !req.user.cpfCnpj) {
+    throw new ApiError(403, "Apenas assinantes podem abrir chamados.", "permission-denied");
+  }
+  const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  if (!subject || !message) {
+    throw new ApiError(400, "Assunto e mensagem são obrigatórios.", "invalid-argument");
+  }
+  const pool = requirePgPool();
+  await ensureCoreSchema(pool);
+  const provider = await getProviderRow(pool, req.user.providerId);
+  const providerName = provider?.name || req.user.providerId;
+  const userEmail = typeof req.body?.userEmail === "string" && req.body.userEmail.trim()
+    ? req.body.userEmail.trim().slice(0, 180)
+    : req.user.email || "";
+
+  const ticketId = randomUUID().replace(/-/g, "").slice(0, 20);
+  const msgId = randomUUID().replace(/-/g, "").slice(0, 20);
+
+  await pool.query(
+    `INSERT INTO tickets (id, provider_id, provider_name, subject, status, created_by_uid, created_by_email, cpfcnpj, last_message, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, 'Aberto', $5, $6, $7, $8, NOW(), NOW())`,
+    [ticketId, req.user.providerId, providerName, subject.slice(0, 200), req.user.uid, userEmail, req.user.cpfCnpj, message.slice(0, 2000)],
+  );
+  await pool.query(
+    `INSERT INTO ticket_messages (id, ticket_id, sender_uid, sender_email, sender_role, message, read, created_at)
+     VALUES ($1, $2, $3, $4, 'subscriber', $5, FALSE, NOW())`,
+    [msgId, ticketId, req.user.uid, userEmail, message.slice(0, 4000)],
+  );
+  res.status(201).json({ success: true, ticketId });
+}));
+
+subscriberRouter.get("/subscriber/tickets/:id/messages", verifyToken, asyncRoute(async (req, res) => {
+  if (req.user?.role !== "subscriber" || !req.user.providerId) {
+    throw new ApiError(403, "Acesso negado.", "permission-denied");
+  }
+  const ticketId = String(req.params.id || "").trim();
+  const pool = requirePgPool();
+  await ensureCoreSchema(pool);
+  const owner = await pool.query<{ provider_id: string; created_by_uid: string }>(
+    `SELECT provider_id, created_by_uid FROM tickets WHERE id = $1 LIMIT 1`,
+    [ticketId],
+  );
+  const ticket = owner.rows[0];
+  if (!ticket) throw new ApiError(404, "Ticket não encontrado.", "not-found");
+  if (ticket.provider_id !== req.user.providerId || ticket.created_by_uid !== req.user.uid) {
+    throw new ApiError(403, "Sem permissão para este chamado.", "permission-denied");
+  }
+  const messages = await pool.query<{
+    id: string;
+    sender_uid: string;
+    sender_email: string;
+    sender_role: string;
+    message: string;
+    attachment_id: string | null;
+    created_at: Date;
+  }>(
+    `SELECT id, sender_uid, sender_email, sender_role, message, attachment_id, created_at
+       FROM ticket_messages
+      WHERE ticket_id = $1
+      ORDER BY created_at ASC`,
+    [ticketId],
+  );
+  res.json({
+    data: messages.rows.map((m) => ({
+      id: m.id,
+      senderUid: m.sender_uid,
+      senderEmail: m.sender_email,
+      senderRole: m.sender_role,
+      message: m.message,
+      attachmentId: m.attachment_id,
+      createdAt: m.created_at instanceof Date ? m.created_at.toISOString() : String(m.created_at),
+    })),
+  });
+}));
+
+subscriberRouter.post("/subscriber/tickets/:id/reply", verifyToken, asyncRoute(async (req, res) => {
+  if (req.user?.role !== "subscriber" || !req.user.providerId) {
+    throw new ApiError(403, "Acesso negado.", "permission-denied");
+  }
+  const ticketId = String(req.params.id || "").trim();
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  if (!message) throw new ApiError(400, "Mensagem obrigatória.", "invalid-argument");
+  const pool = requirePgPool();
+  await ensureCoreSchema(pool);
+  const owner = await pool.query<{ provider_id: string; created_by_uid: string }>(
+    `SELECT provider_id, created_by_uid FROM tickets WHERE id = $1 LIMIT 1`,
+    [ticketId],
+  );
+  const ticket = owner.rows[0];
+  if (!ticket) throw new ApiError(404, "Ticket não encontrado.", "not-found");
+  if (ticket.provider_id !== req.user.providerId || ticket.created_by_uid !== req.user.uid) {
+    throw new ApiError(403, "Sem permissão para este chamado.", "permission-denied");
+  }
+  const msgId = randomUUID().replace(/-/g, "").slice(0, 20);
+  await pool.query(
+    `INSERT INTO ticket_messages (id, ticket_id, sender_uid, sender_email, sender_role, message, read, created_at)
+     VALUES ($1, $2, $3, $4, 'subscriber', $5, FALSE, NOW())`,
+    [msgId, ticketId, req.user.uid, req.user.email || "", message.slice(0, 4000)],
+  );
+  await pool.query(`UPDATE tickets SET updated_at = NOW(), last_message = $2 WHERE id = $1`, [ticketId, message.slice(0, 2000)]);
+  res.json({ success: true });
 }));

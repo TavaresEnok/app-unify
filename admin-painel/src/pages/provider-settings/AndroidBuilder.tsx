@@ -6,11 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Smartphone, Download, AlertTriangle, CheckCircle, Save } from 'lucide-react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/firebase/config';
 import { toast } from 'sonner';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import { publicDownloadUrl, runtimeConfig } from '@/shared/config/runtime';
+import { resolvePublicApiBaseUrl } from '@/shared/config/publicApi';
 import { getErrorMessage } from '@/shared/errors';
 import BuildConfirmationDialog from '@/components/BuildConfirmationDialog';
 import { confirmBuildSession, needsBuildConfirmation } from '@/shared/firebase/buildSession';
@@ -332,52 +331,52 @@ export default function AndroidBuilderPage() {
                                                 };
 
                                                 const resizedBlob = await resizeImage(file);
+                                                const providerId = String(settings.providerId || settings.provider?.id || '');
+                                                if (!providerId) {
+                                                    toast.error("Erro: provedor não identificado.", { id: toastId });
+                                                    return;
+                                                }
+                                                if (!user) {
+                                                    toast.error("Sessão expirada.", { id: toastId });
+                                                    return;
+                                                }
 
-                                                // 2. Convert to Base64 and call Cloud Function
-                                                const reader = new FileReader();
-                                                reader.readAsDataURL(resizedBlob);
-                                                reader.onloadend = async () => {
-                                                    const base64data = reader.result as string | null;
-                                                    const providerId = settings.providerId || settings.provider?.id;
-                                                    if (!base64data || typeof base64data !== 'string') {
-                                                        toast.error("Erro: imagem inválida (base64 vazio).", { id: toastId });
-                                                        return;
+                                                try {
+                                                    const token = await user.getIdToken();
+                                                    const apiBase = resolvePublicApiBaseUrl(import.meta.env.VITE_API_URL, window.location);
+                                                    const response = await fetch(`${apiBase}/admin/providers/${encodeURIComponent(providerId)}/assets`, {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Authorization': `Bearer ${token}`,
+                                                            'Content-Type': resizedBlob.type || 'image/png',
+                                                        },
+                                                        body: resizedBlob,
+                                                    });
+                                                    const rawData = await response.json().catch(() => ({})) as {
+                                                        url?: string;
+                                                        error?: string | { message?: string };
+                                                    };
+                                                    if (!response.ok || !rawData.url) {
+                                                        const errMsg = typeof rawData.error === 'string'
+                                                            ? rawData.error
+                                                            : rawData.error?.message;
+                                                        throw new Error(errMsg || 'Upload falhou');
                                                     }
-                                                    if (!providerId) {
-                                                        toast.error("Erro: provedor não identificado.", { id: toastId });
-                                                        return;
-                                                    }
-
-                                                    try {
-                                                        const uploadFn = httpsCallable(functions, 'uploadProviderLogo');
-                                                        const result = await uploadFn({
-                                                            imageBase64: base64data,
-                                                            providerId
-                                                        });
-
-                                                        const data = result.data as UploadResult;
-                                                        if (data.success) {
-                                                            // Update State
-                                                            settings.setConfig((prev) => ({
-                                                                ...prev,
-                                                                logoUrl: data.url
-                                                            }));
-
-                                                            toast.success("Logo processada e enviada com sucesso!", { id: toastId });
-                                                        } else {
-                                                            throw new Error(data.error || 'Upload falhou');
-                                                        }
-                                                    } catch (error) {
-                                                        console.error("Upload error:", error);
-                                                        toast.error(`Erro: ${getErrorMessage(error, 'Falha desconhecida')}`, {
-                                                            id: toastId,
-                                                            duration: 5000
-                                                        });
-                                                    }
-                                                };
-                                                reader.onerror = () => {
-                                                    toast.error("Erro ao ler arquivo", { id: toastId });
-                                                };
+                                                    const finalUrl = /^https?:\/\//i.test(rawData.url)
+                                                        ? rawData.url
+                                                        : `${apiBase}${rawData.url.replace(/^\/api(?=\/)/, '')}`;
+                                                    settings.setConfig((prev) => ({
+                                                        ...prev,
+                                                        logoUrl: finalUrl,
+                                                    }));
+                                                    toast.success("Logo processada e enviada com sucesso!", { id: toastId });
+                                                } catch (error) {
+                                                    console.error("Upload error:", error);
+                                                    toast.error(`Erro: ${getErrorMessage(error, 'Falha desconhecida')}`, {
+                                                        id: toastId,
+                                                        duration: 5000,
+                                                    });
+                                                }
 
                                             } catch (error) {
                                                 console.error("Resize error:", error);

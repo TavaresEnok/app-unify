@@ -2,12 +2,13 @@ import { redis, cacheRedis } from "./redis";
 import { createUpstream, readTtl } from "./upstream-runtime";
 import axios, { type AxiosInstance } from "axios";
 import { ApiError } from "../middlewares/errorHandler";
-import { firestore } from "./firebaseAdmin";
+import { requirePgPool } from "./postgres";
+import { getProviderRow, getProviderSecret } from "./providersStore";
 import runtime from "./sgp-outbound";
 import { createIxcGateway, ixcHeaders, ixcUrl } from "./ixc-gateway";
 const outbound: any = runtime;
 
-/** Credenciais de um SGP específico — cada provedor tem o seu. */
+/** Credenciais de um SGP/IXC específico — cada provedor tem o seu. */
 export interface SgpCredentials {
   baseUrl: string;
   token: string;
@@ -31,9 +32,7 @@ function stringField(...values: unknown[]): string {
 }
 
 /**
- * Bloqueia SSRF pela URL privada do SGP, cadastrada exclusivamente pelo SaaS.
- * Resolve o DNS e exige que TODO endereço resolvido —
- * IPv4 e IPv6 — seja público, o que cobre `[::1]`, `127.0.0.1.nip.io` e afins.
+ * Bloqueia SSRF pela URL privada do ERP, cadastrada exclusivamente pelo SaaS.
  */
 export async function assertSafeSgpBaseUrl(baseUrl: string): Promise<string> {
   try { return await outbound.assertSafeSgpBaseUrl(baseUrl); }
@@ -41,26 +40,24 @@ export async function assertSafeSgpBaseUrl(baseUrl: string): Promise<string> {
 }
 
 /**
- * Credenciais SGP do provedor, lidas da subcoleção privada `secrets/sgp` (o
- * token nunca vem do documento público). Com provedor identificado NÃO há
- * fallback para o .env — isso mandaria o CPF de um provedor ao SGP de outro.
- * Sem provedor verificável ou integração privada completa, falha fechado.
+ * Credenciais SGP/IXC do provedor, lidas da tabela cifrada `provider_secrets (kind='erp')`.
  */
 async function loadSgpCredentials(providerId?: string): Promise<SgpCredentials> {
-  if (!providerId || !/^[a-z0-9_-]+$/i.test(providerId)) throw new ApiError(503, "Provedor SGP não identificado.", "service-unavailable");
+  if (!providerId || !/^[a-z0-9_-]+$/i.test(providerId)) {
+    throw new ApiError(503, "Provedor SGP não identificado.", "service-unavailable");
+  }
 
-  const providerRef = firestore.collection("provedores").doc(providerId);
-  const [provider, secret] = await Promise.all([
-    providerRef.get(),
-    providerRef.collection("secrets").doc("sgp").get(),
+  const pool = requirePgPool();
+  const [provider, integrations] = await Promise.all([
+    getProviderRow(pool, providerId),
+    getProviderSecret<Record<string, unknown>>(pool, providerId, "erp"),
   ]);
-  if (!provider.exists) throw new ApiError(404, "Provedor do cliente não encontrado.", "not-found");
-  const integrations = secret.data()?.integrations || {};
-  const baseUrl = stringField(integrations.sgpBaseUrl);
-  const token = stringField(integrations.apiToken);
-  const erp: "sgp" | "ixc" = stringField(integrations.erp).toLowerCase() === "ixc" ? "ixc" : "sgp";
+  if (!provider) throw new ApiError(404, "Provedor do cliente não encontrado.", "not-found");
+  const baseUrl = stringField(integrations?.sgpBaseUrl);
+  const token = stringField(integrations?.apiToken);
+  const erp: "sgp" | "ixc" = stringField(integrations?.erp).toLowerCase() === "ixc" ? "ixc" : "sgp";
   // IXC autentica só pelo token do usuário de API; `app` é conceito do SGP.
-  const app = erp === "ixc" ? "ixc" : stringField(integrations.appName);
+  const app = erp === "ixc" ? "ixc" : stringField(integrations?.appName);
   if (!baseUrl || !token || !app) {
     throw new ApiError(503, "Integração SGP não configurada para este provedor.", "service-unavailable");
   }
@@ -96,8 +93,9 @@ export function createSgpSession(
   return { post: async (url: string, body: unknown, config?: unknown) => {
       if (config && Object.keys(config).length) throw new ApiError(400, "Opções SGP não permitidas.", "invalid-argument");
       const target = outbound.parseSgpUrl(url);
-      if (target.origin !== approved.origin || !target.pathname.startsWith(approved.pathname.replace(/\/$/, "") + "/")) throw new ApiError(503, "Destino SGP divergente.", "service-unavailable");
-      // IXC: o corpo (JSON ou formulário) é traduzido para o webservice IXC.
+      if (target.origin !== approved.origin || !target.pathname.startsWith(approved.pathname.replace(/\/$/, "") + "/")) {
+        throw new ApiError(503, "Destino SGP divergente.", "service-unavailable");
+      }
       const params = body instanceof URLSearchParams ? Object.fromEntries(body.entries()) : { ...(body as Record<string, unknown>) };
       delete params.token; delete params.app;
       const operation = ixc
@@ -113,7 +111,7 @@ export function createSgpSession(
     } } as Pick<AxiosInstance, "post">;
 }
 
-/** Todos os contratos do CPF/CNPJ no SGP do provedor, já normalizados. */
+/** Todos os contratos do CPF/CNPJ no SGP/IXC do provedor, já normalizados. */
 export async function listContracts(
   session: Pick<AxiosInstance, "post">,
   credentials: SgpCredentials,
@@ -137,10 +135,6 @@ export async function listContracts(
   });
 }
 
-/**
- * Filtra pelo `contratoId` pedido. Como a lista vem do SGP para o CPF do
- * chamador, isto também impede operar contrato de outro cliente.
- */
 export function pickContracts(contracts: SgpContract[], contratoId: unknown): SgpContract[] {
   if (contratoId === undefined || contratoId === null || contratoId === "") return contracts;
   const match = contracts.filter((item) => item.contratoId === String(contratoId));

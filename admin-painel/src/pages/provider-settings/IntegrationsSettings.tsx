@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { auth } from "@/firebase/config";
+import { auth } from "@/shared/auth/session";
 import { resolvePublicApiBaseUrl } from "@/shared/config/publicApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

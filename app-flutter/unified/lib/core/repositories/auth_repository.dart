@@ -4,12 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../models/usuario.dart';
 import '../models/provider_config.dart';
+import '../services/session_token_store.dart';
 import '../services/subscriber_achievements.dart';
 
 class AuthRepository {
@@ -33,10 +32,10 @@ class AuthRepository {
   Future<Usuario?> loadUserFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // A sessão persiste via Firebase Auth; usamos a presença do CPF como marcador
-    // de auto-login. A senha não é mais armazenada (M11).
-    final token = await FirebaseAuth.instance.currentUser?.getIdTokenResult();
-    if (token?.claims?['role'] != 'subscriber') return null;
+    // A sessão persiste via JWT self-hosted; usamos a presença do CPF como
+    // marcador de auto-login. A senha não é mais armazenada (M11).
+    final claims = await SessionTokenStore.instance.getClaims();
+    if (claims?['role'] != 'subscriber') return null;
     if (prefs.containsKey('userCpfCnpj')) {
       return Usuario(
         cpfCnpj: prefs.getString('userCpfCnpj')!,
@@ -91,13 +90,14 @@ class AuthRepository {
       final data = decoded;
       if (kDebugMode) debugPrint('[Auth] Login concluido.');
 
-      final customToken = data['customToken'];
-      if (customToken is! String || customToken.isEmpty) {
+      final sessionToken =
+          (data['accessToken'] ?? data['customToken'])?.toString();
+      if (sessionToken == null || sessionToken.isEmpty) {
         throw Exception(
           'Acesso indisponível para este contrato. Verifique o status com o provedor.',
         );
       }
-      await FirebaseAuth.instance.signInWithCustomToken(customToken);
+      await SessionTokenStore.instance.saveToken(sessionToken);
 
       // Return User object directly from API data
       // Note: We still need to call 'saveUserLocally' effectively,
@@ -129,7 +129,7 @@ class AuthRepository {
   }
 
   Future<Usuario> refreshUser(Usuario previous, ProviderConfig config) async {
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    final token = await SessionTokenStore.instance.getToken();
     if (token == null) throw Exception('Entre novamente para continuar.');
     final response = await _client
         .post(
@@ -238,8 +238,11 @@ class AuthRepository {
   Future<void> logout(Usuario? currentUser, {String? apiUrl}) async {
     try {
       if (currentUser != null) {
-        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-        final fcmToken = await FirebaseMessaging.instance.getToken();
+        final idToken = await SessionTokenStore.instance.getToken();
+        String? fcmToken;
+        try {
+          fcmToken = await FirebaseMessaging.instance.getToken();
+        } catch (_) {}
         if (apiUrl != null &&
             apiUrl.isNotEmpty &&
             idToken != null &&
@@ -259,13 +262,6 @@ class AuthRepository {
               )
               .timeout(const Duration(seconds: 6));
         }
-        final authUid = FirebaseAuth.instance.currentUser?.uid;
-        if (authUid != null) {
-          await FirebaseFirestore.instance
-              .collection('clientes')
-              .doc(authUid)
-              .update({'fcmToken': FieldValue.delete()});
-        }
       }
     } catch (e) {
       debugPrint('ℹ️  Aviso: Falha ao limpar o token FCM durante o logout: $e');
@@ -282,10 +278,10 @@ class AuthRepository {
       }
     }
 
-    // Limpa credenciais do secure storage (senha + biometria)
+    // Limpa credenciais do secure storage (senha + biometria + JWT)
     await _secureStorage.delete(key: 'userSenha');
     await clearBiometryCredentials();
-    await FirebaseAuth.instance.signOut();
+    await SessionTokenStore.instance.clear();
   }
 
   Future<void> _saveDeviceToken(
@@ -294,12 +290,14 @@ class AuthRepository {
     String? apiUrl,
   }) async {
     try {
-      String? token = await FirebaseMessaging.instance.getToken();
-      final authUid = FirebaseAuth.instance.currentUser?.uid;
+      String? token;
+      try {
+        token = await FirebaseMessaging.instance.getToken();
+      } catch (_) {}
 
       if (token != null && token.isNotEmpty && apiUrl != null && apiUrl.isNotEmpty) {
         try {
-          final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+          final idToken = await SessionTokenStore.instance.getToken();
           if (idToken != null && idToken.isNotEmpty) {
             final base = apiUrl.replaceAll(RegExp(r'/+$'), '');
             await _client
@@ -323,28 +321,6 @@ class AuthRepository {
         } catch (e) {
           debugPrint('ℹ️  Aviso: Falha ao registrar token FCM na API: $e');
         }
-      }
-
-      if (token != null && authUid != null) {
-        // Mantém espelho mínimo no Firestore para compatibilidade com fluxos legados.
-        await FirebaseFirestore.instance
-            .collection('clientes')
-            .doc(authUid)
-            .set(
-          {
-            'fcmToken': token,
-            'authUid': authUid,
-            'cpfCnpj': usuario.cpfCnpj,
-            'providerId': providerId,
-            'nome': usuario.nome,
-            'plano': usuario.plano,
-            'status': usuario.status,
-            if (usuario.contractStatus != null)
-              'contractStatus': usuario.contractStatus,
-            'lastUpdated': FieldValue.serverTimestamp()
-          },
-          SetOptions(merge: true),
-        );
       }
     } catch (e) {
       debugPrint('❌ Erro ao salvar dados do cliente: $e');

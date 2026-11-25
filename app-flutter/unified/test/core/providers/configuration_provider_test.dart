@@ -32,23 +32,17 @@ void main() {
 
   test('carrega pela API e usa a URL que respondeu como apiUrl', () async {
     final calls = <Uri>[];
-    var firestoreCalls = 0;
     final provider = ConfigurationProvider(
       api: ProviderConfigApi(
           client: _client(calls,
               (_) => http.Response(jsonEncode({'data': _apiConfig}), 200))),
       apiBaseUrl: 'https://appisp.com.br/api/',
-      firestoreLoader: (_) async {
-        firestoreCalls++;
-        return null;
-      },
     );
 
     await provider.loadConfig('vibe');
 
     expect(calls.single.toString(),
         'https://appisp.com.br/api/public/providers/vibe/config');
-    expect(firestoreCalls, 0);
     expect(provider.errorMessage, isNull);
     expect(provider.providerConfig!.name, 'Vibe Telecom');
     expect(provider.providerConfig!.layoutType, 'layout_05');
@@ -60,7 +54,7 @@ void main() {
     expect(jsonDecode(cached!)['apiUrl'], 'https://appisp.com.br/api');
   });
 
-  test('cai no Firestore quando a API falha ou responde fora do formato',
+  test('usa fallback quando a API falha ou responde fora do formato',
       () async {
     for (final reply in [
       http.Response('<html>502 Bad Gateway</html>', 502),
@@ -70,20 +64,20 @@ void main() {
       final provider = ConfigurationProvider(
         api: ProviderConfigApi(client: _client([], (_) => reply)),
         apiBaseUrl: 'https://appisp.com.br/api',
-        firestoreLoader: (_) async => {
-          'name': 'Do Firestore',
+        fallbackLoader: (_) async => {
+          'name': 'Fallback Local',
           'apiUrl': 'https://legado.example/api'
         },
       );
 
       await provider.loadConfig('vibe');
 
-      expect(provider.providerConfig!.name, 'Do Firestore');
+      expect(provider.providerConfig!.name, 'Fallback Local');
       expect(provider.providerConfig!.apiUrl, 'https://legado.example/api');
     }
   });
 
-  test('sem URL gravada, tenta a apiUrl do cache antes do Firestore', () async {
+  test('sem URL gravada, tenta a apiUrl do cache antes do fallback', () async {
     SharedPreferences.setMockInitialValues({
       'provider_config_vibe':
           jsonEncode({'name': 'Cache', 'apiUrl': 'https://cache.example/api'}),
@@ -94,7 +88,7 @@ void main() {
           client: _client(calls,
               (_) => http.Response(jsonEncode({'data': _apiConfig}), 200))),
       apiBaseUrl: '',
-      firestoreLoader: (_) async => fail('não deveria ler o Firestore'),
+      fallbackLoader: (_) async => fail('não deveria acionar fallback'),
     );
 
     await provider.loadConfig('vibe');
@@ -103,7 +97,7 @@ void main() {
     expect(provider.providerConfig!.name, 'Vibe Telecom');
   });
 
-  test('mantém o cache quando API e Firestore falham', () async {
+  test('mantém o cache quando API e fallback falham', () async {
     SharedPreferences.setMockInitialValues({
       'provider_config_vibe': jsonEncode({'name': 'Cache'}),
     });
@@ -111,8 +105,7 @@ void main() {
       api: ProviderConfigApi(
           client: _client([], (_) => throw http.ClientException('offline'))),
       apiBaseUrl: 'https://appisp.com.br/api',
-      firestoreLoader: (_) async =>
-          throw Exception('permission-denied (regras novas)'),
+      fallbackLoader: (_) async => throw Exception('offline'),
     );
 
     await provider.loadConfig('vibe');

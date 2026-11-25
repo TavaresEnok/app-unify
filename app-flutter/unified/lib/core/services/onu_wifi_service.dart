@@ -6,7 +6,7 @@ import 'api_response.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'session_token_store.dart';
 
 class OnuData {
   final double? signalRx; // null if N/A or offline
@@ -184,7 +184,7 @@ class OnuWifiService {
     try {
       String? token;
       try {
-        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        token = await SessionTokenStore.instance.getToken();
       } catch (_) {}
       final response = await client
           .post(
@@ -235,7 +235,7 @@ class OnuWifiService {
     try {
       String? token;
       try {
-        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        token = await SessionTokenStore.instance.getToken();
       } catch (_) {}
       final response = await client
           .post(
@@ -292,7 +292,7 @@ class OnuWifiService {
     try {
       String? token;
       try {
-        token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        token = await SessionTokenStore.instance.getToken();
       } catch (_) {}
       final response = await client
           .post(

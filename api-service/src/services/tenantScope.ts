@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import { ApiError } from "../middlewares/errorHandler";
-import { firestore } from "./firebaseAdmin";
+import { ensureCoreSchema, getPgPool } from "./postgres";
 
 function cpfDigits(body: unknown): string {
   const source = body as { cpfCnpj?: unknown; cpf?: unknown } | undefined;
@@ -11,37 +11,29 @@ function cpfDigits(body: unknown): string {
 }
 
 /**
- * Resolve o provedor dono de um CPF a partir da coleção `clientes` (id do
- * documento = CPF apenas dígitos, com fallback por campo `cpfCnpj`).
+ * Resolve o provedor dono de um CPF consultando `subscribers` e o cache `sgp_clients` no PostgreSQL.
  */
 export async function providerOfCpf(digits: string, expectedProvider?: string): Promise<string | undefined> {
-  // A shared CPF is not a tenant identity. Only resolve inside a known tenant.
-  if (!expectedProvider) return undefined;
-  const direct = await firestore.collection("clientes").doc(digits).get();
-  if (direct.exists) {
-    const providerId = direct.data()?.providerId;
-    if (typeof providerId === "string" && (!expectedProvider || providerId === expectedProvider)) return providerId;
-  }
-  let query: FirebaseFirestore.Query = firestore.collection("clientes").where("cpfCnpj", "==", digits);
-  if (expectedProvider) query = query.where("providerId", "==", expectedProvider);
-  const matches = await query.limit(1).get();
-  if (!matches.docs.length && expectedProvider) {
-    const cached = await firestore.collection("provedores").doc(expectedProvider).collection("clientes").doc(digits).get();
-    if (cached.exists) return expectedProvider;
-  }
-  const providerId = matches.docs[0]?.data()?.providerId;
-  return typeof providerId === "string" ? providerId : undefined;
+  if (!expectedProvider || !digits) return undefined;
+  const pool = getPgPool();
+  if (!pool) return undefined;
+  await ensureCoreSchema(pool);
+
+  const subRes = await pool.query<{ provider_id: string }>(
+    `SELECT provider_id FROM subscribers WHERE provider_id = $1 AND cpfcnpj = $2 LIMIT 1`,
+    [expectedProvider, digits],
+  ).catch(() => ({ rows: [] as Array<{ provider_id: string }> }));
+  if (subRes.rows[0]?.provider_id === expectedProvider) return expectedProvider;
+
+  const clientRes = await pool.query<{ provider_id: string }>(
+    `SELECT provider_id FROM sgp_clients WHERE provider_id = $1 AND cpfcnpj = $2 LIMIT 1`,
+    [expectedProvider, digits],
+  ).catch(() => ({ rows: [] as Array<{ provider_id: string }> }));
+  return clientRes.rows[0]?.provider_id === expectedProvider ? expectedProvider : undefined;
 }
 
 /**
  * Garante que o CPF alvo pertence ao tenant do chamador (M1).
- *
- * - superAdmin: acesso irrestrito.
- * - assinante: só o próprio CPF (uid do token é o CPF em dígitos).
- * - providerAdmin: apenas CPFs cujo `clientes/{cpf}.providerId` seja o seu.
- *
- * Sem isto, um admin do provedor A poderia ler/alterar dados (inclusive Wi-Fi)
- * de assinantes do provedor B, já que as rotas SGP recebem o CPF pelo corpo.
  */
 export async function assertCpfInTenant(req: Request): Promise<void> {
   if (req.user?.superAdmin === true) return;
@@ -49,7 +41,6 @@ export async function assertCpfInTenant(req: Request): Promise<void> {
   const digits = cpfDigits(req.body);
   if (!digits) throw new ApiError(400, "CPF/CNPJ é obrigatório.", "invalid-argument");
 
-  // Assinante acessando o próprio contrato — vínculo já vem do token.
   if (req.user?.role === "subscriber" && req.user.cpfCnpj === digits && typeof req.user.providerId === "string") return;
 
   const callerProvider = req.user?.providerId;

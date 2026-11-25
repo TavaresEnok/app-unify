@@ -16,21 +16,21 @@ const mockQuery = vi.fn();
 const mockPool: SqlQueryable = { query: mockQuery };
 
 vi.mock("../services/firebaseAdmin", () => ({
-  firestore: { collection: () => ({}) },
+  getMessaging: () => ({
+    send: (...args: unknown[]) => mockSend(...args),
+    sendEachForMulticast: (...args: unknown[]) => mockMulticast(...args),
+  }),
   messaging: {
     send: (...args: unknown[]) => mockSend(...args),
     sendEachForMulticast: (...args: unknown[]) => mockMulticast(...args),
   },
-  firebaseAuth: {
-    getUser: async (uid: string) => ({
-      uid,
-      customClaims: [...tokens.values()].find((user) => user.uid === uid) || {},
-    }),
-    verifyIdToken: async (token: string) => {
-      const user = tokens.get(token);
-      if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
-      return user;
-    },
+}));
+
+vi.mock("../services/self-auth", () => ({
+  verifyLiveSession: async (_pool: unknown, token: string) => {
+    const user = tokens.get(token);
+    if (!user) throw Object.assign(new Error("invalid"), { code: "auth/invalid-id-token" });
+    return user;
   },
 }));
 
@@ -39,6 +39,8 @@ vi.mock("../services/postgres", async (importOriginal) => {
   return {
     ...actual,
     getPgPool: () => mockPool,
+    requirePgPool: () => mockPool,
+    ensureCoreSchema: vi.fn(async () => undefined),
     ensureNotificationSchema: vi.fn(async () => undefined),
   };
 });
