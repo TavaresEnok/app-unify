@@ -345,6 +345,7 @@ services:
       - APK_PRIVATE_DIR=/home/app/projects/painel_provedores/apk/private
       - APK_IDENTITY_REGISTRY=/run/build-identities.json
       - APK_AUTHORIZATION_URL=${APK_AUTHORIZATION_URL:-}
+      - APK_LOGO_HOSTS=${APK_LOGO_HOSTS:-appisp.com.br,storage.googleapis.com,firebasestorage.googleapis.com}
       - PYTHON_BIN=python3
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
       - APK_PROJECT_ROOT=/home/app/projects/painel_provedores

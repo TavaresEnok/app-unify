@@ -17,7 +17,7 @@ function createApp(options = {}) {
     const publicationRoot = config.APK_PUBLICATION_DIR || privateDir;
     const jobs = options.jobs || new BuildJobStore(undefined, config.APK_JOB_STATE_PATH || path.join(privateDir, 'jobs.json'));
     const run = options.spawn || spawn;
-    const logos = options.logos || createLogoPolicy((config.APK_LOGO_HOSTS || 'storage.googleapis.com,firebasestorage.googleapis.com').split(','));
+    const logos = options.logos || createLogoPolicy((config.APK_LOGO_HOSTS || 'appisp.com.br,storage.googleapis.com,firebasestorage.googleapis.com').split(','));
     const check = (bearer, binding) => authorize(config.APK_AUTHORIZATION_URL, bearer, binding, options.fetch);
     let active = null;
     let activeChild = null;
