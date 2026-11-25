@@ -141,7 +141,7 @@ async function sgpForRequest(req: Request) {
   if (["url", "token", "app", "sgpBaseUrl", "sgpParams", "apiToken", "appName"].some(key => Object.prototype.hasOwnProperty.call(req.body || {}, key))) throw new ApiError(400, "Configuração SGP não permitida no pedido.", "invalid-argument");
   const context = await subscriberContext(req);
   const credentials = await resolveSgpCredentials(context.providerId);
-  return { ...context, credentials, session: createSgpSession(credentials.providerId, credentials.baseUrl) };
+  return { ...context, credentials, session: createSgpSession(credentials.providerId, credentials.baseUrl, credentials) };
 }
 
 // Loga o detalhe do erro upstream no servidor e devolve uma mensagem genérica —

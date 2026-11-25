@@ -69,6 +69,16 @@ it("allows only SaaS private replacement, checks revocation and never returns st
  expect(JSON.stringify(state.audits)).not.toContain("replacement-synthetic");
  expect((await post("saas", "/a/integration", { ...data, unexpected: "injected" })).status).toBe(400);
 });
+it("grava integração IXC só com token e URL, sem app, e rejeita ERP desconhecido", async () => {
+ const ixc = { erp: "ixc", apiToken: "ixc-synthetic", sgpBaseUrl: "https://ixc.test" };
+ expect((await post("saas", "/a/integration", { ...ixc, appName: "ignorado" })).status).toBe(200);
+ expect(state.docs.get("provedores/a/secrets/sgp").integrations).toEqual(ixc);
+ expect((await post("saas", "/a/integration", { ...ixc, erp: "outro" })).status).toBe(400);
+ expect((await post("saas", "/a/integration", { apiToken: "x", sgpBaseUrl: "https://sgp.test", erp: "sgp" })).status).toBe(400);
+ expect((await post("saas", "/a/integration", { apiToken: "s", sgpBaseUrl: "https://sgp.test", appName: "app", erp: "sgp" })).status).toBe(200);
+ expect(state.docs.get("provedores/a/secrets/sgp").integrations).toEqual({ apiToken: "s", sgpBaseUrl: "https://sgp.test", appName: "app" });
+ expect(JSON.stringify(state.audits)).not.toContain("ixc-synthetic");
+});
 it.each(["https://127.1", "https://[::1]", "https://[::ffff:7f00:1]", "https://[2d00::1]", "https://[3000::1]", "https://[3ffe::1]", "https://user:pass@sgp.test/", "https://sgp.test/?token=forged", "https://sgp.test/#x"])("rejects unsafe SaaS candidate %s before persisting", async sgpBaseUrl => {
  const original = { integrations: { apiToken: "synthetic-original", sgpBaseUrl: "https://original.test", appName: "original" } };
  state.docs.set("provedores/a/secrets/sgp", original);

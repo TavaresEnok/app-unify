@@ -60,9 +60,27 @@ function formatSgpUrl(base, path) {
     return `${url.href.replace(/\/$/, '')}${path}`;
 }
 
+const ERP_TYPES = ['sgp', 'ixc'];
+
 function privateIntegration(value) {
-    if (!value || !['sgpBaseUrl', 'apiToken', 'appName'].every(k => typeof value[k] === 'string' && value[k].trim())) throw denied();
-    return { baseUrl: parseSgpUrl(value.sgpBaseUrl.trim()).href.replace(/\/$/, ''), token: value.apiToken.trim(), app: value.appName.trim() };
+    const erp = value && value.erp !== undefined ? String(value.erp).trim().toLowerCase() : 'sgp';
+    // IXC autentica só pelo token do usuário de API; `appName` é conceito do SGP.
+    const required = erp === 'ixc' ? ['sgpBaseUrl', 'apiToken'] : ['sgpBaseUrl', 'apiToken', 'appName'];
+    if (!value || !ERP_TYPES.includes(erp) || !required.every(k => typeof value[k] === 'string' && value[k].trim())) throw denied();
+    return { baseUrl: parseSgpUrl(value.sgpBaseUrl.trim()).href.replace(/\/$/, ''), token: value.apiToken.trim(), app: typeof value.appName === 'string' ? value.appName.trim() : '', erp };
+}
+
+// Único conjunto de cabeçalhos que um chamador pode definir (autenticação do ERP).
+const ALLOWED_HEADERS = ['authorization', 'ixcsoft'];
+function safeHeaders(headers) {
+    if (headers === undefined) return {};
+    if (!headers || typeof headers !== 'object' || Array.isArray(headers)) throw denied();
+    const out = {};
+    for (const [name, value] of Object.entries(headers)) {
+        if (!ALLOWED_HEADERS.includes(name.toLowerCase()) || typeof value !== 'string' || !value || value.length > 4096 || /[\r\n]/.test(value)) throw denied();
+        out[name.toLowerCase()] = value;
+    }
+    return out;
 }
 
 function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect = options => net.connect(options), tlsConnect = options => tls.connect(options) } = {}) {
@@ -88,10 +106,11 @@ function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect
     async function request(value, body, options = {}) {
         // No axios config, adapter, destination, agent, lookup, proxy or header
         // overrides enter this boundary. Proxy environment is never consulted.
-        if (Object.keys(options).some(k => !['method', 'encoding', 'params', 'timeout'].includes(k))) throw denied();
+        if (Object.keys(options).some(k => !['method', 'encoding', 'params', 'timeout', 'headers'].includes(k))) throw denied();
         const { url, hostname, address, family } = await resolve(value);
         const method = options.method || 'POST';
         if (!['POST', 'GET'].includes(method) || (options.encoding && !['form', 'json'].includes(options.encoding))) throw denied();
+        const extraHeaders = safeHeaders(options.headers);
         const timeout = options.timeout || 30000;
         if (!Number.isFinite(timeout) || timeout < 1 || timeout > 60000) throw denied();
         if (options.params) {
@@ -130,6 +149,7 @@ function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect
             const fail = error => { clearTimeout(timer); connection?.destroy(); agent.destroy(); reject(error); };
             const req = (encrypted ? https : http).request(url, { method, agent, headers: {
                 'User-Agent': 'Unify-SGP/1.0',
+                ...extraHeaders,
                 ...(method === 'POST' ? { 'Content-Type': form ? 'application/x-www-form-urlencoded' : 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
             } }, res => {
                 // No redirect is followed, even within the same origin.
@@ -160,4 +180,4 @@ function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect
     return { assertSafeSgpBaseUrl, request };
 }
 
-export default { publicAddress, parseSgpUrl, formatSgpUrl, privateIntegration, createSgpTransport, ...createSgpTransport() };
+export default { publicAddress, parseSgpUrl, formatSgpUrl, privateIntegration, safeHeaders, createSgpTransport, ...createSgpTransport() };

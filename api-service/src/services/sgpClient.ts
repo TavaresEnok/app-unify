@@ -4,6 +4,7 @@ import axios, { type AxiosInstance } from "axios";
 import { ApiError } from "../middlewares/errorHandler";
 import { firestore } from "./firebaseAdmin";
 import runtime from "./sgp-outbound";
+import { createIxcGateway, ixcHeaders, ixcUrl } from "./ixc-gateway";
 const outbound: any = runtime;
 
 /** Credenciais de um SGP específico — cada provedor tem o seu. */
@@ -12,6 +13,8 @@ export interface SgpCredentials {
   token: string;
   app: string;
   providerId: string;
+  /** ERP do provedor; ausente = SGP (legado). */
+  erp?: "sgp" | "ixc";
 }
 
 export interface SgpContract {
@@ -55,11 +58,13 @@ async function loadSgpCredentials(providerId?: string): Promise<SgpCredentials> 
   const integrations = secret.data()?.integrations || {};
   const baseUrl = stringField(integrations.sgpBaseUrl);
   const token = stringField(integrations.apiToken);
-  const app = stringField(integrations.appName);
+  const erp: "sgp" | "ixc" = stringField(integrations.erp).toLowerCase() === "ixc" ? "ixc" : "sgp";
+  // IXC autentica só pelo token do usuário de API; `app` é conceito do SGP.
+  const app = erp === "ixc" ? "ixc" : stringField(integrations.appName);
   if (!baseUrl || !token || !app) {
     throw new ApiError(503, "Integração SGP não configurada para este provedor.", "service-unavailable");
   }
-  return { baseUrl: await assertSafeSgpBaseUrl(baseUrl), token, app, providerId };
+  return { baseUrl: await assertSafeSgpBaseUrl(baseUrl), token, app, providerId, erp };
 }
 
 const credentialCache = new Map<string, { expires: number; value: Promise<SgpCredentials> }>();
@@ -75,17 +80,31 @@ export async function resolveSgpCredentials(providerId?: string): Promise<SgpCre
 
 const upstream = createUpstream({ getRedis: () => redis, getCacheRedis: () => cacheRedis });
 
-export function createSgpSession(providerId: string, baseUrl: string): Pick<AxiosInstance, "post"> {
+export function createSgpSession(
+  providerId: string,
+  baseUrl: string,
+  credentials?: Pick<SgpCredentials, "erp" | "token">,
+): Pick<AxiosInstance, "post"> {
   if (!providerId) throw new ApiError(503, "Provedor SGP não identificado.", "service-unavailable");
   const approved = outbound.parseSgpUrl(baseUrl);
+  const ixc = credentials?.erp === "ixc" ? createIxcGateway({
+    allowWrites: process.env.IXC_DISABLE_WRITES !== "true",
+    call: async (table, payload, action) => (await outbound.request(ixcUrl(baseUrl, table), payload, {
+      encoding: "json", timeout: 45000, headers: ixcHeaders(credentials.token, action),
+    })).data,
+  }) : null;
   return { post: async (url: string, body: unknown, config?: unknown) => {
       if (config && Object.keys(config).length) throw new ApiError(400, "Opções SGP não permitidas.", "invalid-argument");
       const target = outbound.parseSgpUrl(url);
       if (target.origin !== approved.origin || !target.pathname.startsWith(approved.pathname.replace(/\/$/, "") + "/")) throw new ApiError(503, "Destino SGP divergente.", "service-unavailable");
-      const operation = () => outbound.request(url, body);
+      // IXC: o corpo (JSON ou formulário) é traduzido para o webservice IXC.
+      const params = body instanceof URLSearchParams ? Object.fromEntries(body.entries()) : { ...(body as Record<string, unknown>) };
+      delete params.token; delete params.app;
+      const operation = ixc
+        ? async () => ixc.handle(target.pathname.slice(approved.pathname.replace(/\/$/, "").length) || "/", params)
+        : async () => (await outbound.request(url, body)).data;
       try {
-        const data = await upstream.execute({ providerId, url: String(url), body, ttl: readTtl(String(url)), mutate: /liberacaopromessa|wifi\/update/.test(String(url)) },
-          async () => (await operation()).data);
+        const data = await upstream.execute({ providerId, url: String(url), body, ttl: readTtl(String(url)), mutate: /liberacaopromessa|wifi\/update/.test(String(url)) }, operation);
         return { data, status: 200, statusText: "OK", headers: {}, config: {} } as never;
       } catch (error) {
         if ((error as { status?: number }).status === 503) throw new ApiError(503, "SGP ocupado ou indisponível. Tente novamente.", "unavailable");

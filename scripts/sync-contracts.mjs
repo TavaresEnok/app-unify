@@ -40,3 +40,7 @@ const segmentsDdl = await readFile(resolve(root, "shared/runtime/subscriber-segm
 for (const target of ["proxy-sgp/lib/subscriber-segments-ddl.js", "api-service/src/services/subscriber-segments-ddl.js"]) {
   await writeFile(resolve(root, target), segmentsDdl);
 }
+const ixcGateway = await readFile(resolve(root, "shared/runtime/ixc-gateway.js"), "utf8");
+for (const target of ["proxy-sgp/lib/ixc-gateway.js", "api-service/src/services/ixc-gateway.js"]) {
+  await writeFile(resolve(root, target), ixcGateway);
+}

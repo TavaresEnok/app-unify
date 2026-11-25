@@ -133,8 +133,13 @@ export function restoredPersonalization(current: Record<string, unknown>, backup
   return { ...result, ...sanitizePersonalization(backup) };
 }
 export function parsePrivateIntegration(value: unknown): Record<string, string> {
-  const parsed = visit(value, strings("apiToken sgpBaseUrl appName"), true) as Record<string, string>;
-  if (!object(parsed) || !parsed.apiToken?.trim() || !parsed.appName?.trim() || !parsed.sgpBaseUrl) throw new Error("Integração incompleta.");
+  const parsed = visit(value, strings("apiToken sgpBaseUrl appName erp"), true) as Record<string, string>;
+  // `erp` ausente = SGP (legado). IXC autentica só pelo token; `appName` é do SGP.
+  const erp = parsed?.erp === undefined ? "sgp" : String(parsed.erp).trim().toLowerCase();
+  if (!["sgp", "ixc"].includes(erp)) throw new Error("ERP inválido.");
+  if (!object(parsed) || !parsed.apiToken?.trim() || (erp === "sgp" && !parsed.appName?.trim()) || !parsed.sgpBaseUrl) throw new Error("Integração incompleta.");
+  // Só IXC é gravado com `erp`; provedores SGP mantêm o formato legado (sem o campo).
+  if (erp === "ixc") { parsed.erp = "ixc"; delete parsed.appName; } else delete parsed.erp;
   const url = new URL(parsed.sgpBaseUrl);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw new Error("Destino de integração inválido.");
   return parsed;

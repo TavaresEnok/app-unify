@@ -316,3 +316,80 @@ describe("explicit authorization roles", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe("provedor com ERP IXC", () => {
+  const IXC_CPF = "12345678909";
+  type IxcCall = { url: string; body: any; headers: Record<string, string> };
+  let ixcCalls: IxcCall[];
+
+  function rows(table: string, body: any): any[] {
+    const field = String(body.qtype).split(".")[1];
+    const data: Record<string, any[]> = {
+      cliente: [{ id: "1", razao: "Maria IXC", cnpj_cpf: "123.456.789-09", email: "m@example.com", cidade: "10" }],
+      cliente_contrato: [{ id: "100", id_cliente: "1", status: "A", status_internet: "FA", id_vd_contrato: "7" }],
+      vd_contratos: [{ id: "7", nome: "Fibra 300MB" }],
+      cidade: [{ id: "10", nome: "Olinda" }],
+      fn_areceber: [
+        { id: "900", id_cliente: "1", id_contrato: "100", status: "A", valor: "80.00", valor_aberto: "80.00", data_vencimento: "2026-01-10", linha_digitavel: "34191.0000" },
+        { id: "903", id_cliente: "1", id_contrato: "100", status: "R", valor: "80.00", valor_recebido: "80.00", data_vencimento: "2025-12-10", pagamento_data: "2025-12-09" },
+      ],
+    };
+    const wanted = body.oper === "IN" ? String(body.query).split(",") : [String(body.query)];
+    const grid = JSON.parse(body.grid_param || "[]");
+    return (data[table] || [])
+      .filter((row) => wanted.includes(String(row[field])))
+      .filter((row) => grid.every((g: any) => String(row[g.TB.split(".")[1]]) === String(g.P)));
+  }
+
+  beforeEach(() => {
+    ixcCalls = [];
+    docs.set("provedores/p3", {});
+    docs.set("provedores/p3/secrets/sgp", { integrations: { erp: "ixc", apiToken: "tok-ixc", sgpBaseUrl: "https://p3.ixc.net.br" } });
+    docs.set(`clientes/${IXC_CPF}`, { providerId: "p3", cpfCnpj: IXC_CPF });
+    tokens.set("ixc", { uid: `subscriber:p3:${IXC_CPF}`, role: "subscriber", cpfCnpj: IXC_CPF, providerId: "p3" });
+    vi.mocked(outbound.request).mockImplementation((async (url: string, body: any, options: any = {}) => {
+      ixcCalls.push({ url, body, headers: options.headers || {} });
+      const table = new URL(url).pathname.replace("/webservice/v1/", "");
+      if (table === "desbloqueio_confianca") return { data: { type: "success", message: "Liberado em confiança" } };
+      const registros = rows(table, body);
+      return { data: { page: 1, total: registros.length, registros } };
+    }) as any);
+  });
+
+  it("traduz o contrato SGP para o webservice IXC com token Basic e sem token/app SGP", async () => {
+    const response = await request(app).post("/getClientData").set(asSubscriber("ixc")).send({ cpfCnpj: IXC_CPF }).expect(200);
+    expect(response.body.data).toMatchObject({
+      userName: "Maria IXC", userPlan: "Fibra 300MB", contratoId: "100", contractStatus: "Suspenso por atraso financeiro", userStatus: "Offline",
+    });
+    expect(ixcCalls[0].url).toBe("https://p3.ixc.net.br/webservice/v1/cliente");
+    expect(ixcCalls[0].body.query).toBe("123.456.789-09");
+    for (const call of ixcCalls) {
+      expect(call.headers.authorization).toBe(`Basic ${Buffer.from("tok-ixc").toString("base64")}`);
+      expect(call.headers.ixcsoft).toBe("listar");
+      expect(JSON.stringify(call.body)).not.toContain("tok-ixc");
+    }
+  });
+
+  it("lista faturas abertas e pagas no formato do app", async () => {
+    const response = await request(app).post("/getInvoices").set(asSubscriber("ixc")).send({ cpfCnpj: IXC_CPF }).expect(200);
+    expect(response.body.data).toEqual([
+      expect.objectContaining({ id: "900", pago: false, valor: "80,00", vencimento: "2026-01-10", linha_digitavel: "34191.0000", contratoId: "100" }),
+      expect.objectContaining({ id: "903", pago: true, dataPagamento: "2025-12-09" }),
+    ]);
+  });
+
+  it("libera em confiança via desbloqueio_confianca sem o cabeçalho de listagem", async () => {
+    const response = await request(app).post("/makePaymentPromise").set(asSubscriber("ixc")).send({ cpfCnpj: IXC_CPF, contratoId: "100" }).expect(200);
+    expect(response.body).toMatchObject({ success: true, message: "Liberado em confiança" });
+    const write = ixcCalls.find((call) => call.url.endsWith("/desbloqueio_confianca"))!;
+    expect(write.body).toEqual({ id: "100" });
+    expect(write.headers.ixcsoft).toBeUndefined();
+    expect(write.headers.authorization).toBeDefined();
+  });
+
+  it("não envia escrita quando IXC_DISABLE_WRITES está ativo", async () => {
+    vi.stubEnv("IXC_DISABLE_WRITES", "true");
+    await request(app).post("/makePaymentPromise").set(asSubscriber("ixc")).send({ cpfCnpj: IXC_CPF, contratoId: "100" }).expect(502);
+    expect(ixcCalls.some((call) => call.url.endsWith("/desbloqueio_confianca"))).toBe(false);
+  });
+});

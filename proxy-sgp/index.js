@@ -5,6 +5,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const outbound = require('./lib/sgp-outbound');
 const { formatSgpUrl } = outbound;
+const { createIxcGateway, ixcHeaders, ixcUrl } = require('./lib/ixc-gateway');
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 const Redis = require('ioredis');
@@ -224,8 +225,23 @@ async function callSgpApi(params) {
         (body.token !== undefined && body.token !== credentials.sgpParams.token) ||
         (body.app !== undefined && body.app !== credentials.sgpParams.app)) throw Object.assign(new Error('Destino ou credenciais SGP divergentes.'), { status: 503 });
     const data = { ...body }; delete data.url;
+    const operation = credentials.erp === 'ixc'
+        ? () => ixcApi(credentials, target.pathname.slice(approved.pathname.replace(/\/$/, '').length) || '/', data)
+        : () => rawSgpApi(body);
     return upstream.execute({ providerId, url: params.url,
-        body: data, ttl: cache ? readTtl(params.url) : 0, mutate: /liberacaopromessa|wifi\/update/.test(params.url) }, () => rawSgpApi(body));
+        body: data, ttl: cache ? readTtl(params.url) : 0, mutate: /liberacaopromessa|wifi\/update/.test(params.url) }, operation);
+}
+
+// IXC Provedor: traduz a rota SGP em chamadas ao webservice IXC (ver lib/ixc-gateway.js).
+async function ixcApi(credentials, sgpPath, data) {
+    const gateway = createIxcGateway({
+        allowWrites: process.env.IXC_DISABLE_WRITES !== 'true',
+        call: async (table, payload, action) => (await outbound.request(ixcUrl(credentials.sgpBaseUrl, table), payload, {
+            encoding: 'json', timeout: 45000, headers: ixcHeaders(credentials.sgpParams.token, action),
+        })).data,
+    });
+    const { token, app, providerId, url, ...params } = data;
+    return gateway.handle(sgpPath, params);
 }
 
 
@@ -246,7 +262,8 @@ async function loadSgpCredentials(body) {
     const [provider, secret] = await Promise.all([ref.get(), ref.collection('secrets').doc('sgp').get()]);
     if (!provider.exists) throw Object.assign(new Error('Provedor indisponível.'), { status: 503 });
     const integration = outbound.privateIntegration(secret.data()?.integrations);
-    return { sgpParams: { providerId, token: integration.token, app: integration.app }, sgpBaseUrl: integration.baseUrl };
+    // IXC não tem "app": usa marcador para o restante do fluxo SGP seguir idêntico.
+    return { sgpParams: { providerId, token: integration.token, app: integration.erp === 'ixc' ? 'ixc' : integration.app }, sgpBaseUrl: integration.baseUrl, erp: integration.erp };
 }
 
 const credentialCache = new Map();

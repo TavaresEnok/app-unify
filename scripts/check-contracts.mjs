@@ -38,6 +38,11 @@ for (const target of ["proxy-sgp/lib/subscriber-segments-ddl.js", "api-service/s
   if (await readFile(resolve(target), "utf8").catch(() => "") !== segmentsDdl) stale.push(target);
 }
 
+const ixcGateway = await readFile(resolve("shared/runtime/ixc-gateway.js"), "utf8");
+for (const target of ["proxy-sgp/lib/ixc-gateway.js", "api-service/src/services/ixc-gateway.js"]) {
+  if (await readFile(resolve(target), "utf8").catch(() => "") !== ixcGateway) stale.push(target);
+}
+
 if (stale.length) {
   console.error(`Contratos desatualizados: ${stale.join(", ")}. Execute npm run contracts:sync.`);
   process.exit(1);

@@ -32,6 +32,7 @@ export default function IntegrationsSettings() {
   const [apiToken, setToken] = useState("");
   const [sgpBaseUrl, setUrl] = useState("");
   const [appName, setApp] = useState("");
+  const [erp, setErp] = useState<"sgp" | "ixc">("sgp");
   const [saving, setSaving] = useState(false);
 
   // TR-069 / ACS state
@@ -76,11 +77,11 @@ export default function IntegrationsSettings() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${await auth.currentUser.getIdToken(true)}`,
         },
-        body: JSON.stringify({ apiToken, sgpBaseUrl, appName }),
+        body: JSON.stringify(erp === "ixc" ? { erp, apiToken, sgpBaseUrl } : { erp, apiToken, sgpBaseUrl, appName }),
       });
       if (!response.ok) throw new Error("Não foi possível substituir a integração.");
       const data = await response.json().catch(() => ({}));
-      setToken(""); setUrl(""); setApp("");
+      setToken(""); setUrl(""); setApp(""); setErp("sgp");
       toast.success(
         data?.syncQueued
           ? "Integração salva e sincronização inicial de clientes iniciada."
@@ -135,15 +136,27 @@ export default function IntegrationsSettings() {
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <h1>Substituir integração SGP</h1>
+        <h1>Substituir integração do ERP</h1>
         <p>Informe todos os novos valores. O token armazenado não é exibido.</p>
-        <Label htmlFor="replacement-token">Novo token</Label>
+        <Label htmlFor="replacement-erp">Sistema (ERP)</Label>
+        <Select value={erp} onValueChange={(value) => setErp(value === "ixc" ? "ixc" : "sgp")}>
+          <SelectTrigger id="replacement-erp"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="sgp">SGP</SelectItem>
+            <SelectItem value="ixc">IXC Provedor</SelectItem>
+          </SelectContent>
+        </Select>
+        <Label htmlFor="replacement-token">{erp === "ixc" ? "Token do usuário de API (IXC)" : "Novo token"}</Label>
         <Input id="replacement-token" type="password" autoComplete="off" value={apiToken} onChange={e => setToken(e.target.value)} />
-        <Label htmlFor="replacement-url">URL SGP</Label>
+        <Label htmlFor="replacement-url">{erp === "ixc" ? "URL do IXC (sem /webservice/v1)" : "URL SGP"}</Label>
         <Input id="replacement-url" value={sgpBaseUrl} onChange={e => setUrl(e.target.value)} />
-        <Label htmlFor="replacement-app">App de integração</Label>
-        <Input id="replacement-app" value={appName} onChange={e => setApp(e.target.value)} />
-        <Button disabled={saving || !apiToken || !sgpBaseUrl || !appName} onClick={replace}>Substituir integração</Button>
+        {erp === "sgp" && (
+          <>
+            <Label htmlFor="replacement-app">App de integração</Label>
+            <Input id="replacement-app" value={appName} onChange={e => setApp(e.target.value)} />
+          </>
+        )}
+        <Button disabled={saving || !apiToken || !sgpBaseUrl || (erp === "sgp" && !appName)} onClick={replace}>Substituir integração</Button>
       </section>
 
       <section className="space-y-4 border-t border-[#EEF0F4] pt-6">

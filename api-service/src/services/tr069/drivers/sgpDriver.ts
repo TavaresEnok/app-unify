@@ -72,7 +72,7 @@ export const sgpDriver: Tr069Driver = {
   async listHosts(_config, identity): Promise<CpeConnectedHost[]> {
     if (!identity.contratoId) return [];
     const creds = await resolveSgpCredentials(identity.providerId);
-    const session = createSgpSession(creds.providerId, creds.baseUrl);
+    const session = createSgpSession(creds.providerId, creds.baseUrl, creds);
     try {
       const resp = await session.post(`${creds.baseUrl}/api/cpemanager/servico/${identity.contratoId}/hosts/`, {
         token: creds.token,
@@ -117,7 +117,7 @@ export const sgpDriver: Tr069Driver = {
       throw new ApiError(400, "Contrato obrigatório para reiniciar CPE via SGP.", "invalid-argument");
     }
     const creds = await resolveSgpCredentials(identity.providerId);
-    const session = createSgpSession(creds.providerId, creds.baseUrl);
+    const session = createSgpSession(creds.providerId, creds.baseUrl, creds);
     try {
       await session.post(`${creds.baseUrl}/api/cpemanager/servico/${identity.contratoId}/reboot/`, {
         token: creds.token,
