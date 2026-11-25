@@ -47,3 +47,12 @@ describe("sgpDriver", () => {
     await expect(sgpDriver.getOverview(config, identity)).rejects.toMatchObject({ status: 422, message: "Equipamento não encontrado." });
   });
 });
+
+describe("capacidades do driver SGP", () => {
+  it("nunca anuncia reinício, otimização ou diagnóstico, mesmo se o provedor marcou", async () => {
+    const { effectiveFeatures } = await import("../index");
+    const all = { wifi: true, reboot: true, hosts: true, guestWifi: true, channelOptimize: true, speedDiagnostic: true };
+    expect(effectiveFeatures("sgp", all)).toEqual({ ...all, reboot: false, channelOptimize: false, speedDiagnostic: false });
+    expect(effectiveFeatures("genieacs", all)).toEqual(all);
+  });
+});

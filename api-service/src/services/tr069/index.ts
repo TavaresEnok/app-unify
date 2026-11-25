@@ -30,6 +30,17 @@ function parseFeatures(raw: unknown): AcsFeatureFlags {
   };
 }
 
+// O que cada driver realmente consegue executar. A API do SGP (token/app) só
+// expõe wifi/list, wifi/set e wifi/update no CPE Manager: não há rota de
+// reinício, otimização de canal nem diagnóstico (validado na InsNet, nov/2026).
+const DRIVER_LIMITS: Partial<Record<AcsDriverType, Partial<AcsFeatureFlags>>> = {
+  sgp: { reboot: false, channelOptimize: false, speedDiagnostic: false },
+};
+
+export function effectiveFeatures(driver: AcsDriverType, features: AcsFeatureFlags): AcsFeatureFlags {
+  return { ...features, ...(DRIVER_LIMITS[driver] ?? {}) };
+}
+
 function toIso(raw: unknown): string | null {
   if (!raw) return null;
   if (typeof raw === "string") return raw;
@@ -61,7 +72,7 @@ export async function getAcsPrivateConfig(providerId: string): Promise<AcsPrivat
     username: typeof d.username === "string" ? d.username.trim() : "",
     password: typeof d.password === "string" ? d.password : "",
     apiKey: typeof d.apiKey === "string" ? d.apiKey : "",
-    features: parseFeatures(d.features),
+    features: effectiveFeatures(driver, parseFeatures(d.features)),
     updatedAt: toIso(d.updatedAt),
   };
 }
@@ -135,7 +146,7 @@ export async function saveAcsPrivateConfig(
     username,
     password,
     apiKey,
-    features,
+    features: effectiveFeatures(driver, features),
     updatedAt,
   };
 }
