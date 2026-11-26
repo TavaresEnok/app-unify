@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:local_auth/local_auth.dart';
 
 import '../models/provider_config.dart';
 import '../models/usuario.dart';
@@ -44,6 +47,79 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
   /// Documento que já recebeu o aviso de dígito verificador: tocar em
   /// Entrar de novo com o mesmo número consulta o provedor assim mesmo.
   String? _warnedDigits;
+
+  /// CPF/CNPJ do último login neste aparelho e se dá para confirmar com a
+  /// digital (Android 9+ com biometria ou bloqueio de tela cadastrado).
+  String? _rememberedCpf;
+  bool _canBiometric = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadRemembered());
+  }
+
+  Future<void> _loadRemembered() async {
+    final cpf = await ref.read(authNotifierProvider.notifier).rememberedCpf();
+    if (!mounted || cpf == null) return;
+    var biometric = false;
+    try {
+      if (Platform.isAndroid) {
+        final info = await DeviceInfoPlugin().androidInfo;
+        if (info.version.sdkInt >= 28) {
+          final auth = LocalAuthentication();
+          biometric =
+              await auth.isDeviceSupported() && await auth.canCheckBiometrics;
+        }
+      }
+    } catch (_) {
+      biometric = false;
+    }
+    if (!mounted) return;
+    setState(() {
+      _rememberedCpf = cpf;
+      _canBiometric = biometric;
+      if (_cpfController.text.isEmpty) {
+        _cpfController.text = CpfCnpjInputFormatter()
+            .formatEditUpdate(
+                TextEditingValue.empty, TextEditingValue(text: cpf))
+            .text;
+      }
+    });
+  }
+
+  /// Entrar com a digital: confirma no aparelho e entra com o CPF lembrado.
+  Future<void> _biometricLogin(ProviderConfig? config) async {
+    final cpf = _rememberedCpf;
+    if (cpf == null || _isLoading) return;
+    bool ok;
+    try {
+      ok = await LocalAuthentication().authenticate(
+        localizedReason: 'Confirme que é você para entrar',
+        options: const AuthenticationOptions(stickyAuth: true),
+      );
+    } catch (_) {
+      ok = false;
+    }
+    if (!ok || !mounted) return;
+    _cpfController.text = CpfCnpjInputFormatter()
+        .formatEditUpdate(TextEditingValue.empty, TextEditingValue(text: cpf))
+        .text;
+    await _handleLogin(config);
+  }
+
+  Future<void> _useAnotherCpf() async {
+    await ref.read(authNotifierProvider.notifier).forgetRememberedCpf();
+    if (!mounted) return;
+    setState(() {
+      _rememberedCpf = null;
+      _canBiometric = false;
+      _cpfController.clear();
+      _errorMessage = null;
+      _localError = false;
+    });
+    _focus.requestFocus();
+  }
 
   /// Etapas da espera: 0 até 3 s, 1 até 10 s, 2 depois disso.
   int _waitStage = 0;
@@ -328,6 +404,29 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                     loading: _isLoading,
                     onPressed: _isLoading ? null : () => _handleLogin(config),
                   ),
+                  // Depois do primeiro login: entrar com a digital (CPF já
+                  // lembrado) ou trocar de CPF.
+                  if (_canBiometric && _rememberedCpf != null) ...[
+                    const SizedBox(height: 10),
+                    VibePageButton(
+                      label: 'Entrar com a digital',
+                      icon: 'unlock',
+                      ghost: true,
+                      onPressed:
+                          _isLoading ? null : () => _biometricLogin(config),
+                    ),
+                  ],
+                  if (_rememberedCpf != null)
+                    Center(
+                      child: TextButton(
+                        onPressed: _isLoading ? null : _useAnotherCpf,
+                        style: TextButton.styleFrom(
+                            foregroundColor: t.at,
+                            minimumSize: const Size(48, 44)),
+                        child: Text('Usar outro CPF ou CNPJ',
+                            style: vibeText(t, 13, 650, color: t.at)),
+                      ),
+                    ),
                   // O provedor pode levar alguns segundos para responder: a
                   // espera ganha explicação em vez de um botão parado.
                   VibeReveal(

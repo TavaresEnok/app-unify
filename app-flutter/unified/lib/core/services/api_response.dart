@@ -45,7 +45,8 @@ Map<String, dynamic> decodeApiResponse(
   }
   if (status == 401 && authenticated) {
     ApiSession.onUnauthorized?.call();
-    throw ApiException(status, 'Sua sessão expirou. Entre novamente.');
+    throw ApiException(
+        status, 'Reconectando sua conta… Tente de novo em instantes.');
   }
   throw ApiException(status, apiErrorMessage(status, body, fallback));
 }

@@ -189,7 +189,8 @@ class FinanceiroService {
       }
       if (response.statusCode == 401) {
         ApiSession.onUnauthorized?.call();
-        throw ApiException(401, 'Sua sessão expirou. Entre novamente.');
+        throw ApiException(
+            401, 'Reconectando sua conta… Tente de novo em instantes.');
       }
       if (response.statusCode == 429) {
         throw ApiException(429,

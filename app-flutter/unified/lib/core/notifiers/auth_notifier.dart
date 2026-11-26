@@ -6,6 +6,7 @@ import '../models/provider_config.dart';
 import '../repositories/auth_repository.dart';
 import '../services/account_data_cache.dart';
 import '../services/api_response.dart';
+import '../services/session_token_store.dart';
 import '../providers/providers.dart';
 
 class AuthNotifier extends AsyncNotifier<Usuario?> {
@@ -16,10 +17,42 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
     _repository = ref.read(authRepositoryProvider);
     // 401 numa rota autenticada: sessão revogada no servidor. Volta ao login
     // em vez de deixar cada tela repetir o erro.
+    // 401 numa rota autenticada (token vencido ou revogado): o login é só
+    // pelo CPF, então o app renova a sessão sozinho. Só sai da conta quando
+    // o assinante toca em Sair ou o provedor recusa o CPF.
     ApiSession.onUnauthorized = () {
-      if (state.value != null && !state.isLoading) unawaited(logout());
+      if (state.value != null && !state.isLoading) unawaited(renewSession());
     };
-    return _loadUser();
+    final user = await _loadUser();
+    if (user != null && await SessionTokenStore.instance.getToken() == null) {
+      // Token vencido/ilegível: renova depois que a tela abrir.
+      Future(renewSession);
+    }
+    return user;
+  }
+
+  Future<void>? _renewing;
+
+  /// Novo token com o CPF guardado. Sem internet a conta continua aberta
+  /// (com os dados em cache); se o provedor recusar o CPF, volta ao login.
+  Future<void> renewSession() =>
+      _renewing ??= _renew().whenComplete(() => _renewing = null);
+
+  Future<void> _renew() async {
+    final current = state.value;
+    final config = ref.read(configurationProvider).providerConfig;
+    if (current == null || config == null) return;
+    try {
+      final fresh = await _repository.performLoginApi(current.cpfCnpj, config);
+      if (state.value == null) return;
+      await _repository.saveUserLocally(fresh, config.id,
+          apiUrl: config.apiUrl);
+      state = AsyncValue.data(fresh);
+    } on LoginRejectedException {
+      if (state.value != null) await logout();
+    } catch (e) {
+      debugPrint('Sessão não renovada agora (tenta de novo depois): $e');
+    }
   }
 
   Future<Usuario?> _loadUser() async {
@@ -42,6 +75,7 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
 
       // 2. Save locally
       await _repository.saveUserLocally(user, config.id, apiUrl: config.apiUrl);
+      await _repository.rememberCpf(user.cpfCnpj);
 
       await ref.read(notificationProvider).setAccount(config.id, user.cpfCnpj);
 
@@ -93,11 +127,12 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
     }
   }
 
-  // Biometry helpers exposed via repository but manageable here if needed
-  Future<Map<String, String>?> getBiometrics() =>
-      _repository.getCredentialsForBiometry();
+  /// CPF do último login neste aparelho (entrar com a digital).
+  Future<String?> rememberedCpf() =>
+      ref.read(authRepositoryProvider).rememberedCpf();
 
-  Future<void> clearBiometrics() => _repository.clearBiometryCredentials();
+  Future<void> forgetRememberedCpf() =>
+      ref.read(authRepositoryProvider).forgetCpf();
 
   bool get isAuthenticated => state.value != null;
 }

@@ -1,6 +1,6 @@
 package com.example.unified
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.content.Context
@@ -10,7 +10,8 @@ import android.os.Build
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 
-class MainActivity: FlutterActivity() {
+// FragmentActivity: exigida pela digital (local_auth / BiometricPrompt).
+class MainActivity: FlutterFragmentActivity() {
     private var invoicePdfChannel: InvoicePdfChannel? = null
     private val CHANNEL = "br.com.ajust.app_provedor/wifi_info"
 

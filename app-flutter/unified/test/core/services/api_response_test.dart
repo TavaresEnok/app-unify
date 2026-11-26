@@ -54,7 +54,7 @@ void main() {
     expect(
         () => decodeApiResponse(http.Response('{}', 401), fallback: 'x'),
         throwsA(isA<ApiException>()
-            .having((e) => e.message, 'mensagem', contains('sessão expirou'))));
+            .having((e) => e.message, 'mensagem', contains('Reconectando'))));
     expect(
         () => decodeApiResponse(
             http.Response(

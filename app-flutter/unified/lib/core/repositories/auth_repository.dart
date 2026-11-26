@@ -34,9 +34,12 @@ class AuthRepository {
 
     // A sessão persiste via JWT self-hosted; usamos a presença do CPF como
     // marcador de auto-login. A senha não é mais armazenada (M11).
+    // Token vencido ou ilegível não desloga: o CPF guardado basta para o app
+    // renovar a sessão sozinho (AuthNotifier.renewSession). Só uma sessão de
+    // outro tipo (ex.: admin) não vale aqui.
     final claims = await SessionTokenStore.instance.getClaims();
-    if (claims?['role'] != 'subscriber') return null;
-    if (prefs.containsKey('userCpfCnpj')) {
+    if (claims != null && claims['role'] != 'subscriber') return null;
+    if (prefs.containsKey('userCpfCnpj') && prefs.containsKey('userName')) {
       return Usuario(
         cpfCnpj: prefs.getString('userCpfCnpj')!,
         senha: '',
@@ -93,7 +96,7 @@ class AuthRepository {
       final sessionToken =
           (data['accessToken'] ?? data['customToken'])?.toString();
       if (sessionToken == null || sessionToken.isEmpty) {
-        throw Exception(
+        throw const LoginRejectedException(
           'Acesso indisponível para este contrato. Verifique o status com o provedor.',
         );
       }
@@ -124,7 +127,14 @@ class AuthRepository {
       if (kDebugMode) {
         debugPrint('[Auth] Falha no login: ${response.statusCode}.');
       }
-      throw Exception(_loginErrorMessage(response));
+      final message = _loginErrorMessage(response);
+      // CPF não encontrado / recusado pelo provedor: resposta definitiva.
+      // Limite, timeout e falha do servidor podem passar sozinhos.
+      final status = response.statusCode;
+      if (status >= 400 && status < 500 && status != 408 && status != 429) {
+        throw LoginRejectedException(message);
+      }
+      throw Exception(message);
     }
   }
 
@@ -278,9 +288,10 @@ class AuthRepository {
       }
     }
 
-    // Limpa credenciais do secure storage (senha + biometria + JWT)
+    // Limpa credenciais do secure storage (senha antiga + JWT). O CPF
+    // lembrado fica, para entrar de novo com a digital ([rememberedCpf]).
     await _secureStorage.delete(key: 'userSenha');
-    await clearBiometryCredentials();
+    await _secureStorage.delete(key: _bioPassKey);
     await SessionTokenStore.instance.clear();
   }
 
@@ -332,6 +343,31 @@ class AuthRepository {
 
   // --- BIOMETRIA ---
 
+  /// CPF/CNPJ do último login neste aparelho, para entrar com a digital.
+  Future<String?> rememberedCpf() async {
+    try {
+      final cpf = await _secureStorage.read(key: _bioCpfKey);
+      return cpf != null && RegExp(r'^\d{11}(\d{3})?$').hasMatch(cpf)
+          ? cpf
+          : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> rememberCpf(String cpf) async {
+    final digits = cpf.replaceAll(RegExp(r'[^0-9]'), '');
+    try {
+      await _secureStorage.write(key: _bioCpfKey, value: digits);
+    } catch (_) {}
+  }
+
+  Future<void> forgetCpf() async {
+    try {
+      await _secureStorage.delete(key: _bioCpfKey);
+    } catch (_) {}
+  }
+
   Future<void> saveCredentialsForBiometry(String cpf, String password) async {
     await _secureStorage.write(key: _bioCpfKey, value: cpf);
     await _secureStorage.write(key: _bioPassKey, value: password);
@@ -350,4 +386,13 @@ class AuthRepository {
     await _secureStorage.delete(key: _bioCpfKey);
     await _secureStorage.delete(key: _bioPassKey);
   }
+}
+
+/// O provedor recusou o CPF/CNPJ (não encontrado, contrato encerrado):
+/// renovar a sessão não adianta, o assinante precisa entrar de novo.
+class LoginRejectedException implements Exception {
+  const LoginRejectedException(this.message);
+  final String message;
+  @override
+  String toString() => message;
 }
