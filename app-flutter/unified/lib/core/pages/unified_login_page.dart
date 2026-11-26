@@ -146,104 +146,42 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
     final t = theme.extension<VibeTokens>()!;
     final name = config?.name.trim() ?? '';
 
-    // Entrada (`PG.login` do layout aprovado): marca, título, o campo de
-    // CPF ou CNPJ e o botão. A central do assinante entra só pelo documento.
+    // Entrada: faixa da marca (logo, promessa e ondas de sinal) e, por cima,
+    // a folha com o CPF ou CNPJ e o botão, ao alcance do polegar. A tela
+    // ocupa a altura toda; com o teclado aberto ela rola.
+    final onBrandDark =
+        ThemeData.estimateBrightnessForColor(t.ac) == Brightness.dark;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     return Theme(
       data: theme,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: t.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        value: onBrandDark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         child: Scaffold(
           backgroundColor: t.bg,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 34),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
+          // Ocupa a altura toda quando cabe; em tela baixa (paisagem, fonte
+          // grande ou teclado aberto) o conteúdo rola em vez de estourar.
+          body: LayoutBuilder(
+            builder: (context, box) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: box.maxHeight),
+                child: IntrinsicHeight(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: VibeLogo(
-                            name: name.isEmpty ? 'Central' : name,
-                            logoUrl: config?.config.logoUrl,
-                            height: 44),
-                      ),
-                      const SizedBox(height: 30),
-                      Semantics(
-                        header: true,
-                        child: Text('Entrar',
-                            style: vibeText(t, 24, 800, letterSpacingEm: -.02)),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                          'Use o CPF ou CNPJ do titular para acessar a Central do Assinante.',
-                          style: vibeText(t, 14.5, 500,
-                              color: t.mut, height: 1.5)),
-                      const SizedBox(height: 20),
-                      Text('CPF ou CNPJ', style: vibeText(t, 13, 650)),
-                      const SizedBox(height: 6),
-                      _cpfField(t),
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 10),
-                        VibeErrorLine(_errorMessage!),
-                      ],
-                      const SizedBox(height: 24),
-                      VibePageButton(
-                        label: _isLoading
-                            ? 'Entrando…'
-                            : _errorMessage != null && !_localError
-                                ? 'Tentar novamente'
-                                : 'Entrar',
-                        loading: _isLoading,
-                        onPressed:
-                            _isLoading ? null : () => _handleLogin(config),
-                      ),
-                      // O provedor pode levar alguns segundos para
-                      // responder: a espera ganha explicação em vez de um
-                      // botão parado.
-                      VibeReveal(
-                        child: _isLoading && _waitStage > 0
-                            ? Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: Semantics(
-                                  liveRegion: true,
-                                  child: Text(
-                                      _waitStage == 1
-                                          ? 'Consultando seu cadastro no provedor… isso pode levar alguns segundos.'
-                                          : 'Quase lá. A resposta do provedor está mais lenta que o normal.',
-                                      textAlign: TextAlign.center,
-                                      style: vibeText(t, 13, 600,
-                                          color: t.mut, height: 1.45)),
-                                ),
-                              )
-                            : const SizedBox(width: double.infinity),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                          name.isEmpty
-                              ? 'Dificuldade para entrar? Procure o seu provedor pelos canais de atendimento.'
-                              : 'Dificuldade para entrar? Procure a $name pelos canais de atendimento.',
-                          textAlign: TextAlign.center,
-                          style: vibeText(t, 12.5, 500,
-                              color: t.mut, height: 1.5)),
-                      if (config?.privacyPolicyUrl.isNotEmpty == true) ...[
-                        const SizedBox(height: 6),
-                        Center(
-                          child: TextButton(
-                            onPressed: () => openExternalLink(
-                                context, config!.privacyPolicyUrl),
-                            style: TextButton.styleFrom(
-                                foregroundColor: t.mut,
-                                minimumSize: const Size(48, 44)),
-                            child: Text('Política de privacidade',
-                                style: vibeText(t, 12.5, 650, color: t.mut)
-                                    .copyWith(
-                                        decoration: TextDecoration.underline)),
-                          ),
+                      Expanded(child: _brandHero(t, name, config)),
+                      ColoredBox(
+                        color: t.ac,
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: reduceMotion ? 1 : 0, end: 1),
+                          duration: const Duration(milliseconds: 420),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, v, child) => Transform.translate(
+                              offset: Offset(0, (1 - v) * 14), child: child),
+                          child: _sheet(t, name, config),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
@@ -255,23 +193,202 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
     );
   }
 
+  /// Faixa da marca: logo, promessa do app e ondas de sinal ao fundo.
+  Widget _brandHero(VibeTokens t, String name, ProviderConfig? config) {
+    // Em tela larga a coluna fica com 440 de largura pela margem (e não por
+    // um ConstrainedBox): assim a altura medida vale para a largura real.
+    final side =
+        ((MediaQuery.sizeOf(context).width - 440) / 2).clamp(22.0, 4000.0);
+    return SizedBox(
+      child: ClipRect(
+        child: CustomPaint(
+          painter: _SignalPainter(t.ac, t.on),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(side, 20, side, 26),
+              child: SizedBox(
+                child: SizedBox(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Altura fixa: a logo carrega depois e não informa
+                        // a própria altura na medição da tela.
+                        SizedBox(
+                          height: 44,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: VibeLogo(
+                                name: name.isEmpty ? 'Central' : name,
+                                logoUrl: config?.config.logoUrl,
+                                onBrand: true,
+                                height: 40),
+                          ),
+                        ),
+                        const Spacer(),
+                        const SizedBox(height: 20),
+                        Text('Sua internet,\nna palma da mão.',
+                            style: vibeText(t, 29, 800,
+                                color: t.on,
+                                height: 1.12,
+                                letterSpacingEm: -.03)),
+                        const SizedBox(height: 10),
+                        Text('Faturas, Wi-Fi e suporte em um só lugar.',
+                            style: vibeText(t, 14.5, 500,
+                                color: t.on.withValues(alpha: .78),
+                                height: 1.4)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Folha de entrada: documento, botão e o que há dentro do app.
+  Widget _sheet(VibeTokens t, String name, ProviderConfig? config) {
+    final side =
+        ((MediaQuery.sizeOf(context).width - 440) / 2).clamp(22.0, 4000.0);
+    return Container(
+      decoration: BoxDecoration(
+        color: t.bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(side, 26, side, 14),
+          child: SizedBox(
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text('Acesse sua conta',
+                        style: vibeText(t, 21, 800, letterSpacingEm: -.02)),
+                  ),
+                  const SizedBox(height: 6),
+                  Text('Digite o CPF ou CNPJ do titular do contrato.',
+                      style: vibeText(t, 14, 500, color: t.mut, height: 1.45)),
+                  const SizedBox(height: 18),
+                  _cpfField(t),
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 10),
+                    VibeErrorLine(_errorMessage!),
+                  ],
+                  const SizedBox(height: 14),
+                  VibePageButton(
+                    label: _isLoading
+                        ? 'Entrando…'
+                        : _errorMessage != null && !_localError
+                            ? 'Tentar novamente'
+                            : 'Entrar',
+                    loading: _isLoading,
+                    onPressed: _isLoading ? null : () => _handleLogin(config),
+                  ),
+                  // O provedor pode levar alguns segundos para responder: a
+                  // espera ganha explicação em vez de um botão parado.
+                  VibeReveal(
+                    child: _isLoading && _waitStage > 0
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                  _waitStage == 1
+                                      ? 'Consultando seu cadastro no provedor… isso pode levar alguns segundos.'
+                                      : 'Quase lá. A resposta do provedor está mais lenta que o normal.',
+                                  textAlign: TextAlign.center,
+                                  style: vibeText(t, 13, 600,
+                                      color: t.mut, height: 1.45)),
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
+                  const SizedBox(height: 22),
+                  Row(children: [
+                    Expanded(child: _feature(t, 'i-pix', 'Faturas e PIX')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _feature(t, 'wifi', 'Sua conexão')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _feature(t, 'chat', 'Suporte')),
+                  ]),
+                  const SizedBox(height: 18),
+                  Text(
+                      name.isEmpty
+                          ? 'Não conseguiu entrar? Fale com o seu provedor.'
+                          : 'Não conseguiu entrar? Fale com a $name.',
+                      textAlign: TextAlign.center,
+                      style: vibeText(t, 12.5, 500, color: t.mut, height: 1.5)),
+                  if (config?.privacyPolicyUrl.isNotEmpty == true)
+                    Center(
+                      child: TextButton(
+                        onPressed: () =>
+                            openExternalLink(context, config!.privacyPolicyUrl),
+                        style: TextButton.styleFrom(
+                            foregroundColor: t.mut,
+                            minimumSize: const Size(48, 44)),
+                        child: Text('Política de privacidade',
+                            style: vibeText(t, 12.5, 650, color: t.mut)
+                                .copyWith(
+                                    decoration: TextDecoration.underline)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Um dos três atalhos do que o assinante encontra depois de entrar.
+  Widget _feature(VibeTokens t, String icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+      decoration: BoxDecoration(
+        color: t.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: t.line),
+      ),
+      child: Column(children: [
+        VibeIcon(icon, size: 20, color: t.at),
+        const SizedBox(height: 7),
+        Text(label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: vibeText(t, 11.5, 650, color: t.mut)),
+      ]),
+    );
+  }
+
   /// Campo do documento (`.g-in`): ícone, borda de 1,5 e foco na cor da marca.
   Widget _cpfField(VibeTokens t) {
     return AnimatedBuilder(
       animation: _focus,
       builder: (context, _) => Container(
-        height: 48,
-        padding: const EdgeInsets.only(left: 14, right: 6),
+        height: 54,
+        padding: const EdgeInsets.only(left: 16, right: 6),
         decoration: BoxDecoration(
           color: t.card,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
               color: _focus.hasFocus ? t.ac : t.line,
               width: _focus.hasFocus ? 2 : 1.5),
         ),
         child: Row(children: [
-          VibeIcon('user', size: 16, color: t.mut),
-          const SizedBox(width: 8),
+          VibeIcon('user', size: 18, color: t.mut),
+          const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _cpfController,
@@ -279,12 +396,12 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.go,
               inputFormatters: [CpfCnpjInputFormatter()],
-              style: vibeText(t, 15, 500),
+              style: vibeText(t, 16, 600),
               decoration: InputDecoration(
                 filled: false,
                 isCollapsed: true,
-                hintText: '000.000.000-00',
-                hintStyle: vibeText(t, 15, 500, color: t.mut),
+                hintText: 'CPF ou CNPJ',
+                hintStyle: vibeText(t, 16, 500, color: t.mut),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -308,6 +425,30 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
       ),
     );
   }
+}
+
+/// Ondas de sinal saindo do canto superior direito da faixa da marca.
+class _SignalPainter extends CustomPainter {
+  const _SignalPainter(this.background, this.color);
+
+  final Color background, color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = background);
+    final center = Offset(size.width + 10, -10);
+    for (var i = 0; i < 5; i++) {
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 26
+        ..color = color.withValues(alpha: .085 - i * .014);
+      canvas.drawCircle(center, 70.0 + i * 62, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SignalPainter old) =>
+      old.color != color || old.background != background;
 }
 
 /// Confere o CPF ou CNPJ antes de ir ao provedor (tamanho e dígitos
