@@ -185,6 +185,7 @@ export default function App() {
                 {ProviderSettingsRoutes}
               </Route>
             </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
         </ErrorBoundary>
