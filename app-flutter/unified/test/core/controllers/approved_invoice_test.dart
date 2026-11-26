@@ -260,9 +260,12 @@ void main() {
     await provider.fetchHistory();
     await _pumpHome(tester, 'layout_03', provider, scale: 1.5);
     expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.text('Julho'));
+    // Três ou mais meses: faixa de uma linha com o mês abreviado
+    // ("Jul" ou "Jul/27" quando é de outro ano).
+    final july = find.textContaining(RegExp(r'^Jul(/\d\d)?$'));
+    await tester.ensureVisible(july);
     await tester.pump();
-    await tester.tap(find.text('Julho'));
+    await tester.tap(july);
     await tester.pump();
     expect(find.text('Fatura de julho'), findsOneWidget);
     expect(tester.takeException(), isNull);

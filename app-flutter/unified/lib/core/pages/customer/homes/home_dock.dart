@@ -153,15 +153,22 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
               child: Text('${open.length} faturas em aberto',
                   style: vibeText(t, 12, 700, color: p.ink))),
           const SizedBox(width: 8),
-          Text.rich(
-            TextSpan(children: [
-              TextSpan(
-                  text: 'Total ', style: vibeText(t, 12, 500, color: p.muted)),
-              TextSpan(
-                  text: AppFormatters.currency(billing.openTotal),
-                  style: vibeText(t, 12, 700, color: p.muted)),
-            ]),
-            textAlign: TextAlign.right,
+          // Metade do espaço no máximo, encostado à direita.
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text.rich(
+                TextSpan(children: [
+                  TextSpan(
+                      text: 'Total ',
+                      style: vibeText(t, 12, 500, color: p.muted)),
+                  TextSpan(
+                      text: AppFormatters.currency(billing.openTotal),
+                      style: vibeText(t, 12, 700, color: p.muted)),
+                ]),
+                textAlign: TextAlign.right,
+              ),
+            ),
           ),
         ]),
         const SizedBox(height: 7),
@@ -180,13 +187,15 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
         else
           SizedBox(
             height: 44,
-            child: ListView.separated(
+            child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              itemCount: open.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 5),
-              itemBuilder: (context, i) => _choiceButton(
-                  context, open[i], identical(open[i], chosen),
-                  compact: true),
+              child: Row(children: [
+                for (final (i, invoice) in open.indexed) ...[
+                  if (i > 0) const SizedBox(width: 5),
+                  _choiceButton(context, invoice, identical(invoice, chosen),
+                      compact: true),
+                ],
+              ]),
             ),
           ),
       ]),
