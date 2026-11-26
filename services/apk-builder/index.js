@@ -6,6 +6,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { BuildJobStore } = require('./job-store');
+const { pruneProviderReleases } = require('./retention');
 const { createLogoPolicy } = require('./security');
 const { identity, identityFailure, childEnvironment, verifyOutput, authorize, digest } = require('./containment');
 
@@ -160,6 +161,13 @@ function createApp(options = {}) {
                     jobs.update(id, { status: 'succeeded', completedAt: Date.now(), result });
                     finished = true; active = null; activeChild = null; fs.rmSync(logo, { force: true });
                     if (!res.headersSent) res.json(result);
+                    // Só depois de publicado: apaga os builds antigos deste provedor
+                    // (mantém os APK_KEEP_RELEASES mais recentes de cada formato).
+                    try {
+                        const removed = pruneProviderReleases(output, providerId,
+                            { keep: config.APK_KEEP_RELEASES || 3, protectBuildId: id });
+                        if (removed.length) console.log(JSON.stringify({ event: 'apk.pruned', providerId, removed: removed.length }));
+                    } catch { /* limpeza nunca afeta a publicação */ }
                 } catch (error) { fail(unavailable(error) ? 503 : 403, unavailable(error) ? 'authorization-unavailable' : 'build-release-denied'); }
                 finally {
                     // Unlinking the private copy cannot affect an already linked release.
