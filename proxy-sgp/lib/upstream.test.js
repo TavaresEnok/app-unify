@@ -80,3 +80,72 @@ test('background work reserves capacity for interactive requests', { skip: !enab
         assert.equal(started, 4);
     } finally { release(); await Promise.all(jobs); }
 });
+
+// Redis mínimo em memória: suficiente para leituras sem cache (ttl 0).
+function memoryRedis() {
+    const kv = new Map(); const zsets = new Map();
+    return {
+        kv,
+        async get(key) { return kv.has(key) ? kv.get(key) : null; },
+        async set(key, value) { kv.set(key, String(value)); return 'OK'; },
+        async del(key) { kv.delete(key); return 1; },
+        async exists(key) { return kv.has(key) ? 1 : 0; },
+        async incr(key) { const next = Number(kv.get(key) || 0) + 1; kv.set(key, String(next)); return next; },
+        async expire() { return 1; },
+        async zrem(key, member) { zsets.get(key)?.delete(member); return 1; },
+        async eval(_script, _n, providerKey, hostKey, token, maxProvider, maxHost) {
+            const p = zsets.get(providerKey) || new Set(); const h = zsets.get(hostKey) || new Set();
+            if (p.size >= Number(maxProvider) || h.size >= Number(maxHost)) return 0;
+            p.add(token); h.add(token); zsets.set(providerKey, p); zsets.set(hostKey, h); return 1;
+        },
+    };
+}
+
+test('DNS failures never open the ERP circuit breaker', async () => {
+    const redis = memoryRedis();
+    const upstream = createUpstream({ getRedis: () => redis });
+    const data = { ...input('dns-provider'), ttl: 0 };
+    for (let i = 0; i < 8; i++) {
+        await assert.rejects(upstream.execute(data, async () => { throw Object.assign(new Error('dns'), { status: 503, dnsFailure: true }); }), { status: 503 });
+    }
+    assert.equal(await upstream.execute(data, async () => 'reachable'), 'reachable');
+    assert.ok(![...redis.kv.keys()].some(key => key.startsWith('sgp:open:')));
+    for (let i = 0; i < 5; i++) await assert.rejects(upstream.execute(data, async () => { throw new Error('connection reset'); }));
+    assert.ok([...redis.kv.keys()].some(key => key.startsWith('sgp:open:')), 'real connection failures still open the breaker');
+});
+
+test('a full slot pool waits briefly for a free slot instead of failing at once', async () => {
+    const redis = memoryRedis();
+    const upstream = createUpstream({ getRedis: () => redis, maxPerProvider: 1, slotWaitMs: 1000, slotPollMs: 10 });
+    const data = { ...input('busy-provider'), ttl: 0 };
+    let release;
+    const first = upstream.execute(data, () => new Promise(resolve => { release = resolve; }));
+    await new Promise(resolve => setTimeout(resolve, 5));
+    const second = upstream.execute(data, async () => 'second');
+    setTimeout(() => release('first'), 50);
+    assert.deepEqual(await Promise.all([first, second]), ['first', 'second']);
+    const impatient = createUpstream({ getRedis: () => redis, maxPerProvider: 1, slotWaitMs: 0 });
+    let hold;
+    const holding = upstream.execute(data, () => new Promise(resolve => { hold = resolve; }));
+    await new Promise(resolve => setTimeout(resolve, 5));
+    await assert.rejects(impatient.execute(data, async () => 'x'), { status: 503 });
+    hold('done'); await holding;
+});
+
+test('per-call limits raise the provider cap (IXC) and a full pool answers a friendly busy error', async () => {
+    const redis = memoryRedis();
+    const upstream = createUpstream({ getRedis: () => redis, maxPerProvider: 1, maxPerHost: 8, slotWaitMs: 0 });
+    const data = { ...input('ixc-provider'), ttl: 0 };
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const held = [upstream.execute(data, () => gate)];
+    await new Promise(resolve => setTimeout(resolve, 5));
+    const busy = await upstream.execute(data, async () => 'x').then(() => null, error => error);
+    assert.equal(busy.status, 503); assert.equal(busy.busy, true);
+    assert.equal(busy.publicMessage, 'Muitos acessos agora. Tente novamente em alguns segundos.');
+    const ixc = { ...data, limits: { maxPerProvider: 3, maxPerHost: 3 } };
+    held.push(upstream.execute(ixc, () => gate), upstream.execute(ixc, () => gate));
+    await new Promise(resolve => setTimeout(resolve, 5));
+    await assert.rejects(upstream.execute(ixc, async () => 'x'), { status: 503, busy: true });
+    release('ok'); await Promise.all(held);
+});

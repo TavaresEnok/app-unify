@@ -4,6 +4,8 @@ import '../../providers/providers.dart';
 import '../../providers/history_count_provider.dart';
 import '../../providers/customer_capabilities_provider.dart';
 import '../../providers/network_state_provider.dart';
+import '../../providers/equipment_status_provider.dart';
+import '../../widgets/equipment_status_card.dart';
 import '../../navigation/customer_routes.dart';
 import '../../vibe/vibe_icon.dart';
 import '../../vibe/vibe_page_parts.dart';
@@ -30,6 +32,8 @@ class _ConnectionHubPageState extends ConsumerState<ConnectionHubPage> {
     final network = ref.watch(networkStateProvider);
     final wifiAvailable =
         ref.watch(wifiManagementAvailableProvider).valueOrNull == true;
+    // Fibra e roteador do assinante (só com gerenciador TR-069 ligado).
+    final equipment = ref.watch(equipmentStatusProvider).valueOrNull;
     bool can(String route) =>
         config == null || CustomerRoutes.enabled(config, route);
     final go = widget.onNavigate;
@@ -136,6 +140,11 @@ class _ConnectionHubPageState extends ConsumerState<ConnectionHubPage> {
             ],
           ]),
         ),
+        if (equipment != null)
+          EquipmentStatusCard(
+            overview: equipment.overview,
+            failed: equipment.failed,
+          ),
         if (tests.isNotEmpty) VibeCard(child: VibeRows(children: tests)),
         if (tools.isNotEmpty)
           VibeCard(

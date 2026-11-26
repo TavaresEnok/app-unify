@@ -88,6 +88,12 @@ vi.mock("../services/postgres", () => ({
         const row = state.tickets.get(ticketId);
         return { rows: row ? [row] : [] };
       }
+      if (sql.includes("SELECT COUNT(*) AS count FROM private_attachments")) {
+        return { rows: [{ count: [...state.attachments.values()].filter((r: any) => r.resource_kind === params[0] && r.resource_id === params[1]).length }] };
+      }
+      if (sql.includes("COALESCE(SUM(size_bytes), 0) AS bytes")) {
+        return { rows: [{ bytes: [...state.attachments.values()].filter((r: any) => r.owner_uid === params[0]).reduce((sum: number, r: any) => sum + Number(r.size_bytes), 0) }] };
+      }
       if (sql.includes("SELECT * FROM private_attachments")) {
         const key = `${params[0]}:${params[1]}:${params[2]}`;
         const row = state.attachments.get(key);
@@ -282,4 +288,11 @@ it("bounds concurrent file buffers and releases slots after completion", async (
   expect(await Promise.all(pending)).toEqual(Array(8).fill(200));
   state.afterDownload = undefined;
   expect((await get()).status).toBe(200);
+});
+
+it("limits a subscriber to 5 attachments per ticket", async () => {
+  for (let i = 1; i <= 5; i++) { const r = await put(`/private/tickets/t1/attachments/q${i}`); expect([i, r.status, r.body?.error?.message]).toEqual([i, 200, undefined]); }
+  const sixth = await put("/private/tickets/t1/attachments/q6");
+  expect(sixth.status).toBe(429);
+  expect(sixth.body.error.message).toBe("Limite de 5 anexos por chamado.");
 });

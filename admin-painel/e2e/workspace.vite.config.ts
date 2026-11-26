@@ -7,8 +7,10 @@ export default defineConfig({
   root,
   plugins: [react()],
   resolve: { alias: [
-    { find: '@/shared/firebase/buildSession', replacement: path.resolve(__dirname, 'fixtures/buildSession.ts') },
-    ...['@/shared/api/panelHttp', '@/contexts/AuthContext', '@/firebase/auth', '@/firebase/config', '@/hooks/useApi', '@/shared/firebase/providerSettingsService', '@/features/providers/providerService'].map(find => ({ find, replacement: workspace })),
+    { find: '@/shared/settings/buildSession', replacement: path.resolve(__dirname, 'fixtures/buildSession.ts') },
+    ...['@/shared/api/panelHttp', '@/contexts/AuthContext', '@/firebase/auth', '@/firebase/config', '@/hooks/useApi', '@/shared/settings/providerSettingsService', '@/features/providers/providerService'].map(find => ({ find, replacement: workspace })),
+    // Módulos de src/shared/api importam o cliente HTTP por caminho relativo.
+    { find: /^\.\/panelHttp$/, replacement: workspace },
     { find: 'firebase/firestore', replacement: path.resolve(__dirname, 'fixtures/firestore.ts') },
     { find: '@', replacement: path.join(root, 'src') },
   ] },

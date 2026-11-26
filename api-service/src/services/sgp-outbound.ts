@@ -8,6 +8,12 @@ const http = require('node:http');
 const https = require('node:https');
 
 function denied() { return Object.assign(new Error('Destino SGP inválido ou interno; integração indisponível.'), { status: 503 }); }
+// Falha de DNS não é destino inválido: vira 503 próprio, não conta para o
+// disjuntor do ERP e é registrada com o nome do host para o operador.
+const DNS_UNAVAILABLE_MESSAGE = 'Não foi possível falar com o sistema do provedor agora. Tente novamente em instantes.';
+function dnsUnavailable(hostname) {
+    return Object.assign(new Error(DNS_UNAVAILABLE_MESSAGE), { status: 503, code: 'dns-unavailable', dnsFailure: true, publicMessage: DNS_UNAVAILABLE_MESSAGE, hostname });
+}
 
 function publicAddress(address) {
     if (net.isIP(address) === 4) {
@@ -83,25 +89,90 @@ function safeHeaders(headers) {
     return out;
 }
 
-function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect = options => net.connect(options), tlsConnect = options => tls.connect(options) } = {}) {
+function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect = options => net.connect(options), tlsConnect = options => tls.connect(options),
+    dnsCacheMs = 5 * 60 * 1000, dnsStaleMs = 60 * 60 * 1000, dnsTimeoutMs = 4000, dnsAttempts = 2, now = () => Date.now(), log = message => console.warn(message),
+    idleSocketMs = 4000 } = {}) {
     let active = 0;
     const perHost = new Map();
+    // Cache só de endereços já aprovados por publicAddress(). Cada uso passa de
+    // novo pela checagem e o socket continua preso ao IP aprovado (sem DNS
+    // implícito), então a proteção contra SSRF/rebinding não muda.
+    const dnsCache = new Map();
+    const safeAddresses = addresses => Array.isArray(addresses) && addresses.length > 0 && addresses.every(item => publicAddress(item?.address));
+    async function lookupOnce(hostname) {
+        let timer;
+        try {
+            return await Promise.race([
+                Promise.resolve().then(() => lookup(hostname, { all: true, verbatim: true })),
+                new Promise((_, reject) => { timer = setTimeout(() => reject(dnsUnavailable(hostname)), dnsTimeoutMs); }),
+            ]);
+        } finally { clearTimeout(timer); }
+    }
+    async function lookupHost(hostname) {
+        const cached = dnsCache.get(hostname);
+        if (cached && dnsCacheMs > 0 && now() - cached.at < dnsCacheMs && safeAddresses(cached.addresses)) return cached.addresses;
+        for (let attempt = 0; attempt < Math.max(1, dnsAttempts); attempt++) {
+            let addresses;
+            try { addresses = await lookupOnce(hostname); } catch { continue; }
+            // Resposta que aponta para faixa interna é recusa definitiva: nunca cai no cache antigo.
+            if (!safeAddresses(addresses)) throw denied();
+            if (dnsCacheMs > 0) {
+                if (!dnsCache.has(hostname) && dnsCache.size >= 256) dnsCache.delete(dnsCache.keys().next().value);
+                dnsCache.set(hostname, { addresses, at: now() });
+            }
+            return addresses;
+        }
+        if (cached && dnsStaleMs > 0 && now() - cached.at < dnsStaleMs && safeAddresses(cached.addresses)) {
+            log(`[sgp-outbound] DNS indisponível para ${hostname}; usando endereço aprovado em cache.`);
+            return cached.addresses;
+        }
+        log(`[sgp-outbound] DNS indisponível para ${hostname}.`);
+        throw dnsUnavailable(hostname);
+    }
     async function resolve(value) {
         const url = parseSgpUrl(value);
         const hostname = url.hostname.replace(/^\[|\]$/g, '');
-        let addresses;
-        let timer;
-        try { addresses = net.isIP(hostname) ? [{ address: hostname, family: net.isIP(hostname) }] : await Promise.race([
-            lookup(hostname, { all: true, verbatim: true }),
-            new Promise((_, reject) => { timer = setTimeout(() => reject(denied()), 5000); }),
-        ]); }
-        catch { throw denied(); }
-        finally { clearTimeout(timer); }
-        if (!Array.isArray(addresses) || !addresses.length || addresses.some(item => !publicAddress(item.address))) throw denied();
+        const addresses = net.isIP(hostname) ? [{ address: hostname, family: net.isIP(hostname) }] : await lookupHost(hostname);
+        if (!safeAddresses(addresses)) throw denied();
         return { url, hostname, address: addresses[0].address, family: net.isIP(addresses[0].address) };
     }
 
     async function assertSafeSgpBaseUrl(value) { return (await resolve(value)).url.href.replace(/\/$/, ''); }
+
+    // Um agente keep-alive por host+porta+IP aprovado: conexões TLS ao ERP são
+    // reaproveitadas entre pedidos (o IXC/SGP fica bem mais rápido em rajadas).
+    // Cada socket só entra no pool depois de validar o IP remoto (o mesmo que o
+    // DNS aprovou) e o certificado; um IP novo gera outro agente, nunca reusa.
+    const agents = new Map();
+    function agentFor({ encrypted, hostname, address, family, port }) {
+        const key = `${encrypted ? 'https' : 'http'}|${hostname}|${port}|${address}`;
+        const existing = agents.get(key);
+        if (existing) { agents.delete(key); agents.set(key, existing); return existing; }
+        const agent = encrypted
+            ? new https.Agent({ keepAlive: true, keepAliveMsecs: 1000, maxSockets: 16, maxFreeSockets: 8, timeout: idleSocketMs, scheduling: 'lifo' })
+            : new http.Agent({ keepAlive: true, keepAliveMsecs: 1000, maxSockets: 16, maxFreeSockets: 8, timeout: idleSocketMs, scheduling: 'lifo' });
+        agent.createConnection = (_options, callback) => {
+            const socketOptions = { host: address, family, port };
+            const socket = encrypted ? tlsConnect({ ...socketOptions, servername: net.isIP(hostname) ? undefined : hostname,
+                rejectUnauthorized: true, checkServerIdentity: (_host, cert) => tls.checkServerIdentity(hostname, cert) }) : connect(socketOptions);
+            let done = false;
+            const finish = error => { if (done) return; done = true; if (error) socket.destroy(); callback(error, error ? undefined : socket); };
+            socket.once('error', finish);
+            socket.once(encrypted ? 'secureConnect' : 'connect', () => {
+                const peer = socket.remoteAddress?.replace(/^::ffff:/, '');
+                let same = peer === address;
+                if (net.isIP(peer) === 6 && family === 6) same = new URL(`http://[${peer}]`).hostname === new URL(`http://[${address}]`).hostname;
+                if (!same || (encrypted && !socket.authorized)) return finish(denied());
+                finish(null);
+            });
+            return undefined;
+        };
+        // Agente antigo sai do mapa sem destruir: pedidos em curso terminam e os
+        // sockets ociosos fecham sozinhos pelo `timeout`.
+        if (agents.size >= 64) agents.delete(agents.keys().next().value);
+        agents.set(key, agent);
+        return agent;
+    }
 
     async function request(value, body, options = {}) {
         // No axios config, adapter, destination, agent, lookup, proxy or header
@@ -121,37 +192,24 @@ function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect
         const payload = method === 'GET' ? '' : form ? (body instanceof URLSearchParams ? body.toString() : new URLSearchParams(Object.entries(body || {}).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => [k, String(v)])).toString()) : JSON.stringify(body ?? {});
         if (Buffer.byteLength(payload) > 1024 * 1024) throw denied();
         const encrypted = url.protocol === 'https:';
-        if (active >= 128 || (perHost.get(url.host) || 0) >= 16) throw denied();
+        // O agente limita os sockets simultâneos (fila); este teto só barra excesso.
+        if (active >= 256 || (perHost.get(url.host) || 0) >= 64) throw denied();
         active++; perHost.set(url.host, (perHost.get(url.host) || 0) + 1);
-        const agent = encrypted ? new https.Agent({ maxSockets: 16 }) : new http.Agent({ maxSockets: 16 });
         // Return the socket only AFTER peer validation / TLS authentication.
         // Request bytes (including GET query secrets) cannot precede this gate.
-        let connection;
-        agent.createConnection = (_options, callback) => {
-            const socketOptions = { host: address, family, port: Number(url.port) || (encrypted ? 443 : 80) };
-            const socket = encrypted ? tlsConnect({ ...socketOptions, servername: net.isIP(hostname) ? undefined : hostname,
-                rejectUnauthorized: true, checkServerIdentity: (_host, cert) => tls.checkServerIdentity(hostname, cert) }) : connect(socketOptions);
-            connection = socket;
-            let done = false;
-            const finish = error => { if (done) return; done = true; if (error) socket.destroy(); callback(error, error ? undefined : socket); };
-            socket.once('error', finish);
-            socket.once(encrypted ? 'secureConnect' : 'connect', () => {
-                const peer = socket.remoteAddress?.replace(/^::ffff:/, '');
-                let same = peer === address;
-                if (net.isIP(peer) === 6 && family === 6) same = new URL(`http://[${peer}]`).hostname === new URL(`http://[${address}]`).hostname;
-                if (!same || (encrypted && !socket.authorized)) return finish(denied());
-                finish(null);
-            });
-            return undefined;
-        };
-        return new Promise((accept, reject) => {
+        const agent = agentFor({ encrypted, hostname, address, family, port: Number(url.port) || (encrypted ? 443 : 80) });
+        const send = retried => new Promise((accept, reject) => {
             let timer;
-            const fail = error => { clearTimeout(timer); connection?.destroy(); agent.destroy(); reject(error); };
-            const req = (encrypted ? https : http).request(url, { method, agent, headers: {
+            let responded = false;
+            let settled = false;
+            let req;
+            const fail = error => { clearTimeout(timer); req?.destroy(); if (!settled) { settled = true; reject(error); } };
+            req = (encrypted ? https : http).request(url, { method, agent, headers: {
                 'User-Agent': 'Unify-SGP/1.0',
                 ...extraHeaders,
                 ...(method === 'POST' ? { 'Content-Type': form ? 'application/x-www-form-urlencoded' : 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
             } }, res => {
+                responded = true;
                 // No redirect is followed, even within the same origin.
                 if (res.statusCode < 200 || res.statusCode >= 300) {
                     if (res.statusCode >= 400 && res.statusCode < 500) {
@@ -165,10 +223,12 @@ function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect
                         });
                         res.on('error', () => fail(Object.assign(new Error(`SGP retornou HTTP ${res.statusCode}`), { response: { status: res.statusCode } })));
                         res.on('end', () => {
+                            clearTimeout(timer);
                             const rawErr = Buffer.concat(errChunks).toString('utf8');
                             let errData;
                             try { errData = JSON.parse(rawErr); } catch { errData = undefined; }
-                            fail(Object.assign(new Error(`SGP retornou HTTP ${res.statusCode}`), { response: { status: res.statusCode, data: errData } }));
+                            settled = true;
+                            reject(Object.assign(new Error(`SGP retornou HTTP ${res.statusCode}`), { response: { status: res.statusCode, data: errData } }));
                         });
                         return;
                     }
@@ -176,26 +236,43 @@ function createSgpTransport({ lookup = (...args) => dns.lookup(...args), connect
                 }
                 let size = 0;
                 const chunks = [];
-                res.on('data', chunk => { size += chunk.length; if (size > 8 * 1024 * 1024) { req.destroy(); fail(new Error('Resposta SGP excede limite.')); } else chunks.push(chunk); });
+                res.on('data', chunk => { size += chunk.length; if (size > 8 * 1024 * 1024) fail(new Error('Resposta SGP excede limite.')); else chunks.push(chunk); });
                 res.on('error', fail);
                 res.on('end', () => {
-                    clearTimeout(timer); agent.destroy();
+                    clearTimeout(timer);
                     const raw = Buffer.concat(chunks).toString('utf8');
                     let data = raw;
                     try { data = JSON.parse(raw); } catch { /* preserve text response */ }
+                    if (settled) return;
+                    settled = true;
                     accept({ data, status: res.statusCode, headers: res.headers });
                 });
             });
-            timer = setTimeout(() => { const error = new Error('Timeout SGP.'); req.destroy(error); fail(error); }, timeout);
-            req.on('error', fail);
+            timer = setTimeout(() => fail(new Error('Timeout SGP.')), timeout);
+            req.on('error', error => {
+                // Conexão ociosa fechada pelo ERP antes de ler o pedido: repete uma
+                // vez num socket novo (nenhuma resposta chegou, nada foi processado).
+                if (!retried && !responded && !settled && req.reusedSocket && ['ECONNRESET', 'EPIPE'].includes(error.code)) {
+                    clearTimeout(timer);
+                    settled = true;
+                    send(true).then(accept, reject);
+                    return;
+                }
+                fail(error);
+            });
             req.end(payload);
-        }).finally(() => {
+        });
+        return send(false).finally(() => {
             active--;
             const count = perHost.get(url.host) - 1;
             if (count) perHost.set(url.host, count); else perHost.delete(url.host);
         });
     }
-    return { assertSafeSgpBaseUrl, request };
+    // Para testes e para o operador forçar nova resolução.
+    function clearDnsCache() { dnsCache.clear(); }
+    // Fecha conexões keep-alive (testes e desligamento).
+    function closeIdleConnections() { for (const agent of agents.values()) agent.destroy(); agents.clear(); }
+    return { assertSafeSgpBaseUrl, request, clearDnsCache, closeIdleConnections };
 }
 
-export default { publicAddress, parseSgpUrl, formatSgpUrl, privateIntegration, safeHeaders, createSgpTransport, ...createSgpTransport() };
+export default { publicAddress, parseSgpUrl, formatSgpUrl, privateIntegration, safeHeaders, createSgpTransport, dnsUnavailable, DNS_UNAVAILABLE_MESSAGE, ...createSgpTransport() };

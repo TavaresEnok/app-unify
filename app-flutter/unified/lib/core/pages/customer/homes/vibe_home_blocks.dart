@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../vibe/vibe_controls.dart';
 import '../../../vibe/vibe_home_parts.dart';
 import '../../../vibe/vibe_icon.dart';
 import '../../../vibe/vibe_invoice.dart';
+import '../../../vibe/vibe_skeleton.dart';
 import '../../../vibe/vibe_text.dart';
 import '../../../vibe/vibe_tokens.dart';
 import '../../invoice_detail_page.dart';
@@ -11,194 +11,253 @@ import 'vibe_home_data.dart';
 
 /// Blocos comuns aos cinco Inícios do layout aprovado.
 
-/// Formato do cartão de fatura do Início, usado para manter exatamente a
-/// mesma altura e anatomia do cartão enquanto a consulta está em andamento.
-enum VibeInvoiceSlotVariant { sheet, blocks, ribbon, centered }
+/// O cartão da fatura do Início em qualquer situação da consulta.
+///
+/// Os cinco layouts desenham o mesmo cartão em três situações, sempre com a
+/// mesma geometria:
+/// - **carregando** (primeira consulta, nada guardado): o cartão real com
+///   uma fatura de exemplo; rótulos, ícones, moldura do selo e botões
+///   aparecem, e só os valores ficam cobertos ([redacted]). Botões a 45%,
+///   sem toque.
+/// - **erro sem dados**: mesmo cartão; a mensagem entra no lugar do valor e
+///   "Tentar novamente" no lugar dos botões de pagamento.
+/// - **dados** (da consulta ou guardados no aparelho): o cartão normal.
+///   Atualizando, aparece só uma barra fina no topo; se a atualização
+///   falhar, uma linha discreta avisa e os botões seguem funcionando.
+class VibeInvoiceSlot {
+  VibeInvoiceSlot(this.billing, {this.onBrand = false, this.color});
 
-/// Situação da consulta de faturas no lugar do cartão (carregando, erro ou
-/// sem fatura). Devolve `null` quando há fatura para mostrar.
-Widget? vibeInvoiceSlotState(
-  BuildContext context,
-  VibeHomeData data, {
-  bool onBrand = false,
-  VibeInvoiceSlotVariant variant = VibeInvoiceSlotVariant.sheet,
-}) {
-  final t = VibeTokens.of(context);
-  final billing = data.billing;
-  final color = onBrand ? t.on : t.ink;
-  final muted = onBrand ? t.on.withValues(alpha: .85) : t.mut;
-  if (billing.main != null && !billing.failed) return null;
-  if (billing.loading && billing.main == null) {
-    return _vibeInvoiceLoading(
-      context,
-      variant: variant,
+  final VibeBilling billing;
+  final bool onBrand;
+
+  /// Cor base das barras em superfícies próprias (cartão escuro da Dock).
+  final Color? color;
+
+  static const failedMessage = 'Não conseguimos consultar agora.';
+  static const slowMessage = 'Ainda consultando… a conexão está lenta.';
+
+  bool get redacted => billing.loading;
+  bool get failed => billing.failed;
+
+  /// Consulta concluída sem nenhuma fatura: "Sem fatura emitida".
+  bool get empty => billing.ready && billing.main == null;
+
+  /// A fatura do cartão, ou a de exemplo enquanto carrega ou no erro.
+  VibeInvoiceView? get view =>
+      billing.main ?? (redacted || failed ? billing.placeholder : null);
+
+  VoidCallback get retry => billing.finance.fetchHistory;
+
+  /// Valor coberto enquanto carrega.
+  Widget value(Widget child, {bool block = false}) => VibeRedact(
+      redacted: redacted,
       onBrand: onBrand,
       color: color,
-      muted: muted,
+      block: block,
+      child: child);
+
+  /// "Fatura de novembro": o "Fatura de" fica visível e só o mês é coberto;
+  /// no erro, "Fatura de —".
+  Widget title(String prefix, String value, TextStyle style,
+      {TextAlign textAlign = TextAlign.start}) {
+    if (!redacted && !failed) {
+      return Text('$prefix$value', style: style, textAlign: textAlign);
+    }
+    // O mês entra como um bloco na mesma linha do texto, com a medida da
+    // palavra de exemplo: quebra de linha igual à do título real. No erro,
+    // "—" ocupa o mesmo lugar.
+    final word = Text(value, style: style, textScaler: TextScaler.noScaling);
+    final Widget slotChild = failed
+        ? Stack(alignment: AlignmentDirectional.centerStart, children: [
+            _invisible(word),
+            Text('—', style: style, textScaler: TextScaler.noScaling),
+          ])
+        : this.value(word);
+    return Text.rich(
+      TextSpan(text: prefix, children: [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: slotChild,
+        ),
+      ]),
+      style: style,
+      textAlign: textAlign,
+      semanticsLabel: failed ? '$prefix—' : prefix.trim(),
     );
   }
-  if (billing.failed) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Não foi possível carregar suas faturas.',
-          style: vibeText(t, 15, 700, color: color)),
-      const SizedBox(height: 10),
-      VibeButton(
-        label: 'Tentar novamente',
-        icon: 'g-refresh',
-        size: VibeButtonSize.small,
-        kind: onBrand ? VibeButtonKind.white : VibeButtonKind.primary,
-        onPressed: billing.finance.fetchHistory,
-      ),
-    ]);
+
+  /// Texto do selo (o ícone e a moldura ficam).
+  String chipLabel(VibeInvoiceView view) => failed ? 'Indisponível' : view.chip;
+
+  /// Valor da fatura; no erro sem dados, a mensagem no mesmo espaço.
+  /// [frame] posiciona o valor (alinhamento, FittedBox) sem entrar na barra.
+  Widget amount(BuildContext context, Widget amount,
+      {Widget Function(Widget)? frame,
+      TextStyle? messageStyle,
+      AlignmentGeometry alignment = Alignment.centerLeft,
+      TextAlign textAlign = TextAlign.start}) {
+    final place = frame ?? (Widget w) => w;
+    if (!failed) return place(value(amount));
+    final t = VibeTokens.of(context);
+    return _overlay(
+        place(amount),
+        Align(
+          alignment: alignment,
+          child: Text(failedMessage,
+              textAlign: textAlign,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: messageStyle ??
+                  vibeText(t, 15, 700,
+                      color: color ?? (onBrand ? t.on : t.ink), height: 1.25)),
+        ));
   }
-  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text('Sem fatura emitida', style: vibeText(t, 18, 750, color: color)),
-    const SizedBox(height: 4),
-    Text(
-        billing.finance.incompleteInvoices > 0
-            ? 'Algumas faturas estão com dados incompletos. Consulte o provedor.'
-            : 'A próxima mensalidade aparecerá aqui.',
-        style: vibeText(t, 14, 500, color: muted)),
-  ]);
+
+  /// Linha de vencimento: coberta enquanto carrega (e, se demorar, troca
+  /// pelo aviso de conexão lenta); no erro, guarda o espaço vazio.
+  Widget due(Widget line, {Widget? slow}) {
+    if (failed) return _invisible(line);
+    if (!redacted || slow == null) return line;
+    return VibeSlowSwap(waiting: redacted, slow: slow, child: line);
+  }
+
+  /// Botões de pagamento: a 45% e sem toque enquanto carrega; no erro sem
+  /// dados, [retryButton] no lugar.
+  Widget actions(Widget child, {Widget? retryButton, bool keepSize = true}) {
+    if (failed && retryButton != null) {
+      if (!keepSize) return retryButton;
+      // A área dos botões de pagamento continua com a mesma altura (inclusive
+      // com fonte ampliada); "Tentar novamente" fica no meio dela.
+      return Stack(children: [
+        _invisible(child),
+        Positioned.fill(
+          child: Align(
+              child: SizedBox(width: double.infinity, child: retryButton)),
+        ),
+      ]);
+    }
+    return VibeDimmed(dimmed: redacted, child: child);
+  }
+
+  /// Semântica do cartão inteiro: "Consultando suas faturas" para quem usa
+  /// leitor de tela; o texto não aparece na tela.
+  Widget semantics(Widget child) => Semantics(
+        container: true,
+        liveRegion: redacted || failed,
+        label: redacted
+            ? 'Consultando suas faturas'
+            : failed
+                ? failedMessage
+                : null,
+        child: child,
+      );
+
+  static Widget _invisible(Widget child) => ExcludeSemantics(
+        child: IgnorePointer(
+          child: Visibility(
+              visible: false,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: child),
+        ),
+      );
+
+  /// Mantém o tamanho de [sizing] (largura total) e mostra [overlay] por
+  /// cima, ocupando o mesmo espaço.
+  static Widget _overlay(Widget sizing, Widget overlay) => Stack(children: [
+        SizedBox(
+            width: double.infinity,
+            child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: _invisible(sizing))),
+        Positioned.fill(child: overlay),
+      ]);
+
+  /// Mesmo espaço de [sizing], com [overlay] por cima (para o erro sem
+  /// dados em linhas com valor e botão lado a lado).
+  static Widget overlay(Widget sizing, Widget overlay) =>
+      _overlay(sizing, overlay);
 }
 
-Widget _vibeInvoiceLoading(
-  BuildContext context, {
-  required VibeInvoiceSlotVariant variant,
-  required bool onBrand,
-  required Color color,
-  required Color muted,
-}) {
+/// "Sem fatura emitida" quando a consulta terminou sem nenhuma fatura.
+Widget? vibeEmptyInvoice(BuildContext context, VibeHomeData data,
+    {bool onBrand = false, bool center = false}) {
+  final billing = data.billing;
+  if (!(billing.ready && billing.main == null)) return null;
   final t = VibeTokens.of(context);
-  final Widget child = switch (variant) {
-    VibeInvoiceSlotVariant.sheet => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(children: [
-            Expanded(
-              child: Text('Consultando suas faturas…',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: vibeText(t, 13, 600, color: color)),
-            ),
-            const SizedBox(width: 8),
-            VibeShimmerBar(
-                width: 78, height: 26, radius: 13, onBrand: onBrand),
-          ]),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: VibeShimmerBar(
-                width: 175, height: 44, radius: 10, onBrand: onBrand),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: VibeShimmerBar(
-                width: 160, height: 18, radius: 6, onBrand: onBrand),
-          ),
-          const SizedBox(height: 18),
-          Row(children: [
-            Expanded(
-                child:
-                    VibeShimmerBar(height: 48, radius: 14, onBrand: onBrand)),
-            const SizedBox(width: 8),
-            Expanded(
-                child:
-                    VibeShimmerBar(height: 48, radius: 14, onBrand: onBrand)),
-          ]),
-        ],
+  final color = onBrand ? t.on : t.ink;
+  final muted = onBrand ? t.on.withValues(alpha: .85) : t.mut;
+  final align = center ? TextAlign.center : TextAlign.start;
+  return Column(
+      crossAxisAlignment:
+          center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      children: [
+        Text('Sem fatura emitida',
+            textAlign: align, style: vibeText(t, 18, 750, color: color)),
+        const SizedBox(height: 4),
+        Text(
+            billing.finance.incompleteInvoices > 0
+                ? 'Algumas faturas estão com dados incompletos. Consulte o provedor.'
+                : 'A próxima mensalidade aparecerá aqui.',
+            textAlign: align,
+            style: vibeText(t, 14, 500, color: muted)),
+      ]);
+}
+
+/// Linha discreta quando a atualização falhou ou o celular está sem
+/// internet, com dados já na tela: "Não foi possível atualizar · dados de
+/// 14:32" e "Tentar de novo". Os botões de pagamento seguem funcionando.
+Widget? vibeStaleNote(BuildContext context, VibeHomeData data,
+    {bool onBrand = false, Color? color, bool center = false}) {
+  final billing = data.billing;
+  final asOf = billing.asOf;
+  final offline = data.network == VibeNetwork.offline;
+  if (!billing.hasData || asOf == null) return null;
+  if (!billing.refreshFailed && !(offline && !billing.refreshing)) {
+    return null;
+  }
+  final t = VibeTokens.of(context);
+  final fg = color ?? (onBrand ? t.on.withValues(alpha: .88) : t.mut);
+  final text = Text.rich(
+    TextSpan(children: [
+      TextSpan(text: offline ? 'Sem conexão' : 'Desatualizado'),
+      TextSpan(text: ' · dados de ${vibeAsOf(asOf)}'),
+      if (!offline)
+        TextSpan(
+            text: ' · Tentar de novo',
+            style: vibeText(t, 12, 750, color: fg).copyWith(
+                decoration: TextDecoration.underline, decorationColor: fg)),
+    ]),
+    maxLines: 2,
+    overflow: TextOverflow.ellipsis,
+    textAlign: center ? TextAlign.center : TextAlign.start,
+    style: vibeText(t, 12, 600, color: fg),
+  );
+  final row = Row(
+      mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
+      children: [
+        VibeIcon(offline ? 'wifi' : 'alert', size: 14, color: fg),
+        const SizedBox(width: 6),
+        Flexible(child: text),
+      ]);
+  return Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: Semantics(
+      liveRegion: true,
+      button: !offline,
+      child: InkWell(
+        onTap: offline ? null : billing.finance.fetchHistory,
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 32),
+          child: Align(
+              alignment: center ? Alignment.center : Alignment.centerLeft,
+              child: row),
+        ),
       ),
-    VibeInvoiceSlotVariant.blocks => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(children: [
-            Expanded(
-              child: Text('Consultando suas faturas…',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: vibeText(t, 15, 700, color: color)),
-            ),
-            const SizedBox(width: 8),
-            VibeShimmerBar(
-                width: 78, height: 26, radius: 13, onBrand: onBrand),
-          ]),
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: VibeShimmerBar(
-                width: 165, height: 40, radius: 10, onBrand: onBrand),
-          ),
-          const SizedBox(height: 14),
-          Row(children: [
-            VibeShimmerBar(
-                width: 115, height: 18, radius: 6, onBrand: onBrand),
-            const Spacer(),
-            VibeShimmerBar(
-                width: 120, height: 40, radius: 12, onBrand: onBrand),
-          ]),
-        ],
-      ),
-    VibeInvoiceSlotVariant.ribbon => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(children: [
-            Expanded(
-              child: Text('Consultando suas faturas…',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: vibeText(t, 13, 600, color: muted)),
-            ),
-            const SizedBox(width: 8),
-            VibeShimmerBar(
-                width: 78, height: 26, radius: 13, onBrand: onBrand),
-          ]),
-          const SizedBox(height: 10),
-          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            VibeShimmerBar(
-                width: 135, height: 32, radius: 8, onBrand: onBrand),
-            const Spacer(),
-            VibeShimmerBar(
-                width: 120, height: 40, radius: 12, onBrand: onBrand),
-          ]),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: VibeShimmerBar(
-                width: 165, height: 18, radius: 6, onBrand: onBrand),
-          ),
-        ],
-      ),
-    VibeInvoiceSlotVariant.centered => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Consultando suas faturas…',
-              textAlign: TextAlign.center,
-              style: vibeText(t, 13, 600, color: color)),
-          const SizedBox(height: 8),
-          Center(
-            child: VibeShimmerBar(
-                width: 185, height: 48, radius: 10, onBrand: onBrand),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: VibeShimmerBar(
-                width: 86, height: 26, radius: 13, onBrand: onBrand),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: VibeShimmerBar(
-                width: 155, height: 18, radius: 6, onBrand: onBrand),
-          ),
-          const SizedBox(height: 16),
-          VibeShimmerBar(height: 48, radius: 14, onBrand: onBrand),
-        ],
-      ),
-  };
-  return Semantics(
-    label: 'Consultando suas faturas',
-    liveRegion: true,
-    child: child,
+    ),
   );
 }
 
@@ -252,7 +311,8 @@ Widget vibePayButton(
       size: size,
       onBrand: onBrand,
       dense: dense,
-      onPressed: () => VibeInvoiceActions.copyPix(context, invoice),
+      onPressed: () =>
+          VibeInvoiceActions.copyPix(context, invoice, asOf: view.asOf),
     );
   }
   if (view.hasBoleto) {
@@ -274,7 +334,8 @@ Widget vibePayButton(
       size: size,
       onBrand: onBrand,
       dense: dense,
-      onPressed: () => VibeInvoiceActions.copyLine(context, invoice),
+      onPressed: () =>
+          VibeInvoiceActions.copyLine(context, invoice, asOf: view.asOf),
     );
   }
   return VibeButton(

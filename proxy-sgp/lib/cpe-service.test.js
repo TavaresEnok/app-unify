@@ -42,15 +42,28 @@ const real = {
 
 test('normaliza a resposta real: redes, aparelho e hosts sem duplicar', () => {
   const { networks, device } = normalizeCpeWifiResponse(real, wifiNetworks);
-  assert.deepEqual(networks.map((n) => [n.id, n.ssid, n.frequency, n.enabled, n.channel]), [
-    ['1-1', 'Casa-5G', '5GHz', true, '44'], ['1-6', 'Casa', '2.4GHz', true, '11'], ['1-7', 'AP-1', '2.4GHz', false, '11'],
-  ]);
+  assert.deepEqual(networks.map((n) => [n.id, n.ssid, n.frequency, n.enabled, n.channel, n.mode]), [
+    ['1-1', 'Casa-5G', '5GHz', true, '44', 'ac'], ['1-6', 'Casa', '2.4GHz', true, '11', ''],
+  ], 'rede virtual desativada (1-7) não aparece');
   assert.ok(networks.every((n) => !('password' in n)), 'exibir_wifi_senha=false nunca expõe senha');
   assert.deepEqual([device.manager, device.manufacturer, device.firmware, device.wanIp, device.wanUptimeSeconds], ['genieacs', 'NV21', 'V7.0.1', '10.0.0.2', 30718]);
   assert.deepEqual(device.hosts, [
     { mac: 'AA:BB:CC:00:00:01', hostname: 'celular', ip: '192.168.1.8', interfaceType: 'wifi_2g', rssiDbm: null },
     { mac: 'AA:BB:CC:00:00:02', hostname: '', ip: '192.168.1.3', interfaceType: 'wifi_5g', rssiDbm: -61 },
   ]);
+});
+
+test('passwordReadable acompanha exibir_wifi_senha', () => {
+  assert.equal(normalizeCpeWifiResponse(real, wifiNetworks).passwordReadable, false);
+  assert.equal(normalizeCpeWifiResponse(real, wifiNetworks).device.passwordReadable, false);
+  assert.equal(normalizeCpeWifiResponse({ ...real, cpe_manager: { exibir_wifi_senha: true } }, wifiNetworks).passwordReadable, true);
+});
+
+test('redes virtuais só aparecem quando o template do SGP permite', () => {
+  const shown = normalizeCpeWifiResponse({ ...real, cpe_template: { exibir: { wifi_virtual: true } } }, wifiNetworks);
+  assert.deepEqual(shown.networks.map((n) => n.id), ['1-1', '1-6', '1-7']);
+  const allOff = { ...real, result: { ...real.result, wifi_id: '1-6', interface_info: { wlan_interfaces: real.result.interface_info.wlan_interfaces.map((w) => ({ ...w, enabled: false })) } } };
+  assert.deepEqual(normalizeCpeWifiResponse(allOff, wifiNetworks).networks.map((n) => n.id), ['1-1', '1-6'], 'mantém a principal de cada banda');
 });
 
 test('exibe senha só quando o SGP permite', () => {

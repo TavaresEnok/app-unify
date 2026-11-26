@@ -5,14 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/fatura.dart';
 import '../../../utils/app_formatters.dart';
-import '../../../vibe/vibe_controls.dart';
 import '../../../vibe/vibe_home_parts.dart';
 import '../../../vibe/vibe_icon.dart';
 import '../../../vibe/vibe_invoice.dart';
+import '../../../vibe/vibe_skeleton.dart';
 import '../../../vibe/vibe_page_parts.dart' show VibeGap;
 import '../../../vibe/vibe_text.dart';
 import '../../../vibe/vibe_tokens.dart';
 import '../../invoice_detail_page.dart';
+import 'vibe_home_blocks.dart';
 import 'vibe_home_data.dart';
 
 /// 2º lugar — Dock de serviços (layout_03, conceito 22 da página das nove
@@ -63,30 +64,41 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
     }
     final stale = open.length > 1 && chosen == null && _selected != null;
     final view = open.length > 1
-        ? (chosen == null ? null : VibeInvoiceView(chosen))
+        ? (chosen == null ? null : billing.view(chosen))
         : billing.main;
 
     final children = <Widget>[];
     if (data.can('invoices')) {
-      if (open.length > 1) {
-        children.add(_choice(context, open, chosen, billing));
-      }
-      if (stale) {
-        children.add(_message(
-            context, 'A fatura selecionada mudou. Selecione novamente.'));
-      } else {
-        children.add(_invoiceCard(context, data, view));
-      }
+      // A escolha do mês e o aviso de atraso abrem em 220 ms quando a
+      // primeira consulta chega (sem dados guardados), em vez de empurrar o
+      // resto da tela de uma vez.
       final alert = _trust(context, data);
-      if (alert != null) children.add(alert);
+      children.add(
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        VibeReveal(
+            child: open.length > 1
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _choice(context, open, chosen, billing))
+                : const SizedBox(width: double.infinity)),
+        if (stale)
+          _message(context, 'A fatura selecionada mudou. Selecione novamente.')
+        else
+          _invoiceCard(context, data, view),
+        VibeReveal(
+            child: alert != null
+                ? Padding(padding: const EdgeInsets.only(top: 10), child: alert)
+                : const SizedBox(width: double.infinity)),
+      ]));
     }
     children.add(_services(context, data));
     final promos = data.promos(context);
-    if (promos.isNotEmpty) {
-      children.add(_offers(context, promos));
-    } else if (billing.overdue || data.suspended) {
-      children.add(_installation(context, data));
-    }
+    final Widget? extra = promos.isNotEmpty
+        ? _offers(context, promos)
+        : billing.overdue || data.suspended
+            ? _installation(context, data)
+            : null;
+    if (extra != null) children.add(VibeReveal(child: extra));
     if (data.can('notifications')) {
       children.add(_listRow(context, 'i-bell', 'Avisos do provedor',
           () => data.onNavigate('notifications')));
@@ -102,7 +114,11 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
       color: p.base,
       child: widget.onRefresh == null
           ? list
-          : RefreshIndicator(onRefresh: widget.onRefresh!, child: list),
+          : RefreshIndicator(
+              onRefresh: widget.onRefresh!,
+              color: p.mark,
+              backgroundColor: p.card,
+              child: list),
     );
   }
 
@@ -206,47 +222,36 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
     );
   }
 
-  /// Cartão escuro da fatura (`.fl-invoice.layout-dock`).
+  /// Cartão escuro da fatura (`.fl-invoice.layout-dock`). Carregando ou no
+  /// erro sem dados, o mesmo cartão com uma fatura de exemplo coberta.
   Widget _invoiceCard(
-      BuildContext context, VibeHomeData data, VibeInvoiceView? view) {
+      BuildContext context, VibeHomeData data, VibeInvoiceView? realView) {
     final t = VibeTokens.of(context);
     final p = t.dock!;
     final billing = data.billing;
+    final slot = VibeInvoiceSlot(billing, color: p.hink);
+    final view = realView ?? slot.view;
+    final stale = vibeStaleNote(context, data, color: p.hmuted);
     Widget body;
-    if (view == null || billing.failed) {
-      if (billing.loading) {
-        body = _invoiceLoading(context);
-      } else if (billing.failed) {
-        body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Faturas indisponíveis',
-              style:
-                  vibeText(t, 18, 700, color: p.hink, letterSpacingEm: -.03)),
-          const SizedBox(height: 4),
-          Text('Não foi possível consultar as mensalidades.',
-              style: vibeText(t, 14, 500, color: p.hmuted)),
-          const SizedBox(height: 10),
-          _dockButton(context, 'i-history', 'Tentar novamente', true,
-              billing.finance.fetchHistory),
-        ]);
-      } else {
-        body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Sem fatura emitida',
-              style:
-                  vibeText(t, 18, 700, color: p.hink, letterSpacingEm: -.03)),
-          const SizedBox(height: 4),
-          Text(
-              billing.finance.incompleteInvoices > 0
-                  ? 'Algumas faturas estão com dados incompletos. Consulte o provedor.'
-                  : 'A próxima mensalidade aparecerá aqui.',
-              style: vibeText(t, 14, 500, color: p.hmuted)),
-        ]);
-      }
+    if (view == null) {
+      body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Sem fatura emitida',
+            style: vibeText(t, 18, 700, color: p.hink, letterSpacingEm: -.03)),
+        const SizedBox(height: 4),
+        Text(
+            billing.finance.incompleteInvoices > 0
+                ? 'Algumas faturas estão com dados incompletos. Consulte o provedor.'
+                : 'A próxima mensalidade aparecerá aqui.',
+            style: vibeText(t, 14, 500, color: p.hmuted)),
+      ]);
     } else {
-      final chipIcon = view.paid
-          ? 'i-check'
-          : view.overdue
-              ? 'i-clock'
-              : 'i-calendar';
+      final chipIcon = slot.failed
+          ? 'i-clock'
+          : view.paid
+              ? 'i-check'
+              : view.overdue
+                  ? 'i-clock'
+                  : 'i-calendar';
       final invoice = view.invoice;
       final buttons = <Widget>[
         if (view.paid)
@@ -254,8 +259,13 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
               () => data.onNavigate('invoices'))
         else ...[
           if (view.hasPix)
-            _dockButton(context, 'i-pix', 'Copiar Pix', true,
-                () => VibeInvoiceActions.copyPix(context, invoice)),
+            _dockButton(
+                context,
+                'i-pix',
+                'Copiar Pix',
+                true,
+                () => VibeInvoiceActions.copyPix(context, invoice,
+                    asOf: view.asOf)),
           if (view.hasBoleto)
             _dockButton(context, 'i-boleto', 'Ver boleto', !view.hasPix,
                 () => VibeInvoiceActions.openBoleto(context, invoice)),
@@ -265,19 +275,26 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                 'i-copy',
                 'Copiar código de barras',
                 !view.hasPix && !view.hasBoleto,
-                () => VibeInvoiceActions.copyLine(context, invoice)),
+                () => VibeInvoiceActions.copyLine(context, invoice,
+                    asOf: view.asOf)),
           if (!view.hasPaymentData)
             _dockButton(context, 'i-support', 'Consultar suporte', false,
                 () => data.onNavigate('support')),
         ],
       ];
+      final amountStyle = vibeText(t, 46, 620,
+          color: p.hink, height: 1.02, letterSpacingEm: -.0565);
+      final dueStyle = vibeText(t, 14, 500,
+          color: p.hmuted, height: 1.35, letterSpacingEm: -.009);
       body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(
             child: Semantics(
               header: true,
-              child: Text('Fatura de ${view.month}',
-                  style: vibeText(t, 14, 650,
+              child: slot.title(
+                  'Fatura de ',
+                  view.month,
+                  vibeText(t, 14, 650,
                       color: p.hink, height: 1.3, letterSpacingEm: -.017)),
             ),
           ),
@@ -290,9 +307,9 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               VibeIcon(chipIcon, size: 14, strokeWidth: 1.7, color: p.hink),
               const SizedBox(width: 4),
-              Text(view.chip,
+              slot.value(Text(slot.chipLabel(view),
                   style: vibeText(t, 12, 650,
-                      color: p.hink, height: 1.2, letterSpacingEm: -.0175)),
+                      color: p.hink, height: 1.2, letterSpacingEm: -.0175))),
             ]),
           ),
         ]),
@@ -302,11 +319,10 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
               BoxDecoration(border: Border(top: BorderSide(color: p.hthin))),
           padding: const EdgeInsets.symmetric(vertical: 8),
           child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text.rich(
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            slot.amount(
+              context,
+              Text.rich(
                 TextSpan(children: [
                   TextSpan(
                       text: 'R\$ ',
@@ -316,101 +332,81 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                       text: AppFormatters.currency(invoice.valor)
                           .replaceFirst('R\$', '')
                           .trim(),
-                      style: vibeText(t, 46, 620,
-                          color: p.hink,
-                          height: 1.02,
-                          letterSpacingEm: -.0565)),
+                      style: amountStyle),
                 ]),
                 semanticsLabel: AppFormatters.currency(invoice.valor),
               ),
+              frame: (amount) => Align(
+                alignment: Alignment.centerLeft,
+                child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: amount),
+              ),
+              messageStyle: vibeText(t, 15, 650,
+                  color: p.hink, height: 1.2, letterSpacingEm: -.02),
             ),
             const SizedBox(height: 5),
-            Text(view.dueLong,
-                style: vibeText(t, 14, 500,
-                    color: p.hmuted, height: 1.35, letterSpacingEm: -.009)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: slot.due(
+                slot.value(Text(view.dueLong, style: dueStyle)),
+                slow: Text(VibeInvoiceSlot.slowMessage,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: dueStyle),
+              ),
+            ),
           ]),
         ),
         const SizedBox(height: 10),
-        if (buttons.length == 1)
-          buttons.first
-        else
-          IntrinsicHeight(
-            child:
-                Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Expanded(child: buttons[0]),
-              const SizedBox(width: 8),
-              Expanded(child: buttons[1]),
-            ]),
-          ),
-        if (buttons.length > 2) ...[const SizedBox(height: 8), buttons[2]],
+        slot.actions(
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (buttons.length == 1)
+              buttons.first
+            else
+              IntrinsicHeight(
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: buttons[0]),
+                      const SizedBox(width: 8),
+                      Expanded(child: buttons[1]),
+                    ]),
+              ),
+            if (buttons.length > 2) ...[const SizedBox(height: 8), buttons[2]],
+          ]),
+          retryButton: _dockButton(
+              context, 'i-history', 'Tentar novamente', true, slot.retry),
+        ),
+        VibeReveal(child: stale ?? const SizedBox(width: double.infinity)),
       ]);
     }
-    return Semantics(
-      container: true,
-      child: GestureDetector(
-        onTap: view == null
-            ? null
-            : () => openSubscriberInvoice(context, view.invoice),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 19),
-          decoration: BoxDecoration(
-            color: p.hero,
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(17),
-                topRight: Radius.circular(17),
-                bottomLeft: Radius.circular(4),
-                bottomRight: Radius.circular(4)),
-            border: Border.all(color: p.hthin),
-          ),
+    final tappable = realView != null && !slot.redacted && !slot.failed;
+    return slot.semantics(GestureDetector(
+      onTap: tappable
+          ? () => openSubscriberInvoice(context, realView.invoice)
+          : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 19),
+        decoration: BoxDecoration(
+          color: p.hero,
+          borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(17),
+              topRight: Radius.circular(17),
+              bottomLeft: Radius.circular(4),
+              bottomRight: Radius.circular(4)),
+          border: Border.all(color: p.hthin),
+        ),
+        child: VibeRefreshEdge(
+          active: billing.refreshing,
+          color: p.mark,
+          top: -18,
+          inset: 4,
           child: body,
         ),
       ),
-    );
-  }
-
-  Widget _invoiceLoading(BuildContext context) {
-    final t = VibeTokens.of(context);
-    final p = t.dock!;
-    return Semantics(
-      label: 'Consultando suas faturas',
-      liveRegion: true,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          Expanded(
-            child: Semantics(
-              header: true,
-              child: Text('Consultando suas faturas…',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: vibeText(t, 14, 650,
-                      color: p.hink, height: 1.3, letterSpacingEm: -.017)),
-            ),
-          ),
-          const SizedBox(width: 8),
-          VibeShimmerBar(width: 78, height: 26, radius: 99, color: p.hink),
-        ]),
-        const SizedBox(height: 11),
-        Container(
-          decoration:
-              BoxDecoration(border: Border(top: BorderSide(color: p.hthin))),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            VibeShimmerBar(width: 170, height: 47, radius: 10, color: p.hink),
-            const SizedBox(height: 5),
-            VibeShimmerBar(width: 155, height: 19, radius: 6, color: p.hink),
-          ]),
-        ),
-        const SizedBox(height: 10),
-        Row(children: [
-          Expanded(
-              child: VibeShimmerBar(height: 44, radius: 10, color: p.hink)),
-          const SizedBox(width: 8),
-          Expanded(
-              child: VibeShimmerBar(height: 44, radius: 10, color: p.hink)),
-        ]),
-      ]),
-    );
+    ));
   }
 
   Widget _dockButton(BuildContext context, String icon, String label, bool main,

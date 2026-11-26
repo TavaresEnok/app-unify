@@ -35,4 +35,33 @@ void main() {
     expect(find.byTooltip('Mostrar senha'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+      'CPF com dígito verificador errado avisa uma vez e depois deixa tentar',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(overrides: [
+      authNotifierProvider.overrideWith(TestAuth.new),
+      layoutTokensProvider.overrideWithValue(LayoutTokens.of('layout_04')),
+    ], child: const MaterialApp(home: UnifiedLoginPage())));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '52998224724');
+    await tester.tap(find.text('Entrar').last);
+    await tester.pump();
+    expect(find.textContaining('CPF inválido'), findsOneWidget);
+    expect(find.textContaining('toque em Entrar de novo'), findsOneWidget);
+
+    // Mesmo número de novo: segue para o provedor (aqui, sem configuração).
+    await tester.tap(find.text('Entrar').last);
+    await tester.pump();
+    expect(find.textContaining('CPF inválido'), findsNothing);
+    expect(find.text('Erro de configuração. Tente novamente.'), findsOneWidget);
+
+    // CPF incompleto nunca passa.
+    await tester.enterText(find.byType(TextField), '5299822');
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pump();
+    await tester.tap(find.text('Entrar').last);
+    await tester.pump();
+    expect(find.text('CPF incompleto. Confira os 11 números.'), findsOneWidget);
+  });
 }

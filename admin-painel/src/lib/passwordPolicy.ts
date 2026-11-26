@@ -35,3 +35,22 @@ export const PASSWORD_STRENGTH_LABELS = {
   medium: 'Média',
   strong: 'Forte',
 } as const;
+
+/** Senhas de administrador do painel: mínimo de 10 caracteres + regras gerais. */
+export const ADMIN_PASSWORD_MIN_LENGTH = 10;
+
+export function validateAdminPassword(password: string): PasswordValidation {
+  const base = validatePassword(password);
+  const errors = base.errors.filter((error) => error !== 'Mínimo de 8 caracteres');
+  if (password.length < ADMIN_PASSWORD_MIN_LENGTH) errors.unshift(`Mínimo de ${ADMIN_PASSWORD_MIN_LENGTH} caracteres`);
+  return { valid: errors.length === 0, errors, strength: errors.length ? (base.strength === 'strong' ? 'medium' : base.strength) : 'strong' };
+}
+
+export function changePasswordFormError(current: string, next: string, confirm: string): string | null {
+  if (!current) return 'Informe a senha atual.';
+  const check = validateAdminPassword(next);
+  if (!check.valid) return `Nova senha: ${check.errors.join(', ').toLowerCase()}.`;
+  if (next !== confirm) return 'A confirmação não confere com a nova senha.';
+  if (next === current) return 'A nova senha precisa ser diferente da atual.';
+  return null;
+}

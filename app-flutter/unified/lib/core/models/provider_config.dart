@@ -16,6 +16,16 @@ class ProviderConfig {
   final MenuConfig menuConfig;
   final Map<String, dynamic>? theme;
 
+  /// Política de privacidade (a do provedor ou a página gerada pelo
+  /// servidor). Vazio: o app não mostra o link.
+  final String privacyPolicyUrl;
+
+  /// Como pedir a exclusão dos dados (LGPD).
+  final String dataDeletionUrl;
+
+  /// Versão mínima e mais recente do app (atualização obrigatória/sugerida).
+  final AppVersionPolicy? appVersion;
+
   const ProviderConfig({
     required this.id,
     required this.name,
@@ -26,7 +36,18 @@ class ProviderConfig {
     required this.features,
     required this.menuConfig,
     this.theme,
+    this.privacyPolicyUrl = '',
+    this.dataDeletionUrl = '',
+    this.appVersion,
   });
+
+  /// Só links https completos viram botão no app.
+  static String _httpsUrl(Object? value) {
+    if (value is! String) return '';
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return '';
+    return value.trim();
+  }
 
   /// Valida o esquema da apiUrl (A8). Rejeita esquemas não-http(s) (evita
   /// file:/javascript: vindos de config). Em release, bloqueia HTTP em claro
@@ -125,7 +146,17 @@ class ProviderConfig {
     // NOVO: Extrai diagnosticStyle do JSON (null = usar padrão do layout)
     final diagnosticStyle = json['diagnosticStyle'] as String?;
 
+    final otherMap = combinedConfig['other'];
+    final privacyPolicyUrl = _httpsUrl(json['privacyPolicyUrl']).isNotEmpty
+        ? _httpsUrl(json['privacyPolicyUrl'])
+        : otherMap is Map
+            ? _httpsUrl(otherMap['privacyPolicyUrl'])
+            : '';
+
     return ProviderConfig(
+      privacyPolicyUrl: privacyPolicyUrl,
+      dataDeletionUrl: _httpsUrl(json['dataDeletionUrl']),
+      appVersion: AppVersionPolicy.fromJson(json['appVersion']),
       id: providerId,
       name: providerName,
       apiUrl: effectiveApiUrl,
@@ -153,8 +184,92 @@ class ProviderConfig {
       'features': features.toJson(),
       'menuConfig': menuConfig.toJson(),
       'theme': theme,
+      'privacyPolicyUrl': privacyPolicyUrl,
+      'dataDeletionUrl': dataDeletionUrl,
+      if (appVersion != null) 'appVersion': appVersion!.toJson(),
     };
   }
+}
+
+/// Política de versão do app vinda da configuração pública.
+@immutable
+class AppVersionPolicy {
+  final String minVersion;
+  final String latestVersion;
+  final String storeUrl;
+  final String title;
+  final String message;
+  final String buttonText;
+
+  const AppVersionPolicy({
+    this.minVersion = '',
+    this.latestVersion = '',
+    this.storeUrl = '',
+    this.title = '',
+    this.message = '',
+    this.buttonText = '',
+  });
+
+  static AppVersionPolicy? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    String text(Object? v) => v is String ? v.trim() : '';
+    final storeUrls = raw['storeUrls'];
+    final candidates = [
+      text(raw['storeUrl']),
+      if (storeUrls is Map) text(storeUrls['android']),
+    ];
+    final store = candidates.firstWhere(
+        (u) => Uri.tryParse(u)?.scheme == 'https',
+        orElse: () => '');
+    final msg = raw['updateMessage'];
+    final pt = msg is Map && msg['pt_BR'] is Map ? msg['pt_BR'] as Map : null;
+    final policy = AppVersionPolicy(
+      // forceUpdate=false desliga o bloqueio mesmo com minVersion salva.
+      minVersion: raw['forceUpdate'] == false ? '' : text(raw['minVersion']),
+      latestVersion: text(raw['latestVersion']),
+      storeUrl: store,
+      title: text(pt?['title']),
+      message: text(pt?['message']),
+      buttonText: text(pt?['buttonText']),
+    );
+    if (policy.minVersion.isEmpty && policy.latestVersion.isEmpty) return null;
+    return policy;
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (minVersion.isNotEmpty) 'minVersion': minVersion,
+        if (latestVersion.isNotEmpty) 'latestVersion': latestVersion,
+        if (storeUrl.isNotEmpty) 'storeUrl': storeUrl,
+      };
+
+  /// Compara versões "1.0.42" número a número (sufixos como "+3" ou
+  /// "-beta" são ignorados). Negativo: [a] é mais antiga.
+  static int compare(String a, String b) {
+    List<int> parts(String v) => v
+        .split(RegExp(r'[+\-\s]'))
+        .first
+        .split('.')
+        .map((p) => int.tryParse(RegExp(r'\d+').stringMatch(p) ?? '') ?? 0)
+        .toList();
+    final x = parts(a), y = parts(b);
+    for (var i = 0; i < (x.length > y.length ? x.length : y.length); i++) {
+      final d = (i < x.length ? x[i] : 0) - (i < y.length ? y[i] : 0);
+      if (d != 0) return d.sign;
+    }
+    return 0;
+  }
+
+  /// Versão instalada abaixo da mínima: o app bloqueia até atualizar.
+  bool requiresUpdate(String installed) =>
+      minVersion.isNotEmpty &&
+      installed.trim().isNotEmpty &&
+      compare(installed, minVersion) < 0;
+
+  /// Há versão mais nova (aviso que pode ser fechado).
+  bool suggestsUpdate(String installed) =>
+      latestVersion.isNotEmpty &&
+      installed.trim().isNotEmpty &&
+      compare(installed, latestVersion) < 0;
 }
 
 // --- SEÇÕES DE CONFIGURAÇÃO ---

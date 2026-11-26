@@ -110,6 +110,54 @@ function verifyPassword(password, stored) {
   }
 }
 
+// Versões assíncronas: crypto.scrypt roda no threadpool do libuv e não trava
+// o event loop da API (a versão síncrona leva ~60 ms por chamada).
+const scryptAsync = (password, salt, keylen, options) => new Promise((resolve, reject) => {
+  crypto.scrypt(password, salt, keylen, options, (error, derived) => (error ? reject(error) : resolve(derived)));
+});
+
+function passwordPolicyError(password, { minLength = 8, requireMixed = true } = {}) {
+  if (typeof password !== 'string' || password.length < minLength) return `A senha deve ter pelo menos ${minLength} caracteres.`;
+  if (password.length > 200) return 'A senha é longa demais.';
+  if (requireMixed && !(/[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password))) {
+    return 'A senha precisa ter letras maiúsculas, minúsculas e números.';
+  }
+  return null;
+}
+
+async function hashPasswordAsync(password, policy = {}) {
+  const problem = passwordPolicyError(password, policy);
+  if (problem) throw Object.assign(new Error(problem), { status: 400 });
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derived = await scryptAsync(password, salt, 64, { N: 16384, r: 8, p: 1 });
+  return ['scrypt', '16384', '8', '1', salt, derived.toString('hex')].join('$');
+}
+
+// Hash fixo para comparar quando o e-mail não existe: o tempo de resposta não
+// revela se a conta existe.
+const DUMMY_PASSWORD_HASH = ['scrypt', '16384', '8', '1', '0'.repeat(32), '0'.repeat(128)].join('$');
+
+async function verifyPasswordAsync(password, stored) {
+  const target = typeof stored === 'string' && stored ? stored : DUMMY_PASSWORD_HASH;
+  if (typeof password !== 'string') return false;
+  const parts = target.split('$');
+  if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
+  const N = Number(parts[1]);
+  const r = Number(parts[2]);
+  const p = Number(parts[3]);
+  const salt = parts[4];
+  const expectedHex = parts[5];
+  if (!Number.isFinite(N) || !Number.isFinite(r) || !Number.isFinite(p) || !salt || !expectedHex) return false;
+  try {
+    const expected = Buffer.from(expectedHex, 'hex');
+    const derived = await scryptAsync(password, salt, expected.length, { N, r, p, maxmem: 64 * 1024 * 1024 });
+    const same = derived.length === expected.length && crypto.timingSafeEqual(derived, expected);
+    return same && target !== DUMMY_PASSWORD_HASH;
+  } catch {
+    return false;
+  }
+}
+
 function b64urlEncode(input) {
   const buf = Buffer.isBuffer(input) ? input : Buffer.from(String(input), 'utf8');
   return buf.toString('base64url');
@@ -274,6 +322,10 @@ module.exports = {
   decryptSecret,
   hashPassword,
   verifyPassword,
+  hashPasswordAsync,
+  verifyPasswordAsync,
+  passwordPolicyError,
+  DUMMY_PASSWORD_HASH,
   signJwt,
   verifyJwt,
   verifyLiveSession,

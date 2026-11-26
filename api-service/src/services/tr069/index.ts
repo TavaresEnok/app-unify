@@ -41,6 +41,11 @@ export function effectiveFeatures(driver: AcsDriverType, features: AcsFeatureFla
   return { ...features, ...(DRIVER_LIMITS[driver] ?? {}) };
 }
 
+/** true quando o gerenciador (driver) não consegue executar o recurso. */
+export function driverLacksFeature(driver: AcsDriverType, feature: keyof AcsFeatureFlags): boolean {
+  return DRIVER_LIMITS[driver]?.[feature] === false;
+}
+
 function toIso(raw: unknown): string | null {
   if (!raw) return null;
   if (typeof raw === "string") return raw;
@@ -167,6 +172,78 @@ export function getTr069Driver(config: AcsPrivateConfig): Tr069Driver {
   }
 }
 
+type ContractRecord = Record<string, any>;
+
+function contractIdOf(c: ContractRecord): string {
+  return String(c?.id ?? c?.contratoId ?? "");
+}
+
+function internetServices(c: ContractRecord): ContractRecord[] {
+  const servicos = Array.isArray(c?.servicos) ? c.servicos : [];
+  return servicos.filter((s: any) => s && typeof s === "object" && String(s.tipo || "").toLowerCase() === "internet");
+}
+
+function activeStatus(value: unknown): boolean {
+  return /^ativo/i.test(String(value || "").trim());
+}
+
+/** O serviço de internet do contrato tem roteador no CPE Manager (serial preenchido). */
+export function contractHasManagedRouter(c: ContractRecord | null | undefined): boolean {
+  if (!c) return false;
+  return internetServices(c).some((s) => String(s.serial || "").trim() !== "");
+}
+
+/**
+ * Contrato padrão quando o app/painel não informa um: primeiro ativo com
+ * roteador gerenciado, depois o primeiro ativo, depois o primeiro.
+ */
+export function pickDefaultContract(contratos: ContractRecord[]): ContractRecord | null {
+  const list = contratos.filter((c) => c && typeof c === "object");
+  return list.find((c) => activeStatus(c.status) && contractHasManagedRouter(c))
+    || list.find((c) => contractHasManagedRouter(c))
+    || list.find((c) => activeStatus(c.status))
+    || list[0]
+    || null;
+}
+
+export async function loadSubscriberContracts(
+  pool: SqlQueryable | null,
+  providerId: string,
+  identifier: string,
+): Promise<{ cpfCnpj: string; contratos: ContractRecord[] } | null> {
+  const raw = String(identifier || "").trim();
+  const digits = raw.replace(/\D/g, "");
+  if (!pool || !(raw || digits)) return null;
+  const res = await pool.query<{ cpfcnpj: string; contratos: unknown }>(
+    `SELECT cpfcnpj, contratos
+       FROM sgp_clients
+      WHERE provider_id = $1 AND (cpfcnpj = $2 OR client_id = $3)
+      LIMIT 1`,
+    [providerId, digits || raw, raw],
+  ).catch(() => ({ rows: [] as Array<{ cpfcnpj: string; contratos: unknown }> }));
+  const row = res.rows[0];
+  if (!row) return null;
+  return { cpfCnpj: String(row.cpfcnpj || digits || raw), contratos: Array.isArray(row.contratos) ? row.contratos as ContractRecord[] : [] };
+}
+
+/**
+ * Para o driver SGP: este assinante tem roteador gerenciado? null quando o
+ * cache local não conhece o contrato (quem chama decide confirmar ao vivo).
+ */
+export async function resolveDeviceManaged(
+  pool: SqlQueryable | null,
+  providerId: string,
+  cpfCnpj: string,
+  contratoId?: string,
+): Promise<boolean | null> {
+  const found = await loadSubscriberContracts(pool, providerId, cpfCnpj);
+  if (!found) return null;
+  const wanted = String(contratoId || "").trim();
+  const contract = wanted ? found.contratos.find((c) => contractIdOf(c) === wanted) : pickDefaultContract(found.contratos);
+  if (!contract) return null;
+  return contractHasManagedRouter(contract);
+}
+
 /**
  * Resolve serial da ONU, MAC, login PPPoE, contrato e plano direto do PostgreSQL (`sgp_clients`)
  * para localizar o roteador no ACS sem consultas extras ao Firestore ou SGP.
@@ -186,39 +263,31 @@ export async function resolveCpeIdentityFromPg(
   let planName = "";
   let cpfCnpj = digits || raw;
 
-  if (pool && (raw || digits)) {
-    const res = await pool.query<{ cpfcnpj: string; contratos: unknown }>(
-      `SELECT cpfcnpj, contratos
-         FROM sgp_clients
-        WHERE provider_id = $1 AND (cpfcnpj = $2 OR client_id = $3)
-        LIMIT 1`,
-      [providerId, digits || raw, raw],
-    ).catch(() => ({ rows: [] }));
-
-    const row = res.rows[0];
-    if (row) {
-      cpfCnpj = String(row.cpfcnpj || cpfCnpj);
-      const contratos = Array.isArray(row.contratos) ? row.contratos : [];
-      const selected = (contratoId
-        ? contratos.find((c: any) => String(c?.id ?? c?.contratoId ?? "") === contratoId)
-        : null) || contratos[0];
-      if (selected && typeof selected === "object") {
-        const c = selected as Record<string, any>;
-        contratoId = contratoId || String(c.id ?? c.contratoId ?? "");
-        const servicos = Array.isArray(c.servicos) ? c.servicos : [];
-        const srv = (servicos.find((s: any) => s?.onu) || servicos[0] || {}) as Record<string, any>;
-        const onu = (srv.onu && typeof srv.onu === "object" ? srv.onu : {}) as Record<string, any>;
-        serial = String(onu.serial || onu.phy_addr || onu.serial_number || "").trim();
-        mac = String(onu.mac || srv.mac || c.mac || "").trim();
-        pppoeLogin = String(srv.login || c.contratoCentralLogin || c.login || "").trim();
-        const planoObj = srv.plano;
-        planName = String(
-          (typeof planoObj === "object" && planoObj ? planoObj.descricao : planoObj) ||
-          c.servico_plano ||
-          c.plano ||
-          "",
-        ).trim();
-      }
+  const found = await loadSubscriberContracts(pool, providerId, raw || digits);
+  if (found) {
+    cpfCnpj = found.cpfCnpj || cpfCnpj;
+    const contratos = found.contratos;
+    // Contrato informado e ausente do cache: mantém o ID pedido, mas nunca usa
+    // serial/MAC/PPPoE de OUTRO contrato (o ERP confere a posse do pedido).
+    const selected = contratoId
+      ? contratos.find((c) => contractIdOf(c) === contratoId) || null
+      : pickDefaultContract(contratos);
+    if (selected && typeof selected === "object") {
+      const c = selected as Record<string, any>;
+      contratoId = contratoId || contractIdOf(c);
+      const servicos = Array.isArray(c.servicos) ? c.servicos : [];
+      const srv = (servicos.find((s: any) => s?.onu) || servicos[0] || {}) as Record<string, any>;
+      const onu = (srv.onu && typeof srv.onu === "object" ? srv.onu : {}) as Record<string, any>;
+      serial = String(onu.serial || onu.phy_addr || onu.serial_number || "").trim();
+      mac = String(onu.mac || srv.mac || c.mac || "").trim();
+      pppoeLogin = String(srv.login || c.contratoCentralLogin || c.login || "").trim();
+      const planoObj = srv.plano;
+      planName = String(
+        (typeof planoObj === "object" && planoObj ? planoObj.descricao : planoObj) ||
+        c.servico_plano ||
+        c.plano ||
+        "",
+      ).trim();
     }
   }
 

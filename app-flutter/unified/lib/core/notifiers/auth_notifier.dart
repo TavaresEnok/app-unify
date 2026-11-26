@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/usuario.dart';
 import '../models/provider_config.dart';
 import '../repositories/auth_repository.dart';
+import '../services/account_data_cache.dart';
 import '../services/api_response.dart';
 import '../providers/providers.dart';
 
@@ -56,6 +57,8 @@ class AuthNotifier extends AsyncNotifier<Usuario?> {
     final apiUrl = ref.read(configurationProvider).providerConfig?.apiUrl;
     state = const AsyncValue.loading();
     ref.read(notificationProvider).clearAccount();
+    // Faturas e consumo guardados no aparelho são da conta que saiu.
+    unawaited(AccountDataCache.instance.clear());
     try {
       await _repository.logout(currentUser, apiUrl: apiUrl);
       state = const AsyncValue.data(null);

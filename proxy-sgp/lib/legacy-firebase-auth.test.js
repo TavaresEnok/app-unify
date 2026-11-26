@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   legacyFirebaseAuthEnabled, looksLikeFirebaseIdToken, verifySessionWithLegacy, issueLegacyCustomToken,
+  legacyProviderAllowed, resetLegacyAuthForTests,
 } = require('./legacy-firebase-auth');
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -14,9 +15,14 @@ const invalid = () => Promise.reject(Object.assign(new Error('x'), { code: 'auth
 function pool({ admin = false, rows = [] } = {}) {
   return { query: async (sql) => ({ rows: sql.includes('admin_users') ? (admin ? [{}] : []) : rows }) };
 }
-function auth(claims) {
-  return { verifyIdToken: async (_t, checkRevoked) => { assert.equal(checkRevoked, true); return { uid: 'subscriber:vibe:123', ...claims }; } };
+function auth(claims, counter = { calls: 0 }) {
+  return { verifyIdToken: async (_t, checkRevoked) => {
+    counter.calls++;
+    assert.equal(checkRevoked, false, 'revogação é decidida no PostgreSQL, sem ida ao Google');
+    return { uid: 'subscriber:vibe:123', exp: Math.floor(before.getTime() / 1000) + 3600, ...claims };
+  } };
 }
+test.beforeEach(() => resetLegacyAuthForTests());
 const subscriberClaims = { role: 'subscriber', providerId: 'vibe', cpfCnpj: '123' };
 
 test('janela de transição respeita a data e falha fechada sem configuração', () => {
@@ -68,4 +74,40 @@ test('custom token legado nunca derruba o login novo', async () => {
   assert.equal(await issueLegacyCustomToken(identity, { now: before, auth: {}, persistSubscriber: async () => 'firebase-custom' }), 'firebase-custom');
   assert.equal(await issueLegacyCustomToken(identity, { now: before, auth: {}, persistSubscriber: async () => { throw Object.assign(new Error(), { code: 'auth/x' }); } }), null);
   assert.equal(await issueLegacyCustomToken(identity, { now: after, auth: {}, persistSubscriber: async () => 'x' }), null);
+});
+
+test('custom token é assinado localmente; gravação de claims no Google não bloqueia', async () => {
+  const identity = { uid: 'subscriber:vibe:123', claims: subscriberClaims };
+  let persisted = false;
+  const slowPersist = () => new Promise((resolve) => setTimeout(() => { persisted = true; resolve('slow'); }, 50));
+  const local = { createCustomToken: async (uid, claims) => `signed:${uid}:${claims.providerId}` };
+  const started = Date.now();
+  assert.equal(await issueLegacyCustomToken(identity, { now: before, auth: local, persistSubscriber: slowPersist }), 'signed:subscriber:vibe:123:vibe');
+  assert.ok(Date.now() - started < 40, 'não espera a gravação de claims');
+  await new Promise((resolve) => setTimeout(resolve, 70));
+  assert.equal(persisted, true);
+  const hanging = { createCustomToken: () => new Promise(() => undefined) };
+  assert.equal(await issueLegacyCustomToken(identity, { now: before, auth: hanging, timeoutMs: 20 }), null);
+});
+
+test('ponte legada só vale para os provedores configurados (padrão: vibe)', async () => {
+  assert.equal(legacyProviderAllowed('vibe', undefined), true);
+  assert.equal(legacyProviderAllowed('insnet', undefined), false);
+  assert.equal(legacyProviderAllowed('insnet', 'vibe, insnet'), true);
+  assert.equal(legacyProviderAllowed('insnet', '*'), true);
+  const insnet = { uid: 'subscriber:insnet:1', claims: { ...subscriberClaims, providerId: 'insnet' } };
+  let calls = 0;
+  const local = { createCustomToken: async () => { calls++; return 'x'; } };
+  assert.equal(await issueLegacyCustomToken(insnet, { now: before, auth: local, persistSubscriber: async () => { calls++; } }), null);
+  assert.equal(calls, 0, 'nenhuma chamada ao Firebase para provedor sem app legado');
+  await assert.rejects(verifySessionWithLegacy(pool(), firebaseToken, invalid, { now: before, auth: auth({ ...subscriberClaims, providerId: 'insnet' }) }), { code: 'auth/invalid-id-token' });
+});
+
+test('ID token legado decodificado fica em cache curto', async () => {
+  const counter = { calls: 0 };
+  const firebase = auth(subscriberClaims, counter);
+  await verifySessionWithLegacy(pool(), firebaseToken, invalid, { now: before, auth: firebase });
+  await verifySessionWithLegacy(pool(), firebaseToken, invalid, { now: before, auth: firebase });
+  assert.equal(counter.calls, 1);
+  await assert.rejects(verifySessionWithLegacy(pool({ rows: [{ disabled: true, provider_id: 'vibe', cpfcnpj: '123' }] }), firebaseToken, invalid, { now: before, auth: firebase }), { code: 'auth/user-disabled' }, 'desativação no PostgreSQL vale mesmo com cache');
 });

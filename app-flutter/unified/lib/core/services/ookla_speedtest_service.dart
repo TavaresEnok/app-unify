@@ -234,8 +234,8 @@ class OoklaSpeedtestService {
       tokens.sort((a, b) => b.length.compareTo(a.length));
       return tokens.first;
     }
-    final idToken = _normalize(providerId ?? '')
-        .replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final idToken =
+        _normalize(providerId ?? '').replaceAll(RegExp(r'[^a-z0-9]'), '');
     if (idToken.length >= 3 && !_genericWords.contains(idToken)) {
       return idToken;
     }
@@ -420,7 +420,8 @@ class OoklaSpeedtestService {
               (referenceCc != null &&
                   server.cc == referenceCc &&
                   server.distanceKm <= 400);
-          if (textMatch && (isLocal || (!fromSearch && server.distanceKm <= 300))) {
+          if (textMatch &&
+              (isLocal || (!fromSearch && server.distanceKm <= 300))) {
             match = true;
           }
         }
@@ -543,12 +544,9 @@ class OoklaSpeedtestService {
               '$base/speedtest/latency.txt?r=${DateTime.now().microsecondsSinceEpoch}_$i');
           final sw = Stopwatch()..start();
           try {
-            final req = await ioClient
-                .getUrl(uri)
-                .timeout(const Duration(seconds: 2));
-            final resp = await req
-                .close()
-                .timeout(const Duration(seconds: 2));
+            final req =
+                await ioClient.getUrl(uri).timeout(const Duration(seconds: 2));
+            final resp = await req.close().timeout(const Duration(seconds: 2));
             await resp.drain<void>();
             sw.stop();
             if (resp.statusCode != 200) {
@@ -682,17 +680,15 @@ class OoklaSpeedtestService {
       while (active &&
           sw.elapsedMilliseconds < totalMs &&
           cancelToken?.isCancelled != true) {
-        final nonce = '${DateTime.now().microsecondsSinceEpoch}_${workerId}_${seq++}';
+        final nonce =
+            '${DateTime.now().microsecondsSinceEpoch}_${workerId}_${seq++}';
         final uri = useLegacyPath
             ? Uri.parse('$base/speedtest/random3500x3500.jpg?r=$nonce')
             : Uri.parse('$base/download?size=15000000&nocache=$nonce');
         try {
-          final req = await ioClient
-              .getUrl(uri)
-              .timeout(const Duration(seconds: 5));
-          final resp = await req
-              .close()
-              .timeout(const Duration(seconds: 5));
+          final req =
+              await ioClient.getUrl(uri).timeout(const Duration(seconds: 5));
+          final resp = await req.close().timeout(const Duration(seconds: 5));
           if (resp.statusCode == 404 && !useLegacyPath) {
             useLegacyPath = true;
             await resp.drain<void>();
@@ -799,9 +795,8 @@ class OoklaSpeedtestService {
         final uri = Uri.parse(
             '$base/speedtest/upload.php?r=${DateTime.now().microsecondsSinceEpoch}_${workerId}_${seq++}');
         try {
-          final req = await ioClient
-              .postUrl(uri)
-              .timeout(const Duration(seconds: 5));
+          final req =
+              await ioClient.postUrl(uri).timeout(const Duration(seconds: 5));
           req.headers.set(HttpHeaders.contentTypeHeader,
               'application/x-www-form-urlencoded');
           req.contentLength = chunkSize * chunksPerPost;
@@ -822,9 +817,7 @@ class OoklaSpeedtestService {
               steadyBytes += chunkSize;
             }
           }
-          final resp = await req
-              .close()
-              .timeout(const Duration(seconds: 5));
+          final resp = await req.close().timeout(const Duration(seconds: 5));
           await resp.drain<void>();
         } catch (_) {
           if (!active || cancelToken?.isCancelled == true) break;

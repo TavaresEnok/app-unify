@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Save, Smartphone, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Save, Smartphone, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +7,17 @@ import { useAuth } from "@/contexts/AuthContext";
 function ProviderDetailContent() {
   const navigate = useNavigate();
   const { userRole } = useAuth();
-  const { providerId, provider, config, saveConfig, isSaving } = useSettings();
+  const { providerId, provider, config, saveConfig, isSaving, dirty, discardChanges, loadError, retryLoad } = useSettings();
+
+  if (!provider && loadError) {
+    return (
+      <div role="alert" className="flex flex-col items-center gap-3 p-8 text-center">
+        <h2 className="text-lg font-semibold text-destructive">Não foi possível carregar o provedor.</h2>
+        <p className="text-sm text-muted-foreground">{loadError}</p>
+        <Button onClick={retryLoad}>Tentar novamente</Button>
+      </div>
+    );
+  }
 
   if (!provider) {
     return <div className="p-8 text-center"><h2 className="text-xl font-semibold text-destructive">Provedor não encontrado.</h2></div>;
@@ -37,11 +47,11 @@ function ProviderDetailContent() {
         </button>
       )}
 
-      <div className="flex flex-col gap-4 rounded-xl border border-[#E6E9EF] bg-white p-[18px] shadow-[0_1px_2px_rgba(16,24,40,.04)] sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4 rounded-xl border border-[#E6E9EF] bg-white p-[18px] shadow-[0_1px_2px_rgba(16,24,40,.04)] xl:flex-row xl:items-center">
         <div className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-[10px] text-[15px] font-bold text-white" style={{ backgroundColor: avatarColor }}>
           {initials}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[180px] flex-1">
           <h2 className="truncate text-[16.5px] font-bold tracking-normal text-[#0E1320]">{displayName}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="rounded-[5px] bg-[#F2F4F7] px-2 py-0.5 font-mono text-[11px] text-[#687181]">{cnpj}</span>
@@ -51,14 +61,18 @@ function ProviderDetailContent() {
             </span>}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 sm:justify-end">
+        <div className="flex flex-wrap gap-2 xl:justify-end">
           <Button variant="outline" className="gap-2" onClick={() => navigate(userRole === "superAdmin" ? `/provedores/${providerId}/aplicativo` : "/provedor/aplicativo")}>
             <ExternalLink className="h-3.5 w-3.5" />Ver aplicativo
           </Button>
           {userRole === "superAdmin" && <>
             <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/appearance`)}>Personalização</Button>
             <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/comunicados`)}>Comunicados</Button>
-            <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/integrations`)}>Integração SGP</Button>
+            <Button variant="outline" className="gap-2" onClick={() => navigate(`/provedores/${providerId}/clientes`)}>
+              <Users className="h-3.5 w-3.5" />Clientes
+            </Button>
+            <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/diagnosticos`)}>Diagnósticos</Button>
+            <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/integrations`)}>Integração ERP</Button>
             <Button variant="outline" onClick={() => navigate(`/provedores/${providerId}/app-build`)} className="gap-2">
               <Smartphone className="h-3.5 w-3.5" />Gerar aplicativo
             </Button>
@@ -69,6 +83,16 @@ function ProviderDetailContent() {
           </Button>
         </div>
       </div>
+
+      {dirty && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-900">
+          <span>Há alterações não salvas.</span>
+          <span className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={discardChanges} disabled={isSaving}>Descartar</Button>
+            <Button size="sm" onClick={handleSave} disabled={isSaving}>Salvar</Button>
+          </span>
+        </div>
+      )}
 
       <Outlet />
     </div>

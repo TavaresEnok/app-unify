@@ -13,10 +13,9 @@ test('provider navigation has six areas and the overview contains measured count
   await expect(page.getByText('Instalações do app', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Novas adesões', { exact: true })).toHaveCount(0);
   if (isMobile) await page.getByRole('button', { name: 'Abrir menu' }).click();
-  for (const name of ['Visão geral', 'Atendimento', 'Comunicados', 'Personalização', 'Minha empresa', 'Aplicativo']) {
+  for (const name of ['Visão geral', 'Clientes', 'Atendimento', 'Comunicados', 'Personalização', 'Minha empresa', 'Aplicativo']) {
     await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
   }
-  await expect(page.getByRole('link', { name: 'Clientes', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Atendimento', exact: true }).click();
   await expect(page).toHaveURL(/\/atendimento\/chamados$/);
   await expect(page.getByRole('link', { name: 'Diagnósticos', exact: true })).toBeVisible();
@@ -40,7 +39,7 @@ test('personalization keeps five groups and preserves the relocated settings', a
   await page.goto('/provedor/personalizacao/privacy');
   const areas = page.getByRole('navigation', { name: 'Áreas de personalização' });
   await expect(areas.getByRole('link')).toHaveCount(5);
-  await expect(page.getByLabel('URL da política de privacidade', { exact: true })).toHaveValue('https://example.test/privacidade');
+  await expect(page.getByLabel('Link próprio da política (opcional)', { exact: true })).toHaveValue('https://example.test/privacidade');
   await expect(page.getByRole('link', { name: 'Integrações', exact: true })).toHaveCount(0);
   await areas.getByRole('link', { name: 'Configurações', exact: true }).click();
   await expect(page.getByLabel('Domínio (opcional)', { exact: true })).toHaveValue('app.example.test');
@@ -48,7 +47,7 @@ test('personalization keeps five groups and preserves the relocated settings', a
   await page.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
   await areas.getByRole('link', { name: 'Contato e informações legais' }).click();
   await page.getByRole('link', { name: 'Privacidade', exact: true }).click();
-  await expect(page.getByLabel('URL da política de privacidade', { exact: true })).toHaveValue('https://example.test/privacidade');
+  await expect(page.getByLabel('Link próprio da política (opcional)', { exact: true })).toHaveValue('https://example.test/privacidade');
   await areas.getByRole('link', { name: 'Configurações', exact: true }).click();
   await expect(page.getByLabel('Domínio (opcional)', { exact: true })).toHaveValue('novo.example.test');
 });
@@ -59,11 +58,13 @@ test('saved templates share one sending flow and history is separate', async ({ 
   await expect(page).toHaveURL(/\/comunicados\/notificacoes$/);
   await expect(page.getByLabel('Título', { exact: true })).toHaveValue('Boas-vindas');
   await expect(page.getByLabel('Mensagem', { exact: true })).toHaveValue('Mensagem salva');
-  await page.getByRole('button', { name: 'Enviar agora', exact: true }).click();
-  await expect.poll(() => page.evaluate(() => (window as any).workspaceCalls.filter((item: any) => item.type === 'SEND_PUSH_NOTIFICATION').length)).toBe(1);
+  // Sem filtros o envio vai para todos e pede confirmação.
+  page.once('dialog', dialog => void dialog.accept());
+  await page.getByRole('button', { name: 'Enviar para todos', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).workspaceCalls.filter((item: any) => item.type === 'HTTP' && item.payload.path === '/admin/notifications/send').length)).toBe(1);
   await page.getByRole('link', { name: 'Histórico de envios', exact: true }).click();
   await expect(page.getByText('Aviso de teste', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Enviar agora', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Enviar para todos', exact: true })).toHaveCount(0);
 });
 
 test('application offers only a verified APK and includes installation instructions', async ({ page }) => {

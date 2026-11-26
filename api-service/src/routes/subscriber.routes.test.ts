@@ -148,6 +148,8 @@ describe("credenciais SGP por provedor", () => {
       const session = createSgpSession("p2", base);
       for (const options of [{ url: "http://evil/" }, { httpsAgent: {} }, { proxy: {} }, { adapter: () => {} }, { headers: { Host: "evil" } }]) await expect(session.post(`${base}/api/ura/titulos/`, { token: "tok-p2" }, options as any)).rejects.toThrow();
       await expect(session.post("http://other.synthetic.test/api/ura/titulos/", { token: "tok-p2" })).rejects.toThrow();
+      // O cache guarda só endereços aprovados; limpo, a resposta interna nova é recusada.
+      transport.clearDnsCache();
       resolution = "private"; await expect(session.post(`${base}/api/ura/titulos/`, { token: "tok-p2" })).rejects.toThrow();
       expect(received).toHaveLength(2);
       resolution = "public"; redirect = true;

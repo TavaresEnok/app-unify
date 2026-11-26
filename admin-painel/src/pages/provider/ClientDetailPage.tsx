@@ -18,6 +18,7 @@ import {
   optimizeAdminClientWifi,
   rebootAdminClientCpe,
   runAdminClientCpeDiagnostic,
+  cpeActionAvailability,
   type AdminCpeOverviewResponse,
   type CpeDiagnosticResult,
 } from '@/shared/api/tr069';
@@ -87,7 +88,8 @@ export default function ClientDetailPage() {
     try {
       const result = await runAdminClientCpeDiagnostic(providerId, client.cpfcnpj || client.id);
       setCpeDiag(result);
-      toast.success('Diagnóstico TR-143 executado no roteador.');
+      if (result.verdict === 'unavailable') toast.info(result.summary || 'O roteador não executou o teste.');
+      else toast.success('Teste executado no roteador.');
     } catch (error) {
       toast.error(getErrorMessage(error, 'Falha ao executar diagnóstico no roteador.'));
     } finally {
@@ -120,14 +122,14 @@ export default function ClientDetailPage() {
 
   const handleDeleteClient = async () => {
     if (!client || !providerId) return;
-    if (!window.confirm(`Remover ${client.nome} do cache local e push? Isso não apaga o cliente no SGP.`)) {
+    if (!window.confirm(`Remover ${client.nome} da base do painel e do push? Isso não apaga o cliente no seu sistema (ERP).`)) {
       return;
     }
     setDeleting(true);
     try {
       const res = await deleteProviderClient(providerId, client.cpfcnpj || client.id);
       toast.success('Cliente removido', { description: res.message });
-      navigate('/provedor/clientes');
+      navigate(userRole === 'superAdmin' ? `/provedores/${encodeURIComponent(providerId)}/clientes` : '/provedor/clientes');
     } catch (error) {
       toast.error(getErrorMessage(error, 'Não foi possível remover o cliente.'));
     } finally {
@@ -146,7 +148,7 @@ export default function ClientDetailPage() {
         <CardContent className="flex flex-col items-center gap-4 py-8">
           <AlertTriangle className="h-12 w-12 text-destructive" />
           <p className="text-sm text-muted-foreground">
-            O identificador <span className="font-mono">{identifier}</span> não foi encontrado no banco local.
+            Este cliente não foi encontrado na base sincronizada.
           </p>
           <Button onClick={() => navigate(-1)}>Voltar</Button>
         </CardContent>
@@ -155,6 +157,9 @@ export default function ClientDetailPage() {
   }
 
   const isSuperAdmin = userRole === 'superAdmin';
+  // Super Admin consulta a base do provedor sem executar ações no roteador ou apagar dados.
+  const cpeActions = cpeActionAvailability(cpeData, isSuperAdmin);
+  const cpeOnline = cpeData?.overview?.online;
   const show = (value?: string | null) => (value && value.trim() ? value : '-');
 
   return (
@@ -175,10 +180,12 @@ export default function ClientDetailPage() {
             <Send className="h-4 w-4" />
             Enviar push
           </Button>
-          <Button variant="destructive" onClick={() => void handleDeleteClient()} disabled={deleting} className="gap-2">
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            Apagar do cache
-          </Button>
+          {!isSuperAdmin && (
+            <Button variant="destructive" onClick={() => void handleDeleteClient()} disabled={deleting} className="gap-2">
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Apagar do cache
+            </Button>
+          )}
         </div>
       </div>
 
@@ -209,7 +216,7 @@ export default function ClientDetailPage() {
               </div>
             </div>
             <div className="text-left sm:text-right">
-              <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[#98A1B1]">ID SGP</p>
+              <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-[#98A1B1]">ID no ERP</p>
               <p className="font-mono text-[13px] font-semibold text-[#1A2233]">{client.id}</p>
             </div>
           </div>
@@ -314,21 +321,23 @@ export default function ClientDetailPage() {
               {cpeLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               {cpeData ? 'Atualizar CPE' : 'Consultar CPE'}
             </Button>
-            {cpeData?.enabled && cpeData.overview && (
-              <>
-                <Button size="sm" variant="outline" disabled={cpeBusyAction !== null} onClick={() => void handleCpeOptimize()} className="gap-1.5">
-                  {cpeBusyAction === 'optimize' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  Otimizar canal
-                </Button>
-                <Button size="sm" variant="outline" disabled={cpeBusyAction !== null} onClick={() => void handleCpeDiag()} className="gap-1.5">
-                  {cpeBusyAction === 'diag' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
-                  Testar no roteador
-                </Button>
-                <Button size="sm" variant="destructive" disabled={cpeBusyAction !== null} onClick={() => void handleCpeReboot()} className="gap-1.5">
-                  {cpeBusyAction === 'reboot' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
-                  Reiniciar CPE
-                </Button>
-              </>
+            {cpeActions.optimize && (
+              <Button size="sm" variant="outline" disabled={cpeBusyAction !== null} onClick={() => void handleCpeOptimize()} className="gap-1.5">
+                {cpeBusyAction === 'optimize' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Otimizar canal
+              </Button>
+            )}
+            {cpeActions.diagnostic && (
+              <Button size="sm" variant="outline" disabled={cpeBusyAction !== null} onClick={() => void handleCpeDiag()} className="gap-1.5">
+                {cpeBusyAction === 'diag' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
+                Testar no roteador
+              </Button>
+            )}
+            {cpeActions.reboot && (
+              <Button size="sm" variant="destructive" disabled={cpeBusyAction !== null} onClick={() => void handleCpeReboot()} className="gap-1.5">
+                {cpeBusyAction === 'reboot' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
+                Reiniciar CPE
+              </Button>
             )}
           </div>
         </CardHeader>
@@ -338,7 +347,7 @@ export default function ClientDetailPage() {
           )}
           {cpeError && <p className="text-destructive">{cpeError}</p>}
           {cpeData && !cpeData.enabled && (
-            <p className="text-[#687181]">Integração TR-069/ACS não ativada para este provedor. Configure em <em>Configurações → Integrações</em>.</p>
+            <p className="text-[#687181]">Gestão remota de roteadores (TR-069) não está ativada para este provedor.</p>
           )}
           {cpeData?.enabled && cpeData.overview && (
             <div className="space-y-4">
@@ -355,7 +364,10 @@ export default function ClientDetailPage() {
                 <div className="rounded-lg border border-[#EEF0F4] p-3">
                   <p className="text-[11px] text-[#98A1B1]">Status / Driver</p>
                   <div className="mt-1 flex items-center gap-1.5">
-                    <StatusBadge status={cpeData.overview.online ? 'Online' : 'Offline'} tone={cpeData.overview.online ? 'green' : 'red'} />
+                    <StatusBadge
+                      status={cpeOnline === true ? 'Online' : cpeOnline === false ? 'Offline' : 'Sem leitura ao vivo'}
+                      tone={cpeOnline === true ? 'green' : cpeOnline === false ? 'red' : 'gray'}
+                    />
                     <span className="font-mono text-[11px] uppercase text-[#687181]">{cpeData.driver}</span>
                   </div>
                 </div>
@@ -380,9 +392,15 @@ export default function ClientDetailPage() {
                 </div>
               </div>
 
+              {cpeData.overview.snapshotAt && (
+                <p className="text-[11.5px] text-[#687181]">
+                  Dados do roteador capturados em {new Date(cpeData.overview.snapshotAt).toLocaleString('pt-BR')}.
+                </p>
+              )}
+
               {cpeDiag && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 text-[#1A2233]">
-                  <div className="font-semibold">Resultado TR-143 (executado no roteador)</div>
+                  <div className="font-semibold">{cpeDiag.verdict === 'unavailable' ? 'Teste no roteador indisponível' : 'Resultado do teste no roteador'}</div>
                   <p className="mt-0.5 text-[12px] text-[#4A5364]">{cpeDiag.summary}</p>
                 </div>
               )}

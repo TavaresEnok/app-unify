@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'vibe_home_parts.dart' show VibeNetwork;
 export 'vibe_controls.dart';
+export 'vibe_skeleton.dart';
+import 'vibe_skeleton.dart';
 import 'vibe_icon.dart';
 import 'vibe_logo.dart';
 import 'vibe_text.dart';
@@ -206,7 +208,11 @@ class VibePageScaffold extends StatelessWidget {
       );
       content = onRefresh == null
           ? list
-          : RefreshIndicator(onRefresh: onRefresh!, child: list);
+          : RefreshIndicator(
+              onRefresh: onRefresh!,
+              color: t.ac,
+              backgroundColor: t.card,
+              child: list);
     } else {
       content = Column(children: [header, Expanded(child: body!)]);
     }
@@ -216,9 +222,11 @@ class VibePageScaffold extends StatelessWidget {
       color: t.bg,
       child: SafeArea(
         bottom: false,
-        child: masthead == null
-            ? content
-            : Column(children: [masthead!, Expanded(child: content)]),
+        child: VibeSkeletonScope(
+          child: masthead == null
+              ? content
+              : Column(children: [masthead!, Expanded(child: content)]),
+        ),
       ),
     );
   }
@@ -314,7 +322,12 @@ class VibeRow extends StatelessWidget {
     this.onTap,
     this.plainIcon = false,
     this.showChevron = true,
+    this.redacted = false,
   });
+
+  /// Ícone e moldura visíveis, textos cobertos enquanto a consulta não
+  /// termina.
+  final bool redacted;
 
   final String? icon;
   final String title;
@@ -333,7 +346,9 @@ class VibeRow extends StatelessWidget {
         t.dark && !plainIcon ? vibeMix(t.ac, Colors.white, .40) : t.at;
     return Semantics(
       button: onTap != null,
-      label: [title, if (subtitle != null) subtitle!].join('. '),
+      label: redacted
+          ? 'Carregando'
+          : [title, if (subtitle != null) subtitle!].join('. '),
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
@@ -362,13 +377,19 @@ class VibeRow extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: vibeText(t, 14, 700, height: 1.3)),
+                      VibeRedact(
+                          redacted: redacted,
+                          child: Text(title,
+                              style: vibeText(t, 14, 700, height: 1.3))),
                       if (subtitle?.isNotEmpty == true)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
-                          child: Text(subtitle!,
-                              style: vibeText(t, 12.5, 500,
-                                  color: t.mut, height: 1.35)),
+                          child: VibeRedact(
+                            redacted: redacted,
+                            child: Text(subtitle!,
+                                style: vibeText(t, 12.5, 500,
+                                    color: t.mut, height: 1.35)),
+                          ),
                         ),
                     ]),
               ),
@@ -390,11 +411,14 @@ class VibeRow extends StatelessWidget {
 /// Rótulo e valor (`.g-kv`).
 class VibeKv extends StatelessWidget {
   const VibeKv(this.label, this.value,
-      {super.key, this.leading, this.muted = false});
+      {super.key, this.leading, this.muted = false, this.redacted = false});
 
   final String label;
   final String value;
   final Widget? leading;
+
+  /// Rótulo visível, valor coberto enquanto a consulta não termina.
+  final bool redacted;
 
   /// Valor ainda sem medição (`.g-kv em`): cinza e sem peso.
   final bool muted;
@@ -416,11 +440,14 @@ class VibeKv extends StatelessWidget {
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             if (leading != null) ...[leading!, const SizedBox(width: 6)],
             Flexible(
-                child: Text(value,
-                    textAlign: TextAlign.right,
-                    style: muted
-                        ? vibeText(t, 13.5, 500, color: t.mut)
-                        : vibeText(t, 13.5, 650))),
+                child: VibeRedact(
+              redacted: redacted,
+              child: Text(value,
+                  textAlign: TextAlign.right,
+                  style: muted
+                      ? vibeText(t, 13.5, 500, color: t.mut)
+                      : vibeText(t, 13.5, 650)),
+            )),
           ]),
         ),
       ]),
@@ -449,6 +476,7 @@ class VibePageButton extends StatelessWidget {
     this.danger = false,
     this.small = false,
     this.expand = true,
+    this.loading = false,
   });
 
   final String label;
@@ -458,6 +486,10 @@ class VibePageButton extends StatelessWidget {
   final bool danger;
   final bool small;
   final bool expand;
+
+  /// Em andamento: indicador girando no lugar do ícone, sem toque e sem
+  /// esmaecer (o botão continua do mesmo tamanho).
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -472,9 +504,9 @@ class VibePageButton extends StatelessWidget {
         : ghost
             ? t.ink
             : t.on;
-    final disabled = onPressed == null;
+    final disabled = onPressed == null || loading;
     final button = Opacity(
-      opacity: disabled ? .6 : 1,
+      opacity: disabled && !loading ? .6 : 1,
       child: Material(
         color: bg,
         shape: RoundedRectangleBorder(
@@ -483,7 +515,7 @@ class VibePageButton extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onPressed,
+          onTap: loading ? null : onPressed,
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: small ? 40 : 48),
             child: Padding(
@@ -492,7 +524,20 @@ class VibePageButton extends StatelessWidget {
                 mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (icon != null) ...[
+                  if (loading) ...[
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: fg,
+                          value: MediaQuery.maybeDisableAnimationsOf(context) ==
+                                  true
+                              ? .7
+                              : null),
+                    ),
+                    const SizedBox(width: 8),
+                  ] else if (icon != null) ...[
                     VibeIcon(icon!, size: 16, color: fg),
                     const SizedBox(width: 8),
                   ],
@@ -715,10 +760,14 @@ class VibeLabel extends StatelessWidget {
 
 /// Valor grande das páginas (`.g-amt`).
 class VibePageAmount extends StatelessWidget {
-  const VibePageAmount(this.value, {super.key, this.size = 36});
+  const VibePageAmount(this.value,
+      {super.key, this.size = 36, this.redacted = false});
 
   final double value;
   final double size;
+
+  /// Valor coberto enquanto a consulta não termina.
+  final bool redacted;
 
   @override
   Widget build(BuildContext context) {
@@ -730,27 +779,38 @@ class VibePageAmount extends StatelessWidget {
     final rest = (cents % 100).toString().padLeft(2, '0');
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 4),
-      child: Text.rich(
-        TextSpan(children: [
-          TextSpan(
-              text: 'R\$',
-              style: vibeText(t, size * .42, 700,
-                  height: 1, letterSpacingEm: -.03 / .42)),
-          // O espaço fica no tamanho do valor, como no protótipo
-          // (`<small>R$</small> 99`): é ele que separa o cifrão.
-          TextSpan(
-              text: ' ',
-              style: vibeText(t, size * .55, 800,
-                  height: 1, letterSpacingEm: -.03)),
-          TextSpan(
-              text: whole,
-              style: vibeText(t, size, 800, height: 1, letterSpacingEm: -.03)),
-          TextSpan(
-              text: ',$rest',
-              style: vibeText(t, size * .62, 800,
-                  height: 1, letterSpacingEm: -.03 / .62)),
-        ]),
-        semanticsLabel: 'R\$ $whole,$rest',
+      child: VibeRedact(
+        redacted: redacted,
+        // Uma linha sempre; com fonte muito grande o valor encolhe inteiro.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text.rich(
+            maxLines: 1,
+            softWrap: false,
+            TextSpan(children: [
+              TextSpan(
+                  text: 'R\$',
+                  style: vibeText(t, size * .42, 700,
+                      height: 1, letterSpacingEm: -.03 / .42)),
+              // O espaço fica no tamanho do valor, como no protótipo
+              // (`<small>R$</small> 99`): é ele que separa o cifrão.
+              TextSpan(
+                  text: ' ',
+                  style: vibeText(t, size * .55, 800,
+                      height: 1, letterSpacingEm: -.03)),
+              TextSpan(
+                  text: whole,
+                  style:
+                      vibeText(t, size, 800, height: 1, letterSpacingEm: -.03)),
+              TextSpan(
+                  text: ',$rest',
+                  style: vibeText(t, size * .62, 800,
+                      height: 1, letterSpacingEm: -.03 / .62)),
+            ]),
+            semanticsLabel: 'R\$ $whole,$rest',
+          ),
+        ),
       ),
     );
   }
@@ -759,11 +819,18 @@ class VibePageAmount extends StatelessWidget {
 /// Linha de apoio com ícone (`.g-sub`).
 class VibeSubLine extends StatelessWidget {
   const VibeSubLine(
-      {super.key, required this.icon, required this.text, this.tone});
+      {super.key,
+      required this.icon,
+      required this.text,
+      this.tone,
+      this.redacted = false});
 
   final String icon;
   final String text;
   final VibeTone? tone;
+
+  /// Ícone visível, texto coberto enquanto a consulta não termina.
+  final bool redacted;
 
   @override
   Widget build(BuildContext context) {
@@ -781,7 +848,13 @@ class VibeSubLine extends StatelessWidget {
       child: Row(children: [
         VibeIcon(icon, size: 16, color: color),
         const SizedBox(width: 6),
-        Expanded(child: Text(text, style: vibeText(t, 13, 600, color: color))),
+        Expanded(
+            child: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: VibeRedact(
+              redacted: redacted,
+              child: Text(text, style: vibeText(t, 13, 600, color: color))),
+        )),
       ]),
     );
   }
@@ -1039,7 +1112,11 @@ class VibeDockMasthead extends StatelessWidget {
                   background: p.base,
                   fallback: _word(t, p, word),
                 ),
+                // Uma linha só: nome longo ou plano extenso não engolem a
+                // tela em celulares pequenos com texto ampliado.
                 Text(subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: vibeText(t, 12, 550, color: p.ink, height: 1.12)),
               ]),
         ),
@@ -1109,11 +1186,16 @@ class VibeDockMasthead extends StatelessWidget {
                   decoration:
                       BoxDecoration(color: p.soft, shape: BoxShape.circle),
                   alignment: Alignment.center,
-                  child: Text(initials,
-                      style: vibeText(t, 13, 650,
-                          color: p.onwash,
-                          height: 1.35,
-                          letterSpacingEm: -.016)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(initials,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: vibeText(t, 13, 650,
+                            color: p.onwash,
+                            height: 1.35,
+                            letterSpacingEm: -.016)),
+                  ),
                 ),
               ),
             ),
@@ -1123,16 +1205,24 @@ class VibeDockMasthead extends StatelessWidget {
     );
   }
 
-  Widget _word(VibeTokens t, VibeDockPalette p, String word) => Text.rich(
-        TextSpan(children: [
-          TextSpan(
-              text: word,
-              style: vibeText(t, 23, 700,
-                  color: p.ink, height: 1.04, letterSpacingEm: -.1)),
-          TextSpan(
-              text: '.',
-              style: vibeText(t, 23, 700,
-                  color: p.mark, height: 1.04, letterSpacingEm: -.1)),
-        ]),
+  /// Marca em uma linha: um nome longo encolhe inteiro, em vez de quebrar
+  /// no meio da palavra e ocupar um terço da tela.
+  Widget _word(VibeTokens t, VibeDockPalette p, String word) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: AlignmentDirectional.centerStart,
+        child: Text.rich(
+          maxLines: 1,
+          softWrap: false,
+          TextSpan(children: [
+            TextSpan(
+                text: word,
+                style: vibeText(t, 23, 700,
+                    color: p.ink, height: 1.04, letterSpacingEm: -.1)),
+            TextSpan(
+                text: '.',
+                style: vibeText(t, 23, 700,
+                    color: p.mark, height: 1.04, letterSpacingEm: -.1)),
+          ]),
+        ),
       );
 }

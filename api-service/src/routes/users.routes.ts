@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
-import { verifySuperAdmin } from "../middlewares/auth";
+import { requireRecentLogin, verifySuperAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { recordAdminAudit } from "../services/auditService";
 import { decodeCursor, encodeCursor, pageSize } from "../services/cursorPage";
 import { ensureCoreSchema, requirePgPool } from "../services/postgres";
-import { hashPassword } from "../services/self-auth";
+import { hashPasswordAsync, passwordPolicyError } from "../services/self-auth";
 
 export const usersRouter = Router();
 usersRouter.use(verifySuperAdmin);
@@ -84,17 +84,19 @@ usersRouter.post("/", asyncRoute(async (req, res) => {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new ApiError(400, "E-mail inválido.", "invalid-argument");
   }
-  if (!password || password.length < 6) {
-    throw new ApiError(400, "A senha deve ter pelo menos 6 caracteres.", "invalid-argument");
-  }
+  // Mesma regra do painel: 8+ caracteres com maiúscula, minúscula e número.
+  const problem = passwordPolicyError(password);
+  if (problem) throw new ApiError(400, problem, "invalid-argument");
   if (role === "providerAdmin" && (!providerId || !/^[a-z0-9_-]{1,64}$/i.test(providerId))) {
     throw new ApiError(400, "Provedor obrigatório para administrador de provedor.", "invalid-argument");
   }
+  // Criar outro Super Admin exige login recente.
+  if (role === "superAdmin") requireRecentLogin(req);
 
   const pool = requirePgPool();
   await ensureCoreSchema(pool);
   const uid = randomUUID().replace(/-/g, "").slice(0, 28);
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPasswordAsync(password);
 
   try {
     const inserted = await pool.query<AdminRow>(
@@ -116,6 +118,7 @@ usersRouter.post("/", asyncRoute(async (req, res) => {
 usersRouter.post("/super-admin", asyncRoute(async (req, res) => {
   const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
   if (!email) throw new ApiError(400, "E-mail obrigatório.", "invalid-argument");
+  requireRecentLogin(req);
 
   const pool = requirePgPool();
   await ensureCoreSchema(pool);
@@ -138,11 +141,13 @@ usersRouter.patch("/:uid/password", asyncRoute(async (req, res) => {
   const uid = String(req.params.uid || "").trim();
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   if (!uid) throw new ApiError(400, "UID obrigatório.", "invalid-argument");
-  if (!password || password.length < 6) throw new ApiError(400, "A senha deve ter pelo menos 6 caracteres.", "invalid-argument");
+  const problem = passwordPolicyError(password);
+  if (problem) throw new ApiError(400, problem, "invalid-argument");
+  requireRecentLogin(req);
 
   const pool = requirePgPool();
   await ensureCoreSchema(pool);
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPasswordAsync(password);
   const updated = await pool.query(
     `UPDATE admin_users SET password_hash = $2, token_version = token_version + 1, updated_at = NOW() WHERE uid = $1`,
     [uid, passwordHash],

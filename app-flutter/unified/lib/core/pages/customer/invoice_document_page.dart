@@ -170,7 +170,7 @@ class _InvoiceDocumentPageState extends ConsumerState<InvoiceDocumentPage> {
     final invoice = widget.invoice;
     final view = VibeInvoiceView(invoice);
     final finance = ref.watch(financeiroViewModelProvider);
-    final current = finance.state == FinanceiroState.success &&
+    final current = finance.hasResult &&
         finance.invoices.any((item) =>
             item.numero == invoice.numero &&
             item.vencimento == invoice.vencimento &&

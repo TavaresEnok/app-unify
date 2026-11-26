@@ -5,6 +5,7 @@ import 'api_response.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'account_data_cache.dart';
 import 'session_token_store.dart';
 
 class FinanceiroService {
@@ -31,29 +32,65 @@ class FinanceiroService {
           contratoId == other.contratoId;
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, apiUrl, cpfCnpjUnformatted, providerId, contratoId);
+  int get hashCode => Object.hash(
+      runtimeType, apiUrl, cpfCnpjUnformatted, providerId, contratoId);
 
-  /// Busca as faturas do cliente
+  /// Chave do cache local das faturas desta conta (sem o CPF em claro).
+  String get cacheKey => AccountDataCache.keyFor('invoices',
+      providerId: providerId,
+      document: cpfCnpjUnformatted,
+      contratoId: contratoId);
+
+  /// Tempo máximo de cada tentativa. O proxy desiste em ~5 s; acima disso é
+  /// rede do celular travada, e esperar um minuto não ajuda ninguém.
+  static Duration attemptTimeout = const Duration(seconds: 15);
+
+  /// Espera antes da segunda tentativa automática.
+  static Duration retryDelay = const Duration(milliseconds: 1500);
+
+  /// Busca as faturas do cliente. Em falha passageira (tempo esgotado,
+  /// 5xx, rede caiu) tenta mais uma vez em silêncio antes de avisar.
   Future<List<dynamic>> fetchInvoices() async {
     try {
-      if (cpfCnpjUnformatted.isEmpty) {
-        throw Exception("O CPF/CNPJ está vazio.");
-      }
+      return await _fetchInvoicesOnce();
+    } catch (e) {
+      if (!isTransientFailure(e)) rethrow;
+      await Future<void>.delayed(retryDelay);
+      return _fetchInvoicesOnce();
+    }
+  }
 
-      final requestBody = {
-        'cpfCnpj': cpfCnpjUnformatted,
-        'providerId': providerId,
-        if (contratoId != null) 'contratoId': contratoId,
-      };
+  /// Falhas que valem uma nova tentativa automática.
+  static bool isTransientFailure(Object e) {
+    if (e is TimeoutException) return true;
+    if (e is ApiException) return e.statusCode >= 500;
+    if (e is http.ClientException) return true;
+    final text = e.toString();
+    return text.contains('SocketException') ||
+        text.contains('Connection closed') ||
+        text.contains('Connection reset') ||
+        text.contains('Failed host lookup');
+  }
 
+  Future<List<dynamic>> _fetchInvoicesOnce() async {
+    if (cpfCnpjUnformatted.isEmpty) {
+      throw Exception("O CPF/CNPJ está vazio.");
+    }
+
+    final requestBody = {
+      'cpfCnpj': cpfCnpjUnformatted,
+      'providerId': providerId,
+      if (contratoId != null) 'contratoId': contratoId,
+    };
+
+    try {
       final response = await http
           .post(
             Uri.parse(apiUrl),
             headers: await _authenticatedHeaders(),
             body: json.encode(requestBody),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(attemptTimeout);
 
       final responseBody = decodeApiResponse(response,
           fallback:
@@ -63,10 +100,6 @@ class FinanceiroService {
     } on TimeoutException {
       throw TimeoutException(
           'O servidor demorou muito para responder. Verifique sua conexão.');
-    } catch (e) {
-      // If we are debugging/testing, maybe fallback to mock on error too?
-      // For now, let's stick to explicit mock only if config is missing.
-      throw Exception(e.toString().replaceFirst("Exception: ", ""));
     }
   }
 

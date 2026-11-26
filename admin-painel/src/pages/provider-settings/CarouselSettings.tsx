@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2, Image, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import ImageUploadButton from '@/components/ImageUploadButton';
 
 export default function CarouselSettings() {
-    const { config, setConfig, isSaving } = useSettings();
+    const { config, setConfig, isSaving, providerId } = useSettings();
 
     // Estado local para a lista de URLs de imagens do carrossel
     const [localImages, setLocalImages] = useState<string[]>(config.imageCarousel || []);
@@ -28,22 +29,22 @@ export default function CarouselSettings() {
 
     const handleAddImage = () => {
         const url = newImageUrl.trim();
-        if (!url || !url.startsWith('http')) {
-            toast.error("Por favor, insira uma URL de imagem válida (deve começar com http/https).");
+        if (!url || !/^https:\/\//i.test(url)) {
+            toast.error("Use um link de imagem que comece com https://.");
             return;
         }
 
         const updatedImages = [...localImages, url];
         updateAndSave(updatedImages);
         setNewImageUrl('');
-        toast.success("Imagem adicionada. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+        toast.success("Imagem adicionada. Clique em 'Salvar alterações' no topo para publicar.");
     };
 
     // CORRIGIDO: Tipagem do index e _ para resolver TS7006 nas funções internas
     const handleRemoveImage = (indexToRemove: number) => {
         const updatedImages = localImages.filter((_, index) => index !== indexToRemove);
         updateAndSave(updatedImages);
-        toast.warning("Imagem removida. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+        toast.warning("Imagem removida. Clique em 'Salvar alterações' no topo para publicar.");
     };
 
     return (
@@ -53,7 +54,7 @@ export default function CarouselSettings() {
             icon={Image}
             footer={<SettingsFooterNote>Adicionar ou remover imagens já atualiza a configuração local. Salve as alterações gerais para persistir.</SettingsFooterNote>}
         >
-            <SettingsSection title="Adicionar imagem" description="Use uma URL pública iniciada por http ou https.">
+            <SettingsSection title="Adicionar imagem" description="Envie do computador (PNG, JPG ou WebP) ou cole um link https.">
                 {/* Adicionar Nova Imagem */}
                 <div className="flex flex-col gap-2 sm:flex-row">
                     <Input
@@ -63,8 +64,16 @@ export default function CarouselSettings() {
                         disabled={isSaving}
                     />
                     <Button onClick={handleAddImage} disabled={isSaving || !newImageUrl.trim()}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Adicionar
+                        <PlusCircle className="h-4 w-4 mr-2" /> Adicionar link
                     </Button>
+                    <ImageUploadButton
+                        providerId={providerId}
+                        disabled={isSaving}
+                        onUploaded={(url) => {
+                            updateAndSave([...localImages, url]);
+                            toast.success("Imagem enviada. Clique em 'Salvar alterações' no topo para publicar.");
+                        }}
+                    />
                 </div>
             </SettingsSection>
 
@@ -85,13 +94,14 @@ export default function CarouselSettings() {
                                             variant="destructive" 
                                             size="icon" 
                                             onClick={() => handleRemoveImage(index)} 
+                                            aria-label={`Remover imagem ${index + 1}`}
                                             disabled={isSaving}
                                             className="h-8 w-8"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                    <a href={image} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 text-white/80 hover:text-white">
+                                    <a href={image} target="_blank" rel="noopener noreferrer" aria-label={`Abrir imagem ${index + 1}`} className="absolute top-2 right-2 text-white/80 hover:text-white">
                                         <Link className="h-4 w-4" />
                                     </a>
                                 </div>

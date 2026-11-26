@@ -61,12 +61,10 @@ class IncidentService {
       if (token == null || token.isEmpty) return null;
       final httpClient = client ?? http.Client();
       try {
-        final response = await httpClient
-            .get(
-              Uri.parse('$base/subscriber/incidents'),
-              headers: {'Authorization': 'Bearer $token'},
-            )
-            .timeout(const Duration(seconds: 6));
+        final response = await httpClient.get(
+          Uri.parse('$base/subscriber/incidents'),
+          headers: {'Authorization': 'Bearer $token'},
+        ).timeout(const Duration(seconds: 6));
         if (response.statusCode != 200) return null;
         final decoded = jsonDecode(response.body);
         final list = decoded is Map ? decoded['data'] : null;
@@ -77,7 +75,8 @@ class IncidentService {
             .where((i) => i.id.isNotEmpty)
             .toList();
         if (items.isEmpty) return null;
-        return items.firstWhere((i) => i.matchesArea, orElse: () => items.first);
+        return items.firstWhere((i) => i.matchesArea,
+            orElse: () => items.first);
       } finally {
         if (client == null) httpClient.close();
       }
@@ -87,6 +86,7 @@ class IncidentService {
     }
   }
 
-  Future<ProviderIncident?> activeIncident(String providerId, {String? apiUrl}) =>
+  Future<ProviderIncident?> activeIncident(String providerId,
+          {String? apiUrl}) =>
       fetchActiveFromApi(apiUrl);
 }

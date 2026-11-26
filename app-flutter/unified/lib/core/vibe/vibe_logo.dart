@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'vibe_text.dart';
@@ -186,7 +188,9 @@ class _VibeLogoState extends State<VibeLogo> {
       return null;
     }
     // 512 px de largura bastam para a marca e limitam o custo da leitura.
-    return ResizeImage.resizeIfNeeded(512, null, NetworkImage(url));
+    // Cache em disco: a partir da segunda abertura a marca aparece na hora,
+    // sem o espaço vazio enquanto baixa.
+    return ResizeImage.resizeIfNeeded(512, null, vibeLogoImageProvider(url));
   }
 
   @override
@@ -351,4 +355,23 @@ class _LogoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LogoPainter old) => old.analysis != analysis;
+}
+
+/// Imagem de rede da marca com cache em disco. Em testes (sem os plugins de
+/// arquivo) usa a imagem de rede comum.
+ImageProvider vibeLogoImageProvider(String url) {
+  if (vibeLogoDiskCache) return CachedNetworkImageProvider(url);
+  return NetworkImage(url);
+}
+
+/// Desligado nos testes de widget, que não têm sistema de arquivos.
+bool vibeLogoDiskCache =
+    !const bool.fromEnvironment('FLUTTER_TEST') && !_isFlutterTest();
+
+bool _isFlutterTest() {
+  try {
+    return Platform.environment.containsKey('FLUTTER_TEST');
+  } catch (_) {
+    return false;
+  }
 }

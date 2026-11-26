@@ -3,6 +3,12 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
+import { reloadOnceForChunkError } from './app/chunkReload';
+
+// Vite dispara este evento quando um import dinâmico falha (chunk removido por deploy).
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadOnceForChunkError()) event.preventDefault();
+});
 
 const pathname = window.location.pathname;
 const basename = pathname === '/painel' || pathname.startsWith('/painel/')

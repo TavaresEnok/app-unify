@@ -1,0 +1,10 @@
+[Unit]
+Description=Aviso de falha em %i (painel_provedores)
+
+[Service]
+Type=oneshot
+User=app
+Group=app
+WorkingDirectory=/home/app/projects/painel_provedores
+Environment=PATH=/home/app/.local/share/node24/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/app/.local/share/node24/bin/node scripts/ops/healthcheck.cjs --alert "Falha em %i no servidor do painel. Veja: journalctl -u %i"

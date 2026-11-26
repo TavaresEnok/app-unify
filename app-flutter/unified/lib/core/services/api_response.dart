@@ -50,11 +50,23 @@ Map<String, dynamic> decodeApiResponse(
   throw ApiException(status, apiErrorMessage(status, body, fallback));
 }
 
+/// Frase do servidor quando o sistema do provedor está com muitos acessos.
+const erpBusyMessage =
+    'Muitos acessos agora. Tente novamente em alguns segundos.';
+
 String apiErrorMessage(int status, Object? body, String fallback) {
   if (status == 429) {
     return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
   }
   if (status >= 500) {
+    // Vagas do ERP esgotadas: o servidor já manda a frase pronta para o cliente.
+    if (status == 503 && body is Map) {
+      final error = body['error'];
+      final message = error is Map ? error['message'] : null;
+      if (message is String && message.startsWith(erpBusyMessage)) {
+        return erpBusyMessage;
+      }
+    }
     return 'Serviço temporariamente indisponível. Tente novamente em instantes.';
   }
   if (body is Map) {

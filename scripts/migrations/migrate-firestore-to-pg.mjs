@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+// Migração ÚNICA Firestore -> PostgreSQL (já aplicada em 2026-11-25).
+//
+// Segurança contra reexecução:
+// - recusa rodar quando a tabela providers já tem linhas (use --force só se
+//   souber o que está fazendo);
+// - nunca sobrescreve dados já no PostgreSQL: o painel é a fonte da verdade
+//   (providers: PG vence; segredos: ON CONFLICT DO NOTHING);
+// - tudo roda numa transação; --dry-run desfaz no final e só mostra o resumo.
 import { createRequire } from 'node:module';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -65,6 +73,13 @@ function stripSecretsFromPublicData(obj) {
   return clone;
 }
 
+const PERSONALIZATION_KEYS = ['layoutType', 'themeColor', 'logoUrl', 'menuConfig', 'faq', 'tips', 'imageCarousel', 'strings', 'supportChannels', 'supportContacts', 'dashboardConfig'];
+function hasPersonalization(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return false;
+  const roots = [snapshot, snapshot.config].filter((v) => v && typeof v === 'object');
+  return roots.some((root) => PERSONALIZATION_KEYS.some((key) => root[key] !== undefined && root[key] !== null && root[key] !== ''));
+}
+
 function generateStrongPassword() {
   return crypto.randomBytes(24).toString('base64url').slice(0, 24);
 }
@@ -103,9 +118,7 @@ async function migrateFirestore(pool, db) {
       `INSERT INTO providers (id, name, active, data, created_at, updated_at)
        VALUES ($1, $2, $3, $4::jsonb, NOW(), NOW())
        ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
-         active = EXCLUDED.active,
-         data = providers.data || EXCLUDED.data,
+         data = EXCLUDED.data || providers.data,
          updated_at = NOW()`,
       [id, name, active, JSON.stringify(cleanData)],
     );
@@ -122,9 +135,7 @@ async function migrateFirestore(pool, db) {
         await pool.query(
           `INSERT INTO provider_secrets (provider_id, kind, ciphertext, updated_at)
            VALUES ($1, 'erp', $2, NOW())
-           ON CONFLICT (provider_id, kind) DO UPDATE SET
-             ciphertext = EXCLUDED.ciphertext,
-             updated_at = NOW()`,
+           ON CONFLICT (provider_id, kind) DO NOTHING`,
           [id, encryptSecret(secretPayload)],
         );
       }
@@ -136,9 +147,7 @@ async function migrateFirestore(pool, db) {
         await pool.query(
           `INSERT INTO provider_secrets (provider_id, kind, ciphertext, updated_at)
            VALUES ($1, 'acs', $2, NOW())
-           ON CONFLICT (provider_id, kind) DO UPDATE SET
-             ciphertext = EXCLUDED.ciphertext,
-             updated_at = NOW()`,
+           ON CONFLICT (provider_id, kind) DO NOTHING`,
           [id, encryptSecret(acsPayload)],
         );
       }
@@ -147,8 +156,14 @@ async function migrateFirestore(pool, db) {
     const backupsSnap = await doc.ref.collection('migration_backups').get();
     for (const bDoc of backupsSnap.docs) {
       const bData = bDoc.data() || {};
-      const snapshot = bData.snapshot || bData.data || bData;
-      const createdAt = bData.createdAt?.toDate ? bData.createdAt.toDate() : new Date();
+      // Só backups com personalização de verdade, sem segredos e sem dados de
+      // assinante (ids "legacy-client-<CPF>" eram cópias de perfil).
+      if (/^legacy-client-/i.test(bDoc.id)) continue;
+      const snapshot = stripSecretsFromPublicData(bData.snapshot || bData.data || bData);
+      if (!hasPersonalization(snapshot)) continue;
+      const stamp = bData.createdAt || bData.migratedAt;
+      const createdAt = stamp?.toDate ? stamp.toDate() : null;
+      if (!createdAt) continue;
       await pool.query(
         `INSERT INTO provider_backups (id, provider_id, label, created_by, snapshot, created_at)
          VALUES ($1, $2, $3, $4, $5::jsonb, $6)
@@ -196,7 +211,7 @@ async function migrateFirestore(pool, db) {
   return { providerCount, backupCount, auditCount, skippedFirestore: false };
 }
 
-async function seedAdminUsers(pool) {
+async function seedAdminUsers(pool, { dryRun = false } = {}) {
   const admins = [
     {
       uid: '1xxT2DJuNxV4nqi0JypcukqcNuj1',
@@ -234,7 +249,7 @@ async function seedAdminUsers(pool) {
   }
 
   const outPath = process.env.ADMIN_PASSWORDS_OUT?.trim();
-  if (created.length > 0 && outPath) {
+  if (created.length > 0 && outPath && !dryRun) {
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     const lines = [
       `# Credenciais iniciais geradas em ${new Date().toISOString()} (alterar após primeiro login)`,
@@ -274,11 +289,7 @@ async function registerUpConnect(pool) {
   await pool.query(
     `INSERT INTO providers (id, name, active, data, created_at, updated_at)
      VALUES ('upconnect', 'UP Connect', TRUE, $1::jsonb, NOW(), NOW())
-     ON CONFLICT (id) DO UPDATE SET
-       name = EXCLUDED.name,
-       active = EXCLUDED.active,
-       data = providers.data || EXCLUDED.data,
-       updated_at = NOW()`,
+     ON CONFLICT (id) DO NOTHING`,
     [JSON.stringify(publicData)],
   );
 
@@ -289,44 +300,62 @@ async function registerUpConnect(pool) {
       sgpBaseUrl: ixcUrl,
       apiToken: ixcToken,
     };
-    await pool.query(
+    const inserted = await pool.query(
       `INSERT INTO provider_secrets (provider_id, kind, ciphertext, updated_at)
        VALUES ('upconnect', 'erp', $1, NOW())
-       ON CONFLICT (provider_id, kind) DO UPDATE SET
-         ciphertext = EXCLUDED.ciphertext,
-         updated_at = NOW()`,
+       ON CONFLICT (provider_id, kind) DO NOTHING`,
       [encryptSecret(secretPayload)],
     );
-    secretSaved = true;
+    secretSaved = (inserted.rowCount || 0) > 0;
   }
 
   return { registered: true, secretSaved, ixcUrl };
 }
 
 async function main() {
+  const args = new Set(process.argv.slice(2));
+  const force = args.has('--force');
+  const dryRun = args.has('--dry-run');
   const databaseUrl = process.env.DATABASE_URL?.trim();
   if (!databaseUrl) {
     throw new Error('DATABASE_URL não definida.');
   }
   const pool = new Pool({ connectionString: databaseUrl });
+  const client = await pool.connect();
   try {
     for (const stmt of CORE_SCHEMA_STATEMENTS) {
-      await pool.query(stmt);
+      await client.query(stmt);
+    }
+    const existing = await client.query('SELECT COUNT(*)::int AS count FROM providers');
+    if (existing.rows[0].count > 0 && !force) {
+      console.log(JSON.stringify({
+        ok: false,
+        skipped: true,
+        message: 'Migração já aplicada: a tabela providers já tem dados. Nada foi alterado. Use --dry-run para simular ou --force para rodar mesmo assim (sem sobrescrever dados do PostgreSQL).',
+      }));
+      return;
     }
 
+    await client.query('BEGIN');
     const db = initFirestoreIfConfigured();
-    const firestoreSummary = await migrateFirestore(pool, db);
-    const seededAdmins = await seedAdminUsers(pool);
-    const upConnectSummary = await registerUpConnect(pool);
+    const firestoreSummary = await migrateFirestore(client, db);
+    const seededAdmins = await seedAdminUsers(client, { dryRun });
+    const upConnectSummary = await registerUpConnect(client);
+    await client.query(dryRun ? 'ROLLBACK' : 'COMMIT');
 
     console.log(JSON.stringify({
       ok: true,
+      dryRun,
       firestore: firestoreSummary,
       seededAdminsCount: seededAdmins.length,
       seededAdminsEmails: seededAdmins,
       upconnect: upConnectSummary,
     }));
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
   } finally {
+    client.release();
     await pool.end();
   }
 }

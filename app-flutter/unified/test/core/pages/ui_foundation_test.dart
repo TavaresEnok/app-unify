@@ -40,24 +40,54 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       var completed = false;
+      var asked = 0;
       await tester.pumpWidget(MaterialApp(
           theme: LayoutTokens.of(id).themeData(),
           builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context)
                   .copyWith(textScaler: const TextScaler.linear(2)),
               child: child!),
-          home: OnboardingPage(onComplete: () => completed = true)));
+          home: OnboardingPage(
+              onComplete: () => completed = true,
+              requestNotifications: () async => asked++)));
       for (var i = 0; i < 3; i++) {
         expect(tester.takeException(), isNull);
         await tester.tap(find.text('Avançar'));
         await tester.pumpAndSettle();
       }
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Começar'));
+      // A permissão de avisos é pedida aqui, com a explicação na tela.
+      expect(find.textContaining('quando a fatura vence'), findsOneWidget);
+      expect(find.text('Agora não'), findsOneWidget);
+      await tester.tap(find.text('Ativar avisos'));
       await tester.pumpAndSettle();
+      expect(asked, 1);
       expect(completed, isTrue);
     });
   }
+  testWidgets('onboarding "Agora não" não pede a permissão', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    var completed = false;
+    var asked = 0;
+    var declined = 0;
+    await tester.pumpWidget(MaterialApp(
+        theme: LayoutTokens.of('layout_02').themeData(),
+        home: OnboardingPage(
+            onComplete: () => completed = true,
+            requestNotifications: () async => asked++,
+            declineNotifications: () async => declined++)));
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('Avançar'));
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.text('Agora não'));
+    await tester.tap(find.text('Agora não'));
+    await tester.pumpAndSettle();
+    expect(asked, 0);
+    expect(declined, 1);
+    expect(completed, isTrue);
+  });
+
   testWidgets('recoverable state retries and supports large text',
       (tester) async {
     var retries = 0;

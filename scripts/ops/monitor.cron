@@ -1,0 +1,4 @@
+# Monitor do painel_provedores (scripts/ops/healthcheck.cjs), a cada 5 min.
+# Instalar (mantém as outras linhas do crontab):
+#   (crontab -l 2>/dev/null | grep -v 'scripts/ops/healthcheck.cjs'; grep -v '^#' scripts/ops/monitor.cron) | crontab -
+*/5 * * * * cd /home/app/projects/painel_provedores && /home/app/.local/share/node24/bin/node scripts/ops/healthcheck.cjs >> /home/app/.backups/painel_provedores/healthcheck.log 2>&1

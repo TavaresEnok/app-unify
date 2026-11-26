@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { canAccessProvider, verifyFreshToken, verifyToken, verifyAdmin } from "../middlewares/auth";
+import { canAccessProvider, requireRecentLogin, verifyFreshToken, verifyToken, verifyAdmin } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { recordAdminAudit } from "../services/auditService";
 import { requirePgPool } from "../services/postgres";
@@ -12,6 +12,8 @@ import {
   deleteProviderRow,
   getProviderBackup,
   getProviderRow,
+  getProviderSecret,
+  getProviderSecretMeta,
   listProviderBackups,
   listProviderRows,
   saveProviderSecret,
@@ -19,6 +21,7 @@ import {
   upsertProvider,
 } from "../services/providersStore";
 import sgpOutbound from "../services/sgp-outbound";
+import { ixcHeaders, ixcUrl } from "../services/ixc-gateway";
 import { publicConfigCache } from "../services/publicConfigCache";
 import { proxyToSgp } from "../services/proxySgpClient";
 import {
@@ -27,7 +30,9 @@ import {
   parsePrivateIntegration,
   parseProviderInput,
   restoredPersonalization,
+  sanitizePersonalization,
 } from "../services/providerConfig";
+import { getPgPool } from "../services/postgres";
 
 export const providersRouter = Router();
 providersRouter.use(verifyToken, verifyAdmin);
@@ -141,9 +146,15 @@ providersRouter.post("/", asyncRoute(async (req, res) => {
   catch { throw new ApiError(400, "Configuração inválida ou campo não permitido.", "invalid-argument"); }
 
   const pool = requirePgPool();
-  const existed = id ? Boolean(await getProviderRow(pool, id)) : false;
+  const existing = id ? await getProviderRow(pool, id, { includeDeleted: true }) : null;
+  const existed = Boolean(existing) && !(existing?.data && typeof existing.data === "object" && "deletedAt" in existing.data);
   if (!existed && req.user?.superAdmin !== true) {
     throw new ApiError(403, "Apenas Super Admin pode criar provedores.", "permission-denied");
+  }
+  // Criar com um ID já usado (inclusive de provedor excluído) nunca
+  // sobrescreve o provedor existente nem reaproveita os dados dele.
+  if (existing && req.user?.superAdmin === true) {
+    throw new ApiError(409, "Já existe um provedor com este ID.", "already-exists");
   }
   const saved = await upsertProvider(pool, id || null, data);
   publicConfigCache.delete(saved.id);
@@ -168,12 +179,32 @@ providersRouter.delete("/:providerId", asyncRoute(async (req, res) => {
   res.json({ success: true });
 }));
 
+/**
+ * Uma leitura mínima no IXC (cliente, 1 registro) antes de gravar: token ou
+ * URL errados viram 400 claro, em vez de um sync que falha em silêncio.
+ * Passa pelo mesmo cliente de saída (SSRF guard/IP fixado) das consultas.
+ */
+async function probeIxcIntegration(integration: Record<string, string>): Promise<void> {
+  const invalid = (status: number | string) => new ApiError(400, `Token ou URL do IXC inválidos (HTTP ${status}).`, "invalid-argument");
+  let response: { status: number; data: unknown };
+  try {
+    response = (await sgpOutbound.request(ixcUrl(integration.sgpBaseUrl, "cliente"), {
+      qtype: "cliente.id", query: "0", oper: ">", page: "1", rp: "1", sortname: "cliente.id", sortorder: "desc",
+    }, { encoding: "json", timeout: 15000, headers: ixcHeaders(integration.apiToken, "listar") })) as { status: number; data: unknown };
+  } catch (error) {
+    const status = Number((error as { response?: { status?: number } })?.response?.status);
+    if (status >= 300 && status < 500) throw invalid(status);
+    throw new ApiError(502, "Não foi possível testar a conexão com o IXC agora. Tente novamente.", "upstream-error");
+  }
+  const data = response.data as { type?: unknown } | string | null;
+  // URL errada costuma responder 200 com página HTML; token sem acesso, type:"error".
+  if (!data || typeof data !== "object" || String(data.type || "").toLowerCase() === "error") throw invalid(response.status);
+}
+
 providersRouter.post("/:providerId/integration", verifyFreshToken, asyncRoute(async (req, res) => {
   if (req.user?.superAdmin !== true) throw new ApiError(403, "Apenas SaaS pode substituir integração.", "permission-denied");
-  const authTime = Number(req.user.auth_time || 0);
-  if (!Number.isFinite(authTime) || Date.now() / 1000 - authTime > 300) {
-    throw new ApiError(403, "Autentique-se novamente para substituir a integração.", "permission-denied");
-  }
+  // 401 com código "reauth-required": o painel pede a senha e repete a ação.
+  requireRecentLogin(req);
 
   const id = req.params.providerId;
   if (!/^[a-z0-9_-]+$/i.test(id)) throw new ApiError(400, "ID inválido.", "invalid-argument");
@@ -185,6 +216,7 @@ providersRouter.post("/:providerId/integration", verifyFreshToken, asyncRoute(as
 
   const pool = requirePgPool();
   if (!(await getProviderRow(pool, id))) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  if (integrations.erp === "ixc") await probeIxcIntegration(integrations);
   await saveProviderSecret(pool, id, "erp", integrations);
   await recordAdminAudit({ type: "REPLACE_PROVIDER_INTEGRATION", requesterUid: req.user!.uid, providerId: id, payload: { replaced: true } });
 
@@ -198,6 +230,49 @@ providersRouter.post("/:providerId/integration", verifyFreshToken, asyncRoute(as
     }
   }
   res.json(syncQueued ? { success: true, syncQueued: true } : { success: true });
+}));
+
+// Situação da integração com o ERP, sem segredos. O Super Admin vê também o
+// host configurado; o admin do provedor vê só se está configurada.
+providersRouter.get("/:providerId/integration/status", asyncRoute(async (req, res) => {
+  const id = req.params.providerId;
+  if (!/^[a-z0-9_-]{1,64}$/i.test(id)) throw new ApiError(400, "ID de provedor inválido.", "invalid-argument");
+  if (!canAccessProvider(req, id)) throw new ApiError(403, "Sem permissão para este provedor.", "permission-denied");
+  const pool = requirePgPool();
+  const provider = await getProviderRow(pool, id);
+  if (!provider) throw new ApiError(404, "Provedor não encontrado.", "not-found");
+  const [secret, meta, acs] = await Promise.all([
+    getProviderSecret<Record<string, unknown>>(pool, id, "erp").catch(() => null),
+    getProviderSecretMeta(pool, id, "erp").catch(() => null),
+    getProviderSecret<Record<string, unknown>>(pool, id, "acs").catch(() => null),
+  ]);
+  const erp = secret ? (String(secret.erp || "sgp").toLowerCase() === "ixc" ? "ixc" : "sgp") : null;
+  let baseUrlHost: string | null = null;
+  if (secret && typeof secret.sgpBaseUrl === "string") {
+    try { baseUrlHost = new URL(secret.sgpBaseUrl).host; } catch { baseUrlHost = null; }
+  }
+  const data = (provider.data || {}) as Record<string, unknown>;
+  const lastSync = data.lastClientSyncAt;
+  const lastClientSyncAt = typeof lastSync === "string" ? lastSync
+    : lastSync && typeof lastSync === "object" && Number.isFinite(Number((lastSync as Record<string, unknown>)._seconds))
+      ? new Date(Number((lastSync as Record<string, unknown>)._seconds) * 1000).toISOString() : null;
+  const countRes = await getPgPool()?.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM sgp_clients WHERE provider_id = $1`, [id])
+    .catch(() => ({ rows: [] as { count: string }[] }));
+  const clientCount = countRes?.rows?.[0] ? Number(countRes.rows[0].count) : null;
+  res.json({
+    data: {
+      configured: Boolean(secret),
+      erp,
+      erpLabel: erp === "ixc" ? "IXC Provedor" : erp === "sgp" ? "SGP" : null,
+      ...(req.user?.superAdmin === true ? { baseUrlHost } : {}),
+      configuredAt: meta?.updatedAt || null,
+      lastClientSyncAt,
+      lastClientSyncPartial: data.lastClientSyncPartial === true,
+      syncedClientCount: Number.isFinite(Number(data.syncedClientCount)) ? Number(data.syncedClientCount) : null,
+      clientCount,
+      tr069: acs ? { driver: String(acs.driver || "none"), enabled: Boolean(acs.enabled) && acs.driver !== "none" } : { driver: "none", enabled: false },
+    },
+  });
 }));
 
 providersRouter.get("/:providerId/backups", asyncRoute(async (req, res) => {
@@ -233,6 +308,10 @@ providersRouter.post("/:providerId/backups/:backupId/restore", asyncRoute(async 
   if (!provider) throw new ApiError(404, "Provedor não encontrado.", "not-found");
   if (!backup) throw new ApiError(404, "Backup não encontrado.", "not-found");
 
+  // Backup sem nenhuma personalização apagaria layout, cores e logo do app.
+  if (!Object.keys(sanitizePersonalization(backup.snapshot || {})).length) {
+    throw new ApiError(400, "Backup sem personalização. Escolha outro backup.", "failed-precondition");
+  }
   const nextData = restoredPersonalization(provider.data || {}, backup.snapshot || {});
   await upsertProvider(pool, id, nextData, { replaceData: true });
   publicConfigCache.delete(id);

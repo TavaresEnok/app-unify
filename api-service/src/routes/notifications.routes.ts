@@ -1,3 +1,4 @@
+import { recordAdminAudit } from "../services/auditService";
 import { Router, type Request } from "express";
 import { canAccessProvider, verifyAdmin, verifyToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
@@ -102,6 +103,7 @@ notificationsRouter.post("/send", asyncRoute(async (req, res) => {
       filters: req.body?.filters,
       sentBy: req.user?.uid || "admin",
       scheduledFor,
+      idempotencyKey: typeof req.headers["idempotency-key"] === "string" ? req.headers["idempotency-key"] : null,
     });
   } catch (error) {
     if (scheduledFor && error instanceof Error) {
@@ -118,6 +120,13 @@ notificationsRouter.post("/send", asyncRoute(async (req, res) => {
         ? `Campanha registrada (${campaign.matchedSubscribers} assinante(s) no segmento, nenhum aparelho com push ativo no momento — visível no aplicativo ao abrir).`
         : `Notificação enviada: ${campaign.successCount} entrega(s) aceita(s), ${campaign.failureCount} falha(s) (${campaign.matchedSubscribers} assinante(s) no segmento).`;
 
+  await recordAdminAudit({
+    type: "SEND_PUSH_CAMPAIGN",
+    requesterUid: req.user?.uid || "admin",
+    providerId,
+    correlationId: req.correlationId,
+    payload: { campaignId: campaign.id, title: campaign.title, status: campaign.status, deliveryMode: campaign.deliveryMode, matchedSubscribers: campaign.matchedSubscribers },
+  }).catch(() => undefined);
   res.status(201).json({ success: true, message, data: campaign });
 }));
 

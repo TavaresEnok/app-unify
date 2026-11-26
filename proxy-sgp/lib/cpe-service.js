@@ -70,6 +70,28 @@ function networksFromResult(result, showPasswords) {
   return rows.filter((r) => r.id).map((r) => (r.password === undefined ? (({ password, ...rest }) => rest)(r) : r));
 }
 
+// O SGP lista as interfaces virtuais (SSIDs extras desativados) junto com as
+// principais. Sem permissão explícita para exibi-las, mostra só as redes
+// ligadas mais a principal de cada banda (wifi_id / wifi_id_5ghz); se uma banda
+// não tiver nenhuma rede ligada, fica a primeira daquela banda.
+function visibleNetworks(rows, result, showVirtual) {
+  if (showVirtual) return rows;
+  const primary = new Set([result?.wifi_id, result?.wifi_id_5ghz].filter((id) => id != null && id !== '').map(String));
+  const kept = rows.filter((r) => r.enabled || primary.has(r.id));
+  for (const band of ['2.4GHz', '5GHz']) {
+    if (kept.some((r) => r.frequency === band)) continue;
+    const first = rows.find((r) => r.frequency === band);
+    if (first) kept.push(first);
+  }
+  return rows.filter((r) => kept.includes(r));
+}
+
+function virtualWifiVisible(response) {
+  const flags = [response?.cpe_template?.exibir?.wifi_virtual, response?.result?.cpe_template?.exibir?.wifi_virtual,
+    response?.cpe_manager?.exibir_wifi_virtual];
+  return flags.some((flag) => flag === true);
+}
+
 function hostsFromResult(result) {
   const byMac = new Map();
   for (const d of Array.isArray(result?.lan_devices) ? result.lan_devices : []) {
@@ -112,7 +134,10 @@ function deviceFromResult(result, manager) {
 function normalizeCpeWifiResponse(response, legacyParser) {
   if (response && typeof response === 'object' && !Array.isArray(response) && response.result && typeof response.result === 'object') {
     const showPasswords = response.cpe_manager?.exibir_wifi_senha === true;
-    return { networks: networksFromResult(response.result, showPasswords), device: deviceFromResult(response.result, response.cpe_manager) };
+    const networks = visibleNetworks(networksFromResult(response.result, showPasswords), response.result, virtualWifiVisible(response));
+    // passwordReadable=false: o roteador não informa a senha salva, então o app
+    // precisa pedir a senha ao renomear a rede (não dá para "deixar em branco").
+    return { networks, device: { ...deviceFromResult(response.result, response.cpe_manager), passwordReadable: showPasswords }, passwordReadable: showPasswords };
   }
   if (response && typeof response === 'object' && !Array.isArray(response) && typeof response.msg === 'string' && !response.data && !response.wifis) {
     // Ex.: "Equipamento não encontrado.", "Gerenciador CPE não definido para este serviço."

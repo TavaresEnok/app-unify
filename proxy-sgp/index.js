@@ -1,3 +1,6 @@
+// dns.lookup usa o threadpool do libuv (4 threads por padrão). Consultas de DNS
+// lentas não podem travar fs/crypto/zlib do processo inteiro.
+if (!process.env.UV_THREADPOOL_SIZE) process.env.UV_THREADPOOL_SIZE = '16';
 const { invoiceAmount } = require('./lib/invoice-amount');
 const { wifiNetworks, assertWifiResponse, preservedWifiPassword } = require('./lib/wifi-response');
 const express = require('express');
@@ -18,10 +21,24 @@ const { CORE_SCHEMA_STATEMENTS } = require('./lib/core-schema-ddl');
 const stateRedis = process.env.JOBS_REDIS_URL ? new Redis(process.env.JOBS_REDIS_URL, { maxRetriesPerRequest: 1 }) : null;
 stateRedis?.on('error', () => undefined);
 const { createUpstream, readTtl } = require('./lib/upstream');
+const BACKGROUND = process.env.SGP_BACKGROUND === 'true';
+const positiveEnv = (name, fallback) => { const n = Number(process.env[name]); return Number.isInteger(n) && n > 0 ? n : fallback; };
 const upstream = createUpstream({ getRedis: () => stateRedis, getCacheRedis: () => redis,
-    maxPerProvider: process.env.SGP_BACKGROUND === 'true' ? 2 : 4,
-    maxPerHost: process.env.SGP_BACKGROUND === 'true' ? 4 : 8,
+    maxPerProvider: BACKGROUND ? 2 : positiveEnv('SGP_MAX_PER_PROVIDER', 4),
+    maxPerHost: BACKGROUND ? 4 : 8,
+    // Pedidos do app esperam até 3 s por uma vaga antes de responder 503.
+    slotWaitMs: BACKGROUND ? 0 : 3000,
 });
+// O IXC aguenta bem consultas paralelas (a home dispara várias de uma vez):
+// teto maior por provedor/host IXC só para pedidos do app; jobs seguem em 2.
+const IXC_MAX_PER_PROVIDER = positiveEnv('IXC_MAX_PER_PROVIDER', 12);
+const IXC_LIMITS = { maxPerProvider: IXC_MAX_PER_PROVIDER, maxPerHost: Math.max(8, IXC_MAX_PER_PROVIDER) };
+// Cada chamada ao ERP tem um teto menor que o da API (30 s), para a vaga ser
+// liberada e o erro chegar ao app antes do timeout dele. Jobs têm mais folga.
+const SGP_CALL_TIMEOUT_MS = positiveEnv('SGP_TIMEOUT_MS', BACKGROUND ? 45000 : 20000);
+const { publicError, sendPublicError } = require('./lib/proxy-errors');
+const { localParts } = require('./lib/local-date');
+const { parseOnuInfo } = require('./lib/onu-details');
 const { loadConfig } = require('./lib/config');
 const { maskCpfCnpj, secureLog } = require('./lib/secure-log');
 const { canIssueClientToken, subscriberIdentity } = require('./lib/client-access');
@@ -89,7 +106,19 @@ const rateLimiter = createRateLimiter({
             try {
                 const hint = verifyJwt(token);
                 return `user:${hint.providerId || 'global'}:${hint.uid}`;
-            } catch { return `invalid:${req.ip}`; }
+            } catch {
+                // Token legado do Firebase (RS256): agrupa pelo usuário que ele
+                // declara, em vez de um balde por IP só. O "sub" ainda não foi
+                // verificado aqui: o pedido também conta no teto por IP abaixo,
+                // senão um token forjado com "sub" aleatório escaparia do limite.
+                req.rateLimitUnverified = true;
+                try {
+                    const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8'));
+                    const sub = typeof payload?.user_id === 'string' ? payload.user_id : typeof payload?.sub === 'string' ? payload.sub : '';
+                    if (sub) return `legacy:${require('crypto').createHash('sha256').update(sub).digest('hex').slice(0, 32)}`;
+                } catch { /* token malformado */ }
+                return `invalid:${req.ip}`;
+            }
         }
         const secret = req.body?.secret;
         const expected = config.proxySecret;
@@ -100,8 +129,23 @@ const rateLimiter = createRateLimiter({
     },
 });
 
+// Teto por IP para pedidos com token não verificado (legado/forjado). Folgado
+// (4x o limite por usuário) por causa de CGNAT, mas impede que "sub"
+// aleatórios contornem o limite por IP, inclusive no /check-cpf.
+const unverifiedIpLimiter = createRateLimiter({
+    getRedis: () => stateRedis,
+    windowMs: config.rateLimitWindowMs,
+    maxRequests: config.rateLimitMaxRequests * 4,
+    getClientId: (req) => `uvip:${req.ip}`,
+});
+function unverifiedIpCeiling(req, res, next) {
+    if (!req.rateLimitUnverified) return next();
+    return unverifiedIpLimiter(req, res, next);
+}
+
 // Limpa fallback in-memory a cada 5 minutos
 setInterval(rateLimiter.pruneFallback, 5 * 60 * 1000).unref();
+setInterval(unverifiedIpLimiter.pruneFallback, 5 * 60 * 1000).unref();
 
 // ----------------------------------------
 
@@ -129,6 +173,7 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 app.use(rateLimiter); // Aplica rate limiting a todas as rotas
+app.use(unverifiedIpCeiling);
 
 const PROXY_SECRET_KEY = config.proxySecret;
 if (!PROXY_SECRET_KEY) {
@@ -188,13 +233,13 @@ async function rawSgpApi(params) {
             console.log(`[SGP-API] Usando método GET com query params`);
             response = await outbound.request(url, undefined, { method: 'GET',
                 params: rest,
-                timeout: 60000
+                timeout: SGP_CALL_TIMEOUT_MS
             });
         } else if (useJson) {
             console.log(`[SGP-API] Usando Content-Type: application/json`);
             response = await outbound.request(url, rest, {
                 encoding: 'json',
-                timeout: 60000
+                timeout: SGP_CALL_TIMEOUT_MS
             });
         } else {
             // Para outros endpoints, usa form-urlencoded (igual ao PHP)
@@ -207,7 +252,7 @@ async function rawSgpApi(params) {
             }
             response = await outbound.request(url, formData, {
                 encoding: 'form',
-                timeout: 60000
+                timeout: SGP_CALL_TIMEOUT_MS
             });
         }
 
@@ -224,7 +269,11 @@ async function rawSgpApi(params) {
                     : undefined;
             throw Object.assign(new Error(`SGP retornou erro HTTP ${error.response.status}`), { response: { status: error.response.status }, sgpMessage });
         }
-        throw new Error(`Erro de conexão com SGP: ${error.message}`);
+        // Falha de DNS segue como está (não conta no disjuntor). Demais falhas
+        // de rede/timeout viram 503 para o worker reagendar e o app ver a
+        // mensagem certa.
+        if (error.dnsFailure) throw error;
+        throw Object.assign(new Error(`Erro de conexão com SGP: ${error.message}`), { status: 503, connectionFailure: true });
     }
 }
 
@@ -242,15 +291,18 @@ async function callSgpApi(params) {
         ? () => ixcApi(credentials, target.pathname.slice(approved.pathname.replace(/\/$/, '').length) || '/', data)
         : () => rawSgpApi(body);
     return upstream.execute({ providerId, url: params.url,
-        body: data, ttl: cache ? readTtl(params.url) : 0, mutate: /liberacaopromessa|wifi\/update/.test(params.url) }, operation);
+        body: data, ttl: cache ? readTtl(params.url) : 0, mutate: /liberacaopromessa|wifi\/update/.test(params.url),
+        limits: credentials.erp === 'ixc' && !BACKGROUND ? IXC_LIMITS : undefined }, operation);
 }
 
 // IXC Provedor: traduz a rota SGP em chamadas ao webservice IXC (ver lib/ixc-gateway.js).
 async function ixcApi(credentials, sgpPath, data) {
     const gateway = createIxcGateway({
         allowWrites: process.env.IXC_DISABLE_WRITES !== 'true',
+        // Jobs (lembrete de fatura, sync) não precisam do PIX: evita N get_pix por assinante.
+        pixLookup: !BACKGROUND,
         call: async (table, payload, action) => (await outbound.request(ixcUrl(credentials.sgpBaseUrl, table), payload, {
-            encoding: 'json', timeout: 45000, headers: ixcHeaders(credentials.sgpParams.token, action),
+            encoding: 'json', timeout: Math.min(45000, SGP_CALL_TIMEOUT_MS + 10000), headers: ixcHeaders(credentials.sgpParams.token, action),
         })).data,
     });
     const { token, app, providerId, url, ...params } = data;
@@ -276,7 +328,7 @@ async function loadSgpCredentials(body) {
         `SELECT p.id, ps.ciphertext
          FROM providers p
          LEFT JOIN provider_secrets ps ON ps.provider_id = p.id AND ps.kind = 'erp'
-         WHERE p.id = $1`,
+         WHERE p.id = $1 AND NOT (COALESCE(p.data, '{}'::jsonb) ? 'deletedAt')`,
         [providerId]
     );
     const row = rows[0];
@@ -376,7 +428,7 @@ async function resolveClientContractCredentials({ cpfCnpjUnformatted, sgpParams,
 
     const consultaResponse = await callSgpApi(consultaParams);
     if (!consultaResponse || !Array.isArray(consultaResponse.contratos) || consultaResponse.contratos.length === 0) {
-        throw new Error('Nenhum contrato encontrado.');
+        throw Object.assign(new Error('Nenhum contrato encontrado.'), { status: 404 });
     }
 
     const contracts = consultaResponse.contratos;
@@ -420,11 +472,10 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
             return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para extrato de consumo.' } });
         }
 
-        const hoje = new Date();
-        // Use provided month/year or default to current
-        // Note: JS getMonth() is 0-indexed (0=Jan), SGP expects 1-12
-        const targetMonth = mes ? mes.toString() : (hoje.getMonth() + 1).toString();
-        const targetYear = ano ? ano.toString() : hoje.getFullYear().toString();
+        // Mês corrente no fuso do provedor (o container roda em UTC).
+        const hoje = localParts();
+        const targetMonth = mes ? mes.toString() : String(hoje.month);
+        const targetYear = ano ? ano.toString() : String(hoje.year);
 
         console.log(`[Consumo] Buscando extrato para Contrato ${contratoId} - ${targetMonth}/${targetYear}`);
 
@@ -440,15 +491,8 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
 
         const extratoResponse = await callSgpApi(extratoParams);
 
-        // DEBUG: Inspetor de Resposta SGP
-        console.log(`[Consumo DEBUG] Keys recebidas: ${Object.keys(extratoResponse || {}).join(', ')}`);
-        if (extratoResponse?.extrato) {
-            console.log(`[Consumo DEBUG] Tipo de 'extrato': ${typeof extratoResponse.extrato}, IsArray: ${Array.isArray(extratoResponse.extrato)}, Length: ${extratoResponse.extrato?.length}`);
-            if (Array.isArray(extratoResponse.extrato) && extratoResponse.extrato.length > 0) {
-                console.log(`[Consumo DEBUG] Primeiro item:`, JSON.stringify(extratoResponse.extrato[0]));
-            }
-        } else {
-            console.log(`[Consumo DEBUG] Campo 'extrato' está AUSENTE ou NULO.`);
+        if (process.env.DEBUG_REQUESTS === 'true') {
+            console.log(`[Consumo DEBUG] Keys recebidas: ${Object.keys(extratoResponse || {}).join(', ')}`);
         }
 
         // Tenta encontrar o array de detalhes em varios campos comuns do SGP
@@ -501,7 +545,7 @@ app.post('/get-consumption-data', verifyFirebaseToken, async (req, res) => {
         });
     } catch (error) {
         console.error(`[Consumo] Erro: ${error.message}`);
-        (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } }));
+        sendPublicError(res, error, 'Erro interno.');
     }
 });
 // 2. Rotas Sincronização Clientes
@@ -540,6 +584,11 @@ async function authorizeInternalOrAdmin(req, res, targetProviderId) {
 
 app.post('/sync-clients', async (req, res) => {
     if (!(await authorizeInternalOrAdmin(req, res, req.body?.providerId))) return;
+    try {
+        await ensureSgpCredentials({ providerId: req.body?.providerId });
+    } catch {
+        return res.status(409).json({ error: { message: 'Integração do ERP não configurada para este provedor.' } });
+    }
     try {
         const { enqueueSync } = require('./lib/jobs');
         const job = await enqueueSync(req.body.providerId);
@@ -598,6 +647,7 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
     // Log para debug
     console.log(`[Check-CPF] Iniciando check para ${maskCpfCnpj(cpfCnpjUnformatted)}`);
     console.log(`[Check-CPF] Params usados: App=${sgpParams.app}, URL=${sgpBaseUrl}`);
+    const loginBudgetEnds = Date.now() + 20000;
     try {
         const clientParams = {
             ...sgpParams,
@@ -624,67 +674,99 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
             || contrato.contratoStatus
             || contrato.status
             || '';
+        const eligible = canIssueClientToken(contractAccountStatus);
+        if (!eligible) {
+            // Sem sessão para contrato encerrado/inativo: devolve só o status,
+            // sem nome, e-mail, plano ou valores (nada de dados antes do login).
+            // Sessões antigas desse assinante deixam de valer.
+            await ensureCoreTables().then(() => pool.query(
+                `UPDATE subscribers SET token_version = token_version + 1, contract_status = $3, updated_at = NOW()
+                  WHERE provider_id = $1 AND cpfcnpj = $2`,
+                [req.body.providerId, cpfCnpjUnformatted, contractAccountStatus || ''],
+            )).catch((err) => console.warn('[Check-CPF] Não foi possível encerrar sessões antigas:', err && err.message));
+            console.log('[Check-CPF] Token não gerado para contrato encerrado ou inativo.');
+            return res.status(200).json({
+                status: contractAccountStatus,
+                contractStatus: contractAccountStatus || null,
+                message: 'Acesso indisponível para este contrato. Verifique o status com o provedor.',
+            });
+        }
+
         let valorAberto = contrato.contratoValorAberto == null || contrato.contratoValorAberto === ''
             ? null : Number(contrato.contratoValorAberto);
         let vencimento = contrato.cobVencimento;
 
-        // Se o valor vier zerado do cadastro, busca nas faturas abertas
-        if (valorAberto === null) {
-            try {
-                const titlesParams = {
-                    ...sgpParams,
-                    cpfcnpj: cpfCnpjUnformatted,
-                    status: 'abertos',
-                    url: formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/')
-                };
-                console.log('[Check-CPF] Valor zerado. Buscando títulos abertos...');
-                const titlesResponse = await callSgpApi(titlesParams);
+        // As consultas complementares (saldo e conexão) rodam em paralelo e
+        // dentro de um orçamento: se o ERP demorar, o login segue sem elas.
+        const withinBudget = (promise, label) => {
+            const remaining = loginBudgetEnds - Date.now();
+            const guarded = promise.catch((err) => { console.error(`[Check-CPF] Erro ao consultar ${label}:`, err?.message || 'erro desconhecido'); return undefined; });
+            if (remaining <= 500) return Promise.resolve(undefined);
+            let timer;
+            return Promise.race([guarded, new Promise((resolve) => { timer = setTimeout(() => { console.warn(`[Check-CPF] ${label} fora do orçamento do login.`); resolve(undefined); }, remaining); })])
+                .finally(() => clearTimeout(timer));
+        };
 
-                if (titlesResponse?.titulos?.length) {
-                    // Títulos sem identificação do contrato não podem ser
-                    // atribuídos com segurança ao contrato selecionado.
-                    titlesResponse.titulos = titlesResponse.titulos.filter(t =>
-                        String(t.contratoId ?? t.contrato ?? '') === String(contrato.contratoId));
-                }
-                if (titlesResponse?.titulos?.length) {
-                    // Filtra apenas faturas vencidas ou a vencer nos próximos 45 dias
-                    // Isso evita somar faturas de anos futuros se o provedor gerou carnê
-                    const now = new Date();
-                    const limitDate = new Date();
-                    limitDate.setDate(limitDate.getDate() + 45); // Próximos 45 dias
+        const loadOpenTitles = async () => {
+            const titlesResponse = await callSgpApi({
+                ...sgpParams,
+                cpfcnpj: cpfCnpjUnformatted,
+                status: 'abertos',
+                url: formatSgpUrl(sgpBaseUrl, '/api/ura/titulos/')
+            });
+            // Títulos sem identificação do contrato não podem ser atribuídos
+            // com segurança ao contrato selecionado.
+            const titulos = Array.isArray(titlesResponse?.titulos)
+                ? titlesResponse.titulos.filter(t => String(t.contratoId ?? t.contrato ?? '') === String(contrato.contratoId))
+                : [];
+            if (!titulos.length) return null;
+            // Soma vencidas + as que vencem nos próximos 45 dias (evita somar
+            // carnê de meses futuros).
+            const limitDate = new Date();
+            limitDate.setDate(limitDate.getDate() + 45);
+            const sortedTitles = titulos.sort((a, b) => new Date(a.dataVencimento) - new Date(b.dataVencimento));
+            const validTitles = sortedTitles.filter(t => new Date(t.dataVencimento) <= limitDate);
+            const titlesToSum = validTitles.length > 0 ? validTitles : [sortedTitles[0]];
+            return {
+                valorAberto: titlesToSum.reduce((sum, t) => sum + parseFloat(t.valor || 0), 0),
+                vencimento: titlesToSum[0].dataVencimento,
+            };
+        };
 
-                    // Ordena por vencimento (mais antiga primeiro)
-                    const sortedTitles = titlesResponse.titulos.sort((a, b) => {
-                        return new Date(a.dataVencimento) - new Date(b.dataVencimento);
-                    });
+        const loadConnectionStatus = async () => {
+            const contratoId = contrato.contratoId;
+            const senhaCentral = contrato.contratoCentralSenha || '';
+            if (!contratoId || !senhaCentral) return null;
+            const verificaResponse = await callSgpApi({
+                providerId: sgpParams.providerId,
+                cpfcnpj: cpfCnpjUnformatted,
+                senha: senhaCentral,
+                contrato: contratoId.toString(),
+                url: formatSgpUrl(sgpBaseUrl, '/api/central/verificaacesso/')
+            });
+            secureLog('[Check-CPF] verificaacesso Resposta (sanitizada):', verificaResponse);
+            if (!verificaResponse) return null;
+            // SGP retorna, por exemplo, {"msg":"Serviço Online","status":1}.
+            const v = verificaResponse;
+            const online = v.status === 1 || v.status === '1' || v.msg?.toLowerCase().includes('online') ||
+                v.online === true || v.online === 1 || v.online === '1' ||
+                (typeof v.status === 'string' && ['online', 'ativo'].includes(v.status.toLowerCase())) ||
+                v.disponivel === true || v.disponivel === 1 || v.ativo === true || v.ativo === 1 ||
+                v.acesso === true || v.acesso === 1 || v.acesso === 'liberado';
+            return online ? 'Online' : 'Offline';
+        };
 
-                    // Pega a fatura mais antiga em aberto (foco no "próximo pagamento" ou "dívida antiga")
-                    // O cliente pediu: "fatura pendente que está depois do que foi paga pela ultima vez ou do mês"
-                    // Vamos somar todas as vencidas + a atual. Descartar as muito futuras.
-
-                    const validTitles = sortedTitles.filter(t => {
-                        const d = new Date(t.dataVencimento);
-                        return d <= limitDate;
-                    });
-
-                    // Se tiver títulos válidos (limitados no tempo), usa eles. Se não, usa o primeiro da lista geral (mesmo que longe) para não mostrar zero.
-                    const titlesToSum = validTitles.length > 0 ? validTitles : [sortedTitles[0]];
-
-                    valorAberto = titlesToSum.reduce((sum, t) => sum + parseFloat(t.valor || 0), 0);
-                    vencimento = titlesToSum[0].dataVencimento;
-
-                    console.log(`[Check-CPF] Novo valor calculado (Inteligente): ${valorAberto}, Vencimento: ${vencimento}`);
-                }
-            } catch (e) {
-                console.error('[Check-CPF] Erro ao buscar títulos para saldo:', e?.message || 'erro desconhecido');
-            }
-        }
+        const [openTitles, connectionStatus] = await Promise.all([
+            valorAberto === null ? withinBudget(loadOpenTitles(), 'títulos abertos') : Promise.resolve(null),
+            withinBudget(loadConnectionStatus(), 'verificaacesso'),
+        ]);
+        if (openTitles) { valorAberto = openTitles.valorAberto; vencimento = openTitles.vencimento; }
 
         const responseData = {
             nome: contrato.razaoSocial || contrato.nome || null,
             cpfCnpj: contrato.cpfCnpj,
             plano: contrato.servico_plano || contrato.plano || null,
-            status: contractAccountStatus,
+            status: connectionStatus || contractAccountStatus,
             contractStatus: contractAccountStatus || null,
             valorFatura: valorAberto !== null && Number.isFinite(valorAberto) ? valorAberto.toFixed(2).replace('.', ',') : null,
             vencimentoFatura: vencimento
@@ -695,64 +777,12 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
             contratoId: contrato.contratoId,
             email: contrato.email || contrato.emailContato || null
         };
-
-        // ========================================================================
-        // CONSULTA DE STATUS DE CONEXÃO REAL (verificaacesso)
-        // ========================================================================
-        try {
-            const contratoId = contrato.contratoId;
-            const senhaCentral = contrato.contratoCentralSenha || '';
-
-            if (contratoId && senhaCentral) {
-                console.log(`[Check-CPF] Consultando verificaacesso para contrato ${contratoId}...`);
-
-                const verificaParams = {
-                    providerId: sgpParams.providerId,
-                    cpfcnpj: cpfCnpjUnformatted,
-                    senha: senhaCentral,
-                    contrato: contratoId.toString(),
-                    url: formatSgpUrl(sgpBaseUrl, '/api/central/verificaacesso/')
-                };
-
-                const verificaResponse = await callSgpApi(verificaParams);
-                secureLog('[Check-CPF] verificaacesso Resposta (sanitizada):', verificaResponse);
-
-                // A API retorna o status de disponibilidade da conexão
-                if (verificaResponse) {
-                    // SGP retorna: {"msg":"Serviço Online","status":1} para online
-                    // Verifica diferentes formatos de resposta do SGP
-                    if (verificaResponse.status === 1 || verificaResponse.status === '1') {
-                        responseData.status = 'Online';
-                    } else if (verificaResponse.msg?.toLowerCase().includes('online')) {
-                        responseData.status = 'Online';
-                    } else if (verificaResponse.online === true || verificaResponse.online === 1 || verificaResponse.online === '1') {
-                        responseData.status = 'Online';
-                    } else if (typeof verificaResponse.status === 'string' && (verificaResponse.status.toLowerCase() === 'online' || verificaResponse.status.toLowerCase() === 'ativo')) {
-                        responseData.status = 'Online';
-                    } else if (verificaResponse.disponivel === true || verificaResponse.disponivel === 1) {
-                        responseData.status = 'Online';
-                    } else if (verificaResponse.ativo === true || verificaResponse.ativo === 1) {
-                        responseData.status = 'Online';
-                    } else if (verificaResponse.acesso === true || verificaResponse.acesso === 1 || verificaResponse.acesso === 'liberado') {
-                        responseData.status = 'Online';
-                    } else {
-                        responseData.status = 'Offline';
-                    }
-                    console.log(`[Check-CPF] Status de conexão final: ${responseData.status}`);
-                }
-            } else {
-                console.log('[Check-CPF] Dados insuficientes para verificaacesso:', { contratoId, senhaCentral: senhaCentral ? '***' : 'null' });
-            }
-        } catch (verificaError) {
-            console.error('[Check-CPF] Erro ao consultar verificaacesso:', verificaError.message);
-            // Em caso de erro, mantém o status do contrato como fallback
-        }
-        // ========================================================================
+        console.log(`[Check-CPF] Status de conexão final: ${responseData.status}`);
 
         secureLog('[Check-CPF] Resposta enviada (sanitizada):', responseData);
 
         // O acesso ao app depende do contrato, não do estado momentâneo da conexão.
-        if (canIssueClientToken(contractAccountStatus)) {
+        {
             try {
                 await ensureCoreTables();
                 const identity = subscriberIdentity(req.body.providerId, cpfCnpjUnformatted);
@@ -814,12 +844,15 @@ app.post('/check-cpf', loginCredentialLimiter, async (req, res) => {
                 const failure = require('./lib/current-auth').authFailure(tokenError);
                 return res.status(failure.status).json({ error: { code: failure.code, message: 'Não foi possível autorizar a sessão.' } });
             }
-        } else {
-            console.log('[Check-CPF] Token não gerado para contrato encerrado ou inativo.');
         }
 
         res.status(200).json(responseData);
-    } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } })); }
+    } catch (error) {
+        console.error('[proxy] erro no login:', error && error.message);
+        const mapped = publicError(error, 'Não foi possível entrar agora. Tente novamente em instantes.');
+        // 404 do login já tem texto próprio no app ("CPF/CNPJ não encontrado").
+        res.status(mapped.status).json({ error: { message: mapped.status === 404 ? 'Cliente não encontrado.' : mapped.message } });
+    }
 });
 // 4. Rotas de Hardware // 3. Rotas Diagnóstico / ONU
 app.post('/diagnostic/onu-signal', verifyFirebaseToken, (req, res, next) => handleOnuRequest(req, res, true).catch(next));
@@ -842,19 +875,16 @@ async function handleOnuRequest(req, res, useFilters) {
             });
         }
         if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: "Dados incompletos (CPF)." } });
-        let senha = senhaInput;
-        let contratoResolvido = contrato;
-
-        if (!senha || !contratoResolvido) {
-            const resolved = await resolveClientContractCredentials({
-                cpfCnpjUnformatted,
-                sgpParams,
-                sgpBaseUrl,
-                contratoPreferido: contrato,
-            });
-            senha = senha || resolved.senhaCentral;
-            contratoResolvido = contratoResolvido || resolved.contratoId;
-        }
+        // O contrato é sempre conferido aqui contra o CPF autenticado; senha e
+        // contrato enviados pelo app nunca são usados sem essa checagem.
+        const resolved = await resolveClientContractCredentials({
+            cpfCnpjUnformatted,
+            sgpParams,
+            sgpBaseUrl,
+            contratoPreferido: contrato,
+        });
+        const senha = resolved.senhaCentral || senhaInput;
+        const contratoResolvido = resolved.contratoId;
 
         if (!senha) {
             return res.status(503).json({ error: { message: 'Credencial do contrato indisponível para diagnóstico ONU.' } });
@@ -867,8 +897,7 @@ async function handleOnuRequest(req, res, useFilters) {
         if (!onuResponse || !Array.isArray(onuResponse) || onuResponse.length === 0) return res.status(404).json({ error: { message: "Nenhuma ONU encontrada." } });
         const onu = onuResponse[0];
 
-        // DEBUG: Log raw ONU response to see field names
-        secureLog('[ONU DEBUG] Raw response (sanitizada):', onu);
+        if (process.env.DEBUG_REQUESTS === 'true') secureLog('[ONU DEBUG] Raw response (sanitizada):', onu);
 
         const formattedData = {
             // Signal: SGP returns info_rx/info_tx as "N/A" or "-23.5 dBm"
@@ -897,8 +926,70 @@ async function handleOnuRequest(req, res, useFilters) {
             require('./lib/client-cache').upsertOnuSegment(pool, sgpParams.providerId, cpfCnpjUnformatted, contratoResolvido, formattedData).catch(() => undefined);
         }
         res.status(200).json({ data: formattedData });
-    } catch (error) { (console.error("[proxy] erro interno:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno." } })); }
+    } catch (error) {
+        console.error('[proxy] erro ONU:', error && error.message);
+        sendPublicError(res, error, 'Erro interno.');
+    }
 }
+
+// Detalhes ao vivo da ONU direto da OLT (somente leitura). A consulta abre uma
+// sessão na OLT e leva ~10 s: fica em cache por 5 min por ONU e no máximo 2
+// consultas simultâneas por provedor. Só campos técnicos conhecidos saem daqui.
+const ONU_DETAILS_TTL_MS = 5 * 60 * 1000;
+const onuDetailsLocal = new Map();
+const onuDetailsInFlight = new Map();
+const onuDetailsActive = new Map();
+async function cachedOnuDetails(key, load) {
+    const local = onuDetailsLocal.get(key);
+    if (local && local.expires > Date.now()) return local.value;
+    const shared = redisConnected && redis ? await redis.get(key).catch(() => null) : null;
+    if (shared) { try { return JSON.parse(shared); } catch { /* ignora cache corrompido */ } }
+    if (onuDetailsInFlight.has(key)) return onuDetailsInFlight.get(key);
+    const promise = load().then(async (value) => {
+        if (onuDetailsLocal.size >= 500) onuDetailsLocal.delete(onuDetailsLocal.keys().next().value);
+        onuDetailsLocal.set(key, { value, expires: Date.now() + ONU_DETAILS_TTL_MS });
+        if (redisConnected && redis) await redis.set(key, JSON.stringify(value), 'PX', ONU_DETAILS_TTL_MS).catch(() => undefined);
+        return value;
+    }).finally(() => onuDetailsInFlight.delete(key));
+    onuDetailsInFlight.set(key, promise);
+    return promise;
+}
+app.post('/diagnostic/onu-details', verifyFirebaseToken, async (req, res) => {
+    try {
+        const { cpfCnpj, contrato } = req.body;
+        const { sgpParams, sgpBaseUrl, erp } = await ensureSgpCredentials(req.body);
+        if (!requireSgpClientCredentials(sgpParams, res)) return;
+        if (erp === 'ixc') return res.status(501).json({ error: { message: 'Consulta da OLT indisponível para este provedor.' } });
+        const cpfCnpjUnformatted = cpfCnpj ? String(cpfCnpj).replace(/[^0-9]/g, '') : '';
+        if (!cpfCnpjUnformatted) return res.status(400).json({ error: { message: 'Dados incompletos (CPF).' } });
+        const resolved = await resolveClientContractCredentials({ cpfCnpjUnformatted, sgpParams, sgpBaseUrl, contratoPreferido: contrato });
+        const onuList = await callSgpApi({ ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha: resolved.senhaCentral, contrato: String(resolved.contratoId),
+            url: formatSgpUrl(sgpBaseUrl, '/api/fttx/onu/list/') });
+        const onu = Array.isArray(onuList) ? onuList[0] : null;
+        const onuId = onu && /^\d{1,12}$/.test(String(onu.id ?? '')) ? String(onu.id) : '';
+        if (!onuId) return res.status(404).json({ error: { message: 'Nenhuma ONU encontrada.' } });
+        const providerId = sgpParams.providerId;
+        const key = `onu:details:${require('crypto').createHash('sha256').update(`${providerId}:${onuId}`).digest('hex')}`;
+        const details = await cachedOnuDetails(key, async () => {
+            const active = onuDetailsActive.get(providerId) || 0;
+            if (active >= 2) throw Object.assign(new Error('OLT ocupada.'), { status: 429, publicMessage: 'Consulta da fibra em andamento. Tente novamente em instantes.' });
+            onuDetailsActive.set(providerId, active + 1);
+            try {
+                const raw = await callSgpApi({ ...sgpParams, cache: false, url: formatSgpUrl(sgpBaseUrl, `/api/fttx/onu/${onuId}/info/`) });
+                const parsed = parseOnuInfo(raw);
+                if (!parsed) throw Object.assign(new Error('Resposta da OLT sem dados reconhecidos.'), { status: 502, publicMessage: 'A OLT não informou os dados da fibra agora.' });
+                return parsed;
+            } finally {
+                const left = (onuDetailsActive.get(providerId) || 1) - 1;
+                if (left > 0) onuDetailsActive.set(providerId, left); else onuDetailsActive.delete(providerId);
+            }
+        });
+        res.status(200).json({ data: details });
+    } catch (error) {
+        console.error('[proxy] erro detalhes ONU:', error && error.message);
+        sendPublicError(res, error, 'Não foi possível consultar a fibra agora.');
+    }
+});
 // Compatibility route retained until the legacy/mobile retirement gate.
 // No measured analysis engine exists in this proxy.
 app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
@@ -911,19 +1002,35 @@ app.post('/diagnostic/analyze', verifyFirebaseToken, async (req, res) => {
 });
 // 5. Rotas CPE Manager (Wi-Fi)
 // O CPE Manager do SGP é endereçado pelo ID do serviço de internet, não do contrato.
+// contrato -> serviço muda raramente: fica 1 h em cache (Redis + memória) por
+// provedor+CPF+contrato. A posse do contrato já foi conferida na primeira vez
+// (pickInternetServiceId compara o CPF do cliente devolvido pelo SGP).
+const SERVICE_ID_TTL_MS = 60 * 60 * 1000;
+const serviceIdLocal = new Map();
 async function resolveCpeServiceId({ sgpParams, sgpBaseUrl, cpfCnpjUnformatted, contratoId }) {
+    const key = `cpe:svc:${require('crypto').createHash('sha256').update(`${sgpParams.providerId}:${cpfCnpjUnformatted}:${contratoId}`).digest('hex')}`;
+    const local = serviceIdLocal.get(key);
+    if (local && local.expires > Date.now()) return local.value;
+    const shared = redisConnected && redis ? await redis.get(key).catch(() => null) : null;
+    if (shared) return shared;
     const clientes = await callSgpApi({ ...sgpParams, contrato: String(contratoId),
         url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/') });
-    return pickInternetServiceId(clientes, contratoId, cpfCnpjUnformatted);
+    const servicoId = pickInternetServiceId(clientes, contratoId, cpfCnpjUnformatted);
+    if (serviceIdLocal.size >= 2000) serviceIdLocal.delete(serviceIdLocal.keys().next().value);
+    serviceIdLocal.set(key, { value: servicoId, expires: Date.now() + SERVICE_ID_TTL_MS });
+    if (redisConnected && redis) await redis.set(key, servicoId, 'PX', SERVICE_ID_TTL_MS).catch(() => undefined);
+    return servicoId;
 }
 function cpeFailure(res, error, fallback) {
-    if (error.sgpMessage) return res.status(422).json({ error: { message: error.sgpMessage } });
-    return res.status(error.status || 502).json({ error: { message: error.publicMessage || fallback } });
+    return sendPublicError(res, error, fallback);
 }
 app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj, senha: senhaInput, contrato } = req.body;
-    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
+    const { sgpParams, sgpBaseUrl, erp } = await ensureSgpCredentials(req.body);
     if (!requireSgpClientCredentials(sgpParams, res)) return;
+    // IXC não tem CPE Manager: Wi-Fi só via ACS (TR-069, na API). Sem chamar o
+    // ERP, a lista vazia deixa o app mostrar o estado "sem dados" na hora.
+    if (erp === 'ixc') return res.status(200).json({ success: true, data: [] });
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     let contratoId = contrato;
     let senha = senhaInput;
@@ -933,25 +1040,28 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
     }
 
     try {
-        if (!senha || !contratoId) {
+        // Com o contrato informado, a leitura não precisa da senha da central
+        // (token+app bastam) e a posse é conferida em resolveCpeServiceId.
+        if (!contratoId) {
             const resolved = await resolveClientContractCredentials({
                 cpfCnpjUnformatted,
                 sgpParams,
                 sgpBaseUrl,
                 contratoPreferido: contrato,
             });
-            contratoId = contratoId || resolved.contratoId;
+            contratoId = resolved.contratoId;
             senha = senha || resolved.senhaCentral;
         }
 
-        if (!contratoId || !senha) {
+        if (!contratoId) {
             return res.status(503).json({ error: { message: 'Credenciais do contrato indisponíveis para listar Wi-Fi.' } });
         }
 
         const servicoId = await resolveCpeServiceId({ sgpParams, sgpBaseUrl, cpfCnpjUnformatted, contratoId });
         const fullUrl = formatSgpUrl(sgpBaseUrl, `/api/cpemanager/servico/${servicoId}/wifi/list/`);
         console.log(`[WIFI-LIST] URL SGP: ${fullUrl}`);
-        const wifiParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, senha, url: fullUrl };
+        const wifiParams = { ...sgpParams, cpfcnpj: cpfCnpjUnformatted, url: fullUrl };
+        if (senha) wifiParams.senha = senha;
         const response = await callSgpApi(wifiParams);
         // Check if response contains PHP errors or execution errors
         if (response && (response.message || response.error)) {
@@ -959,8 +1069,8 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
         } else {
             console.log(`[WIFI-LIST] Sucesso. Itens encontrados:`, Array.isArray(response) ? response.length : 'Obj');
         }
-        const { networks, device } = normalizeCpeWifiResponse(response, wifiNetworks);
-        res.status(200).json({ success: true, data: networks, device, servicoId });
+        const { networks, device, passwordReadable } = normalizeCpeWifiResponse(response, wifiNetworks);
+        res.status(200).json({ success: true, data: networks, device, servicoId, ...(typeof passwordReadable === 'boolean' ? { passwordReadable } : {}) });
     } catch (error) {
         console.error(`[WIFI-LIST] ERROR:`, error.message);
         cpeFailure(res, error, 'Erro interno.');
@@ -968,8 +1078,9 @@ app.post('/cpe/wifi/list', verifyFirebaseToken, async (req, res) => {
 });
 app.post('/cpe/wifi/update', verifyFirebaseToken, async (req, res) => {
     const { cpfCnpj, senha: senhaInput, contrato, wifiId, ssid, password } = req.body;
-    const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials(req.body);
+    const { sgpParams, sgpBaseUrl, erp } = await ensureSgpCredentials(req.body);
     if (!requireSgpClientCredentials(sgpParams, res)) return;
+    if (erp === 'ixc') return res.status(501).json({ error: { message: 'Alteração de Wi-Fi indisponível pelo sistema do provedor.' } });
     const cpfCnpjUnformatted = cpfCnpj ? cpfCnpj.replace(/[^0-9]/g, '') : '';
     console.log(`[WIFI-UPDATE] Tentando atualizar WiFi ID: ${wifiId} do Contrato: ${contrato}`);
     if (!contrato || !wifiId || typeof ssid !== 'string' || !ssid.trim() || typeof password !== 'string') return res.status(400).json({ error: { message: "Dados incompletos" } });
@@ -1055,9 +1166,10 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
             if (!Array.isArray(response?.titulos)) {
                 throw new Error('O SGP não retornou a lista de títulos.');
             }
+            // Título sem contrato (null, '' ou '0' — avulso/renegociação) nunca é descartado.
+            const contractOf = inv => { const value = inv.contratoId ?? inv.contrato; return value == null || ['', '0'].includes(String(value).trim()) ? null : String(value); };
             return response.titulos
-                .filter(inv => !params.contrato || (inv.contratoId ?? inv.contrato) == null ||
-                    String(inv.contratoId ?? inv.contrato) === params.contrato)
+                .filter(inv => !params.contrato || contractOf(inv) === null || contractOf(inv) === String(params.contrato))
                 .map(inv => ({
                     id: inv.id?.toString() || inv.nossoNumero || inv.numeroDocumento?.toString(),
                     numero: inv.nossoNumero || inv.numeroDocumento?.toString(),
@@ -1080,7 +1192,7 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
         res.status(200).json(responseData);
     } catch (error) {
         console.error("Erro geral na rota /get-invoices:", error.message);
-        (console.error("[proxy] erro faturas:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno ao buscar faturas." } }));
+        sendPublicError(res, error, 'Erro interno ao buscar faturas.');
     }
 });
 
@@ -1125,7 +1237,7 @@ app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {
         res.status(200).json({ success: true, message: promessaResponse?.msg || "Desbloqueio realizado com sucesso!" });
     } catch (error) {
         console.error("Erro na rota /unlock-trust:", error.message);
-        (console.error("[proxy] erro desbloqueio:", error && error.message), res.status(error.status || 502).json({ error: { message: "Erro interno ao processar desbloqueio." } }));
+        sendPublicError(res, error, 'Erro interno ao processar desbloqueio.');
     }
 });
 
@@ -1154,5 +1266,23 @@ if (require.main === module) {
         console.error("[proxy] request failed", error.message);
         res.status(error.status || 500).json({ error: { message: error.status === 503 ? "Serviço temporariamente indisponível." : "Falha ao processar requisição." } });
     });
-    app.listen(PORT, () => { console.log(`✅ Proxy SGP rodando na porta ${PORT}`); });
+    const server = app.listen(PORT, () => { console.log(`✅ Proxy SGP rodando na porta ${PORT}`); });
+    // Desligamento gracioso: para de aceitar conexões, espera os pedidos em
+    // andamento (logins e faturas podem levar alguns segundos) e fecha tudo.
+    let shuttingDown = false;
+    const shutdown = (signal) => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        console.log(`[proxy] ${signal} recebido; encerrando com segurança.`);
+        const force = setTimeout(() => process.exit(0), 20000);
+        force.unref();
+        server.close(async () => {
+            await Promise.allSettled([pool.end(), redis?.quit(), stateRedis?.quit()]);
+            clearTimeout(force);
+            process.exit(0);
+        });
+        server.closeIdleConnections?.();
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 }

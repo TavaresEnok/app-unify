@@ -3,7 +3,7 @@ import { Router, type Request } from "express";
 import { invoiceAmount } from "../services/invoice-amount";
 import { verifyToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
-import { sgpLimiter, tenantLimiter } from "../middlewares/rateLimits";
+import { sgpLimiter, subscriberReplyLimiter, subscriberTicketLimiter, tenantLimiter } from "../middlewares/rateLimits";
 import {
   createSgpSession,
   externalErrorMessage,
@@ -284,9 +284,14 @@ subscriberRouter.post("/getInvoices", verifyToken, sgpLimiter, tenantLimiter, as
       if (!Array.isArray(data?.titulos)) {
         throw new ApiError(502, "O provedor não retornou a lista de faturas.", "upstream-error");
       }
+      // Título sem contrato (null, '' ou '0' — avulso/renegociação) nunca é descartado.
+      const contractOf = (item: any) => {
+        const value = item.contratoId ?? item.contrato;
+        return value == null || ["", "0"].includes(String(value).trim()) ? null : String(value);
+      };
       return data.titulos.filter((item) => !payload.contrato ||
-        (item.contratoId ?? item.contrato) == null ||
-        String(item.contratoId ?? item.contrato) === payload.contrato)
+        contractOf(item) === null ||
+        contractOf(item) === payload.contrato)
         .map((item) => format(item, pago));
     };
     const opens = invoicesFor(open.data, false);
@@ -363,6 +368,24 @@ subscriberRouter.delete("/subscriber/device-token", verifyToken, asyncRoute(asyn
     await unregisterSubscriberDevice(pool, req.user.providerId, req.user.cpfCnpj, fcmToken);
   }
   res.status(200).json({ success: true });
+}));
+
+// Sair da conta: remove o token de notificação do aparelho e invalida as
+// sessões do assinante (token_version + 1). Chamado de novo, só repete.
+subscriberRouter.post("/subscriber/logout", verifyToken, asyncRoute(async (req, res) => {
+  if (req.user?.role !== "subscriber" || !req.user.providerId || !req.user.cpfCnpj) {
+    throw new ApiError(403, "Apenas assinantes podem sair por esta rota.", "permission-denied");
+  }
+  const pool = requirePgPool();
+  await ensureCoreSchema(pool);
+  const fcmToken = typeof req.body?.fcmToken === "string" && req.body.fcmToken.trim() ? req.body.fcmToken.trim().slice(0, 512) : undefined;
+  if (fcmToken) await unregisterSubscriberDevice(pool, req.user.providerId, req.user.cpfCnpj, fcmToken);
+  await pool.query(
+    `UPDATE subscribers SET token_version = token_version + 1, updated_at = NOW()
+      WHERE provider_id = $1 AND cpfcnpj = $2`,
+    [req.user.providerId, req.user.cpfCnpj],
+  );
+  res.json({ success: true });
 }));
 
 subscriberRouter.get("/subscriber/notifications", verifyToken, asyncRoute(async (req, res) => {
@@ -456,7 +479,7 @@ subscriberRouter.get("/subscriber/tickets", verifyToken, asyncRoute(async (req, 
   });
 }));
 
-subscriberRouter.post("/subscriber/tickets", verifyToken, asyncRoute(async (req, res) => {
+subscriberRouter.post("/subscriber/tickets", verifyToken, subscriberTicketLimiter, asyncRoute(async (req, res) => {
   if (req.user?.role !== "subscriber" || !req.user.providerId || !req.user.cpfCnpj) {
     throw new ApiError(403, "Apenas assinantes podem abrir chamados.", "permission-denied");
   }
@@ -533,7 +556,7 @@ subscriberRouter.get("/subscriber/tickets/:id/messages", verifyToken, asyncRoute
   });
 }));
 
-subscriberRouter.post("/subscriber/tickets/:id/reply", verifyToken, asyncRoute(async (req, res) => {
+subscriberRouter.post("/subscriber/tickets/:id/reply", verifyToken, subscriberReplyLimiter, asyncRoute(async (req, res) => {
   if (req.user?.role !== "subscriber" || !req.user.providerId) {
     throw new ApiError(403, "Acesso negado.", "permission-denied");
   }

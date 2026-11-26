@@ -295,7 +295,10 @@ class AuthRepository {
         token = await FirebaseMessaging.instance.getToken();
       } catch (_) {}
 
-      if (token != null && token.isNotEmpty && apiUrl != null && apiUrl.isNotEmpty) {
+      if (token != null &&
+          token.isNotEmpty &&
+          apiUrl != null &&
+          apiUrl.isNotEmpty) {
         try {
           final idToken = await SessionTokenStore.instance.getToken();
           if (idToken != null && idToken.isNotEmpty) {

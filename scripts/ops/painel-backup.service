@@ -5,6 +5,8 @@ After=docker.service network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=1h
 StartLimitBurst=3
+# Falha (inclusive timeout ou kill) avisa no webhook do monitor.
+OnFailure=painel-alert@%n.service
 
 [Service]
 Type=oneshot

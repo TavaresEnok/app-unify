@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../vibe/vibe_home_parts.dart';
 import '../../../vibe/vibe_icon.dart';
 import '../../../vibe/vibe_invoice.dart';
+import '../../../vibe/vibe_skeleton.dart';
 import '../../../vibe/vibe_text.dart';
 import '../../../vibe/vibe_tokens.dart';
 import 'vibe_home_blocks.dart';
@@ -24,12 +25,76 @@ class VibeBlocksHome extends ConsumerWidget {
     final t = VibeTokens.of(context);
     final data = VibeHomeData.watch(ref, onNavigate);
     final inset = MediaQuery.paddingOf(context).top;
-    final main = data.billing.main;
-    final slotState = vibeInvoiceSlotState(context, data,
-        onBrand: true, variant: VibeInvoiceSlotVariant.blocks);
+    final slot = VibeInvoiceSlot(data.billing, onBrand: true);
+    final empty = vibeEmptyInvoice(context, data, onBrand: true);
+    final main = slot.view;
     final incomplete = vibeIncompleteNote(context, data, onBrand: true);
+    final stale = vibeStaleNote(context, data, onBrand: true);
 
-    Widget card() => ClipRRect(
+    Widget invoice(VibeInvoiceView main) =>
+        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Expanded(
+                child: slot.title('Fatura de ', main.month,
+                    vibeText(t, 15, 700, color: t.on))),
+            VibeStatusChip(
+                tone: slot.failed ? VibeTone.warning : main.tone,
+                label: slot.chipLabel(main),
+                onBrand: true,
+                redacted: slot.redacted),
+          ]),
+          const SizedBox(height: 16),
+          slot.amount(
+            context,
+            VibeAmount(main.invoice.valor, size: 40, color: t.on),
+            frame: (amount) => Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(fit: BoxFit.scaleDown, child: amount),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 10,
+            spacing: 10,
+            children: [
+              slot.due(
+                VibeDueLine(
+                    text: main.dueShort,
+                    tone: main.tone,
+                    paid: main.paid,
+                    onBrand: true,
+                    center: true,
+                    redacted: slot.redacted),
+              ),
+              slot.actions(
+                vibePayButton(context, main,
+                    kind: VibeButtonKind.black,
+                    paidKind: VibeButtonKind.black,
+                    size: VibeButtonSize.small,
+                    pixLabel: 'Copiar Pix',
+                    onBrand: true),
+                keepSize: false,
+                retryButton: VibeButton(
+                    label: 'Tentar de novo',
+                    kind: VibeButtonKind.black,
+                    size: VibeButtonSize.small,
+                    onBrand: true,
+                    onPressed: slot.retry),
+              ),
+            ],
+          ),
+          if (main.note != null) ...[
+            const SizedBox(height: 10),
+            VibeNoteLine(
+                text: main.note!, tone: main.tone, icon: 'bolt', onBrand: true),
+          ],
+          if (incomplete != null) incomplete,
+          VibeReveal(child: stale ?? const SizedBox(width: double.infinity)),
+        ]);
+
+    Widget card() => slot.semantics(ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: Container(
             color: t.ac,
@@ -46,75 +111,37 @@ class VibeBlocksHome extends ConsumerWidget {
                       shape: BoxShape.circle),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(18),
-                child: slotState ??
-                    Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(children: [
-                            Expanded(
-                                child: Text('Fatura de ${main!.month}',
-                                    style: vibeText(t, 15, 700, color: t.on))),
-                            VibeStatusChip(
-                                tone: main.tone,
-                                label: main.chip,
-                                onBrand: true),
-                          ]),
-                          const SizedBox(height: 16),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: VibeAmount(main.invoice.valor,
-                                    size: 40, color: t.on)),
-                          ),
-                          const SizedBox(height: 14),
-                          Wrap(
-                            alignment: WrapAlignment.spaceBetween,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            runSpacing: 10,
-                            spacing: 10,
-                            children: [
-                              VibeDueLine(
-                                  text: main.dueShort,
-                                  tone: main.tone,
-                                  paid: main.paid,
-                                  onBrand: true,
-                                  center: true),
-                              vibePayButton(context, main,
-                                  kind: VibeButtonKind.black,
-                                  paidKind: VibeButtonKind.black,
-                                  size: VibeButtonSize.small,
-                                  pixLabel: 'Copiar Pix',
-                                  onBrand: true),
-                            ],
-                          ),
-                          if (main.note != null) ...[
-                            const SizedBox(height: 10),
-                            VibeNoteLine(
-                                text: main.note!,
-                                tone: main.tone,
-                                icon: 'bolt',
-                                onBrand: true),
-                          ],
-                          if (incomplete != null) incomplete,
-                        ]),
+              VibeRefreshEdge(
+                active: data.billing.refreshing,
+                onBrand: true,
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: empty ??
+                      (main == null ? const SizedBox.shrink() : invoice(main)),
+                ),
               ),
             ]),
           ),
-        );
+        ));
 
     // Seis blocos (`PK(s,SC(['fat','bol','wifi','spd','diag','sup']))`):
     // o boleto fica no segundo lugar quando a fatura tem documento.
     final tiles = <VibeShortcut>[];
     final relevance = data.shortcuts(6);
-    final boleto = main != null && main.hasBoleto && data.can('invoices')
+    final real = data.billing.main;
+    // O boleto tem lugar fixo (2º bloco) enquanto a consulta não termina:
+    // quase toda fatura tem boleto, e assim os blocos não trocam de lugar
+    // quando ela chega. Sem toque até lá.
+    final reserveBoleto =
+        data.can('invoices') && (slot.redacted || slot.failed);
+    final boleto = real != null && real.hasBoleto && data.can('invoices')
         ? VibeShortcut(
-            main.paid ? 'Baixar PDF' : 'Boleto',
-            main.paid ? 'down' : 'bar',
-            () => VibeInvoiceActions.openBoleto(context, main.invoice))
-        : null;
+            real.paid ? 'Baixar PDF' : 'Boleto',
+            real.paid ? 'down' : 'bar',
+            () => VibeInvoiceActions.openBoleto(context, real.invoice))
+        : reserveBoleto
+            ? const VibeShortcut('Boleto', 'bar', null)
+            : null;
     tiles.addAll(relevance);
     if (boleto != null) {
       tiles.insert(1, boleto);
@@ -143,25 +170,39 @@ class VibeBlocksHome extends ConsumerWidget {
           card(),
         ],
         const SizedBox(height: 12),
-        ...vibeHomeAlerts(context, data),
+        VibeReveal(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: vibeHomeAlerts(context, data)),
+        ),
         const SizedBox(height: 14),
         _BlockGrid(items: tiles),
-        if (late != null) ...[
-          const SizedBox(height: 12),
-          late
-        ] else if (promotion.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          VibePromoCarousel(
-              promos: promotion,
-              title: promotion.first.highlight ? 'Dicas do app' : 'Para você'),
-        ],
+        VibeReveal(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (late != null) ...[
+              const SizedBox(height: 12),
+              late
+            ] else if (promotion.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              VibePromoCarousel(
+                  promos: promotion,
+                  title:
+                      promotion.first.highlight ? 'Dicas do app' : 'Para você'),
+            ],
+          ]),
+        ),
       ],
     );
     return ColoredBox(
       color: t.bg,
       child: onRefresh == null
           ? list
-          : RefreshIndicator(onRefresh: onRefresh!, child: list),
+          : RefreshIndicator(
+              onRefresh: onRefresh!,
+              color: t.ac,
+              backgroundColor: t.card,
+              child: list),
     );
   }
 }
@@ -191,28 +232,31 @@ class _BlockGrid extends StatelessWidget {
               button: true,
               label: item.label,
               excludeSemantics: true,
-              child: Material(
-                color: t.card,
-                borderRadius: BorderRadius.circular(16),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: item.onTap,
-                  child: ConstrainedBox(
-                    constraints:
-                        BoxConstraints(minHeight: 88 * scale.clamp(1, 1.6)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 10),
-                      child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            VibeIcon(item.icon, size: 24, color: t.at),
-                            const SizedBox(height: 10),
-                            Text(item.label,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                style: vibeText(t, 12.5, 650, height: 1.2)),
-                          ]),
+              child: VibeDimmed(
+                dimmed: item.onTap == null,
+                child: Material(
+                  color: t.card,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: item.onTap,
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: 88 * scale.clamp(1, 1.6)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 10),
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              VibeIcon(item.icon, size: 24, color: t.at),
+                              const SizedBox(height: 10),
+                              Text(item.label,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  style: vibeText(t, 12.5, 650, height: 1.2)),
+                            ]),
+                      ),
                     ),
                   ),
                 ),

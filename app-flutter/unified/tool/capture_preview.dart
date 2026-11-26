@@ -79,7 +79,7 @@ class DemoConfig extends ConfigurationProvider {
   @override
   bool get isLoading => false;
   @override
-  Future<void> loadConfig(String id) async {}
+  Future<void> loadConfig(String id, {bool preferCache = false}) async {}
 }
 
 class DemoFinance extends FinanceiroProvider {

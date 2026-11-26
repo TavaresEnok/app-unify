@@ -5,7 +5,7 @@ export async function loadGlobalDashboardPg(pg: SqlQueryable) {
 
   const [providersRes, openTicketsRes, recentTicketsRes, clientCountRes, notifCountRes, appUsersRes, chartRes] =
     await Promise.all([
-      pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM providers`),
+      pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM providers WHERE NOT (data ? 'deletedAt')`),
       pg.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tickets WHERE status IN ('Aberto', 'Em Andamento')`),
       pg.query<{
         id: string;
@@ -23,6 +23,7 @@ export async function loadGlobalDashboardPg(pg: SqlQueryable) {
         SELECT p.id, COALESCE(NULLIF(p.name, ''), p.id) AS name, COUNT(c.client_id)::text AS clientes
           FROM providers p
           LEFT JOIN sgp_clients c ON c.provider_id = p.id
+         WHERE NOT (p.data ? 'deletedAt')
          GROUP BY p.id, p.name
          ORDER BY p.name ASC, p.id ASC
          LIMIT 6

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'core/vibe/vibe_logo.dart';
 import 'dart:ui'; // For PlatformDispatcher
@@ -9,10 +11,12 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'firebase_options.dart';
 import 'core/providers/providers.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/painel_page.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/pages/onboarding_page.dart';
 import 'core/widgets/rating_prompt_dialog.dart';
+import 'core/widgets/app_update.dart';
 import 'core/widgets/content_state.dart';
 import 'layout_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,8 +36,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
+  await DynamicThemeProvider.preload();
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
     debugPrint('ℹ️ Firebase (FCM) indisponível neste dispositivo: $e');
@@ -118,10 +124,14 @@ class MyApp extends ConsumerWidget {
     // Watch Theme Provider
     final themeNotifer = ref.watch(themeProvider);
 
+    // Nome do provedor na tela de apps recentes (não "App Provedor").
+    final appName = ref.watch(
+        configurationProvider.select((c) => c.providerConfig?.name ?? ''));
+
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'App Provedor',
+      title: appName,
       theme: themeNotifer.lightTheme,
       darkTheme: themeNotifer.darkTheme,
       themeMode: themeNotifer.themeMode,
@@ -148,26 +158,29 @@ class _AppInitializationWrapperState
     _initialization = _initializeApp();
   }
 
+  /// Só o indispensável segura a abertura: a configuração (do cache, quando
+  /// existe) e os avisos guardados no aparelho. Permissão de notificações,
+  /// tópico do FCM e a versão nova da configuração vêm depois, sem travar
+  /// a tela de abertura (sem internet ou sem Google Play services o FCM
+  /// pode ficar pendente para sempre).
   Future<void> _initializeApp() async {
+    final notificationService = ref.read(notificationProvider);
     try {
-      await FirebaseMessaging.instance.requestPermission();
+      await PushNotificationService()
+          .initialize(notificationService: notificationService)
+          .timeout(const Duration(seconds: 5));
     } catch (_) {}
 
-    // Initialize Push Notification Service for foreground handling
-    final notificationService = ref.read(notificationProvider);
-    await PushNotificationService()
-        .initialize(notificationService: notificationService);
+    if (!mounted) return;
+    await ref
+        .read(configurationProvider)
+        .loadConfig(providerId, preferCache: true);
+    await ref.read(notificationProvider).loadNotifications();
+    ref.read(deepLinkServiceProvider).init();
 
-    if (mounted) {
-      // Usamos read aqui pois é uma ação única na inicialização
-      await ref.read(configurationProvider).loadConfig(providerId);
-      await ref.read(notificationProvider).loadNotifications();
-      // Init Deep Links
-      ref.read(deepLinkServiceProvider).init();
-
-      // Subscribe to provider topic for broadcast notifications
-      await PushNotificationService().subscribeToTopic('provider_$providerId');
-    }
+    // Broadcast do provedor: em segundo plano, nunca bloqueia nem falha.
+    unawaited(
+        PushNotificationService().subscribeToTopic('provider_$providerId'));
   }
 
   @override
@@ -244,6 +257,11 @@ class _AuthGateState extends ConsumerState<AuthGate> {
               ref.read(configurationProvider).loadConfig(providerId));
     }
 
+    // Versão abaixo da mínima definida pelo provedor: só dá para atualizar.
+    if (ref.watch(appUpdateNeedProvider) == AppUpdateNeed.required) {
+      return const ForceUpdateScreen();
+    }
+
     // Mostrar onboarding para novos usuários
     if (_showOnboarding) {
       return OnboardingPage(onComplete: _onOnboardingComplete);
@@ -267,14 +285,20 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   }
 }
 
-/// Abertura do app: a marca do provedor sobre branco, na mesma posição da
-/// tela de abertura nativa, com uma barra fina enquanto os dados carregam.
+/// Abertura do app: a marca do provedor na mesma posição da tela de
+/// abertura nativa, com uma barra fina enquanto os dados carregam. Segue a
+/// aparência escolhida no app (clara ou escura).
 class SplashScreen extends StatelessWidget {
-  final Color backgroundColor;
-  const SplashScreen({super.key, this.backgroundColor = Colors.white});
+  final Color? background;
+  const SplashScreen({super.key, Color? backgroundColor})
+      : background = backgroundColor;
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor =
+        background ?? (dark ? const Color(0xFF0F1115) : Colors.white);
+    final fg = dark ? const Color(0xFFE6E8EC) : const Color(0xFF18202C);
     return Scaffold(
       backgroundColor: backgroundColor,
       body: Center(
@@ -294,10 +318,10 @@ class SplashScreen extends StatelessWidget {
               width: 96,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(2),
-                child: const LinearProgressIndicator(
+                child: LinearProgressIndicator(
                   minHeight: 3,
-                  color: Color(0xFF18202C),
-                  backgroundColor: Color(0x1A18202C),
+                  color: fg,
+                  backgroundColor: fg.withValues(alpha: .1),
                 ),
               ),
             ),

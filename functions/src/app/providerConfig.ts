@@ -11,6 +11,7 @@ const layoutThemeSchema: Shape = Object.fromEntries(
 );
 const menuItem: Shape = { enabled: "boolean", name: "string", icon: "string", type: "string", url: "string", color: "string" };
 const menuKeys = "invoices support contract consumption diagnostics notifications profile home speedtest speedTest plans tips faq logout financial tickets services payment_promise speed_test internet_usage my_ip";
+const appVersion: Shape = { ...strings("minVersion latestVersion storeUrl"), forceUpdate: "boolean", storeUrls: strings("android ios"), updateMessage: { pt_BR: strings("title message buttonText") } };
 const dashboard: Shape = { widgets: [{ ...strings("id type title size color icon"), enabled: "boolean", order: "number", position: "number", visible: "boolean", config: { ...booleans("showInvoice showConnection showPlan showLabels"), ...strings("imageUrl chartType"), height: "number", borderRadius: "number", columns: "number", iconSize: "number", period: "number", actions: ["string"] } }] };
 export const personalizationSchema: Record<string, Shape> = {
   ...strings("layoutType diagnosticStyle themeColor secondaryColor backgroundColor cardColor cardTextColor textColor textSecondaryColor iconColor actionColor invoiceColor quickActionsCardColor quickActionsTextColor otherCardsColor otherCardsTextColor logoUrl iconUrl backgroundUrl loginQuote termsOfUse iconPack"),
@@ -33,13 +34,14 @@ export const personalizationSchema: Record<string, Shape> = {
   promotions: { enabled: "boolean", items: [{ ...strings("id title description imageUrl link startDate endDate badge status type createdAt"), active: "boolean", showCountdown: "boolean" }] },
   notifications: { list: [{ ...strings("id title message date type category createdAt"), read: "boolean", targetAll: "boolean", dismissible: "boolean", sent: "boolean" }] },
   dashboardConfig: dashboard, dashboard,
+  appVersion,
 };
-export const detailsSchema: Record<string, Shape> = strings("name email phone address cnpj contactName commercialName website city state systemType");
+export const detailsSchema: Record<string, Shape> = strings("name email phone address cnpj contactName commercialName website city state systemType razaoSocial nomeFantasia telefone");
 const metadataSchema: Record<string, Shape> = {
   ...strings("id name applicationId packageName versionName apkUrl appUrl createdByRequestId"),
   active: "boolean", versionCode: "number",
   details: detailsSchema,
-  appVersion: { ...strings("minVersion latestVersion"), forceUpdate: "boolean", storeUrls: strings("android ios"), updateMessage: { pt_BR: strings("title message buttonText") } },
+  appVersion,
 };
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);

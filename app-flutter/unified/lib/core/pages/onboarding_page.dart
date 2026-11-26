@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/push_notification_service.dart';
 import '../vibe/vibe_icon.dart';
 import '../vibe/vibe_page_parts.dart';
 import '../vibe/vibe_text.dart';
@@ -9,7 +10,17 @@ import '../vibe/vibe_tokens.dart';
 /// cartões com arte na cor da marca, pontos de página e o botão logo abaixo.
 class OnboardingPage extends StatefulWidget {
   final VoidCallback onComplete;
-  const OnboardingPage({super.key, required this.onComplete});
+
+  /// Pede a permissão de notificações (padrão: o pedido único do FCM).
+  final Future<void> Function()? requestNotifications;
+
+  /// Registra o "Agora não" para não pedir de novo após o login.
+  final Future<void> Function()? declineNotifications;
+  const OnboardingPage(
+      {super.key,
+      required this.onComplete,
+      this.requestNotifications,
+      this.declineNotifications});
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
@@ -36,7 +47,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     (
       'bell',
       'Avisos do seu provedor',
-      'Consulte os avisos enviados pelo seu provedor. Você escolhe se quer receber notificações no celular.'
+      'Ative os avisos para saber quando a fatura vence e quando houver manutenção na sua região.'
     ),
   ];
 
@@ -46,6 +57,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_completed', true);
     if (mounted) widget.onComplete();
+  }
+
+  Future<void> _enableNotifications() async {
+    if (_completing) return;
+    setState(() => _completing = true);
+    try {
+      await (widget.requestNotifications ??
+          PushNotificationService().requestPermissionOnce)();
+    } catch (_) {}
+    _completing = false;
+    await _complete();
+  }
+
+  Future<void> _skipNotifications() async {
+    if (_completing) return;
+    try {
+      await (widget.declineNotifications ??
+          PushNotificationService.markPermissionAsked)();
+    } catch (_) {}
+    await _complete();
   }
 
   void _go(int index) =>
@@ -157,14 +188,24 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 14, 22, 34),
+              padding: EdgeInsets.fromLTRB(22, 14, 22, last ? 12 : 34),
               child: VibePageButton(
-                label: last ? 'Começar' : 'Avançar',
+                label: last ? 'Ativar avisos' : 'Avançar',
                 onPressed: _completing
                     ? null
-                    : () => last ? _complete() : _go(_current + 1),
+                    : () => last ? _enableNotifications() : _go(_current + 1),
               ),
             ),
+            // No último cartão, a escolha fica com o assinante.
+            if (last)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
+                child: VibePageButton(
+                  label: 'Agora não',
+                  ghost: true,
+                  onPressed: _completing ? null : _skipNotifications,
+                ),
+              ),
           ]),
         ),
       ),

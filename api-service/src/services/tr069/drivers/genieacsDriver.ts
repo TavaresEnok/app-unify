@@ -317,6 +317,10 @@ export const genieacsDriver: Tr069Driver = {
     const client = await createGenieClient(config);
     const device = await findGenieDevice(client, identity);
     const deviceId = encodeURIComponent(String(device._id));
+    // O ID vira parte do caminho do parâmetro TR-069: só formatos conhecidos.
+    if (!/^(?:(?:tr098|tr181):)?\d{1,3}$/.test(String(input.wifiId || ""))) {
+      throw new ApiError(400, "Rede Wi-Fi inválida.", "invalid-argument");
+    }
     const [modelType, idx] = input.wifiId.includes(":") ? input.wifiId.split(":") : ["tr098", input.wifiId];
     const params: Array<[string, string | boolean | number, string]> = [];
 

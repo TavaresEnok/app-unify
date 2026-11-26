@@ -11,11 +11,33 @@ import 'vibe_tokens.dart';
 /// Leitura de uma fatura nos termos do layout aprovado: situação, selo e os
 /// textos de vencimento usados por cada tela (objeto `S` do protótipo).
 class VibeInvoiceView {
-  VibeInvoiceView(this.invoice, {DateTime? today})
+  VibeInvoiceView(this.invoice, {DateTime? today, this.asOf})
       : _today = _dateOnly(today ?? DateTime.now());
 
   final Fatura invoice;
   final DateTime _today;
+
+  /// Hora dos dados quando ainda não foram confirmados pelo provedor
+  /// (vieram do aparelho ou a última atualização falhou). Nulo = atuais.
+  final DateTime? asOf;
+
+  /// Fatura de exemplo, só para dar ao esqueleto o tamanho real do cartão
+  /// (valor típico, Pix e boleto). Nunca é mostrada: os valores ficam
+  /// cobertos e os botões sem toque.
+  factory VibeInvoiceView.placeholder({DateTime? today}) {
+    final now = today ?? DateTime.now();
+    return VibeInvoiceView(
+        Fatura(
+          numero: '',
+          valor: 199.90,
+          vencimento: DateTime(now.year, now.month, now.day)
+              .add(const Duration(days: 10)),
+          status: 'pendente',
+          pixCopiaECola: '-',
+          urlBoleto: '-',
+        ),
+        today: now);
+  }
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -108,9 +130,26 @@ class VibeBilling {
   final List<Fatura> paid;
   final DateTime? _today;
 
-  bool get loading => finance.state == FinanceiroState.loading;
-  bool get failed => finance.state == FinanceiroState.error;
-  bool get ready => finance.state == FinanceiroState.success;
+  /// Há uma lista para mostrar (da consulta ou guardada no aparelho).
+  bool get hasData => finance.hasResult;
+
+  /// Primeira consulta, ainda sem nada para mostrar: esqueleto.
+  bool get loading => !hasData && finance.state != FinanceiroState.error;
+
+  /// Consulta falhou e não há nada guardado: erro no lugar do cartão.
+  bool get failed => !hasData && finance.state == FinanceiroState.error;
+
+  /// Dados prontos para usar (inclusive os guardados, enquanto atualiza).
+  bool get ready => hasData;
+
+  /// Atualizando com dados já na tela.
+  bool get refreshing => finance.refreshing;
+
+  /// A última atualização falhou; os dados na tela são de [asOf].
+  bool get refreshFailed => hasData && finance.state == FinanceiroState.error;
+
+  /// Hora dos dados mostrados quando ainda não confirmados pelo provedor.
+  DateTime? get asOf => finance.isStale ? finance.lastUpdated : null;
 
   VibeInvoiceView? get main {
     final invoice = open.isNotEmpty
@@ -118,11 +157,16 @@ class VibeBilling {
         : paid.isNotEmpty
             ? paid.first
             : null;
-    return invoice == null ? null : VibeInvoiceView(invoice, today: _today);
+    return invoice == null ? null : view(invoice);
   }
 
-  VibeInvoiceView? get next =>
-      open.length > 1 ? VibeInvoiceView(open[1], today: _today) : null;
+  VibeInvoiceView? get next => open.length > 1 ? view(open[1]) : null;
+
+  VibeInvoiceView view(Fatura invoice) =>
+      VibeInvoiceView(invoice, today: _today, asOf: asOf);
+
+  /// Cartão de exemplo para o esqueleto e para o erro sem dados.
+  VibeInvoiceView get placeholder => VibeInvoiceView.placeholder(today: _today);
 
   bool get overdue =>
       open.any((i) => VibeInvoiceView(i, today: _today).overdue);
@@ -132,15 +176,28 @@ class VibeBilling {
 
 /// Ações de pagamento com retorno ao assinante (toasts `T` do protótipo).
 class VibeInvoiceActions {
-  static Future<void> copyPix(BuildContext context, Fatura invoice) => _copy(
-      context,
-      invoice.pixCopiaECola,
-      'Código Pix copiado. Cole no app do seu banco para pagar.');
+  static Future<void> copyPix(BuildContext context, Fatura invoice,
+          {DateTime? asOf}) =>
+      _copy(
+          context,
+          invoice.pixCopiaECola,
+          asOf == null
+              ? 'Código Pix copiado. Cole no app do seu banco para pagar.'
+              : 'Código Pix copiado. ${staleNote(asOf)}');
 
-  static Future<void> copyLine(BuildContext context, Fatura invoice) => _copy(
-      context,
-      invoice.linhaDigitavel,
-      'Código de barras copiado. Cole no app do seu banco para pagar.');
+  static Future<void> copyLine(BuildContext context, Fatura invoice,
+          {DateTime? asOf}) =>
+      _copy(
+          context,
+          invoice.linhaDigitavel,
+          asOf == null
+              ? 'Código de barras copiado. Cole no app do seu banco para pagar.'
+              : 'Código de barras copiado. ${staleNote(asOf)}');
+
+  /// Aviso ao copiar um código de dados ainda não confirmados: a fatura pode
+  /// ter sido paga depois disso.
+  static String staleNote(DateTime asOf) =>
+      'Dados de ${vibeAsOf(asOf)}: confira se a fatura ainda está em aberto.';
 
   static Future<void> _copy(
       BuildContext context, String? value, String message) async {
@@ -158,4 +215,16 @@ class VibeInvoiceActions {
 
   static Future<void> openBoleto(BuildContext context, Fatura invoice) =>
       openInvoiceDocument(context, invoice);
+}
+
+/// "14:32" para hoje, "ontem, 14:32" ou "12/11, 14:32".
+String vibeAsOf(DateTime at, {DateTime? now}) {
+  final today = now ?? DateTime.now();
+  final hm = DateFormat('HH:mm').format(at);
+  final d0 = DateTime(today.year, today.month, today.day);
+  final d1 = DateTime(at.year, at.month, at.day);
+  final days = d0.difference(d1).inDays;
+  if (days <= 0) return hm;
+  if (days == 1) return 'ontem, $hm';
+  return '${DateFormat('dd/MM').format(at)}, $hm';
 }

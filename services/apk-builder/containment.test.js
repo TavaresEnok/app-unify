@@ -160,6 +160,14 @@ test('registry absent, normalized tenant/name collisions and package duplication
     fs.rmSync(f.config.APK_IDENTITY_REGISTRY); assert.equal((await f.post()).status, 409);
     assert.equal(f.state.spawns, 0);
 });
+test('identity failures carry a clear Portuguese message for the panel', () => {
+    const { identityFailure } = require('./containment');
+    assert.match(identityFailure(Error('identity-inventory-required')).error, /ainda não tem identidade de app cadastrada/);
+    assert.equal(identityFailure(Error('identity-inventory-required')).code, 'identity-inventory-required');
+    const mismatch = identityFailure(Object.assign(Error('identity-name-mismatch'), { expectedAppName: 'InsNet' }));
+    assert.equal(mismatch.code, 'identity-name-mismatch'); assert.match(mismatch.error, /cadastrado: "InsNet"/);
+    assert.equal(identityFailure(Error('ENOENT')).code, 'identity-registry-unavailable');
+});
 test('declared builder mounts and network do not restore administrative access', () => {
     const compose = fs.readFileSync(path.join(__dirname, '../../docker-compose.yml'), 'utf8');
     const builder = compose.split('\n  apk-builder:\n')[1].split('\n  redis-state:')[0];

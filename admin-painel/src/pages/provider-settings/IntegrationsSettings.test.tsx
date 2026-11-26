@@ -17,3 +17,9 @@ it("provider has no integration form or navigation; SaaS gets blank replacement"
  expect(saas).not.toContain("stored-private");
  expect(saas).toContain('value=""');
 });
+import { integrationErrorMessage } from "./IntegrationsSettings";
+it("shows the server reason when replacing the ERP integration fails", () => {
+ expect(integrationErrorMessage({ error: { message: "Autentique-se novamente para substituir a integração." } }, 403)).toBe("Autentique-se novamente para substituir a integração.");
+ expect(integrationErrorMessage({ error: "Destino SGP inválido ou interno." }, 400)).toBe("Destino SGP inválido ou interno.");
+ expect(integrationErrorMessage({}, 500)).toBe("Não foi possível substituir a integração.");
+});

@@ -7,7 +7,7 @@ const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { BuildJobStore } = require('./job-store');
 const { createLogoPolicy } = require('./security');
-const { identity, childEnvironment, verifyOutput, authorize, digest } = require('./containment');
+const { identity, identityFailure, childEnvironment, verifyOutput, authorize, digest } = require('./containment');
 
 function createApp(options = {}) {
     const config = options.config || process.env;
@@ -73,7 +73,7 @@ function createApp(options = {}) {
         if (active) return res.status(409).json({ success: false, error: 'Já existe uma geração em andamento. Aguarde a conclusão.' });
         let registered;
         try { registered = identity(config.APK_IDENTITY_REGISTRY || path.join(privateDir, 'identities.json'), providerId, appName); }
-        catch { return res.status(409).json({ success: false, error: 'identity-inventory-required' }); }
+        catch (error) { const failure = identityFailure(error); return res.status(409).json({ success: false, code: failure.code, error: failure.error }); }
         const id = req.buildId;
         // The requester bearer lives only in this closure, never in jobs or children.
         const bearer = req.headers.authorization;

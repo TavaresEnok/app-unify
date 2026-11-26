@@ -3,6 +3,7 @@ import { canAccessProvider, verifyAdmin, verifyToken } from "../middlewares/auth
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
 import { ensureNotificationSchema, getPgPool } from "../services/postgres";
 import { proxyToSgp } from "../services/proxySgpClient";
+import { recordAdminAudit } from "../services/auditService";
 
 export const clientsRouter = Router();
 clientsRouter.use(verifyToken, verifyAdmin);
@@ -215,6 +216,21 @@ clientsRouter.get("/sync/:jobId", asyncRoute(async (req, res) => {
   if (!jobId) throw new ApiError(400, "jobId obrigatório.", "invalid-argument");
   const result = await proxyToSgp("/sync-status", { providerId, jobId }, req.headers.authorization);
   res.status(result.status).json(result.data);
+}));
+
+// "Encerrar sessões do assinante": o app desse CPF precisa entrar de novo.
+clientsRouter.post("/:identifier/revoke-sessions", asyncRoute(async (req, res) => {
+  const providerId = resolveProviderId(req);
+  const cpf = String(req.params.identifier || "").replace(/\D/g, "");
+  if (!/^\d{11}(\d{3})?$/.test(cpf)) throw new ApiError(400, "CPF/CNPJ inválido.", "invalid-argument");
+  const pool = getPgPool();
+  if (!pool) throw new ApiError(503, "Banco indisponível. Tente novamente.", "unavailable");
+  const updated = await pool.query(
+    `UPDATE subscribers SET token_version = token_version + 1, updated_at = NOW() WHERE provider_id = $1 AND cpfcnpj = $2`,
+    [providerId, cpf],
+  );
+  await recordAdminAudit({ type: "REVOKE_SUBSCRIBER_SESSIONS", requesterUid: req.user!.uid, providerId, correlationId: req.correlationId }).catch(() => undefined);
+  res.json({ success: true, revoked: (updated.rowCount || 0) > 0 });
 }));
 
 clientsRouter.get("/:identifier", asyncRoute(async (req, res) => {

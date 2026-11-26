@@ -56,7 +56,7 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
         VibeRow(
             icon: 'doc',
             title: 'Meu contrato',
-            subtitle: 'Plano, valor e vencimento',
+            subtitle: 'Plano, situação e vencimento',
             onTap: () => go('contract')),
       if (can('notifications'))
         VibeRow(
@@ -110,8 +110,13 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
               height: 48,
               decoration: BoxDecoration(color: t.ac, shape: BoxShape.circle),
               alignment: Alignment.center,
-              child: Text(initials,
-                  style: vibeText(t, 15, 800, color: t.on, height: 1)),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(initials,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: vibeText(t, 15, 800, color: t.on, height: 1)),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -170,6 +175,29 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
                   subtitle: 'Serviço do provedor, abre fora do app',
                   trailing: VibeIcon('arr', size: 16, color: t.mut),
                   onTap: () => _openExternal(context, entry.value.url),
+                ),
+            ]),
+          ),
+        if (config != null &&
+            (config.privacyPolicyUrl.isNotEmpty ||
+                config.dataDeletionUrl.isNotEmpty))
+          VibeCard(
+            child: VibeRows(children: [
+              if (config.privacyPolicyUrl.isNotEmpty)
+                VibeRow(
+                  icon: 'g-shield',
+                  title: 'Política de privacidade',
+                  subtitle: 'Como seus dados são usados',
+                  trailing: VibeIcon('arr', size: 16, color: t.mut),
+                  onTap: () => _openExternal(context, config.privacyPolicyUrl),
+                ),
+              if (config.dataDeletionUrl.isNotEmpty)
+                VibeRow(
+                  icon: 'doc',
+                  title: 'Exclusão de dados',
+                  subtitle: 'Como pedir a exclusão dos seus dados',
+                  trailing: VibeIcon('arr', size: 16, color: t.mut),
+                  onTap: () => _openExternal(context, config.dataDeletionUrl),
                 ),
             ]),
           ),

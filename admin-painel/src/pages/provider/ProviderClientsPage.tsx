@@ -30,9 +30,12 @@ function useDebounce(value: string, delay: number) {
 
 export default function ProviderClientsPage() {
   const navigate = useNavigate();
-  const { user, providerId: authProviderId } = useAuth();
+  const { user, userRole, providerId: authProviderId } = useAuth();
   const { providerId: settingsProviderId } = useSettings();
   const providerId = settingsProviderId || authProviderId;
+  const clientsBasePath = userRole === 'superAdmin' && providerId
+    ? `/provedores/${encodeURIComponent(providerId)}/clientes`
+    : '/provedor/clientes';
 
   const [clients, setClients] = useState<ProviderClientItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +115,7 @@ export default function ProviderClientsPage() {
           setSyncProgress(null);
           setCurrentPage(1);
           if (result.status === 'completed') {
-            toast.success(`Sincronização concluída (${result.count ?? 0} clientes atualizados no PostgreSQL).`);
+            toast.success(`Sincronização concluída (${result.count ?? 0} clientes atualizados).`);
             void loadClients(1, debouncedSearchTerm, appFilter);
           } else {
             toast.error('A sincronização falhou. Tente novamente.');
@@ -141,7 +144,7 @@ export default function ProviderClientsPage() {
     return (
       <div className="flex flex-col justify-center items-center h-full text-center">
         <Loader2 className="animate-spin h-8 w-8 mb-4" />
-        <p className="text-lg font-semibold">Carregando clientes do banco local...</p>
+        <p className="text-lg font-semibold">Carregando clientes...</p>
       </div>
     );
   }
@@ -212,7 +215,7 @@ export default function ProviderClientsPage() {
           title={searchTerm ? 'Nenhum resultado para sua busca' : 'Nenhum cliente sincronizado'}
           description={searchTerm
             ? `Não encontramos clientes para "${searchTerm}". Limpe a busca para ver todos.`
-            : 'Clique em "Sincronizar" para importar a base do SGP para o banco local.'}
+            : 'Clique em "Sincronizar" para importar sua base de clientes.'}
         />
       )}
       renderRow={(client) => (
@@ -220,7 +223,7 @@ export default function ProviderClientsPage() {
           type="button"
           className="grid w-full items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] text-left transition-colors hover:bg-[#F8FAFC]"
           style={{ gridTemplateColumns: '2fr 1.2fr 1.1fr .8fr 1.3fr 32px' }}
-          onClick={() => navigate(`/provedor/clientes/${encodeURIComponent(client.cpfcnpj || client.id)}`)}
+          onClick={() => navigate(`${clientsBasePath}/${encodeURIComponent(client.cpfcnpj || client.id)}`)}
         >
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">

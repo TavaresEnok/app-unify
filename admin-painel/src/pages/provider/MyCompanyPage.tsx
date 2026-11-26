@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from 'lucide-react';
 import { subscribeProvider } from '@/features/providers/providerService';
 import { useApi } from '@/hooks/useApi';
+import { fetchProviderClients } from '@/shared/api/clients';
+import { companyDetailsFromProvider, companyDetailsPayload, type CompanyDetails } from '@/features/provider-settings/companyDetails';
 
-interface CompanyDetails {
-    razaoSocial?: string;
-    nomeFantasia?: string;
-    cnpj?: string;
-    email?: string;
-    telefone?: string;
-    systemUrl?: string;
+interface IntegrationStatus {
+    total: number;
+    lastSyncedAt: string | null;
 }
 
 export default function MyCompanyPage() {
@@ -24,19 +22,35 @@ export default function MyCompanyPage() {
     const [details, setDetails] = useState<CompanyDetails>({});
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const dirtyRef = useRef(false);
+    const [integration, setIntegration] = useState<IntegrationStatus | null>(null);
 
     useEffect(() => {
         if (!providerId) return;
 
         const unsubscribe = subscribeProvider(providerId, (provider) => {
-            if (provider) setDetails((provider.details as CompanyDetails) || {});
+            // Não sobrescreve o que a pessoa está digitando com a leitura periódica.
+            if (provider && !dirtyRef.current) setDetails(companyDetailsFromProvider(provider.details));
+            setLoading(false);
+        }, () => {
+            toast.error('Não foi possível carregar os dados da empresa.');
             setLoading(false);
         });
 
         return () => unsubscribe();
     }, [providerId]);
 
+    useEffect(() => {
+        if (!providerId) return;
+        let alive = true;
+        fetchProviderClients(providerId, { page: 1, limit: 1 })
+            .then((data) => { if (alive) setIntegration({ total: data.total, lastSyncedAt: data.lastSyncedAt }); })
+            .catch(() => { if (alive) setIntegration(null); });
+        return () => { alive = false; };
+    }, [providerId]);
+
     const handleDetailChange = (key: keyof CompanyDetails, value: string) => {
+        dirtyRef.current = true;
         setDetails(prev => ({ ...prev, [key]: value }));
     };
 
@@ -48,10 +62,10 @@ export default function MyCompanyPage() {
 
         setIsSaving(true);
         try {
-            const { razaoSocial, nomeFantasia, cnpj, email, telefone } = details;
-            const publicDetails = Object.fromEntries(Object.entries({ razaoSocial, nomeFantasia, cnpj, email, telefone }).filter(([, value]) => value !== undefined));
-            await callFunction('UPDATE_PROVIDER_DETAILS', { providerId, details: publicDetails });
+            await callFunction('UPDATE_PROVIDER_DETAILS', { providerId, details: companyDetailsPayload(details) });
+            dirtyRef.current = false;
         } catch (error) {
+            // useApi já mostra o erro em um toast.
             console.error("Falha ao salvar empresa", error);
         } finally {
             setIsSaving(false);
@@ -106,25 +120,28 @@ export default function MyCompanyPage() {
                     conectividade ao vivo (o painel não faz health-check do SGP). */}
                 <Card className="p-[18px]">
                     <div className="mb-3 flex items-center justify-between">
-                        <div className="text-[13.5px] font-semibold text-[#1A2233]">Integração SGP</div>
-                        {details.systemUrl ? (
+                        <div className="text-[13.5px] font-semibold text-[#1A2233]">Integração com o sistema (ERP)</div>
+                        {integration && integration.total > 0 ? (
                             <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-emerald-700">
                                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                Configurada
+                                Conectada
                             </span>
                         ) : (
                             <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-[#98A1B1]">
                                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                Não configurada
+                                {integration ? 'Sem clientes sincronizados' : 'Sem informação'}
                             </span>
                         )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[12px]">
-                        <span className="text-[#98A1B1]">URL do sistema</span>
-                        <span className="truncate text-right text-[#4A5364]">
-                            {details.systemUrl || '—'}
+                        <span className="text-[#98A1B1]">Clientes sincronizados</span>
+                        <span className="text-right text-[#4A5364]">{integration ? integration.total : '—'}</span>
+                        <span className="text-[#98A1B1]">Última sincronização</span>
+                        <span className="text-right text-[#4A5364]">
+                            {integration?.lastSyncedAt ? new Date(integration.lastSyncedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
                         </span>
                     </div>
+                    <p className="mt-3 text-[11.5px] text-[#687181]">A conexão com o ERP é configurada pela equipe da plataforma.</p>
                 </Card>
             </div>
         </div>

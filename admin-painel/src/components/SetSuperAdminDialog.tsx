@@ -48,7 +48,7 @@ export default function SetSuperAdminDialog({ onUpdate }: SetSuperAdminDialogPro
                 <DialogHeader>
                     <DialogTitle>Definir Permissão de Super Admin</DialogTitle>
                     <DialogDescription>
-                        Insira o email de um utilizador existente para lhe conceder permissões de Super Admin. Esta ação é irreversível.
+                        Informe o e-mail de um usuário existente para torná-lo Super Admin. Esta ação não pode ser desfeita.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -59,7 +59,7 @@ export default function SetSuperAdminDialog({ onUpdate }: SetSuperAdminDialogPro
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="utilizador@exemplo.com"
+                            placeholder="usuario@exemplo.com"
                         />
                     </div>
                 </div>

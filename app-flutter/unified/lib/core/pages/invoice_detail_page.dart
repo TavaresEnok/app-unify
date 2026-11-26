@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -42,8 +44,11 @@ class InvoiceDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = VibeTokens.of(context);
     final finance = ref.watch(financeiroViewModelProvider);
-    final current = finance.state == FinanceiroState.success &&
+    // Dados na tela (consultados ou guardados) continuam usáveis enquanto
+    // a atualização anda; só bloqueia se a fatura mudou de fato.
+    final current = finance.hasResult &&
         finance.invoices.any((item) => _sameInvoice(item, invoice));
+    final asOf = finance.isStale ? finance.lastUpdated : null;
     final plan =
         AppFormatters.label(ref.watch(authNotifierProvider).valueOrNull?.plano);
     final view = VibeInvoiceView(invoice);
@@ -92,8 +97,8 @@ class InvoiceDetailPage extends ConsumerWidget {
           VibePageButton(
               label: 'Copiar código Pix',
               icon: 'pix',
-              onPressed:
-                  when(() => VibeInvoiceActions.copyPix(context, invoice))),
+              onPressed: when(() =>
+                  VibeInvoiceActions.copyPix(context, invoice, asOf: asOf))),
         if (!view.paid && view.hasLine)
           VibeCard(
             main: true,
@@ -115,8 +120,9 @@ class InvoiceDetailPage extends ConsumerWidget {
                         icon: 'copy',
                         ghost: true,
                         small: true,
-                        onPressed: when(() =>
-                            VibeInvoiceActions.copyLine(context, invoice))),
+                        onPressed: when(() => VibeInvoiceActions.copyLine(
+                            context, invoice,
+                            asOf: asOf))),
                     view.hasBoleto
                         ? VibePageButton(
                             label: 'Abrir boleto',
@@ -129,18 +135,24 @@ class InvoiceDetailPage extends ConsumerWidget {
                   ),
                 ]),
           ),
-        if (view.hasBoleto && (view.paid || !view.hasLine))
+        // Fatura paga: o ERP não devolve mais o boleto (o link abre uma
+        // página vazia), então o caminho é pedir o comprovante.
+        if (view.hasBoleto && !view.paid && !view.hasLine)
           VibePageButton(
-              label: view.paid ? 'Abrir documento' : 'Abrir boleto',
-              icon: view.paid ? 'down' : 'bar',
+              label: 'Abrir boleto',
+              icon: 'bar',
               ghost: true,
               onPressed:
                   when(() => VibeInvoiceActions.openBoleto(context, invoice))),
+        if (view.paid)
+          const VibeNote(
+              'O boleto de faturas pagas não fica disponível. Peça o comprovante ao provedor.'),
         if (!view.paid && !view.hasPaymentData)
           const VibeOkBox(
               strip: true,
               warning: true,
-              title: 'Dados de pagamento indisponíveis. Consulte o suporte.'),
+              title:
+                  'Boleto disponível na central do assinante ou com o suporte.'),
         if (!view.paid)
           const VibeNote(
               'O pagamento é feito no app do seu banco. Pelo Pix, a confirmação sai em minutos.'),
@@ -174,6 +186,13 @@ class _TrustUnlockPageState extends ConsumerState<TrustUnlockPage> {
 
   Future<void> _request(Fatura invoice) async {
     final finance = ref.read(financeiroViewModelProvider);
+    if (finance.isStale || finance.state == FinanceiroState.loading) {
+      // O pedido vale para a situação confirmada pelo provedor.
+      unawaited(finance.fetchHistory());
+      setState(() => _error =
+          'Confirmando suas faturas com o provedor. Tente de novo em instantes.');
+      return;
+    }
     final stillOverdue = finance.state == FinanceiroState.success &&
         finance.invoices
             .any((item) => _sameInvoice(item, invoice) && item.isVencido);
@@ -211,10 +230,35 @@ class _TrustUnlockPageState extends ConsumerState<TrustUnlockPage> {
       ..sort((a, b) => a.vencimento.compareTo(b.vencimento));
     final late = overdue.isEmpty ? null : VibeInvoiceView(overdue.first);
     final children = <Widget>[];
-    if (finance.state == FinanceiroState.loading && overdue.isEmpty) {
-      children.add(const VibeCard(
-          child: VibeEmpty(icon: 'clock', title: 'Consultando suas faturas…')));
-    } else if (finance.state == FinanceiroState.error) {
+    if (!finance.hasResult && finance.state != FinanceiroState.error) {
+      // Primeira consulta: o cartão real com os valores cobertos.
+      children.addAll([
+        Semantics(
+          label: 'Consultando suas faturas',
+          liveRegion: true,
+          child: const VibeCard(
+            main: true,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  VibeNote(
+                      'O provedor pode liberar a sua internet enquanto o pagamento não é confirmado. A disponibilidade depende das regras da sua conta.',
+                      paragraph: true),
+                  SizedBox(height: 4),
+                  VibeKvList([
+                    VibeKv('Fatura vencida', 'Novembro · R\$ 199,90',
+                        redacted: true),
+                    VibeKv('Vencimento', '10/11/2026', redacted: true),
+                  ]),
+                ]),
+          ),
+        ),
+        const VibeDimmed(
+          dimmed: true,
+          child: VibePageButton(label: 'Solicitar liberação', onPressed: null),
+        ),
+      ]);
+    } else if (finance.state == FinanceiroState.error && !finance.hasResult) {
       children.add(const VibeCard(
           child: VibeEmpty(
               icon: 'alert',
@@ -242,8 +286,8 @@ class _TrustUnlockPageState extends ConsumerState<TrustUnlockPage> {
           VibePageButton(
               label: 'Copiar Pix de ${late.month}',
               icon: 'pix',
-              onPressed: () =>
-                  VibeInvoiceActions.copyPix(context, late.invoice)),
+              onPressed: () => VibeInvoiceActions.copyPix(context, late.invoice,
+                  asOf: finance.isStale ? finance.lastUpdated : null)),
       ]);
     } else {
       children.addAll([

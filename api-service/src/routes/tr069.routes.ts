@@ -5,11 +5,15 @@ import { tenantLimiter } from "../middlewares/rateLimits";
 import { recordAdminAudit } from "../services/auditService";
 import { getPgPool } from "../services/postgres";
 import {
+  driverLacksFeature,
   getAcsPrivateConfig,
   getTr069Driver,
   resolveCpeIdentityFromPg,
+  resolveDeviceManaged,
   saveAcsPrivateConfig,
   toPublicAcsSummary,
+  type AcsFeatureFlags,
+  type AcsPrivateConfig,
 } from "../services/tr069";
 import { isValidTracerouteTarget } from "../validators/traceroute";
 
@@ -55,15 +59,51 @@ function assertFeatureEnabled(enabled: boolean, label: string): void {
   }
 }
 
+// O gerenciador não executa o recurso (ex.: SGP sem reinício): 409, sem
+// nenhuma chamada ao ERP. Desligado pelo provedor continua 403.
+const UNSUPPORTED_MESSAGE = "Recurso não suportado por este gerenciador.";
+function assertFeatureSupported(config: AcsPrivateConfig, feature: keyof AcsFeatureFlags, label: string): void {
+  if (!config.enabled || config.driver === "none") {
+    throw new ApiError(503, "Integração TR-069/ACS não habilitada para este provedor.", "service-unavailable");
+  }
+  if (driverLacksFeature(config.driver, feature)) throw new ApiError(409, UNSUPPORTED_MESSAGE, "not-supported");
+  assertFeatureEnabled(config.features[feature], label);
+}
+
+function queryContract(req: Request): string | undefined {
+  const raw = typeof req.query?.contratoId === "string" ? req.query.contratoId
+    : typeof req.body?.contratoId === "string" || typeof req.body?.contratoId === "number" ? String(req.body.contratoId) : "";
+  const value = raw.trim();
+  return /^[A-Za-z0-9_-]{1,40}$/.test(value) ? value : undefined;
+}
+
 export const tr069SubscriberRouter = Router();
 tr069SubscriberRouter.use(verifyToken, tenantLimiter);
 
 tr069SubscriberRouter.get("/capabilities", asyncRoute(async (req, res) => {
-  const { providerId } = assertSubscriber(req);
+  const { providerId, cpfCnpj } = assertSubscriber(req);
   const config = await getAcsPrivateConfig(providerId);
+  const enabled = config.enabled && config.driver !== "none";
+  // deviceManaged: o serviço DESTE assinante tem roteador gerenciado. No SGP
+  // é o serial do serviço de internet no cache local; sem o contrato no cache,
+  // confirma com uma leitura (em cache) do CPE Manager.
+  let deviceManaged = enabled;
+  if (enabled && config.driver === "sgp") {
+    const contratoId = queryContract(req);
+    const known = await resolveDeviceManaged(getPgPool(), providerId, cpfCnpj, contratoId).catch(() => null);
+    if (known !== null) deviceManaged = known;
+    else {
+      const identity = await resolveCpeIdentityFromPg(getPgPool(), providerId, cpfCnpj, { contratoId, authHeader: req.headers.authorization });
+      deviceManaged = await Promise.race([
+        getTr069Driver(config).listHosts(config, identity).then(() => true, () => false),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 6000).unref?.()),
+      ]);
+    }
+  }
   res.json({
     data: {
-      enabled: config.enabled && config.driver !== "none",
+      enabled,
+      deviceManaged,
       driver: config.enabled ? config.driver : "none",
       features: config.enabled ? config.features : {
         wifi: false,
@@ -81,12 +121,15 @@ tr069SubscriberRouter.get("/status", asyncRoute(async (req, res) => {
   const { providerId, cpfCnpj } = assertSubscriber(req);
   const config = await getAcsPrivateConfig(providerId);
   const driver = getTr069Driver(config);
-  const contratoId = typeof req.query.contratoId === "string" ? req.query.contratoId.trim() : undefined;
+  const contratoId = queryContract(req);
   const identity = await resolveCpeIdentityFromPg(getPgPool(), providerId, cpfCnpj, {
     contratoId,
     authHeader: req.headers.authorization,
   });
-  const overview = await driver.getOverview(config, identity);
+  // ?fiberDetails=1 consulta a OLT ao vivo (lenta; cache de 5 min).
+  const fiberDetails = req.query.fiberDetails === "1" || req.query.fiberDetails === "true";
+  const overview = await driver.getOverview(config, identity, { fiberDetails });
+  if (!config.features.hosts && overview.hosts) delete overview.hosts;
   res.json({ data: overview, features: config.features });
 }));
 
@@ -137,7 +180,7 @@ tr069SubscriberRouter.post("/reboot", asyncRoute(async (req, res) => {
   const { providerId, cpfCnpj } = assertSubscriber(req);
   const config = await getAcsPrivateConfig(providerId);
   const driver = getTr069Driver(config);
-  assertFeatureEnabled(config.features.reboot, "Reiniciar roteador");
+  assertFeatureSupported(config, "reboot", "Reiniciar roteador");
 
   const key = `${providerId}:${cpfCnpj}`;
   const last = recentReboots.get(key) || 0;
@@ -159,7 +202,7 @@ tr069SubscriberRouter.post("/optimize-wifi", asyncRoute(async (req, res) => {
   const { providerId, cpfCnpj } = assertSubscriber(req);
   const config = await getAcsPrivateConfig(providerId);
   const driver = getTr069Driver(config);
-  assertFeatureEnabled(config.features.channelOptimize, "Otimizar canal Wi-Fi");
+  assertFeatureSupported(config, "channelOptimize", "Otimizar canal Wi-Fi");
 
   const contratoId = typeof req.body?.contratoId === "string" ? req.body.contratoId.trim() : undefined;
   const identity = await resolveCpeIdentityFromPg(getPgPool(), providerId, cpfCnpj, {
@@ -174,7 +217,7 @@ tr069SubscriberRouter.post("/diagnostic", asyncRoute(async (req, res) => {
   const { providerId, cpfCnpj } = assertSubscriber(req);
   const config = await getAcsPrivateConfig(providerId);
   const driver = getTr069Driver(config);
-  assertFeatureEnabled(config.features.speedDiagnostic, "Diagnóstico no roteador");
+  assertFeatureSupported(config, "speedDiagnostic", "Diagnóstico no roteador");
 
   const target = typeof req.body?.target === "string" && req.body.target.trim() ? req.body.target.trim() : "8.8.8.8";
   if (!isValidTracerouteTarget(target)) {
@@ -242,24 +285,36 @@ tr069AdminRouter.get("/clients/:identifier/overview", asyncRoute(async (req, res
   const driver = getTr069Driver(config);
   const identifier = String(req.params.identifier || "").trim();
   const identity = await resolveCpeIdentityFromPg(getPgPool(), providerId, identifier, {
+    contratoId: queryContract(req),
     authHeader: req.headers.authorization,
   });
-  const [overview, hosts] = await Promise.all([
-    driver.getOverview(config, identity),
-    config.features.hosts ? driver.listHosts(config, identity).catch(() => []) : Promise.resolve([]),
-  ]);
-  res.json({ data: { enabled: true, driver: config.driver, features: config.features, overview, hosts } });
+  const fiberDetails = req.query.fiberDetails === "1" || req.query.fiberDetails === "true";
+  const overview = await driver.getOverview(config, identity, { fiberDetails });
+  // O driver SGP já traz os aparelhos no overview: não repete a consulta.
+  const hosts = !config.features.hosts ? []
+    : overview.hosts ?? await driver.listHosts(config, identity).catch(() => []);
+  res.json({ data: { enabled: true, driver: config.driver, features: config.features, contratoId: identity.contratoId, overview, hosts } });
 }));
 
-tr069AdminRouter.post("/clients/:identifier/reboot", asyncRoute(async (req, res) => {
+const adminActionCooldown = new Map<string, number>();
+
+tr069AdminRouter.post("/clients/:identifier/reboot", tenantLimiter, asyncRoute(async (req, res) => {
   const providerId = resolveAdminProviderId(req);
   const config = await getAcsPrivateConfig(providerId);
+  assertFeatureSupported(config, "reboot", "Reiniciar roteador");
   const driver = getTr069Driver(config);
   const identifier = String(req.params.identifier || "").trim();
+  const cooldownKey = `${providerId}:${identifier}`;
+  if (Date.now() - (adminActionCooldown.get(cooldownKey) || 0) < REBOOT_COOLDOWN_MS) {
+    throw new ApiError(429, "Aguarde 1 minuto antes de reiniciar este roteador de novo.", "resource-exhausted");
+  }
   const identity = await resolveCpeIdentityFromPg(getPgPool(), providerId, identifier, {
+    contratoId: queryContract(req),
     authHeader: req.headers.authorization,
   });
   const result = await driver.reboot(config, identity);
+  if (adminActionCooldown.size > 5000) adminActionCooldown.clear();
+  adminActionCooldown.set(cooldownKey, Date.now());
   await recordAdminAudit({
     type: "TR069_ADMIN_REBOOT",
     requesterUid: req.user!.uid,
@@ -270,12 +325,14 @@ tr069AdminRouter.post("/clients/:identifier/reboot", asyncRoute(async (req, res)
   res.json(result);
 }));
 
-tr069AdminRouter.post("/clients/:identifier/optimize-wifi", asyncRoute(async (req, res) => {
+tr069AdminRouter.post("/clients/:identifier/optimize-wifi", tenantLimiter, asyncRoute(async (req, res) => {
   const providerId = resolveAdminProviderId(req);
   const config = await getAcsPrivateConfig(providerId);
+  assertFeatureSupported(config, "channelOptimize", "Otimizar canal Wi-Fi");
   const driver = getTr069Driver(config);
   const identifier = String(req.params.identifier || "").trim();
   const identity = await resolveCpeIdentityFromPg(getPgPool(), providerId, identifier, {
+    contratoId: queryContract(req),
     authHeader: req.headers.authorization,
   });
   const result = await driver.optimizeWifi(config, identity);
@@ -289,9 +346,10 @@ tr069AdminRouter.post("/clients/:identifier/optimize-wifi", asyncRoute(async (re
   res.json(result);
 }));
 
-tr069AdminRouter.post("/clients/:identifier/diagnostic", asyncRoute(async (req, res) => {
+tr069AdminRouter.post("/clients/:identifier/diagnostic", tenantLimiter, asyncRoute(async (req, res) => {
   const providerId = resolveAdminProviderId(req);
   const config = await getAcsPrivateConfig(providerId);
+  assertFeatureSupported(config, "speedDiagnostic", "Diagnóstico no roteador");
   const driver = getTr069Driver(config);
   const target = typeof req.body?.target === "string" && req.body.target.trim() ? req.body.target.trim() : "8.8.8.8";
   if (!isValidTracerouteTarget(target)) {
@@ -299,6 +357,7 @@ tr069AdminRouter.post("/clients/:identifier/diagnostic", asyncRoute(async (req, 
   }
   const identifier = String(req.params.identifier || "").trim();
   const identity = await resolveCpeIdentityFromPg(getPgPool(), providerId, identifier, {
+    contratoId: queryContract(req),
     authHeader: req.headers.authorization,
   });
   const result = await driver.runDiagnostic(config, identity, target);

@@ -7,8 +7,12 @@ class CustomerShellScope extends InheritedWidget {
   const CustomerShellScope({
     super.key,
     required this.frame,
+    this.navigate,
     required super.child,
   });
+
+  /// Abre um destino do app (aba ou página), como o toque numa notificação.
+  final ValueChanged<String>? navigate;
 
   /// Envolve [page] com a moldura do app, marcando a aba de [route].
   final Widget Function(String route, Widget page) frame;
@@ -18,7 +22,7 @@ class CustomerShellScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(CustomerShellScope oldWidget) =>
-      oldWidget.frame != frame;
+      oldWidget.frame != frame || oldWidget.navigate != navigate;
 }
 
 /// Abre [page] como página do app, com a moldura do shell quando existe.

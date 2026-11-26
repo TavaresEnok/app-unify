@@ -14,6 +14,7 @@ import StatusBadge from '@/components/StatusBadge';
 import { useApi } from '@/hooks/useApi';
 import { usePanelPage } from '@/hooks/usePanelPage';
 import { PageControls } from '@/components/PageControls';
+import ResetPasswordDialog from '@/components/ResetPasswordDialog';
 
 interface AdminUser {
     uid: string;
@@ -42,7 +43,7 @@ export default function UsersPage() {
             await callFunction('DELETE_ADMIN_USER', { uid: userToDelete.uid });
             await fetchUsers();
         } catch (error) {
-            console.error("Falha ao apagar utilizador", error);
+            console.error("Falha ao apagar usuário", error);
         }
     };
 
@@ -78,19 +79,19 @@ export default function UsersPage() {
                 { label: "Status" },
                 { label: "" },
             ]}
-            gridTemplate="2fr 1.1fr 1fr .9fr .8fr 52px"
+            gridTemplate="2fr 1.1fr 1fr .9fr .8fr 96px"
             rows={filteredUsers}
             getRowKey={(adminUser) => adminUser.uid}
             minWidth="880px"
             empty={(
                     <EmptyState
                         icon={UserX}
-                        title="Nenhum utilizador encontrado"
-                        description="Adicione um novo utilizador para começar a gerir."
+                        title="Nenhum usuário encontrado"
+                        description="Adicione um novo usuário para começar."
                     />
             )}
             renderRow={(u) => (
-                            <div className="grid items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] transition-colors hover:bg-[#F8FAFC]" style={{ gridTemplateColumns: "2fr 1.1fr 1fr .9fr .8fr 52px" }}>
+                            <div className="grid items-center gap-x-3 border-b border-[#F2F4F7] px-[18px] py-[11px] transition-colors hover:bg-[#F8FAFC]" style={{ gridTemplateColumns: "2fr 1.1fr 1fr .9fr .8fr 96px" }}>
                                 <span className="min-w-0">
                                     <span className="block truncate text-[13px] font-semibold text-[#1A2233]">{u.email}</span>
                                     <span className="block truncate font-mono text-[10.5px] text-[#98A1B1]">{u.uid}</span>
@@ -99,12 +100,13 @@ export default function UsersPage() {
                                 <span className="truncate text-[12.5px] text-[#4A5364]">{u.superAdmin ? "Plataforma" : u.providerId || "-"}</span>
                                 <span className="font-mono text-[11.5px] text-[#98A1B1]">-</span>
                                 <StatusBadge status="Ativo" />
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-1.5">
+                                        {user?.uid !== u.uid && <ResetPasswordDialog uid={u.uid} email={u.email} />}
                                         {user?.uid !== u.uid && (
                                             <AlertDialog>
-                                            <AlertDialogTrigger asChild><Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><Button variant="destructive" size="icon" aria-label={`Excluir ${u.email || u.uid}`} title="Excluir"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
-                                                    <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogHeader><AlertDialogTitle>Tem certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                         <AlertDialogAction onClick={() => handleDelete(u)}>Sim, apagar</AlertDialogAction>

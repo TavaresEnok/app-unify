@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'vibe_icon.dart';
+import 'vibe_skeleton.dart';
 import 'vibe_text.dart';
 import 'vibe_tokens.dart';
 
@@ -257,72 +258,32 @@ class VibeProgressBar extends StatelessWidget {
   }
 }
 
-/// Carregamento em blocos (`.g-load`): três faixas com brilho passando.
-class VibeLoading extends StatefulWidget {
+/// Carregamento em blocos (`.g-load`): faixas com o brilho único do app.
+/// Prefira o desenho real com [VibeRedact]; isto fica para listas cujo
+/// tamanho não se conhece antes.
+class VibeLoading extends StatelessWidget {
   const VibeLoading({super.key, this.blocks = 3, this.label = 'Carregando'});
   final int blocks;
   final String label;
 
   @override
-  State<VibeLoading> createState() => _VibeLoadingState();
-}
-
-class _VibeLoadingState extends State<VibeLoading>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _shine = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1100));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _shine.stop();
-    } else if (!_shine.isAnimating) {
-      _shine.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _shine.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
-    final low = t.ink.withValues(alpha: .07),
-        high = t.ink.withValues(alpha: .13);
     return Semantics(
-      label: widget.label,
+      label: label,
       liveRegion: true,
-      child: AnimatedBuilder(
-        animation: _shine,
-        builder: (context, _) => Column(children: [
-          for (var i = 0; i < widget.blocks; i++) ...[
-            if (i > 0) const SizedBox(height: 10),
-            Container(
-              height: 64,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                gradient: LinearGradient(
-                  begin: Alignment(-1 - 2 * _shine.value, 0),
-                  end: Alignment(1 - 2 * _shine.value + 2, 0),
-                  colors: [low, high, low],
-                  tileMode: TileMode.mirror,
-                ),
-              ),
-            ),
-          ],
-        ]),
-      ),
+      child: Column(children: [
+        for (var i = 0; i < blocks; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          const VibeShimmerBar(height: 64, radius: 14),
+        ],
+      ]),
     );
   }
 }
 
-/// Barra de carregamento em shimmer com dimensões fixas para manter o layout
-/// original dos cartões enquanto os dados estão sendo consultados.
-class VibeShimmerBar extends StatefulWidget {
+/// Barra de carregamento com dimensões fixas, no mesmo brilho sincronizado
+/// e nos mesmos tons de [VibeRedact].
+class VibeShimmerBar extends StatelessWidget {
   const VibeShimmerBar({
     super.key,
     this.width,
@@ -339,54 +300,14 @@ class VibeShimmerBar extends StatefulWidget {
   final bool onBrand;
 
   @override
-  State<VibeShimmerBar> createState() => _VibeShimmerBarState();
-}
-
-class _VibeShimmerBarState extends State<VibeShimmerBar>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _shine = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1100));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _shine.stop();
-    } else if (!_shine.isAnimating) {
-      _shine.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _shine.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = VibeTokens.of(context);
-    final base = widget.color ?? (widget.onBrand ? t.on : t.ink);
-    final strong = widget.onBrand || widget.color != null;
-    final low = base.withValues(alpha: strong ? .16 : .07);
-    final high = base.withValues(alpha: strong ? .28 : .14);
-    return AnimatedBuilder(
-      animation: _shine,
-      builder: (context, _) => Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(widget.radius),
-          gradient: LinearGradient(
-            begin: Alignment(-1 - 2 * _shine.value, 0),
-            end: Alignment(1 - 2 * _shine.value + 2, 0),
-            colors: [low, high, low],
-            tileMode: TileMode.mirror,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => VibeRedact(
+        redacted: true,
+        block: true,
+        radius: radius,
+        onBrand: onBrand,
+        color: color,
+        child: SizedBox(width: width ?? double.infinity, height: height),
+      );
 }
 
 /// Estado de página inteira (sem dados, erro, recurso indisponível): ícone

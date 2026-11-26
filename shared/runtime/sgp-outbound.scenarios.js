@@ -68,7 +68,7 @@ function scenarios(runtime) {
             const port = await listening(server);
             let lookups = 0;
             const targets = [];
-            const transport = runtime.createSgpTransport({ lookup: async () => { lookups++; return lookups % 2 ? records() : [{ address: '127.0.0.1', family: 4 }]; }, connect: options => {
+            const transport = runtime.createSgpTransport({ dnsCacheMs: 0, lookup: async () => { lookups++; return lookups % 2 ? records() : [{ address: '127.0.0.1', family: 4 }]; }, connect: options => {
                 targets.push(options); return peer(net.connect({ host: '127.0.0.1', port }));
             } });
             const before = Object.fromEntries(['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'].map(k => [k, process.env[k]]));
@@ -81,7 +81,8 @@ function scenarios(runtime) {
                     assert.equal((await transport.request(base, body, options)).data.ok, true);
                     await assert.rejects(transport.request(base, { token: 'synthetic-denied' }));
                 }
-                assert.equal(lookups, 6); assert.equal(targets.length, 3);
+                // Keep-alive: sockets ao mesmo IP aprovado podem ser reaproveitados.
+                assert.equal(lookups, 6); assert.ok(targets.length >= 1 && targets.length <= 3);
                 assert.ok(targets.every(target => target.host === PUBLIC && target.family === 4));
                 assert.ok(received.every(item => item.host === `sgp.synthetic.test:${port}`));
                 assert.equal(received[0].body, '{"token":"synthetic-json"}');
@@ -89,6 +90,31 @@ function scenarios(runtime) {
                 assert.equal(received[1].type, 'application/x-www-form-urlencoded');
                 assert.equal(received[2].method, 'GET'); assert.match(received[2].url, /token=synthetic-get/);
             } finally { for (const [key, value] of Object.entries(before)) if (value === undefined) delete process.env[key]; else process.env[key] = value; await close(server); }
+        },
+        'reuses keep-alive sockets only for the same approved IP and still validates every new socket': async () => {
+            let accepted = 0;
+            const server = http.createServer((_req, res) => res.end('{"ok":true}'));
+            server.on('connection', () => { accepted++; });
+            const port = await listening(server);
+            let answer = PUBLIC;
+            const targets = [];
+            const transport = runtime.createSgpTransport({ dnsCacheMs: 0, lookup: async () => [{ address: answer, family: 4 }], connect: options => {
+                targets.push(options.host); return peer(net.connect({ host: '127.0.0.1', port }), options.host);
+            } });
+            const base = `http://sgp.keepalive.test:${port}/api/test/`;
+            try {
+                for (let i = 0; i < 3; i++) assert.equal((await transport.request(base, { token: 'synthetic' })).data.ok, true);
+                assert.equal(accepted, 1, 'three sequential calls share one connection');
+                answer = '1.1.1.1';
+                assert.equal((await transport.request(base, { token: 'synthetic' })).data.ok, true);
+                assert.deepEqual(targets, [PUBLIC, '1.1.1.1'], 'a new approved IP never reuses the old socket');
+                answer = '10.0.0.9';
+                await assert.rejects(transport.request(base, { token: 'synthetic-denied' }));
+                assert.equal(targets.length, 2);
+                const mismatch = runtime.createSgpTransport({ lookup: records, connect: () => net.connect({ host: '127.0.0.1', port }) });
+                await assert.rejects(mismatch.request(base, { token: 'synthetic-denied' }));
+                await assert.rejects(mismatch.request(base, { token: 'synthetic-denied' }), 'a refused socket is never pooled');
+            } finally { transport.closeIdleConnections(); await close(server); }
         },
         'rejects peer mismatch and redirects without secret bytes at the forbidden receiver': async () => {
             let forbidden = 0;
@@ -147,6 +173,43 @@ function scenarios(runtime) {
                 assert.deepEqual((await errorOf()).response, { status: 400, data: undefined });
                 assert.deepEqual((await errorOf()).response, { status: 500 });
             } finally { await close(server); }
+        },
+        'caches approved DNS, retries once, serves stale on failure and never caches or reuses internal answers': async () => {
+            const quiet = () => undefined;
+            let clock = 0; let lookups = 0; let mode = 'ok';
+            const lookup = async () => {
+                lookups++;
+                if (mode === 'fail') { const error = new Error('getaddrinfo EAI_AGAIN'); error.code = 'EAI_AGAIN'; throw error; }
+                if (mode === 'hang') return new Promise(() => undefined);
+                if (mode === 'private') return [{ address: '10.0.0.5', family: 4 }];
+                if (mode === 'flaky') { mode = 'ok'; throw new Error('EAI_AGAIN'); }
+                return records();
+            };
+            const transport = runtime.createSgpTransport({ lookup, now: () => clock, dnsTimeoutMs: 20, log: quiet });
+            assert.ok(await transport.assertSafeSgpBaseUrl('https://sgp.cache.test/'));
+            assert.ok(await transport.assertSafeSgpBaseUrl('https://sgp.cache.test/'));
+            assert.equal(lookups, 1, 'second call within TTL uses the approved cache');
+            clock += 6 * 60 * 1000; mode = 'fail';
+            assert.ok(await transport.assertSafeSgpBaseUrl('https://sgp.cache.test/'), 'stale approved entry survives a DNS failure');
+            assert.equal(lookups, 3, 'expired entry: one lookup plus one retry');
+            clock += 2 * 60 * 60 * 1000; lookups = 0;
+            const error = await transport.assertSafeSgpBaseUrl('https://sgp.cache.test/').then(() => null, e => e);
+            assert.equal(error.code, 'dns-unavailable'); assert.equal(error.status, 503); assert.equal(error.dnsFailure, true);
+            assert.equal(lookups, 2);
+            mode = 'flaky'; lookups = 0;
+            assert.ok(await transport.assertSafeSgpBaseUrl('https://sgp.retry.test/'), 'one retry recovers a lost answer');
+            assert.equal(lookups, 2);
+            mode = 'hang';
+            const hung = await transport.assertSafeSgpBaseUrl('https://sgp.hang.test/').then(() => null, e => e);
+            assert.equal(hung.code, 'dns-unavailable', 'a hung resolver times out as DNS failure');
+            mode = 'ok'; clock = 0;
+            const rebinding = runtime.createSgpTransport({ lookup, now: () => clock, log: quiet });
+            assert.ok(await rebinding.assertSafeSgpBaseUrl('https://sgp.rebind.test/'));
+            clock += 6 * 60 * 1000; mode = 'private';
+            const denied = await rebinding.assertSafeSgpBaseUrl('https://sgp.rebind.test/').then(() => null, e => e);
+            assert.ok(denied && denied.code !== 'dns-unavailable', 'internal answer is denied, not served from stale cache');
+            mode = 'ok';
+            assert.ok(await rebinding.assertSafeSgpBaseUrl('https://sgp.rebind.test/'));
         },
         'allows public IPv4/IPv6 literals without DNS, denies incomplete private integration': async () => {
             let lookups = 0; const targets = [];

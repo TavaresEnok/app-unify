@@ -8,8 +8,7 @@ void main() {
   tearDown(() => ApiSession.onUnauthorized = null);
 
   test('devolve o objeto JSON em 2xx', () {
-    final body = decodeApiResponse(
-        http.Response(jsonEncode({'data': 1}), 200),
+    final body = decodeApiResponse(http.Response(jsonEncode({'data': 1}), 200),
         fallback: 'x');
     expect(body['data'], 1);
   });
@@ -33,14 +32,19 @@ void main() {
   test('usa a mensagem do servidor em 4xx e o fallback sem ela', () {
     expect(
       () => decodeApiResponse(
-          http.Response(jsonEncode({'error': {'message': 'Contrato não encontrado.'}}), 404),
+          http.Response(
+              jsonEncode({
+                'error': {'message': 'Contrato não encontrado.'}
+              }),
+              404),
           fallback: 'x'),
-      throwsA(isA<ApiException>().having(
-          (e) => e.message, 'mensagem', 'Contrato não encontrado.')),
+      throwsA(isA<ApiException>()
+          .having((e) => e.message, 'mensagem', 'Contrato não encontrado.')),
     );
     expect(
       () => decodeApiResponse(http.Response('', 400), fallback: 'Falhou.'),
-      throwsA(isA<ApiException>().having((e) => e.message, 'mensagem', 'Falhou.')),
+      throwsA(
+          isA<ApiException>().having((e) => e.message, 'mensagem', 'Falhou.')),
     );
   });
 
@@ -49,15 +53,39 @@ void main() {
     ApiSession.onUnauthorized = () => avisos++;
     expect(
         () => decodeApiResponse(http.Response('{}', 401), fallback: 'x'),
-        throwsA(isA<ApiException>().having(
-            (e) => e.message, 'mensagem', contains('sessão expirou'))));
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'mensagem', contains('sessão expirou'))));
     expect(
         () => decodeApiResponse(
-            http.Response(jsonEncode({'error': {'message': 'Credenciais inválidas.'}}), 401),
+            http.Response(
+                jsonEncode({
+                  'error': {'message': 'Credenciais inválidas.'}
+                }),
+                401),
             fallback: 'x',
             authenticated: false),
-        throwsA(isA<ApiException>().having(
-            (e) => e.message, 'mensagem', 'Credenciais inválidas.')));
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'mensagem', 'Credenciais inválidas.')));
     expect(avisos, 1);
+  });
+
+  test('503 de ERP ocupado mostra a frase amigável do servidor', () {
+    expect(
+      apiErrorMessage(
+          503,
+          {
+            'error': {'message': erpBusyMessage}
+          },
+          'x'),
+      erpBusyMessage,
+    );
+    expect(
+        apiErrorMessage(
+            503,
+            {
+              'error': {'message': 'Destino interno'}
+            },
+            'x'),
+        contains('temporariamente indisponível'));
   });
 }

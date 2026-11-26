@@ -283,7 +283,7 @@ export async function detectOutageClusters(
      by_bairro AS (
        SELECT 'bairro'::text AS scope,
               bairro AS area_name,
-              COALESCE(MAX(NULLIF(cidade, '')), '') AS cidade,
+              COALESCE(cidade, '') AS cidade,
               COUNT(DISTINCT cpfcnpj)::text AS distinct_subscribers,
               COUNT(*) FILTER (WHERE verdict = 'critical')::text AS critical_count,
               COUNT(*) FILTER (WHERE verdict = 'degraded')::text AS degraded_count,
@@ -291,7 +291,8 @@ export async function detectOutageClusters(
               MAX(created_at) AS last_seen_at
          FROM recent
         WHERE bairro <> ''
-        GROUP BY bairro
+        -- Bairros com o mesmo nome em cidades diferentes não se juntam.
+        GROUP BY COALESCE(cidade, ''), bairro
        HAVING COUNT(DISTINCT cpfcnpj) >= $3
      )
      SELECT * FROM by_olt

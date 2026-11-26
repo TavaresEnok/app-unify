@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { loginWithEmailPassword, logoutSession } from '@/shared/auth/session';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Check, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { preloadDashboardPages } from '@/app/dashboardPreload';
 import { startLoginTiming } from '@/shared/api/panelTiming';
+import { canOpenAfterLogin, safeNextPath } from '@/app/loginRedirect';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -18,6 +19,8 @@ export default function LoginPage() {
     const [failedAttempts, setFailedAttempts] = useState(0);
     const [lockedUntil, setLockedUntil] = useState<number | null>(null);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const nextPath = safeNextPath(searchParams.get('next'));
     const { user, userRole } = useAuth();
 
     const MAX_ATTEMPTS = 10;
@@ -25,9 +28,10 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (user && userRole) {
-            navigate(userRole === 'superAdmin' ? '/dashboard' : '/provedor/dashboard', { replace: true });
+            const home = userRole === 'superAdmin' ? '/dashboard' : '/provedor/dashboard';
+            navigate(nextPath && canOpenAfterLogin(nextPath, userRole) ? nextPath : home, { replace: true });
         }
-    }, [user, userRole, navigate]);
+    }, [user, userRole, navigate, nextPath]);
 
     useEffect(() => {
         const timer = window.setTimeout(preloadDashboardPages, 0);
@@ -73,7 +77,7 @@ export default function LoginPage() {
                 return;
             }
             setFailedAttempts(0);
-            toast.success('Login bem-sucedido! A redirecionar...');
+            toast.success('Login realizado! Redirecionando...');
             // A navegação será tratada pelo useEffect e pelo PostLoginRedirect
         } catch (error) {
             const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
@@ -100,7 +104,7 @@ export default function LoginPage() {
             if (newAttempts >= MAX_ATTEMPTS) {
                 const lockUntil = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
                 setLockedUntil(lockUntil);
-                toast.error(`Muitas tentativas falhadas. Bloqueado por ${LOCKOUT_MINUTES} minutos.`);
+                toast.error(`Muitas tentativas com erro. Bloqueado por ${LOCKOUT_MINUTES} minutos.`);
             } else if (newAttempts >= 3) {
                 toast.error(`Credenciais inválidas. ${MAX_ATTEMPTS - newAttempts} tentativas restantes.`);
             } else {
@@ -184,7 +188,11 @@ export default function LoginPage() {
                         <div className="grid gap-1.5">
                             <div className="flex items-baseline justify-between">
                                 <Label htmlFor="password" className="text-[12.5px] font-semibold text-[#39414F]">Senha</Label>
-                                <button type="button" className="text-xs font-medium text-primary hover:text-[#24439F]">
+                                <button
+                                    type="button"
+                                    className="text-xs font-medium text-primary hover:text-[#24439F]"
+                                    onClick={() => toast.info('Peça a redefinição da senha ao suporte da plataforma.', { id: 'forgot-password' })}
+                                >
                                     Esqueceu a senha?
                                 </button>
                             </div>

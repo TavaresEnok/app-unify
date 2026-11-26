@@ -102,6 +102,9 @@ export async function ensureNotificationSchema(db: SqlQueryable): Promise<void> 
       `);
       await db.query(`ALTER TABLE notification_campaigns ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'sent'`);
       await db.query(`ALTER TABLE notification_campaigns ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMPTZ`);
+      await db.query(`ALTER TABLE notification_campaigns ADD COLUMN IF NOT EXISTS processing_started_at TIMESTAMPTZ`);
+      await db.query(`ALTER TABLE notification_campaigns ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+      await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_idempotency ON notification_campaigns (provider_id, idempotency_key) WHERE idempotency_key IS NOT NULL`);
       await db.query(`CREATE INDEX IF NOT EXISTS idx_campaigns_provider_created ON notification_campaigns (provider_id, created_at DESC)`);
       await db.query(`CREATE INDEX IF NOT EXISTS idx_campaigns_scheduled ON notification_campaigns (status, scheduled_for) WHERE status = 'scheduled'`);
 

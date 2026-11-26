@@ -33,10 +33,18 @@ export function serializeProviderRow(row: StoredProviderRow): Record<string, unk
   return { ...publicProviderData(raw), id: row.id };
 }
 
-export async function getProviderRow(db: SqlQueryable, providerId: string): Promise<StoredProviderRow | null> {
+// Provedores excluídos ficam no banco (exclusão lógica, com data em
+// data.deletedAt) e somem de leituras normais.
+export async function getProviderRow(
+  db: SqlQueryable,
+  providerId: string,
+  options: { includeDeleted?: boolean } = {},
+): Promise<StoredProviderRow | null> {
   await ensureCoreSchema(db);
   const res = await db.query<StoredProviderRow>(
-    `SELECT id, name, active, data, created_at, updated_at FROM providers WHERE id = $1 LIMIT 1`,
+    options.includeDeleted
+      ? `SELECT id, name, active, data, created_at, updated_at FROM providers WHERE id = $1 LIMIT 1`
+      : `SELECT id, name, active, data, created_at, updated_at FROM providers WHERE id = $1 AND NOT (data ? 'deletedAt') LIMIT 1`,
     [providerId],
   );
   return res.rows[0] || null;
@@ -45,7 +53,7 @@ export async function getProviderRow(db: SqlQueryable, providerId: string): Prom
 export async function listProviderRows(db: SqlQueryable): Promise<StoredProviderRow[]> {
   await ensureCoreSchema(db);
   const res = await db.query<StoredProviderRow>(
-    `SELECT id, name, active, data, created_at, updated_at FROM providers ORDER BY name ASC, id ASC`,
+    `SELECT id, name, active, data, created_at, updated_at FROM providers WHERE NOT (data ? 'deletedAt') ORDER BY name ASC, id ASC`,
   );
   return res.rows;
 }
@@ -95,10 +103,42 @@ export async function upsertProvider(
   return res.rows[0];
 }
 
+// Exclusão lógica: desativa o provedor, marca data.deletedAt e bloqueia os
+// administradores dele (sessões encerradas). Backups, chamados e assinantes
+// ficam preservados para auditoria e eventual recuperação.
 export async function deleteProviderRow(db: SqlQueryable, providerId: string): Promise<boolean> {
   await ensureCoreSchema(db);
-  const res = await db.query(`DELETE FROM providers WHERE id = $1`, [providerId]);
-  return (res.rowCount || 0) > 0;
+  const res = await db.query(
+    `UPDATE providers
+        SET active = FALSE,
+            data = data || jsonb_build_object('deletedAt', to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+            updated_at = NOW()
+      WHERE id = $1 AND NOT (data ? 'deletedAt')`,
+    [providerId],
+  );
+  if (!(res.rowCount || 0)) return false;
+  await db.query(
+    `UPDATE admin_users
+        SET disabled = TRUE, token_version = token_version + 1, updated_at = NOW()
+      WHERE provider_id = $1 AND role = 'providerAdmin'`,
+    [providerId],
+  );
+  return true;
+}
+
+export async function getProviderSecretMeta(
+  db: SqlQueryable,
+  providerId: string,
+  kind: "erp" | "acs",
+): Promise<{ updatedAt: string | null } | null> {
+  await ensureCoreSchema(db);
+  const res = await db.query<{ updated_at: Date | string | null }>(
+    `SELECT updated_at FROM provider_secrets WHERE provider_id = $1 AND kind = $2 LIMIT 1`,
+    [providerId, kind],
+  );
+  const row = res.rows[0];
+  if (!row) return null;
+  return { updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at ? String(row.updated_at) : null };
 }
 
 export async function getProviderSecret<T = Record<string, any>>(

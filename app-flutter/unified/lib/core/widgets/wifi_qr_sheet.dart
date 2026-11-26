@@ -5,8 +5,11 @@ import '../vibe/vibe_text.dart';
 import '../vibe/vibe_tokens.dart';
 
 String buildWifiQrPayload(String ssid, String password) {
-  String esc(String s) =>
-      s.replaceAll(r'\', r'\\').replaceAll(';', r'\;').replaceAll(',', r'\,').replaceAll(':', r'\:');
+  String esc(String s) => s
+      .replaceAll(r'\', r'\\')
+      .replaceAll(';', r'\;')
+      .replaceAll(',', r'\,')
+      .replaceAll(':', r'\:');
   if (password.isEmpty) return 'WIFI:T:nopass;S:${esc(ssid)};;';
   return 'WIFI:T:WPA;S:${esc(ssid)};P:${esc(password)};;';
 }

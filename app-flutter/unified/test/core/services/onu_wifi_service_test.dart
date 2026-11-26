@@ -13,6 +13,7 @@ void main() {
   late OnuWifiService service;
 
   setUp(() {
+    OnuWifiService.retryDelay = Duration.zero;
     mockClient = MockClient();
     service = OnuWifiService(
       apiUrl: 'http://test.api',
@@ -96,6 +97,45 @@ void main() {
       )).thenAnswer((_) async => http.Response('Internal Server Error', 500));
 
       expect(service.fetchOnuSignal(), throwsException);
+    });
+
+    test('fetchOnuSignal tenta de novo uma vez em 5xx (ERP ocupado)', () async {
+      var calls = 0;
+      when(mockClient.post(
+        any,
+        headers: anyNamed('headers'),
+        body: anyNamed('body'),
+      )).thenAnswer((_) async {
+        calls++;
+        return calls == 1
+            ? http.Response(
+                '{"error":{"message":"Muitos acessos agora."}}', 503)
+            : http.Response(
+                json.encode({
+                  'data': {'signalRx': -19.0, 'isOnline': true}
+                }),
+                200);
+      });
+
+      final result = await service.fetchOnuSignal();
+      expect(result.signalRx, -19.0);
+      expect(calls, 2);
+    });
+
+    test('fetchOnuSignal não repete erro 4xx', () async {
+      var calls = 0;
+      when(mockClient.post(
+        any,
+        headers: anyNamed('headers'),
+        body: anyNamed('body'),
+      )).thenAnswer((_) async {
+        calls++;
+        return http.Response(
+            '{"error":{"message":"Contrato não encontrado."}}', 404);
+      });
+
+      await expectLater(service.fetchOnuSignal(), throwsException);
+      expect(calls, 1);
     });
   });
 }

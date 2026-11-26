@@ -4,8 +4,8 @@ import {
   Bell,
   LogOut,
   Menu,
-  Search,
 } from "lucide-react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { logoutSession } from "@/shared/auth/session";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -115,6 +115,7 @@ export default function MainLayout() {
             variant="ghost"
             size="icon"
             title="Sair"
+            aria-label="Sair"
             onClick={handleLogout}
             className="h-7 w-7 text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-[var(--sidebar-title)]"
           >
@@ -150,14 +151,6 @@ export default function MainLayout() {
 
           <div className="flex-1" />
 
-          <div className="relative hidden w-[260px] sm:block">
-            <Search className="absolute left-[11px] top-[9px] h-3.5 w-3.5 text-[#98A1B1]" strokeWidth={2} />
-            <input
-              placeholder="Pesquisar..."
-              className="h-8 w-full rounded-lg border border-[#E0E4EC] bg-[#F7F8FA] py-[7px] pl-8 pr-3 text-[12.5px] text-[#1A2233] outline-none placeholder:text-[#98A1B1] focus:border-primary focus:ring-2 focus:ring-primary/15"
-            />
-          </div>
-
           <Button
             variant="ghost"
             size="icon"
@@ -170,11 +163,12 @@ export default function MainLayout() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="grid h-[30px] w-[30px] place-items-center rounded-full bg-primary/10 text-[11.5px] font-bold text-primary outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring">
+              <button aria-label="Menu da conta" className="grid h-[30px] w-[30px] place-items-center rounded-full bg-primary/10 text-[11.5px] font-bold text-primary outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring">
                 {userInitials}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => navigate("/conta/senha")}>Alterar senha</DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout}>Sair</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -182,9 +176,11 @@ export default function MainLayout() {
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-7 sm:py-[26px]">
-            <Suspense fallback={<div role="status" className="py-8 text-sm text-muted-foreground">Carregando informações...</div>}>
-              <Outlet />
-            </Suspense>
+            <ErrorBoundary resetKey={location.pathname}>
+              <Suspense fallback={<div role="status" className="py-8 text-sm text-muted-foreground">Carregando informações...</div>}>
+                <Outlet />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         </main>
       </div>

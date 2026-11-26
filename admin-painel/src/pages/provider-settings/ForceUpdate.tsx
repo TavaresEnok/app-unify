@@ -1,88 +1,74 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Smartphone } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { SettingsPage, SettingsSection } from "@/components/settings/SettingsPage";
-import { toast } from "sonner";
-
-interface ForceUpdateConfig {
-  minVersion: string;
-  latestVersion: string;
-  forceUpdate: boolean;
-  updateMessage: { pt_BR: { title: string; message: string; buttonText: string } };
-  storeUrls: { android: string; ios: string };
-}
-
-const DEFAULT_FORCE_UPDATE: ForceUpdateConfig = {
-  minVersion: "1.0.0",
-  latestVersion: "1.0.0",
-  forceUpdate: false,
-  updateMessage: {
-    pt_BR: {
-      title: "Atualização necessária",
-      message: "Uma nova versão está disponível. Atualize para continuar.",
-      buttonText: "Atualizar agora",
-    },
-  },
-  storeUrls: { android: "", ios: "" },
-};
-
-function compareVersions(left: string, right: string): number {
-  const a = left.split(".").map(Number);
-  const b = right.split(".").map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1;
-  }
-  return 0;
-}
+import { appVersionFormFromConfig, buildAppVersion, mergeAppVersion, type AppVersionForm } from "@/features/provider-settings/appVersion";
 
 export default function ForceUpdate() {
-  const { config, setConfig, saveConfig, isSaving } = useSettings();
-  const [version, setVersion] = useState<ForceUpdateConfig>(() => ({
-    ...DEFAULT_FORCE_UPDATE,
-    ...(config.appVersion || {}),
-    updateMessage: config.appVersion?.updateMessage || DEFAULT_FORCE_UPDATE.updateMessage,
-    storeUrls: { ...DEFAULT_FORCE_UPDATE.storeUrls, ...(config.appVersion?.storeUrls || {}) },
-  }));
+  const { config, saveConfig, isSaving } = useSettings();
+  const [form, setForm] = useState<AppVersionForm>(() => appVersionFormFromConfig(config));
   const [error, setError] = useState("");
-  const versionWarning = compareVersions(version.minVersion, version.latestVersion) > 0;
+
+  useEffect(() => {
+    setForm(appVersionFormFromConfig(config));
+    // Recarrega só quando o valor salvo muda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.appVersion]);
+
+  const update = (patch: Partial<AppVersionForm>) => {
+    setForm((current) => ({ ...current, ...patch }));
+    setError("");
+  };
 
   const handleSave = async () => {
-    if (!/^\d+\.\d+\.\d+$/.test(version.minVersion) || !/^\d+\.\d+\.\d+$/.test(version.latestVersion)) {
-      setError("Use versões no formato X.Y.Z.");
+    const result = buildAppVersion(form);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
-    if (versionWarning) {
-      setError("A versão mínima não pode ser maior que a última versão.");
-      return;
+    try {
+      // Salva direto (não depende do botão do topo) e só esta parte da configuração.
+      await saveConfig({ ...config, appVersion: mergeAppVersion(config.appVersion, result.value) });
+      setError("");
+    } catch {
+      // saveConfig já mostrou o erro.
     }
-    if (version.forceUpdate && !version.storeUrls.android && !version.storeUrls.ios) {
-      setError("Informe pelo menos um link de loja.");
-      return;
-    }
-    const next = { ...config, appVersion: version };
-    setConfig(next);
-    await saveConfig(next);
-    setError("");
-    toast.success("Configuração de atualização salva.");
   };
 
   return (
-    <SettingsPage title="Atualização do app" description="Defina versões aceitas e links das lojas." icon={Smartphone} actions={<Button onClick={handleSave} disabled={isSaving || versionWarning}>Salvar alterações</Button>}>
-      {error && <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><AlertTriangle className="h-4 w-4" />{error}</div>}
-      <SettingsSection title="Controle de versão" description="Bloqueie versões abaixo da mínima quando necessário.">
-        <div className="flex items-center justify-between gap-4"><div><Label htmlFor="forceUpdate">Forçar atualização</Label><p className="text-xs text-muted-foreground">O usuário precisará atualizar antes de continuar.</p></div><Switch id="forceUpdate" checked={version.forceUpdate} onCheckedChange={(forceUpdate) => setVersion({ ...version, forceUpdate })} /></div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="minVersion">Versão mínima</Label><Input id="minVersion" value={version.minVersion} onChange={(event) => setVersion({ ...version, minVersion: event.target.value })} /></div><div className="space-y-1.5"><Label htmlFor="latestVersion">Última versão</Label><Input id="latestVersion" value={version.latestVersion} onChange={(event) => setVersion({ ...version, latestVersion: event.target.value })} /></div></div>
+    <SettingsPage
+      title="Versão do app"
+      description="Peça para o assinante atualizar o aplicativo quando sair uma versão nova."
+      icon={Smartphone}
+      actions={<Button onClick={() => void handleSave()} disabled={isSaving}>Salvar versão</Button>}
+    >
+      {error && (
+        <div role="alert" className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />{error}
+        </div>
+      )}
+      <SettingsSection title="Versões" description="Use o formato 1.2.3. Deixe em branco para não pedir atualização.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="minVersion">Versão mínima (bloqueia)</Label>
+            <Input id="minVersion" inputMode="decimal" placeholder="1.0.0" value={form.minVersion} onChange={(event) => update({ minVersion: event.target.value })} />
+            <p className="text-xs text-muted-foreground">Abaixo desta versão o app mostra a tela "Atualize o app" e não deixa continuar.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="latestVersion">Última versão (aviso)</Label>
+            <Input id="latestVersion" inputMode="decimal" placeholder="1.0.5" value={form.latestVersion} onChange={(event) => update({ latestVersion: event.target.value })} />
+            <p className="text-xs text-muted-foreground">Abaixo desta versão o app mostra só um aviso, sem bloquear.</p>
+          </div>
+        </div>
       </SettingsSection>
-      <SettingsSection title="Mensagem" description="Texto exibido quando a atualização for exigida.">
-        <div className="grid gap-4"><div className="space-y-1.5"><Label htmlFor="updateTitle">Título</Label><Input id="updateTitle" value={version.updateMessage.pt_BR.title} onChange={(event) => setVersion({ ...version, updateMessage: { pt_BR: { ...version.updateMessage.pt_BR, title: event.target.value } } })} /></div><div className="space-y-1.5"><Label htmlFor="updateMessage">Mensagem</Label><Textarea id="updateMessage" value={version.updateMessage.pt_BR.message} onChange={(event) => setVersion({ ...version, updateMessage: { pt_BR: { ...version.updateMessage.pt_BR, message: event.target.value } } })} /></div><div className="space-y-1.5"><Label htmlFor="buttonText">Texto do botão</Label><Input id="buttonText" value={version.updateMessage.pt_BR.buttonText} onChange={(event) => setVersion({ ...version, updateMessage: { pt_BR: { ...version.updateMessage.pt_BR, buttonText: event.target.value } } })} /></div></div>
-      </SettingsSection>
-      <SettingsSection title="Lojas" description="Destinos usados pelo botão de atualização.">
-        <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="androidStore">Google Play</Label><Input id="androidStore" value={version.storeUrls.android} onChange={(event) => setVersion({ ...version, storeUrls: { ...version.storeUrls, android: event.target.value } })} placeholder="https://play.google.com/store/apps/details?id=..." /></div><div className="space-y-1.5"><Label htmlFor="iosStore">App Store</Label><Input id="iosStore" value={version.storeUrls.ios} onChange={(event) => setVersion({ ...version, storeUrls: { ...version.storeUrls, ios: event.target.value } })} placeholder="https://apps.apple.com/app/..." /></div></div>
+      <SettingsSection title="Loja" description="Para onde o botão Atualizar leva o assinante.">
+        <div className="space-y-1.5">
+          <Label htmlFor="storeUrl">Link da loja (Google Play)</Label>
+          <Input id="storeUrl" type="url" placeholder="https://play.google.com/store/apps/details?id=..." value={form.storeUrl} onChange={(event) => update({ storeUrl: event.target.value })} />
+        </div>
       </SettingsSection>
     </SettingsPage>
   );

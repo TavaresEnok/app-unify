@@ -902,7 +902,8 @@ class DiagnosticoService {
         _currentState = _currentState.copyWith(
           customDownloadResultMbps: result.downloadMbps,
           customUploadResultMbps: result.uploadMbps,
-          speedTestPingLatency: lat > 0 ? lat : _currentState.speedTestPingLatency,
+          speedTestPingLatency:
+              lat > 0 ? lat : _currentState.speedTestPingLatency,
           speedTestServerName: server.displayName,
         );
       }

@@ -22,7 +22,8 @@ class ContratoPage extends ConsumerWidget {
   }
 
   /// O contrato vence todo mês no mesmo dia: "20/11/2026", "Vence em
-  /// 6/11/2026" ou "2026-11-06" viram "Todo dia 20" / "Todo dia 6".
+  /// 6/11/2026", "2026-11-06", "Dia 9" ou "9" viram "Todo dia 20" / "Todo
+  /// dia 6" / "Todo dia 9".
   static String dueDay(String value) {
     final day = AppFormatters.dueDayOf(value);
     return day == null ? value.trim() : 'Todo dia $day';
@@ -71,7 +72,8 @@ class ContratoPage extends ConsumerWidget {
             if (user.contratoId != null)
               VibeKv('Contrato', '${user.contratoId}'),
             if (hasAmount)
-              VibeKv('Valor mensal', AppFormatters.currency(user.valorFatura)),
+              // O cadastro traz o total em aberto, não o preço do plano.
+              VibeKv('Em aberto', AppFormatters.currency(user.valorFatura)),
             if (user.vencimentoFatura.trim().isNotEmpty)
               VibeKv('Vencimento', dueDay(user.vencimentoFatura)),
             if (name.isNotEmpty) VibeKv('Provedor', name),

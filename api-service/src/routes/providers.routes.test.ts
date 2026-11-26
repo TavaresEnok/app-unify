@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sgpOutbound from "../services/sgp-outbound";
 
 const state = vi.hoisted(() => ({
@@ -54,6 +54,7 @@ vi.mock("../services/providersStore", async () => {
   };
   return {
     listProviderRows: async () => [...state.providers.entries()].map(([id, data]) => ({ id, name: data.name || id, active: data.active !== false, data, created_at: new Date(), updated_at: new Date() })),
+    getProviderSecretMeta: async (_p: unknown, id: string, kind: string) => (state.secrets.has(`${id}:${kind}`) ? { updatedAt: "2026-11-25T10:00:00.000Z" } : null),
     getProviderRow: async (_p: unknown, id: string) => {
       const data = state.providers.get(id);
       return data ? { id, name: data.name || id, active: data.active !== false, data, created_at: new Date(), updated_at: new Date() } : null;
@@ -70,7 +71,7 @@ vi.mock("../services/providersStore", async () => {
     getProviderSecret: async (_p: unknown, id: string, kind: string) => state.secrets.get(`${id}:${kind}`) || null,
     listProviderBackups: async () => [],
     createProviderBackup: async () => ({ id: "b1", createdAt: new Date().toISOString() }),
-    getProviderBackup: async () => null,
+    getProviderBackup: async (_p: unknown, _id: string, backupId: string) => (backupId === "empty" ? { id: "empty", snapshot: { details: { cpf: "1" } } } : backupId === "good" ? { id: "good", snapshot: { layoutType: "layout_03", themeColor: "#000" } } : null),
     deleteProviderBackup: async () => false,
   };
 });
@@ -84,6 +85,8 @@ app.use(express.json());
 app.use(providersRouter);
 app.use(errorHandler);
 const post = (uid: string, path: string, data: any) => request(app).post(path).set("Authorization", "Bearer " + uid).send(data);
+
+afterEach(() => { vi.restoreAllMocks(); });
 
 beforeEach(() => {
   state.access = "active";
@@ -154,6 +157,7 @@ it("allows only SaaS private replacement, checks revocation and never returns st
 });
 
 it("grava integração IXC só com token e URL, sem app, e rejeita ERP desconhecido", async () => {
+  vi.spyOn(sgpOutbound, "request").mockResolvedValue({ status: 200, data: { page: "1", total: "1", registros: [] } } as never);
   const ixc = { erp: "ixc", apiToken: "ixc-synthetic", sgpBaseUrl: "https://ixc.test" };
   expect((await post("saas", "/a/integration", { ...ixc, appName: "ignorado" })).status).toBe(200);
   expect(state.secrets.get("a:erp")).toEqual(ixc);
@@ -185,7 +189,9 @@ it.each(["revoked", "disabled", "demoted", "stale"])("preserves private credenti
   state.secrets.set("a:erp", structuredClone(original));
   state.access = access;
   const result = await post("saas", "/a/integration", { apiToken: "synthetic-new", sgpBaseUrl: "https://new.test", appName: "new" });
-  expect(result.status).toBe(["revoked", "disabled"].includes(access) ? 401 : 403);
+  // "stale" (login antigo) responde 401 reauth-required: o painel pede a senha.
+  expect(result.status).toBe(["revoked", "disabled", "stale"].includes(access) ? 401 : 403);
+  if (access === "stale") expect(result.body.error.code).toBe("reauth-required");
   expect(state.secrets.get("a:erp")).toEqual(original);
   expect(state.audits).toEqual([]);
   expect(JSON.stringify(result.body)).not.toContain("synthetic");
@@ -212,4 +218,77 @@ it("saves personalization over HTTP without widening the schema or altering secr
   expect(state.providers.get("a").themeColor).toBe("#fff");
   expect(state.secrets.get("a:erp")).toEqual({ apiToken: "private" });
   expect(state.audits).toHaveLength(1);
+});
+
+it("refuses to create a provider over an existing ID", async () => {
+  const result = await post("saas", "/", { id: "a", name: "Outro" });
+  expect(result.status).toBe(409);
+  expect(result.body.error.message).toBe("Já existe um provedor com este ID.");
+  expect(state.providers.get("a").name).toBe("A");
+  expect((await post("saas", "/", { id: "novo", name: "Novo" })).status).toBe(201);
+});
+
+it("refuses to restore a backup without personalization", async () => {
+  expect((await post("provider", "/a/backups/empty/restore", {})).status).toBe(400);
+  expect(state.providers.get("a").themeColor).toBe("#123");
+  expect((await post("provider", "/a/backups/good/restore", {})).status).toBe(200);
+});
+
+it("exposes integration status without secrets", async () => {
+  state.secrets.set("a:erp", { erp: "ixc", apiToken: "synthetic-secret", sgpBaseUrl: "https://ixc.example.test/webservice" });
+  const saas = await request(app).get("/a/integration/status").set("Authorization", "Bearer saas").expect(200);
+  expect(saas.body.data).toMatchObject({ configured: true, erp: "ixc", erpLabel: "IXC Provedor", baseUrlHost: "ixc.example.test", configuredAt: "2026-11-25T10:00:00.000Z" });
+  const provider = await request(app).get("/a/integration/status").set("Authorization", "Bearer provider").expect(200);
+  expect(provider.body.data.configured).toBe(true);
+  expect(provider.body.data.baseUrlHost).toBeUndefined();
+  expect(JSON.stringify([saas.body, provider.body])).not.toContain("synthetic");
+  await request(app).get("/a/integration/status").set("Authorization", "Bearer other").expect(403);
+});
+
+describe("validação da integração IXC antes de gravar", () => {
+  const ixc = { erp: "ixc", apiToken: "ixc-synthetic", sgpBaseUrl: "https://ixc.test/webservice/v1/" };
+  it("remove /webservice/v1 e faz uma leitura cliente listar rp=1 pelo cliente de saída", async () => {
+    const spy = vi.spyOn(sgpOutbound, "request").mockResolvedValue({ status: 200, data: { page: "1", total: "9", registros: [{}] } } as never);
+    expect((await post("saas", "/a/integration", ixc)).status).toBe(200);
+    expect(state.secrets.get("a:erp")).toEqual({ ...ixc, sgpBaseUrl: "https://ixc.test" });
+    expect(spy).toHaveBeenCalledTimes(1);
+    const [url, body, options] = spy.mock.calls[0] as [string, Record<string, string>, { headers: Record<string, string> }];
+    expect(url).toBe("https://ixc.test/webservice/v1/cliente");
+    expect(body).toMatchObject({ rp: "1", qtype: "cliente.id" });
+    expect(options.headers.ixcsoft).toBe("listar");
+  });
+  it.each([
+    [{ response: { status: 401 } }, 401],
+    [{ response: { status: 403 } }, 403],
+    [{ response: { status: 302 } }, 302],
+  ])("responde 400 sem gravar quando o IXC recusa (%#)", async (failure, status) => {
+    vi.spyOn(sgpOutbound, "request").mockRejectedValue(Object.assign(new Error("x"), failure));
+    const result = await post("saas", "/a/integration", ixc);
+    expect(result.status).toBe(400);
+    expect(result.body.error.message).toBe(`Token ou URL do IXC inválidos (HTTP ${status}).`);
+    expect(state.secrets.has("a:erp")).toBe(false);
+    expect(JSON.stringify(result.body)).not.toContain("ixc-synthetic");
+  });
+  it("trata type:error e página HTML como credencial inválida", async () => {
+    vi.spyOn(sgpOutbound, "request").mockResolvedValueOnce({ status: 200, data: { type: "error", message: "Token inválido" } } as never)
+      .mockResolvedValueOnce({ status: 200, data: "<html>login</html>" } as never);
+    for (let i = 0; i < 2; i++) {
+      const result = await post("saas", "/a/integration", ixc);
+      expect(result.status).toBe(400);
+      expect(result.body.error.message).toBe("Token ou URL do IXC inválidos (HTTP 200).");
+    }
+    expect(state.secrets.has("a:erp")).toBe(false);
+  });
+  it("não grava quando o IXC está fora do ar e mantém o SSRF guard antes do teste", async () => {
+    const spy = vi.spyOn(sgpOutbound, "request").mockRejectedValue(new Error("timeout"));
+    expect((await post("saas", "/a/integration", ixc)).status).toBe(502);
+    expect((await post("saas", "/a/integration", { ...ixc, sgpBaseUrl: "https://127.0.0.1/webservice/v1" })).status).toBe(400);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(state.secrets.has("a:erp")).toBe(false);
+  });
+  it("SGP não passa pelo teste do IXC", async () => {
+    const spy = vi.spyOn(sgpOutbound, "request");
+    expect((await post("saas", "/a/integration", { apiToken: "s", sgpBaseUrl: "https://sgp.test", appName: "app" })).status).toBe(200);
+    expect(spy).not.toHaveBeenCalled();
+  });
 });

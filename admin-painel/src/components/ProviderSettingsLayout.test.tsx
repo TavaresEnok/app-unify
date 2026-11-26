@@ -30,3 +30,11 @@ it("keeps SaaS operations scoped to the provider selected in the route", () => {
   expect(html).toContain('href="/provedores/beta/app-build"');
   expect(html).not.toContain("/provedores/alpha/");
 });
+
+it("marks settings the app does not read yet as coming soon", () => {
+  const typography = render("/provedor/personalizacao/typography");
+  expect(typography).toContain("Em breve no app");
+  expect(typography).toContain("Em breve</span>");
+  const appearance = render("/provedor/personalizacao/appearance");
+  expect(appearance).not.toContain("Em breve no app");
+});

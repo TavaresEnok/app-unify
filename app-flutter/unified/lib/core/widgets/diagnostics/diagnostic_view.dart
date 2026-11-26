@@ -463,8 +463,7 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
                 ? VibeTone.ok
                 : VibeTone.warning)
             : null;
-    final open =
-        widget.forceExpanded ? true : (_open ?? !view.state.isTesting);
+    final open = widget.forceExpanded ? true : (_open ?? !view.state.isTesting);
     return VibeCard(
       child: VibeRows(children: [
         Semantics(
@@ -483,8 +482,9 @@ class _DiagnosticGroupCardState extends State<DiagnosticGroupCard> {
                 VibeChevron(open: open),
               ],
             ]),
-            onTap:
-                widget.forceExpanded ? null : () => setState(() => _open = !open),
+            onTap: widget.forceExpanded
+                ? null
+                : () => setState(() => _open = !open),
           ),
         ),
         if (open)

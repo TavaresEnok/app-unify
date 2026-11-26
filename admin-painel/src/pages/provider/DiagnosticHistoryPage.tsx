@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalSettings } from '@/contexts/SettingsContext';
 import { toast } from 'sonner';
 import { Loader2, Activity, Trash2, Search, Download, RefreshCw } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
@@ -59,7 +60,11 @@ function needsProvider(item: DiagnosticResultItem): boolean {
 }
 
 export default function DiagnosticHistoryPage() {
-    const { providerId, user } = useAuth();
+    const { providerId: authProviderId, user, userRole } = useAuth();
+    // Super Admin chega aqui por /provedores/:id/diagnosticos (somente leitura).
+    const settings = useOptionalSettings();
+    const providerId = settings?.providerId || authProviderId;
+    const readOnly = userRole === 'superAdmin';
     const [results, setResults] = useState<DiagnosticResultItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -187,7 +192,7 @@ export default function DiagnosticHistoryPage() {
 
             <DataTable<DiagnosticResultItem>
                 title="Diagnósticos"
-                description={results.length > 0 ? `${results.length} diagnósticos registrados no PostgreSQL.` : 'Nenhum diagnóstico registrado ainda.'}
+                description={results.length > 0 ? `${results.length} diagnósticos registrados.` : 'Nenhum diagnóstico registrado ainda.'}
                 actions={(
                     <>
                         <div className="relative flex-grow sm:flex-grow-0 sm:w-72">
@@ -263,9 +268,9 @@ export default function DiagnosticHistoryPage() {
                                 tone={providerSupport ? 'amber' : 'gray'}
                             />
                             <div className="flex justify-end">
-                                <AlertDialog open={deleteId === result.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+                                {!readOnly && <AlertDialog open={deleteId === result.id} onOpenChange={(open) => !open && setDeleteId(null)}>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(result.id)}>
+                                        <Button variant="ghost" size="icon" aria-label="Excluir diagnóstico" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(result.id)}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </AlertDialogTrigger>
@@ -283,7 +288,7 @@ export default function DiagnosticHistoryPage() {
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
-                                </AlertDialog>
+                                </AlertDialog>}
                             </div>
                         </div>
                     );

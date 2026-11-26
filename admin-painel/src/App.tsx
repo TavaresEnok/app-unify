@@ -8,6 +8,9 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import ProviderSettingsLayout from "@/components/ProviderSettingsLayout";
 import { Loader2 } from 'lucide-react';
 import { loadGlobalDashboardPage, loadProviderDashboardPage } from '@/app/dashboardPreload';
+import ErrorBoundary from "@/components/ErrorBoundary";
+import SessionExpiryListener from "@/components/SessionExpiryListener";
+import ReauthDialogHost from "@/components/ReauthDialogHost";
 
 // Lazy Imports for Performance
 const ProviderWorkspace = lazy(() => import("@/components/ProviderWorkspace"));
@@ -54,6 +57,7 @@ const TicketDetailPage = lazy(() => import("./pages/TicketDetailPage"));
 const MyCompanyPage = lazy(() => import("./pages/provider/MyCompanyPage"));
 const MenusSettingsPage = lazy(() => import("./pages/provider-settings/MenusSettingsPage"));
 const AndroidBuilderPage = lazy(() => import("./pages/provider-settings/AndroidBuilder"));
+const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
 
 function PostLoginRedirect() {
   const { userRole } = useAuth();
@@ -129,6 +133,9 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <AuthProvider>
+        <SessionExpiryListener />
+        <ReauthDialogHost />
+        <ErrorBoundary fullScreen>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -136,13 +143,19 @@ export default function App() {
             <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
               <Route path="dashboard" element={<ProtectedRoute requiredRole="superAdmin"><DashboardPage /></ProtectedRoute>} />
               <Route path="provedores" element={<ProtectedRoute requiredRole="superAdmin"><ProvidersPage /></ProtectedRoute>} />
-              <Route path="utilizadores" element={<ProtectedRoute requiredRole="superAdmin"><UsersPage /></ProtectedRoute>} />
+              <Route path="usuarios" element={<ProtectedRoute requiredRole="superAdmin"><UsersPage /></ProtectedRoute>} />
+              <Route path="utilizadores" element={<Navigate to="/usuarios" replace />} />
+              <Route path="conta/senha" element={<ChangePasswordPage />} />
               <Route path="tickets" element={<ProtectedRoute requiredRole="superAdmin"><AdminTicketsPage /></ProtectedRoute>} />
               <Route path="tickets/:ticketId" element={<ProtectedRoute requiredRole="superAdmin"><TicketDetailPage /></ProtectedRoute>} />
               <Route path="provedores/:providerId" element={<ProtectedRoute requiredRole="superAdmin"><ProviderDetailPage /></ProtectedRoute>}>
                 {ProviderSettingsRoutes}
                 <Route path="comunicados">{CommunicationsRoutes}</Route>
                 <Route path="aplicativo" element={<ApplicationPage />} />
+                {/* Super Admin: consulta da base do provedor (somente leitura) */}
+                <Route path="clientes" element={<ProviderClientsPage />} />
+                <Route path="clientes/:clientId" element={<ClientDetailPage />} />
+                <Route path="diagnosticos" element={<DiagnosticHistoryPage />} />
               </Route>
               <Route path="provedor/dashboard" element={<ProviderDashboardPage />} />
               <Route path="provedor/notificacoes" element={<Navigate to="/provedor/comunicados/notificacoes" replace />} />
@@ -174,6 +187,7 @@ export default function App() {
             </Route>
           </Routes>
         </Suspense>
+        </ErrorBoundary>
       </AuthProvider>
       <Toaster />
     </ThemeProvider>

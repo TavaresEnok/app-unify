@@ -57,4 +57,18 @@ describe("api app", () => {
     expect(response.body.panel.some((sample: { role: string }) => sample.role === "providerAdmin")).toBe(true);
     await request(app).post("/admin/performance").set("Authorization", "Bearer test-root").send({ ...data, email: "private@example.test" }).expect(400);
   });
+
+  it("answers malformed and oversized JSON as client errors, not 500", async () => {
+    const bad = await request(app).post("/admin/auth/login").set("Content-Type", "application/json").send("{bad").expect(400);
+    expect(bad.body.error.message).toBe("JSON inválido.");
+    const big = JSON.stringify({ email: "a@b.c", password: "x".repeat(1_200_000) });
+    const tooLarge = await request(app).post("/admin/auth/login").set("Content-Type", "application/json").send(big).expect(413);
+    expect(tooLarge.body.error.message).toBe("Corpo da requisição muito grande.");
+  });
+
+  it("validates the subscriber login before calling the ERP proxy", async () => {
+    const response = await request(app).post("/check-cpf").send({ providerId: "vibe", cpf: "123" }).expect(401);
+    expect(response.body.error.message).toBe("Credenciais inválidas.");
+    await request(app).post("/check-cpf").send({ providerId: "../x", cpf: "12345678901" }).expect(401);
+  });
 });

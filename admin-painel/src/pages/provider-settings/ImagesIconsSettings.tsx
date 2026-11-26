@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, ImageIcon, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import ImageUploadButton from '@/components/ImageUploadButton';
 
 interface ImageConfig {
     key: string;
@@ -15,9 +16,9 @@ interface ImageConfig {
 }
 
 const imageFields: ImageConfig[] = [
-    { key: 'backgroundUrl', label: 'Imagem de Fundo (Login)', placeholder: 'URL da imagem de fundo...', previewSize: 'h-24 w-auto' },
     { key: 'logoUrl', label: 'Logo do Provedor', placeholder: 'URL da logo (PNG ou JPEG)...', previewSize: 'h-24 w-auto' },
-    { key: 'iconUrl', label: 'Ícone da Aplicação', placeholder: 'URL do ícone...', previewSize: 'h-12 w-12' },
+    { key: 'backgroundUrl', label: 'Imagem de Fundo (Login) — em breve no app', placeholder: 'URL da imagem de fundo...', previewSize: 'h-24 w-auto' },
+    { key: 'iconUrl', label: 'Ícone da Aplicação — em breve no app', placeholder: 'URL do ícone...', previewSize: 'h-12 w-12' },
 ];
 
 type LogoFraming = NonNullable<ProviderConfig['logoFraming']>;
@@ -88,7 +89,7 @@ function LogoFramingEditor({ url, value, onChange, disabled }: {
 }
 
 export default function ImagesIconsSettings() {
-    const { config, setConfig, isSaving } = useSettings();
+    const { config, setConfig, isSaving, providerId } = useSettings();
 
     // Estado local para gerenciar as URLs
     const [localUrls, setLocalUrls] = useState<Record<string, string>>(() => {
@@ -113,27 +114,33 @@ export default function ImagesIconsSettings() {
         setLocalUrls(prev => ({ ...prev, [key]: value }));
     };
 
+    const applyUploaded = (key: string, url: string) => {
+        setLocalUrls(prev => ({ ...prev, [key]: url }));
+        setConfig((prev) => ({ ...prev, [key]: url }));
+        toast.success("Imagem enviada. Clique em 'Salvar alterações' no topo para publicar no app.");
+    };
+
     // Função para salvar no contexto
     const handleSaveImage = (key: string) => {
         const url = localUrls[key]?.trim();
-        if (!url || !url.startsWith('http')) {
-            toast.error(`Por favor, insira uma URL válida para ${imageFields.find(f => f.key === key)?.label}.`);
+        if (!url || !/^https:\/\//i.test(url)) {
+            toast.error(`Use um link https:// válido para ${imageFields.find(f => f.key === key)?.label}.`);
             return;
         }
 
         // Atualiza o contexto global
         // CORRIGIDO: Tipagem do prev para resolver TS7006
         setConfig((prev) => ({ ...prev, [key]: url }));
-        toast.success(`${imageFields.find(f => f.key === key)?.label} atualizada. Clique em 'Salvar Alterações' no topo.`);
+        toast.success(`${imageFields.find(f => f.key === key)?.label} atualizada. Clique em 'Salvar alterações' no topo.`);
     };
 
     return (
         <SettingsPage
             title="Imagens e Ícones"
-            description="Configure URLs para imagens de fundo, logos e ícones usados no aplicativo."
+            description="Envie a logo do computador ou cole um link público (https)."
             icon={ImageIcon}
         >
-            <SettingsSection title="Ativos visuais" description="Cole URLs públicas e aplique cada ativo antes de salvar as alterações gerais.">
+            <SettingsSection title="Ativos visuais" description="PNG, JPG ou WebP. Depois de enviar ou aplicar, clique em Salvar alterações no topo.">
                 {imageFields.map((field) => (
                     <div key={field.key} className="mb-4 rounded-lg border border-[#EEF0F4] bg-white p-3 last:mb-0">
                         <Label htmlFor={field.key} className="mb-3 flex items-center gap-2 text-[12.5px] font-semibold text-[#39414F]">
@@ -150,8 +157,9 @@ export default function ImagesIconsSettings() {
                                 disabled={isSaving}
                             />
                             <Button onClick={() => handleSaveImage(field.key)} disabled={isSaving || !localUrls[field.key]?.trim()}>
-                                <Upload className="h-4 w-4 mr-2" /> Aplicar
+                                <Upload className="h-4 w-4 mr-2" /> Aplicar link
                             </Button>
+                            <ImageUploadButton providerId={providerId} disabled={isSaving} onUploaded={(url) => applyUploaded(field.key, url)} />
                         </div>
 
                         {field.key === 'logoUrl' && localUrls.logoUrl && (

@@ -10,7 +10,6 @@ import 'core/pages/customer/customer_home_page.dart';
 // ============================================
 import 'core/pages/unified_login_page.dart';
 import 'core/pages/shared_financeiro_page.dart' as shared_fin;
-import 'core/pages/shared_suporte_page.dart' as shared_sup;
 import 'core/pages/shared_diagnostico_page.dart' as shared_diag;
 import 'core/pages/shared_consumo_page.dart' as shared_cons;
 import 'core/pages/shared_meu_ip_page.dart' as shared_ip;
@@ -68,11 +67,6 @@ class LayoutSelector {
   /// Retorna o widget de Financeiro (Faturas) - COMPARTILHADO entre layouts
   static Widget getFinanceiroPage({required String layoutType}) {
     return const shared_fin.FinanceiroPage();
-  }
-
-  /// Retorna o widget de Suporte - COMPARTILHADO entre layouts
-  static Widget getSuportePage({required String layoutType}) {
-    return const shared_sup.SuportePage();
   }
 
   /// Retorna o widget de Diagnóstico - COMPARTILHADO entre layouts

@@ -53,3 +53,19 @@ export async function readPanel(path: string) {
   const data = tickets ? [{ id: cursor ? 'ticket-2' : 'ticket-1', subject: cursor ? 'Segundo chamado' : 'Primeiro chamado', providerName: 'Provedor Teste', status: 'Aberto', updatedAt: '2026-11-12T12:00:00Z' }] : [{ uid: cursor ? 'user-2' : 'user-1', email: cursor ? 'segundo@example.test' : 'primeiro@example.test', providerId: 'fixture', superAdmin: false }];
   return { data, nextCursor: cursor ? null : 'next-page' };
 }
+// panelHttp surface used by the real modules (no network: GETs reuse readPanel, writes succeed).
+export class PanelHttpError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) { super(message); }
+}
+export const REAUTH_REQUIRED_CODE = 'reauth-required';
+export function isReauthRequired(error: unknown) { return error instanceof PanelHttpError && error.code === REAUTH_REQUIRED_CODE; }
+export const SESSION_EXPIRED_EVENT = 'unify:session-expired';
+export function notifySessionExpired() {}
+export function fallbackErrorMessage() { return 'Não foi possível concluir a operação.'; }
+export async function panelRequest(path: string, options: { method?: string } = {}) {
+  if (path.startsWith('/admin/notifications/history')) return { data: [{ id: 'campaign-1', providerId: 'fixture', title: 'Aviso de teste', body: 'Mensagem', category: 'info', route: '', filters: { oltNames: [], ponKeys: [], ctos: [], cidades: [], bairros: [], popIds: [], statuses: [], planos: [], targetCpf: '', search: '' }, matchedSubscribers: 1, targetedDevices: 1, successCount: 1, failureCount: 0, deliveryMode: 'topic', sentBy: 'admin@example.test', status: 'sent', createdAt: '2026-11-12T12:00:00Z' }], nextCursor: null };
+  if (path.startsWith('/admin/notifications/') && !path.startsWith('/admin/notifications/send')) throw new PanelHttpError('Indisponível no teste.', 503);
+  if (!options.method || options.method === 'GET') return readPanel(path);
+  calls.push({ type: 'HTTP', payload: { path, method: options.method } });
+  return { success: true, message: 'Operação concluída.' };
+}

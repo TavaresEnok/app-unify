@@ -18,11 +18,21 @@ export const notFoundHandler: RequestHandler = (req, _res, next) => {
   next(new ApiError(404, `Rota não encontrada: ${req.method} ${req.path}`, "not-found"));
 };
 
+// Erros do body-parser (JSON malformado/grande demais) são erro do cliente,
+// não do servidor.
+function clientBodyError(error: unknown): ApiError | null {
+  const type = (error as { type?: string } | null)?.type;
+  if (type === "entity.parse.failed") return new ApiError(400, "JSON inválido.", "invalid-argument");
+  if (type === "entity.too.large") return new ApiError(413, "Corpo da requisição muito grande.", "invalid-argument");
+  if (type === "encoding.unsupported" || type === "charset.unsupported") return new ApiError(415, "Formato da requisição não suportado.", "invalid-argument");
+  return null;
+}
+
 export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
-  const apiError = error instanceof ApiError ? error : new ApiError(500, "Erro interno do servidor.");
+  const apiError = error instanceof ApiError ? error : clientBodyError(error) || new ApiError(500, "Erro interno do servidor.");
   const originalMessage = error instanceof Error ? error.message : String(error);
   console.error(JSON.stringify({
-    severity: "ERROR",
+    severity: apiError.status >= 500 ? "ERROR" : "WARNING",
     message: originalMessage,
     code: apiError.code,
     status: apiError.status,

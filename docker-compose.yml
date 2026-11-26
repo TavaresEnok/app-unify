@@ -1,3 +1,17 @@
+# DNS explícito (tr069-1): o resolvedor do host (systemd-resolved com 1.1.1.1)
+# perde pacotes e travava consultas por 5-20 s, derrubando chamadas ao SGP/IXC.
+# Os containers continuam usando o DNS interno do Docker (127.0.0.11) para os
+# nomes dos serviços; só os nomes externos vão para estes servidores.
+# musl (alpine): timeout é o total e attempts reenvia a cada timeout/attempts,
+# então 4/4 reenvia a cada 1 s e desiste em 4 s (antes do limite de 5 s do SGP).
+x-dns-externo: &dns-externo
+  dns:
+    - 8.8.4.4
+    - 8.8.8.8
+  dns_opt:
+    - timeout:4
+    - attempts:4
+
 services:
   # =========================================================================
   # CADDY — Reverse Proxy com HTTPS automático (Let's Encrypt)
@@ -13,9 +27,10 @@ services:
     image: caddy:2-alpine
     container_name: painel_caddy
     restart: always
+    # Só o Caddy central (rede do host) acessa: nada de porta aberta para a internet.
+    # A 8443 saiu: o HTTPS público é terminado no Caddy central (/home/app/infra/caddy).
     ports:
-      - "8080:8080"
-      - "8443:443"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -79,8 +94,9 @@ services:
         VITE_PANEL_URL: ${VITE_PANEL_URL:-}
     container_name: painel_frontend
     restart: always
+    # Somente loopback (diagnóstico no host); o tráfego público passa pelo Caddy.
     ports:
-      - "8031:80"
+      - "127.0.0.1:8031:80"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
@@ -110,8 +126,10 @@ services:
         org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_proxy_sgp
     restart: always
+    <<: *dns-externo
+    # Somente loopback (diagnóstico no host); o tráfego público passa pelo Caddy.
     ports:
-      - "8030:3002"
+      - "127.0.0.1:8030:3002"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/ready', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
@@ -128,6 +146,10 @@ services:
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
       # Transição Firebase Auth → JWT próprio para apps antigos (desliga sozinho na data).
       - LEGACY_FIREBASE_AUTH_UNTIL=${LEGACY_FIREBASE_AUTH_UNTIL:-2027-01-31}
+      # Só os provedores que têm APK antigo publicado aceitam o login legado.
+      - LEGACY_FIREBASE_AUTH_PROVIDERS=${LEGACY_FIREBASE_AUTH_PROVIDERS:-vibe}
+      # dns.lookup, fs e crypto dividem este pool; 4 (padrão) trava fácil com DNS lento.
+      - UV_THREADPOOL_SIZE=16
       - JWT_SECRET_FILE=/run/secrets/jwt-secret.key
       - APP_SECRETS_KEY_FILE=/run/secrets/app-secrets.key
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
@@ -203,8 +225,9 @@ services:
         org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_landing
     restart: always
+    # Somente loopback (diagnóstico no host); o tráfego público passa pelo Caddy.
     ports:
-      - "8032:80"
+      - "127.0.0.1:8032:80"
     volumes:
       - ./public_apks:/usr/share/nginx/html/public_apks:ro
       # Only the public subtree is served; publication preparation stays outside it.
@@ -237,8 +260,9 @@ services:
       - SPEED_TEST_MAX_MBPS=300
       - SPEED_TEST_MAX_DURATION_MS=15000
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
+    # Somente loopback (diagnóstico no host); o tráfego público passa pelo Caddy.
     ports:
-      - "8033:3001"
+      - "127.0.0.1:8033:3001"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
       interval: 30s
@@ -268,8 +292,10 @@ services:
         org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_api
     restart: always
+    <<: *dns-externo
+    # Somente loopback (diagnóstico no host); o tráfego público passa pelo Caddy.
     ports:
-      - "8034:9136"
+      - "127.0.0.1:8034:9136"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:9136/ready', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
@@ -286,6 +312,10 @@ services:
       - GOOGLE_CLOUD_PROJECT=app-ajust-provedor
       # Transição Firebase Auth → JWT próprio para apps antigos (desliga sozinho na data).
       - LEGACY_FIREBASE_AUTH_UNTIL=${LEGACY_FIREBASE_AUTH_UNTIL:-2027-01-31}
+      # Só os provedores que têm APK antigo publicado aceitam o login legado.
+      - LEGACY_FIREBASE_AUTH_PROVIDERS=${LEGACY_FIREBASE_AUTH_PROVIDERS:-vibe}
+      # dns.lookup, fs e crypto dividem este pool; 4 (padrão) trava fácil com DNS lento.
+      - UV_THREADPOOL_SIZE=16
       - JWT_SECRET_FILE=/run/secrets/jwt-secret.key
       - APP_SECRETS_KEY_FILE=/run/secrets/app-secrets.key
       - UPLOADS_DIR=/srv/uploads
@@ -322,6 +352,13 @@ services:
         # Commit do código na imagem (E5): GIT_REVISION=$(git rev-parse HEAD) no build.
         org.opencontainers.image.revision: ${GIT_REVISION:-desconhecida}
     container_name: painel_apk_builder
+    # Imagem glibc: timeout vale por tentativa (2 s x 2 tentativas por servidor).
+    dns:
+      - 8.8.4.4
+      - 8.8.8.8
+    dns_opt:
+      - timeout:2
+      - attempts:2
     mem_limit: 3g
     cpus: "2.00"
     cpu_shares: 128
@@ -347,7 +384,8 @@ services:
       - APK_PRIVATE_DIR=/home/app/projects/painel_provedores/apk/private
       - APK_IDENTITY_REGISTRY=/run/build-identities.json
       - APK_AUTHORIZATION_URL=${APK_AUTHORIZATION_URL:-}
-      - APK_LOGO_HOSTS=${APK_LOGO_HOSTS:-appisp.com.br,storage.googleapis.com,firebasestorage.googleapis.com}
+      # Logos ficam em https://appisp.com.br/api/public/assets/<provedor>/ (Firebase Storage saiu).
+      - APK_LOGO_HOSTS=${APK_LOGO_HOSTS:-appisp.com.br}
       - PYTHON_BIN=python3
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8031,http://127.0.0.1:8031}
       - APK_PROJECT_ROOT=/home/app/projects/painel_provedores
@@ -403,6 +441,7 @@ services:
     command: node worker.js
     stop_grace_period: 90s
     restart: always
+    <<: *dns-externo
     cpus: "1.00"
     mem_limit: 512m
     memswap_limit: 512m
@@ -412,6 +451,7 @@ services:
     environment:
       - NODE_ENV=production
       - SGP_BACKGROUND=true
+      - UV_THREADPOOL_SIZE=16
       - REDIS_URL=redis://redis:6379
       - JOBS_REDIS_URL=redis://redis-state:6379
       - DATABASE_URL=postgresql://sgp_user:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/sgp_cache

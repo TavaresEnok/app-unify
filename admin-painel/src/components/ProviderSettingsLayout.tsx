@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useParams, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { SETTINGS_GROUPS, SETTINGS_NAVIGATION } from "@/app/navigation";
+import { COMING_SOON_MESSAGE, SETTINGS_GROUPS, SETTINGS_NAVIGATION, settingsItemForPath } from "@/app/navigation";
 import { TabNavigation } from "@/components/WorkspaceTabs";
 
 export default function ProviderSettingsLayout() {
@@ -23,6 +23,7 @@ export default function ProviderSettingsLayout() {
     .filter(group => group.items.length > 0);
 
   const activeGroup = groupedItems.find(group => group.items.some(item => location.pathname.endsWith(`/${item.path}`)));
+  const activeItem = settingsItemForPath(location.pathname);
 
   return (
     <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[210px_1fr]">
@@ -39,7 +40,10 @@ export default function ProviderSettingsLayout() {
         </nav>
       </aside>
       <main className="min-w-0 space-y-5 pb-10">
-        {activeGroup && <TabNavigation label={`Seções de ${activeGroup.label}`} tabs={activeGroup.items.map(item => ({ label: item.name, to: `${basePath}/${item.path}` }))} />}
+        {activeGroup && <TabNavigation label={`Seções de ${activeGroup.label}`} tabs={activeGroup.items.map(item => ({ label: item.name, to: `${basePath}/${item.path}`, badge: item.comingSoon ? "Em breve" : undefined }))} />}
+        {activeItem?.comingSoon && (
+          <div role="note" className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-900">{COMING_SOON_MESSAGE}</div>
+        )}
         <Outlet />
       </main>
     </div>

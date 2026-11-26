@@ -316,6 +316,60 @@ export async function reauthenticateWithPassword(password: string): Promise<Sess
   return user;
 }
 
+/**
+ * Troca a senha do próprio administrador (POST /admin/auth/password).
+ * O servidor incrementa token_version e devolve um token novo, então a sessão
+ * atual continua e as demais (outros computadores) são encerradas.
+ */
+export async function changeOwnPassword(currentPassword: string, newPassword: string): Promise<{ relogin: boolean }> {
+  const token = currentToken ?? readStoredToken();
+  if (!token) {
+    throw authError('auth/unauthenticated', 'Sessão expirada. Entre novamente.');
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${apiBase()}/admin/auth/password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+      cache: 'no-store',
+    });
+  } catch {
+    throw authError('auth/network-request-failed', 'Não foi possível conectar ao servidor.');
+  }
+  const body = await response.json().catch(() => ({})) as {
+    ok?: boolean;
+    token?: string;
+    error?: { code?: string; message?: string };
+  };
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw authError('auth/unsupported', 'A troca de senha ainda não está disponível. Peça a redefinição ao suporte da plataforma.');
+    }
+    if (response.status === 429) {
+      throw authError('auth/too-many-requests', body.error?.message || 'Muitas tentativas. Aguarde alguns minutos.');
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw authError('auth/invalid-credential', body.error?.message || 'Senha atual incorreta.');
+    }
+    throw authError(body.error?.code || 'auth/internal-error', body.error?.message || 'Não foi possível alterar a senha.');
+  }
+  // Sem token novo a sessão atual foi revogada junto com as outras.
+  if (!body.token || !setSession(body.token)) {
+    setSession(null);
+    return { relogin: true };
+  }
+  return { relogin: false };
+}
+
+/** Limpa a sessão local sem chamar o servidor (o token já foi recusado). */
+export function expireLocalSession(): void {
+  setSession(null);
+}
+
 export async function logoutSession(): Promise<void> {
   const token = currentToken ?? readStoredToken();
   if (token) {

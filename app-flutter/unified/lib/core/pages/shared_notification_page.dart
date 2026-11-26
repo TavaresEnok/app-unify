@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../utils/app_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/in_app_notification.dart';
+import '../navigation/customer_routes.dart';
+import '../navigation/customer_shell_scope.dart';
 import '../providers/providers.dart';
 import '../services/subscriber_achievements.dart';
 import '../vibe/vibe_icon.dart';
@@ -144,15 +146,34 @@ class _NotificationTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = VibeTokens.of(context);
+    final config =
+        ref.watch(configurationProvider.select((c) => c.providerConfig));
+    var target = notificationTarget(item.actionUrl);
+    // Recurso desligado pelo provedor: o aviso só marca como lido.
+    if (target != null &&
+        config != null &&
+        !CustomerRoutes.enabled(config, target)) {
+      target = null;
+    }
+    final navigate = CustomerShellScope.maybeOf(context)?.navigate;
+    final action = target == null || navigate == null
+        ? null
+        : switch (target) {
+            'invoices' || 'invoice' || 'trust_unlock' => 'Ver fatura',
+            _ => 'Ver detalhes',
+          };
     return Semantics(
       button: true,
-      label: '${item.read ? '' : 'Não lida. '}${item.title}. ${item.message}',
+      label: '${item.read ? '' : 'Não lida. '}${item.title}. ${item.message}'
+          '${action == null ? '' : '. $action'}',
       excludeSemantics: true,
       child: Material(
         color: t.card,
         child: InkWell(
           onTap: () {
             if (!item.read) _markNoticesRead(ref, id: item.id);
+            // O aviso leva à tela a que se refere (fatura, diagnóstico...).
+            if (target != null && navigate != null) navigate(target);
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -198,6 +219,11 @@ class _NotificationTile extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(AppFormatters.when(item.createdAt),
                           style: vibeText(t, 11.5, 500, color: t.mut)),
+                      if (action != null) ...[
+                        const SizedBox(height: 6),
+                        Text(action,
+                            style: vibeText(t, 12.5, 700, color: t.at)),
+                      ],
                     ]),
               ),
             ]),
@@ -206,4 +232,18 @@ class _NotificationTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Destino do aviso no app (`null` quando não leva a lugar nenhum além da
+/// própria lista).
+String? notificationTarget(String? actionUrl) {
+  final raw = actionUrl?.trim() ?? '';
+  if (raw.isEmpty || raw.contains('://')) return null;
+  final route = CustomerRoutes.normalize(raw);
+  if (!CustomerRoutes.known.contains(route) ||
+      route == 'notifications' ||
+      route == 'dashboard') {
+    return null;
+  }
+  return route;
 }

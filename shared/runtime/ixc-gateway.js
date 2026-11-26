@@ -15,6 +15,10 @@ const ID_CHUNK = 100;
 // PIX copia e cola: o IXC não grava o EMV em fn_areceber; vem de /get_pix.
 // Limitado às próximas faturas em aberto para não multiplicar chamadas.
 const MAX_PIX_LOOKUPS = 6;
+// Consultas de PIX em paralelo (o IXC aceita; sequencial deixava a tela lenta).
+const PIX_CONCURRENCY = 3;
+// Janela de faturas usada para descobrir o dia de vencimento na sincronização.
+const DUE_WINDOW_DAYS = 40;
 // O SGP exige senha da central; no IXC o acesso é pelo token do provedor.
 // Marcador não secreto só para o código SGP considerar o contrato "consultável".
 const CENTRAL_MARKER = 'ixc';
@@ -71,6 +75,39 @@ function chunks(items, size) {
     return out;
 }
 const unique = items => [...new Set(items.filter(item => item !== undefined && item !== null && item !== '').map(String))];
+// IXC grava "0" (ou vazio) quando o campo de referência não foi preenchido.
+const present = value => value !== undefined && value !== null && String(value).trim() !== '' && String(value).trim() !== '0';
+const firstPresent = (...values) => values.find(present);
+// Slot/PON 0 são posições válidas: aqui só vazio conta como ausente.
+const filled = value => value !== undefined && value !== null && String(value).trim() !== '';
+/** Título avulso/renegociação: sem contrato (id_contrato '0' ou vazio). */
+const isLooseInvoice = invoice => !present(invoice?.id_contrato);
+/** Dia de cobrança do contrato, se o IXC expõe o campo (varia por versão). */
+function billingDay(contract) {
+    for (const key of ['dia_vencimento', 'dia_fixo_vencimento', 'vencimento_dia', 'dia_venc']) {
+        const day = Number(contract?.[key]);
+        if (Number.isInteger(day) && day >= 1 && day <= 31) return day;
+    }
+    return null;
+}
+/**
+ * Contrato que recebe os títulos avulsos do cliente (para valores somados por
+ * contrato): o único contrato, ou o primeiro ativo, ou o primeiro.
+ */
+function looseInvoiceOwners(contracts) {
+    const byClient = new Map();
+    for (const contract of [...contracts].sort((a, b) => Number(a.id) - Number(b.id))) {
+        const key = String(contract.id_cliente);
+        const current = byClient.get(key);
+        if (!current || (String(current.status).toUpperCase() !== 'A' && String(contract.status).toUpperCase() === 'A')) byClient.set(key, contract);
+    }
+    return new Map([...byClient].map(([client, contract]) => [client, String(contract.id)]));
+}
+async function mapBounded(items, limit, fn) {
+    let next = 0;
+    const run = async () => { while (next < items.length) { const index = next++; await fn(items[index], index); } };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+}
 
 function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = () => new Date() }) {
     const cityCache = new Map();
@@ -126,15 +163,25 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
     }
 
     async function cityNames(ids) {
-        const missing = unique(ids).filter(id => !cityCache.has(id));
+        const missing = unique(ids.filter(present)).filter(id => !cityCache.has(id));
         if (missing.length) {
             for (const city of await byIds('cidade', missing)) cityCache.set(String(city.id), String(city.nome || '').trim());
             if (cityCache.size > 2000) cityCache.clear();
         }
-        return id => cityCache.get(String(id)) || '';
+        return id => (present(id) ? cityCache.get(String(id)) || '' : '');
     }
 
-    function todayIso() { return now().toISOString().slice(0, 10); }
+    // Datas de vencimento são locais do provedor; o container roda em UTC.
+    function localDateParts() {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit' })
+            .formatToParts(now()).filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+        return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), iso: `${parts.year}-${parts.month}-${parts.day}` };
+    }
+    function todayIso() { return localDateParts().iso; }
+    function shiftIso(days) {
+        const { year, month, day } = localDateParts();
+        return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+    }
 
     /** Vencidas + a próxima a vencer: não soma carnê de meses futuros. */
     function openAmountFor(invoices) {
@@ -170,7 +217,7 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
             // Token sem acesso a fn_areceber: valor desconhecido (null), nunca R$ 0,00 falso.
             contratoValorAberto: !invoicesKnown ? null : billing.hasOpen ? Number(billing.amount.toFixed(2)) : 0,
             cobVencimento: invoicesKnown && billing.due ? billing.due.slice(0, 10) : null,
-            vencimento: dueDay || null,
+            vencimento: billingDay(contract) || dueDay || null,
             endereco: {
                 logradouro: String(contract.endereco || client.endereco || '').trim(),
                 numero: String(contract.numero || client.numero || '').trim(),
@@ -193,15 +240,19 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
                 field: 'id_cliente', sort: 'fn_areceber.data_vencimento', order: 'asc',
                 grid: [{ TB: 'fn_areceber.status', OP: '=', P: 'A' }],
             }).catch(() => { invoicesKnown = false; return []; }) : Promise.resolve([]),
-            cityNames(clients.map(c => c.cidade)),
+            cityNames([...clients.map(c => c.cidade), ...contracts.map(c => c.cidade)]),
         ]);
         const clientById = new Map(clients.map(c => [String(c.id), c]));
+        // Avulsos/renegociações (id_contrato 0) entram no valor de um só contrato
+        // do cliente, para a soma entre contratos não contar duas vezes.
+        const looseOwner = looseInvoiceOwners(contracts);
         return contracts.map(contract => {
             const client = clientById.get(String(contract.id_cliente)) || {};
             return buildContract({
                 contract, client, plan: plans.get(String(contract.id_vd_contrato)),
-                invoices: invoices.filter(i => String(i.id_contrato) === String(contract.id)),
-                city: cityOf(contract.cidade || client.cidade),
+                invoices: invoices.filter(i => String(i.id_contrato) === String(contract.id) ||
+                    (isLooseInvoice(i) && looseOwner.get(String(i.id_cliente)) === String(contract.id))),
+                city: cityOf(firstPresent(contract.cidade, client.cidade)),
                 invoicesKnown: invoicesKnown || !withInvoices,
             });
         });
@@ -227,8 +278,8 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
             linhaDigitavel: String(invoice.linha_digitavel || '').trim() || null,
             // Só o payload EMV serve como "copia e cola"; `pix_txid` isolado não paga nada.
             codigoPix: pix.startsWith('000201') ? pix : null,
-            contrato: invoice.id_contrato ? String(invoice.id_contrato) : null,
-            contratoId: invoice.id_contrato ? String(invoice.id_contrato) : null,
+            contrato: present(invoice.id_contrato) ? String(invoice.id_contrato) : null,
+            contratoId: present(invoice.id_contrato) ? String(invoice.id_contrato) : null,
         };
     }
 
@@ -242,14 +293,29 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
             // O contrato precisa pertencer ao CPF informado antes de listar títulos.
             const clients = await findClients(body.cpfcnpj);
             const owned = clients.length ? await byIds('cliente_contrato', clients.map(c => c.id), { field: 'id_cliente' }) : [];
-            if (!owned.some(c => String(c.id) === String(body.contrato))) return { titulos: [] };
+            const contract = owned.find(c => String(c.id) === String(body.contrato));
+            if (!contract) return { titulos: [] };
             rows = await listAll('fn_areceber', 'id_contrato', body.contrato, { ...options, rp: paid ? 36 : 100, maxPages: paid ? 1 : MAX_PAGES });
+            if (!paid) {
+                // Avulsos/renegociações em aberto do dono do contrato (id_contrato 0)
+                // aparecem junto do contrato pedido; sem isso ficam invisíveis.
+                const loose = (await listAll('fn_areceber', 'id_cliente', contract.id_cliente, { ...options, rp: 100, maxPages: 2 })
+                    .catch(() => [])).filter(isLooseInvoice);
+                const seen = new Set(rows.map(row => String(row.id)));
+                for (const row of loose) if (!seen.has(String(row.id))) rows.push({ ...row, id_contrato: String(body.contrato) });
+                rows.sort((a, b) => String(a.data_vencimento).localeCompare(String(b.data_vencimento)));
+            }
         } else {
             const clients = await findClients(body.cpfcnpj);
             if (!clients.length) return { titulos: [] };
             rows = [];
             for (const part of chunks(clients.map(c => String(c.id)), ID_CHUNK)) {
                 rows.push(...await listAll('fn_areceber', 'id_cliente', part.join(','), { ...options, oper: 'IN', rp: paid ? 36 : 100, maxPages: paid ? 1 : MAX_PAGES }));
+            }
+            if (!paid && rows.some(isLooseInvoice)) {
+                // Sem contrato pedido: o avulso vai para o contrato principal do cliente.
+                const owners = looseInvoiceOwners(await byIds('cliente_contrato', clients.map(c => c.id), { field: 'id_cliente' }).catch(() => []));
+                rows = rows.map(row => (isLooseInvoice(row) && owners.has(String(row.id_cliente)) ? { ...row, id_contrato: owners.get(String(row.id_cliente)) } : row));
             }
         }
         const view = rows.map(row => invoiceView(row, paid));
@@ -264,15 +330,17 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
 
     // Leitura do PIX de cada fatura (equivale ao cliente abrir o PIX na central).
     // Falha numa fatura nunca derruba a lista: o campo só fica vazio.
+    // Até PIX_CONCURRENCY consultas simultâneas; cada resultado volta para a
+    // própria fatura, então a ordem da lista não muda.
     async function attachPix(view) {
         const pending = view.filter(i => !i.codigoPix).slice(0, MAX_PIX_LOOKUPS);
-        for (const invoice of pending) {
+        await mapBounded(pending, PIX_CONCURRENCY, async invoice => {
             try {
                 const data = await call('get_pix', { id_areceber: invoice.id }, '');
-                if (data && data.type === 'error') continue;
+                if (data && data.type === 'error') return;
                 invoice.codigoPix = emvFrom(data);
             } catch { /* mantém null */ }
-        }
+        });
     }
 
     async function loginsOfContract(contractId) {
@@ -299,8 +367,9 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
 
     async function extratoUso(body) {
         const contract = await assertOwnedContract(body);
-        const month = Math.min(12, Math.max(1, Number(body.mes) || now().getUTCMonth() + 1));
-        const year = Number(body.ano) || now().getUTCFullYear();
+        const local = localDateParts();
+        const month = Math.min(12, Math.max(1, Number(body.mes) || local.month));
+        const year = Number(body.ano) || local.year;
         const start = `${year}-${String(month).padStart(2, '0')}-01 00:00:00`;
         const next = month === 12 ? `${year + 1}-01-01 00:00:00` : `${year}-${String(month + 1).padStart(2, '0')}-01 00:00:00`;
         const logins = await loginsOfContract(body.contrato);
@@ -372,6 +441,7 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
         const page = Math.floor(offset / limit) + 1;
         const result = await list('cliente', 'ativo', 'S', { rp: limit, page, sort: 'cliente.id', order: 'asc' });
         const contratos = await contractsForClients(result.registros, { onlyActive: true, withInvoices: false });
+        await enrichForSync(contratos);
         return {
             clientes: result.registros.map(client => ({
                 id: String(client.id),
@@ -381,6 +451,54 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
             })),
             paginacao: { total: result.total, total_paginas: Math.max(1, Math.ceil(result.total / limit)) },
         };
+    }
+
+    /**
+     * Sincronização: login PPPoE, OLT/slot/PON e dia de vencimento de cada
+     * contrato da página, no formato `servicos[].onu` que o SGP já usa. Poucas
+     * chamadas em lote; sem permissão numa tabela, só pula aquela parte.
+     */
+    async function enrichForSync(contracts) {
+        if (!contracts.length) return;
+        const ids = contracts.map(c => c.contratoId);
+        const soft = promise => promise.catch(() => null);
+        const [logins, invoices] = await Promise.all([
+            soft(byIds('radusuarios', ids, { field: 'id_contrato', rp: 500, maxPages: 2 })),
+            contracts.some(c => !c.vencimento) ? soft(byIds('fn_areceber', ids, {
+                field: 'id_contrato', sort: 'fn_areceber.data_vencimento', order: 'asc', rp: 500, maxPages: 2,
+                grid: [{ TB: 'fn_areceber.status', OP: '=', P: 'A' },
+                    { TB: 'fn_areceber.data_vencimento', OP: '>=', P: shiftIso(-DUE_WINDOW_DAYS) },
+                    { TB: 'fn_areceber.data_vencimento', OP: '<=', P: shiftIso(DUE_WINDOW_DAYS) }],
+            })) : Promise.resolve(null),
+        ]);
+        const onus = logins?.length ? await soft(byIds('radpop_radio_cliente_fibra', logins.map(l => l.id), { field: 'id_login', rp: 500, maxPages: 2 })) : null;
+        const olts = new Map();
+        if (onus?.length) {
+            for (const olt of await soft(byIds('radpop_radio', onus.map(o => o.id_transmissor))) || []) olts.set(String(olt.id), String(olt.descricao || '').trim());
+        }
+        const onuByLogin = new Map((onus || []).map(onu => [String(onu.id_login), onu]));
+        const dueByContract = new Map();
+        for (const invoice of invoices || []) {
+            const due = ixcDate(invoice.data_vencimento);
+            const key = String(invoice.id_contrato);
+            if (due && !dueByContract.has(key)) dueByContract.set(key, Number(due.slice(8, 10)));
+        }
+        for (const contract of contracts) {
+            if (!contract.vencimento && dueByContract.get(contract.contratoId)) contract.vencimento = dueByContract.get(contract.contratoId);
+            if (!logins) continue;
+            contract.servicos = logins.filter(l => String(l.id_contrato) === contract.contratoId).map(login => {
+                const onu = onuByLogin.get(String(login.id));
+                return {
+                    login: String(login.login || '').trim(),
+                    onu: onu ? {
+                        olt_id: present(onu.id_transmissor) ? String(onu.id_transmissor) : null,
+                        olt_nome: olts.get(String(onu.id_transmissor)) || null,
+                        slot: filled(onu.slotno) ? String(onu.slotno).trim() : null,
+                        pon: filled(onu.ponno) ? String(onu.ponno).trim() : null,
+                    } : null,
+                };
+            });
+        }
     }
 
     const ROUTES = [

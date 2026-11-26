@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogTrigger, AlertDialogDescription } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Loader2, Search, Settings, ServerCrash } from 'lucide-react';
+import { Loader2, Search, Settings, ServerCrash } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import AddProviderDialog from '@/components/AddProviderDialog.tsx';
 import EditProviderDialog from '@/components/EditProviderDialog.tsx';
 import EmptyState from '@/components/EmptyState.tsx';
+import DeleteProviderDialog from '@/components/DeleteProviderDialog';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { subscribeProviders } from '@/features/providers/providerService';
@@ -121,7 +121,7 @@ export default function ProvidersPage() {
                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                             />
                         </div>
-                        <AddProviderDialog onUpdate={fetchProviders} />
+                        <AddProviderDialog onUpdate={fetchProviders} existingIds={providers.map((provider) => provider.id)} />
                     </>
                 )}
                 columns={[
@@ -140,7 +140,7 @@ export default function ProvidersPage() {
                         <EmptyState 
                             icon={ServerCrash}
                             title="Nenhum provedor encontrado"
-                            description="Adicione um novo provedor para começar a gerir."
+                            description="Adicione um novo provedor para começar."
                         />
                 )}
                 renderRow={(p, index) => {
@@ -168,26 +168,11 @@ export default function ProvidersPage() {
                                     <span className="font-mono text-[11.5px] text-[#687181]">{p.lastBuild || "-"}</span>
                                     <div className="flex justify-end gap-2">
                                                 <Tooltip>
-                                            <TooltipTrigger asChild><Button variant="outline" size="icon" onClick={() => navigate(`/provedores/${p.id}`)}><Settings className="h-4 w-4" /></Button></TooltipTrigger>
+                                            <TooltipTrigger asChild><Button variant="outline" size="icon" aria-label={`Personalizar ${p.name || p.id}`} onClick={() => navigate(`/provedores/${p.id}`)}><Settings className="h-4 w-4" /></Button></TooltipTrigger>
                                                     <TooltipContent><p>Personalizar App</p></TooltipContent>
                                                 </Tooltip>
                                                 <EditProviderDialog provider={p} onUpdate={fetchProviders} />
-                                                <AlertDialog>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger>
-                                                        <TooltipContent><p>Apagar Provedor</p></TooltipContent>
-                                                    </Tooltip>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
-                                                            <AlertDialogDescription>Esta ação é irreversível e irá apagar o provedor e todos os seus utilizadores de painel associados.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDelete(p)}>Sim, apagar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
+                                                <DeleteProviderDialog providerId={p.id} providerName={p.name} onConfirm={() => handleDelete(p)} />
                                             </div>
                                 </div>
                     );

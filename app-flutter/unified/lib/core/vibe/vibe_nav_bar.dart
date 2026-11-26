@@ -19,6 +19,13 @@ class VibeNavBar extends StatelessWidget {
   static const _icons = ['home', 'file', 'wifi', 'chat'];
   static const _dockIcons = ['i-home', 'i-bill', 'i-wifi', 'i-support'];
 
+  /// Rótulo numa linha: até 1,3x acompanha a fonte do celular; acima
+  /// disso encolhe para caber, em vez de quebrar no meio ("Fatura s").
+  static Widget _label(Text text) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.3,
+        child: FittedBox(fit: BoxFit.scaleDown, child: text),
+      );
+
   @override
   Widget build(BuildContext context) {
     final t = VibeTokens.of(context);
@@ -74,11 +81,12 @@ class VibeNavBar extends StatelessWidget {
                 child: VibeIcon(_icons[i], size: 22, color: on ? t.at : t.mut),
               ),
             SizedBox(height: circle ? 0 : 4),
-            Text(_labels[i],
-                maxLines: 2,
+            _label(Text(_labels[i],
+                maxLines: 1,
+                softWrap: false,
                 textAlign: TextAlign.center,
                 style: vibeText(t, 11.5, 600,
-                    color: on ? t.ink : t.mut, height: 1.1)),
+                    color: on ? t.ink : t.mut, height: 1.1))),
           ]),
         ),
       ),
@@ -120,15 +128,16 @@ class VibeNavBar extends StatelessWidget {
                                 strokeWidth: i == selectedIndex ? 2 : 1.7,
                                 color: i == selectedIndex ? p.brand : p.muted),
                             const SizedBox(height: 3),
-                            Text(_labels[i],
-                                maxLines: 2,
+                            _label(Text(_labels[i],
+                                maxLines: 1,
+                                softWrap: false,
                                 textAlign: TextAlign.center,
                                 style: vibeText(
                                     t, 12, i == selectedIndex ? 700 : 550,
                                     color:
                                         i == selectedIndex ? p.brand : p.muted,
                                     height: 1.14,
-                                    letterSpacingEm: -.0175)),
+                                    letterSpacingEm: -.0175))),
                           ]),
                     ),
                   ),

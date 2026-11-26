@@ -32,66 +32,74 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
     final billing = VibeBilling(finance);
     final open = billing.open;
     final paid = billing.paid;
-    final ready = finance.state == FinanceiroState.success;
+    // Dados na tela (da consulta ou guardados) podem ser usados: copiar o
+    // Pix não espera a atualização terminar.
+    final ready = billing.ready;
+    final loading = billing.loading;
     final subtitle = [
       if (user?.contratoId != null) 'Contrato ${user!.contratoId}',
       if (user?.plano.trim().isNotEmpty == true)
         AppFormatters.label(user!.plano),
     ].join(' · ');
 
-    final children = <Widget>[
-      if (finance.state == FinanceiroState.error)
+    final List<Widget> body;
+    if (billing.failed) {
+      // Sem nada guardado e a consulta falhou: um único aviso.
+      body = [
         VibeCard(
-          main: true,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            const VibeErrorLine('Não foi possível atualizar suas faturas.'),
-            const SizedBox(height: 10),
-            VibePageButton(
+          child: VibeEmpty(
+            icon: 'alert',
+            title: 'Não foi possível consultar suas faturas',
+            text: 'Verifique sua conexão e tente de novo.',
+            action: VibePageButton(
                 label: 'Tentar novamente',
                 icon: 'g-refresh',
                 small: true,
+                expand: false,
                 onPressed: finance.fetchHistory),
-          ]),
+          ),
         ),
-      if (finance.incompleteInvoices > 0)
-        const VibeOkBox(
-            strip: true,
-            warning: true,
-            title:
-                'Algumas faturas têm dados incompletos. Consulte o suporte para confirmar todas as cobranças.'),
-      VibeSegmented<bool>(
-        options: [(false, 'Em aberto (${open.length})'), (true, 'Pagas')],
-        selected: _showPaid,
-        onChanged: (value) => setState(() => _showPaid = value),
-      ),
-      if (finance.state == FinanceiroState.loading && finance.invoices.isEmpty)
-        const _Loading()
-      else if (_showPaid)
-        paid.isEmpty
-            ? const VibeCard(
-                child: VibeEmpty(
-                    icon: 'file', title: 'Nenhuma fatura paga disponível'))
-            : VibeCard(
-                child: VibeRows(children: [
-                for (final invoice in paid) _paidRow(context, invoice, ready),
-              ]))
-      else if (open.isEmpty)
+      ];
+    } else if (_showPaid) {
+      body = [
+        if (loading)
+          const _PaidRowsLoading()
+        else if (paid.isEmpty)
+          const VibeCard(
+              child: VibeEmpty(
+                  icon: 'file', title: 'Nenhuma fatura paga disponível'))
+        else
+          VibeCard(
+              child: VibeRows(children: [
+            for (final invoice in paid) _paidRow(context, invoice, ready),
+          ])),
+      ];
+    } else if (loading) {
+      body = [
+        Semantics(
+          label: 'Consultando suas faturas',
+          liveRegion: true,
+          child: _MainInvoice(
+              view: billing.placeholder, ready: false, redacted: true),
+        ),
+      ];
+    } else if (open.isEmpty) {
+      body = [
         VibeCard(
           child: VibeEmpty(
-            icon: 'check',
-            title: finance.incompleteInvoices > 0 ||
-                    finance.state == FinanceiroState.error
+            icon: finance.incompleteInvoices > 0 ? 'alert' : 'check',
+            title: finance.incompleteInvoices > 0
                 ? 'Não foi possível confirmar todas as faturas'
                 : 'Nenhuma fatura em aberto',
-            text: finance.incompleteInvoices > 0 ||
-                    finance.state == FinanceiroState.error
+            text: finance.incompleteInvoices > 0
                 ? 'Consulte o suporte para confirmar suas cobranças.'
                 : 'Sua conta está em dia.',
           ),
-        )
-      else ...[
-        _MainInvoice(view: VibeInvoiceView(open.first), ready: ready),
+        ),
+      ];
+    } else {
+      body = [
+        _MainInvoice(view: billing.view(open.first), ready: ready),
         if (open.length > 1)
           VibeCard(
             child: VibeRows(children: [
@@ -124,7 +132,35 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
               onTap: ready ? () => openSubscriberTrustUnlock(context) : null,
             ),
           ),
-      ],
+      ];
+    }
+
+    final asOf = billing.asOf;
+    final children = <Widget>[
+      // Atualização falhou com dados na tela: aviso curto, tudo segue usável.
+      if (billing.refreshFailed && asOf != null)
+        VibeOkBox(
+            strip: true,
+            warning: true,
+            title:
+                'Não foi possível atualizar. Mostrando dados de ${vibeAsOf(asOf)}.'),
+      if (finance.incompleteInvoices > 0 && ready)
+        const VibeOkBox(
+            strip: true,
+            warning: true,
+            title:
+                'Algumas faturas têm dados incompletos. Consulte o suporte para confirmar todas as cobranças.'),
+      VibeSegmented<bool>(
+        // A contagem só aparece quando há lista: "(0)" enquanto carrega
+        // seria uma informação errada.
+        options: [
+          (false, ready ? 'Em aberto (${open.length})' : 'Em aberto'),
+          (true, 'Pagas')
+        ],
+        selected: _showPaid,
+        onChanged: (value) => setState(() => _showPaid = value),
+      ),
+      ...body,
       VibePageButton(
         label: 'Atualizar',
         icon: 'g-refresh',
@@ -159,10 +195,14 @@ class _FinanceiroPageState extends ConsumerState<FinanceiroPage> {
 
 /// Cartão da fatura principal (`.g-cd.g-main` de Faturas).
 class _MainInvoice extends StatelessWidget {
-  const _MainInvoice({required this.view, required this.ready});
+  const _MainInvoice(
+      {required this.view, required this.ready, this.redacted = false});
 
   final VibeInvoiceView view;
   final bool ready;
+
+  /// Esqueleto: o próprio cartão com uma fatura de exemplo coberta.
+  final bool redacted;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +216,8 @@ class _MainInvoice extends StatelessWidget {
         ? VibePageButton(
             label: 'Copiar Pix',
             icon: 'pix',
-            onPressed: when(() => VibeInvoiceActions.copyPix(context, invoice)))
+            onPressed: when(() =>
+                VibeInvoiceActions.copyPix(context, invoice, asOf: view.asOf)))
         : view.hasBoleto
             ? VibePageButton(
                 label: 'Abrir boleto',
@@ -187,15 +228,17 @@ class _MainInvoice extends StatelessWidget {
                 ? VibePageButton(
                     label: 'Copiar linha',
                     icon: 'copy',
-                    onPressed: when(
-                        () => VibeInvoiceActions.copyLine(context, invoice)))
+                    onPressed: when(() => VibeInvoiceActions.copyLine(
+                        context, invoice,
+                        asOf: view.asOf)))
                 : details;
     final links = <(String, String, VoidCallback?)>[
       if (view.hasLine && view.hasPix)
         (
           'copy',
           'Linha digitável',
-          when(() => VibeInvoiceActions.copyLine(context, invoice))
+          when(() =>
+              VibeInvoiceActions.copyLine(context, invoice, asOf: view.asOf))
         ),
       if (view.hasBoleto && (view.hasPix || view.hasLine))
         (
@@ -204,17 +247,39 @@ class _MainInvoice extends StatelessWidget {
           when(() => VibeInvoiceActions.openBoleto(context, invoice))
         ),
     ];
+    final buttons =
+        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      identical(primary, details) ? details : VibeTwo(primary, details),
+      if (links.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        VibeLinkButtons(items: links),
+      ],
+    ]);
     return VibeCard(
       main: true,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          Expanded(child: VibeLabel('Fatura de ${view.month}')),
-          VibePageChip(tone: view.tone, label: view.chip),
+          Expanded(
+              child: redacted
+                  ? Row(children: [
+                      const VibeLabel('Fatura de'),
+                      const SizedBox(width: 4),
+                      Flexible(
+                          child: VibeRedact(
+                              redacted: true, child: VibeLabel(view.month))),
+                    ])
+                  : VibeLabel('Fatura de ${view.month}')),
+          VibeRedact(
+              redacted: redacted,
+              block: true,
+              radius: 13,
+              child: VibePageChip(tone: view.tone, label: view.chip)),
         ]),
-        VibePageAmount(invoice.valor),
+        VibePageAmount(invoice.valor, redacted: redacted),
         VibeSubLine(
             icon: view.paid ? 'check' : 'cal',
             text: view.dueFull,
+            redacted: redacted,
             tone: view.tone == VibeTone.neutral ? null : view.tone),
         if (view.note != null) VibeSubLine(icon: 'info', text: view.note!),
         if (!view.hasPaymentData) ...[
@@ -222,14 +287,11 @@ class _MainInvoice extends StatelessWidget {
           const VibeOkBox(
               strip: true,
               warning: true,
-              title: 'Dados de pagamento indisponíveis. Consulte o suporte.'),
+              title:
+                  'Boleto disponível na central do assinante ou com o suporte.'),
         ],
         const SizedBox(height: 9),
-        identical(primary, details) ? details : VibeTwo(primary, details),
-        if (links.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          VibeLinkButtons(items: links),
-        ],
+        VibeDimmed(dimmed: redacted, child: buttons),
       ]),
     );
   }
@@ -246,43 +308,29 @@ class _Chevron extends StatelessWidget {
       );
 }
 
-/// Carregamento no formato do cartão da fatura principal (`.g-cd.g-main`).
-class _Loading extends StatelessWidget {
-  const _Loading();
+/// Pagas ainda sem lista: três linhas no desenho real, valores cobertos.
+class _PaidRowsLoading extends StatelessWidget {
+  const _PaidRowsLoading();
 
   @override
   Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
     return Semantics(
       label: 'Consultando suas faturas',
       liveRegion: true,
-      child: const VibeCard(
-        main: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(children: [
-              Expanded(child: VibeLabel('Consultando suas faturas…')),
-              SizedBox(width: 8),
-              VibeShimmerBar(width: 78, height: 26, radius: 13),
-            ]),
-            SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: VibeShimmerBar(width: 160, height: 38, radius: 10),
+      child: VibeCard(
+        child: VibeRows(children: [
+          for (var i = 0; i < 3; i++)
+            VibeRow(
+              icon: 'check',
+              title: 'Fatura de outubro',
+              subtitle: 'Paga em 10/10/2026',
+              redacted: true,
+              trailing: VibeRedact(
+                  redacted: true,
+                  child: Text('R\$ 199,90', style: vibeText(t, 13.5, 700))),
             ),
-            SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: VibeShimmerBar(width: 170, height: 18, radius: 6),
-            ),
-            SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
-              SizedBox(width: 8),
-              Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
-            ]),
-          ],
-        ),
+        ]),
       ),
     );
   }

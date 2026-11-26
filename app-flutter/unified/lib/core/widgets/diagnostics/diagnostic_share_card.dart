@@ -95,8 +95,8 @@ class DiagnosticShareCard extends StatelessWidget {
                     _formatWhen(when),
                     if (safePlan.isNotEmpty) safePlan,
                   ].join(' · '),
-                  style: vibeText(t, 12, 500,
-                      color: t.hx.withValues(alpha: .82)),
+                  style:
+                      vibeText(t, 12, 500, color: t.hx.withValues(alpha: .82)),
                 ),
               ],
             ),
@@ -128,8 +128,8 @@ class DiagnosticShareCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(view.description,
                           textAlign: TextAlign.center,
-                          style: vibeText(t, 13, 500,
-                              color: t.mut, height: 1.45)),
+                          style:
+                              vibeText(t, 13, 500, color: t.mut, height: 1.45)),
                     ]),
                   ),
                   const SizedBox(height: 10),
@@ -224,8 +224,7 @@ class DiagnosticShareCard extends StatelessWidget {
             VibeKvList([
               if (state.speedTestPingLatency != null &&
                   state.speedTestPingLatency! > 0)
-                VibeKv(
-                    'Latência', '${state.speedTestPingLatency!.round()} ms'),
+                VibeKv('Latência', '${state.speedTestPingLatency!.round()} ms'),
               VibeKv(
                 'Servidor',
                 state.speedTestServerName ?? 'Servidor do provedor',

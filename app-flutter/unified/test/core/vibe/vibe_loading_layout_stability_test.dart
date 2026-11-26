@@ -11,12 +11,15 @@ import 'package:app_provedor_unified/core/providers/consumo_provider.dart';
 import 'package:app_provedor_unified/core/providers/customer_capabilities_provider.dart';
 import 'package:app_provedor_unified/core/providers/financeiro_provider.dart';
 import 'package:app_provedor_unified/core/providers/providers.dart';
+import 'package:app_provedor_unified/core/services/account_data_cache.dart';
+import 'package:app_provedor_unified/core/services/api_response.dart';
 import 'package:app_provedor_unified/core/services/financeiro_service.dart';
 import 'package:app_provedor_unified/core/services/provider_config_api.dart';
 import 'package:app_provedor_unified/core/theme/layout_tokens.dart';
 import 'package:app_provedor_unified/core/vibe/vibe_page_parts.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -79,8 +82,67 @@ class _TestConsumoViewModel extends ConsumoViewModel {
   Future<void> loadData() async {}
 }
 
+String _day(int days) => DateFormat('yyyy-MM-dd')
+    .format(DateTime.now().add(Duration(days: days)));
+
+List<dynamic> _one() => [
+      {
+        'numero': 'INV-101',
+        'valor': 119.90,
+        'vencimento': _day(5),
+        'status': 'aberto',
+        'pixCopiaECola': '000201010211',
+        'urlBoleto': 'https://example.invalid/boleto.pdf',
+      }
+    ];
+
+List<dynamic> _multi() => [
+      {
+        'numero': 'INV-100',
+        'valor': 119.90,
+        'vencimento': _day(-5),
+        'status': 'aberto',
+        'pixCopiaECola': '000201010210',
+        'urlBoleto': 'https://example.invalid/a.pdf',
+      },
+      ..._one().map((e) => {...(e as Map), 'vencimento': _day(25)}),
+    ];
+
+/// Fontes reais do app: com Ahem (padrão dos testes) as larguras não batem
+/// com o aparelho e a quebra de linha muda.
+Future<void> _loadFonts() async {
+  final families = <String, List<String>>{
+    'PlusJakartaSans': [
+      for (final w in [400, 500, 600, 700, 800])
+        'assets/fonts/PlusJakartaSans-$w.ttf'
+    ],
+    'PlusJakartaSansVar': ['assets/fonts/PlusJakartaSans-Variable.ttf'],
+    'Sora': [
+      for (final w in [400, 500, 600, 700, 800]) 'assets/fonts/Sora-$w.ttf'
+    ],
+    'SoraVar': ['assets/fonts/Sora-Variable.ttf'],
+    'Inter': [
+      for (final w in [400, 500, 600, 700]) 'assets/fonts/Inter-$w.ttf'
+    ],
+    'DMMono': [
+      'assets/fonts/DMMono-Regular.ttf',
+      'assets/fonts/DMMono-Medium.ttf'
+    ],
+  };
+  for (final e in families.entries) {
+    final loader = FontLoader(e.key);
+    for (final f in e.value) {
+      loader.addFont(rootBundle.load(f));
+    }
+    await loader.load();
+  }
+}
+
 void main() {
-  setUpAll(() => initializeDateFormatting('pt_BR'));
+  setUpAll(() async {
+    await initializeDateFormatting('pt_BR');
+    await _loadFonts();
+  });
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   final homeAnchors = <String, String>{
@@ -90,66 +152,87 @@ void main() {
     'layout_05': 'Seus atalhos',
     'layout_06': 'Ver todos',
   };
+  final variants = [
+    (const Size(360, 780), 1.0, false),
+    (const Size(360, 780), 1.0, true),
+    (const Size(320, 780), 1.3, false),
+    (const Size(411, 860), 1.6, true),
+  ];
 
   for (final entry in homeAnchors.entries) {
-    testWidgets(
-        '${entry.key}: cartão da fatura mantém altura durante o carregamento',
-        (tester) async {
-      // Ahem (fonte padrão de teste) tem largura ~1.8x maior que Plus Jakarta
-      // Sans; 500 dp evita quebra artificial de linha em botões e Wrap.
-      tester.view.physicalSize = const Size(500, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
+    for (final (size, scale, dark) in variants) {
+      final name = '${entry.key} ${size.width.toInt()}dp ${scale}x'
+          '${dark ? ' escuro' : ''}';
+      testWidgets('$name: carregando, erro e dados têm a mesma geometria',
+          (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
 
-      final service = _DeferredFinanceService();
-      final finance = FinanceiroProvider(service);
-      final pendingFetch = finance.fetchHistory();
-
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          configurationProvider.overrideWith((_) => _StabilityConfig(entry.key)),
-          authNotifierProvider.overrideWith(DemoAuth.new),
-          financeiroViewModelProvider.overrideWith((_) => finance),
-          notificationProvider.overrideWith((_) => DemoNotifications()),
-          wifiManagementAvailableProvider.overrideWith((_) async => false),
-          connectivityStatusProvider
-              .overrideWith((_) => Stream.value(ConnectivityResult.wifi)),
-        ],
-        child: MaterialApp(
-          theme: LayoutTokens.of(entry.key).themeData(),
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(disableAnimations: true),
-            child: child!,
-          ),
-          home: Scaffold(
-            body: CustomerHomePage(layoutType: entry.key, onNavigate: (_) {}),
-          ),
-        ),
-      ));
-      await tester.pump();
-
-      expect(find.text('Consultando suas faturas…'), findsOneWidget);
-      final loadingAnchorY = tester.getTopLeft(find.text(entry.value).first).dy;
-
-      final due = DateTime.now().add(const Duration(days: 5));
-      service.completer.complete([
-        {
-          'numero': 'INV-101',
-          'valor': 119.90,
-          'vencimento': DateFormat('yyyy-MM-dd').format(due),
-          'status': 'aberto',
-          'pixCopiaECola': '000201010211',
-          'urlBoleto': 'https://example.invalid/boleto.pdf',
+        Future<double> anchorFor(
+            Future<void> Function(_DeferredFinanceService) settle,
+            {AccountDataCache? cache}) async {
+          final service = _DeferredFinanceService();
+          final finance = FinanceiroProvider(service,
+              cache: cache ?? AccountDataCache(store: MemoryAccountCacheStore()));
+          final fetch = finance.fetchHistory();
+          var tokens = LayoutTokens.of(entry.key);
+          if (dark) tokens = tokens.withBrightness(Brightness.dark);
+          await tester.pumpWidget(const SizedBox());
+          await tester.pumpWidget(ProviderScope(
+            overrides: [
+              configurationProvider
+                  .overrideWith((_) => _StabilityConfig(entry.key)),
+              authNotifierProvider.overrideWith(DemoAuth.new),
+              financeiroViewModelProvider.overrideWith((_) => finance),
+              notificationProvider.overrideWith((_) => DemoNotifications()),
+              wifiManagementAvailableProvider.overrideWith((_) async => false),
+              connectivityStatusProvider
+                  .overrideWith((_) => Stream.value(ConnectivityResult.wifi)),
+            ],
+            child: MaterialApp(
+              theme: tokens.themeData(),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                    disableAnimations: true,
+                    textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: Scaffold(
+                body:
+                    CustomerHomePage(layoutType: entry.key, onNavigate: (_) {}),
+              ),
+            ),
+          ));
+          await tester.pump();
+          await settle(service);
+          if (service.completer.isCompleted) await fetch;
+          await tester.pump();
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+          // O texto de espera é só para o leitor de tela.
+          expect(find.text('Consultando suas faturas…'), findsNothing);
+          return tester.getTopLeft(find.text(entry.value).first).dy;
         }
-      ]);
-      await pendingFetch;
-      await tester.pump();
 
-      expect(find.text('Consultando suas faturas…'), findsNothing);
-      final loadedAnchorY = tester.getTopLeft(find.text(entry.value).first).dy;
-      expect((loadedAnchorY - loadingAnchorY).abs(), lessThanOrEqualTo(8.0));
-      expect(tester.takeException(), isNull);
-    });
+        final loading = await anchorFor((_) async {});
+        final one = await anchorFor((s) async => s.completer.complete(_one()));
+        final error = await anchorFor((s) async =>
+            s.completer.completeError(ApiException(502, 'indisponível')));
+        expect((one - loading).abs(), lessThanOrEqualTo(1.0),
+            reason: 'carregando → uma fatura');
+        expect(error, loading, reason: 'carregando → erro sem dados');
+
+        // Com várias faturas guardadas, a tela já abre no desenho final.
+        final cache = AccountDataCache(store: MemoryAccountCacheStore());
+        await cache.write(_DeferredFinanceService().cacheKey, _multi());
+        final cached = await anchorFor((_) async {}, cache: cache);
+        final multi =
+            await anchorFor((s) async => s.completer.complete(_multi()));
+        expect(cached, multi, reason: 'guardadas → atualizadas');
+        await tester.pumpWidget(const SizedBox());
+      });
+    }
   }
 
   testWidgets('ConsumoPage mantém dimensões do cartão principal ao carregar',
@@ -181,7 +264,9 @@ void main() {
     ));
     await tester.pump();
 
-    expect(find.text('Carregando consumo…'), findsOneWidget);
+    // O rótulo fica; só o número é coberto.
+    expect(find.text('Carregando consumo…'), findsNothing);
+    expect(find.textContaining('Total em '), findsOneWidget);
     final loadingHeight = tester.getSize(find.byType(VibeCard).first).height;
 
     vm.state = ConsumoState(
@@ -204,10 +289,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('FinanceiroPage renderiza skeleton no formato do cartão principal',
+  testWidgets('FinanceiroPage: esqueleto é o próprio cartão, sem contagem falsa',
       (tester) async {
     final service = _DeferredFinanceService();
-    final finance = FinanceiroProvider(service);
+    final finance = FinanceiroProvider(service,
+        cache: AccountDataCache(store: MemoryAccountCacheStore()));
     unawaited(finance.fetchHistory());
 
     await tester.pumpWidget(ProviderScope(
@@ -226,8 +312,9 @@ void main() {
     ));
     await tester.pump();
 
-    expect(find.text('Consultando suas faturas…'), findsOneWidget);
-    expect(find.byType(VibeCard), findsOneWidget);
+    expect(find.text('Consultando suas faturas…'), findsNothing);
+    expect(find.text('Em aberto (0)'), findsNothing);
+    expect(find.text('Abrir boleto'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

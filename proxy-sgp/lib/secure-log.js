@@ -8,6 +8,8 @@ const SENSITIVE_KEY_PATTERNS = [
     // PII retornada pelo SGP (nome, endereço, GPS, contato, nascimento, rede)
     'razaosocial', 'nome', 'endereco', 'telefone', 'email', 'nasc',
     'mac', 'wifi', 'ssid',
+    // Identificadores do equipamento ligados ao assinante
+    'phy_addr', 'serial',
 ];
 
 function isSensitiveKey(key = '') {
@@ -47,4 +49,4 @@ function secureLog(prefix, payload) {
     console.log(prefix, sanitizeForLog(payload));
 }
 
-module.exports = { maskCpfCnpj, sanitizeForLog, secureLog };
+module.exports = { maskCpfCnpj, sanitizeForLog, secureLog, isSensitiveKeyForTests: isSensitiveKey };

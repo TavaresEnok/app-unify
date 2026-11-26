@@ -1,10 +1,12 @@
 'use strict';
+if (!process.env.UV_THREADPOOL_SIZE) process.env.UV_THREADPOOL_SIZE = '16';
 const { Worker, DelayedError } = require('bullmq');
 const http = require('http');
 const fs = require('fs');
 const { getQueue, connection, jobId, queueName } = require('./lib/jobs');
 const { sanitize } = require('./lib/sanitize-client');
 const { validateSyncPage, syncParameters, hasNextSyncPage } = require('./lib/sync-page');
+const { shouldPrune, withPageRetry, nextDelay, syncFailureLog } = require('./lib/sync-guard');
 const { pool, ensureCoreTables, ensureSgpCredentials, callSgpApi, formatSgpUrl } = require('./index');
 const queue = getQueue();
 const timezone = 'America/Fortaleza';
@@ -97,27 +99,31 @@ async function seedReminders(job) {
         }
     }
 
+    // Um job por assinante com TODOS os aparelhos dele (até 10 mais recentes):
+    // famílias com dois celulares recebem nos dois.
     const pgPage = await pool.query(
         flags.has_segments
-            ? `SELECT DISTINCT ON (d.provider_id, d.cpfcnpj)
-                      d.provider_id, d.cpfcnpj, d.fcm_token,
+            ? `SELECT d.provider_id, d.cpfcnpj,
+                      (ARRAY_AGG(d.fcm_token ORDER BY d.updated_at DESC))[1:10] AS fcm_tokens,
                       COALESCE(
-                        ARRAY_AGG(DISTINCT s.due_day) FILTER (WHERE s.due_day > 0),
+                        (SELECT ARRAY_AGG(DISTINCT s.due_day) FROM subscriber_segments s
+                          WHERE s.provider_id = d.provider_id AND s.cpfcnpj = d.cpfcnpj AND s.due_day > 0),
                         ARRAY[]::smallint[]
                       ) AS due_days
                  FROM subscriber_devices d
-                 LEFT JOIN subscriber_segments s
-                   ON s.provider_id = d.provider_id AND s.cpfcnpj = d.cpfcnpj
                 WHERE d.fcm_token <> ''
-                GROUP BY d.provider_id, d.cpfcnpj, d.fcm_token, d.updated_at
-                ORDER BY d.provider_id, d.cpfcnpj, d.updated_at DESC
+                  AND d.provider_id IN (SELECT id FROM providers WHERE NOT (COALESCE(data, '{}'::jsonb) ? 'deletedAt'))
+                GROUP BY d.provider_id, d.cpfcnpj
+                ORDER BY d.provider_id, d.cpfcnpj
                 LIMIT 500 OFFSET $1`
-            : `SELECT DISTINCT ON (provider_id, cpfcnpj)
-                      provider_id, cpfcnpj, fcm_token,
+            : `SELECT provider_id, cpfcnpj,
+                      (ARRAY_AGG(fcm_token ORDER BY updated_at DESC))[1:10] AS fcm_tokens,
                       ARRAY[]::smallint[] AS due_days
                  FROM subscriber_devices
                 WHERE fcm_token <> ''
-                ORDER BY provider_id, cpfcnpj, updated_at DESC
+                  AND provider_id IN (SELECT id FROM providers WHERE NOT (COALESCE(data, '{}'::jsonb) ? 'deletedAt'))
+                GROUP BY provider_id, cpfcnpj
+                ORDER BY provider_id, cpfcnpj
                 LIMIT 500 OFFSET $1`,
         [offset],
     );
@@ -148,7 +154,7 @@ async function seedReminders(job) {
             name: 'invoice-reminder',
             data: {
                 cpf: row.cpfcnpj,
-                fcmToken: row.fcm_token,
+                fcmTokens: Array.isArray(row.fcm_tokens) ? row.fcm_tokens.filter(Boolean) : [],
                 providerId: row.provider_id,
                 day,
                 offsets,
@@ -168,12 +174,14 @@ async function invoiceReminder(job) {
     if (job.data.day !== localDay()) return { skipped: 'expired' };
     const providerId = job.data.providerId;
     const cpf = String(job.data.cpf || '').replace(/\D/g, '');
-    const fcmToken = String(job.data.fcmToken || '');
+    // Jobs antigos na fila ainda trazem um só fcmToken.
+    const fcmTokens = [...new Set((Array.isArray(job.data.fcmTokens) ? job.data.fcmTokens : [job.data.fcmToken])
+        .map(token => String(token || '')).filter(Boolean))];
     const offsets = Array.isArray(job.data.offsets) && job.data.offsets.length
         ? job.data.offsets.map(Number).filter(Number.isFinite)
         : [1];
 
-    if (!cpf || !fcmToken) return { skipped: 'missing-cpf' };
+    if (!cpf || !fcmTokens.length) return { skipped: 'missing-cpf' };
     const fcm = getMessaging();
     if (!fcm) return { skipped: 'fcm-disabled' };
 
@@ -194,32 +202,53 @@ async function invoiceReminder(job) {
     if (!matchedInvoice) return { skipped: 'no-due-invoice' };
     const formattedValue = Number(matchedInvoice.valor || 0).toFixed(2).replace('.', ',');
     const copy = billingPushMessage(matchedOffset, formattedValue);
-    try {
-        await fcm.send({
-            token: fcmToken,
-            notification: { title: copy.title, body: copy.body },
-            data: { route: '/faturas' },
-            android: { collapseKey: `invoice-${targetDateIso(matchedOffset)}` },
-        });
-    } catch (error) {
-        if (['messaging/invalid-registration-token', 'messaging/registration-token-not-registered'].includes(error.code)) {
-            await pool.query('DELETE FROM subscriber_devices WHERE provider_id = $1 AND fcm_token = $2', [providerId, fcmToken]).catch(() => undefined);
-            return { skipped: 'invalid-token' };
+    // Idempotência por aparelho: um reenvio do job não repete push já entregue.
+    const delivered = new Set(Array.isArray(job.data.deliveredTokens) ? job.data.deliveredTokens : []);
+    let sent = 0; let invalid = 0; let lastError = null;
+    for (const fcmToken of fcmTokens) {
+        if (delivered.has(fcmToken)) continue;
+        try {
+            await fcm.send({
+                token: fcmToken,
+                notification: { title: copy.title, body: copy.body },
+                data: { route: '/faturas' },
+                android: { collapseKey: `invoice-${targetDateIso(matchedOffset)}` },
+            });
+            sent++;
+            delivered.add(fcmToken);
+        } catch (error) {
+            if (['messaging/invalid-registration-token', 'messaging/registration-token-not-registered'].includes(error.code)) {
+                await pool.query('DELETE FROM subscriber_devices WHERE provider_id = $1 AND fcm_token = $2', [providerId, fcmToken]).catch(() => undefined);
+                invalid++;
+                continue;
+            }
+            lastError = error;
         }
-        throw error;
     }
-    return { sent: true, offsetDays: matchedOffset };
+    if (lastError) {
+        await job.updateData({ ...job.data, deliveredTokens: [...delivered] }).catch(() => undefined);
+        throw lastError;
+    }
+    if (!sent && invalid) return { skipped: 'invalid-token', invalid };
+    return { sent: sent > 0, devices: sent, invalid, offsetDays: matchedOffset };
 }
 
 async function syncClients(job) {
+    try { return await syncClientsOnce(job); }
+    catch (error) { console.error(syncFailureLog(job, error)); throw error; }
+}
+
+async function syncClientsOnce(job) {
     const { providerId } = job.data;
     const { sgpParams, sgpBaseUrl } = await ensureSgpCredentials({ providerId });
     await Promise.all([ensureClientCache(pool), ensureCoreTables()]);
-    let { page = 1, count = 0, lastPageHash, syncStartedAt = new Date().toISOString() } = job.data;
+    let { page = 1, count = 0, fetched = 0, erpTotal = null, lastPageHash, syncStartedAt = new Date().toISOString() } = job.data;
 
     while (true) {
-        const result = await callSgpApi({ ...sgpParams, url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/'), ...syncParameters(page) });
+        const result = await withPageRetry(() => callSgpApi({ ...sgpParams, url: formatSgpUrl(sgpBaseUrl, '/api/ura/clientes/'), ...syncParameters(page) }));
         const clients = result?.clientes;
+        const reportedTotal = Number(result?.paginacao?.total);
+        if (Number.isFinite(reportedTotal) && reportedTotal > 0) erpTotal = reportedTotal;
         lastPageHash = validateSyncPage(page, clients, lastPageHash);
 
         const rows = [];
@@ -235,27 +264,37 @@ async function syncClients(job) {
         await bulkUpsertClientsAndSegments(pool, providerId, rows);
 
         count += rows.length;
+        fetched += clients.length;
         page++;
-        await job.updateData({ providerId, page, count, lastPageHash, syncStartedAt });
+        await job.updateData({ providerId, page, count, fetched, erpTotal, lastPageHash, syncStartedAt });
         await job.updateProgress({ count, page: page - 1 });
         if (!hasNextSyncPage(page, clients.length, result.paginacao)) break;
         await new Promise(resolve => setTimeout(resolve, 250));
     }
 
     let pruned = { prunedClients: 0, prunedSegments: 0 };
-    if (count > 0) {
+    const previous = await pool.query(`SELECT data->'syncedClientCount' AS synced FROM providers WHERE id = $1`, [providerId]).catch(() => ({ rows: [] }));
+    const previousCount = Number(previous.rows[0]?.synced);
+    const decision = shouldPrune({ count, fetched, erpTotal, previousCount });
+    if (decision.prune) {
         pruned = await pruneStaleAfterFullSync(pool, providerId, syncStartedAt);
+    } else {
+        console.warn(JSON.stringify({ event: 'sync.prune-skipped', providerId, reason: decision.reason, count, fetched, erpTotal, previousCount: Number.isFinite(previousCount) ? previousCount : null }));
     }
 
+    // Só registra a contagem como "boa" quando a sincronização foi completa.
+    const summary = decision.prune || !(previousCount > 0)
+        ? { syncedClientCount: count, lastClientSyncAt: new Date().toISOString() }
+        : { lastClientSyncAt: new Date().toISOString(), lastClientSyncPartial: true };
     await pool.query(
         `UPDATE providers
-            SET data = data || $2::jsonb,
+            SET data = (data - 'lastClientSyncPartial') || $2::jsonb,
                 updated_at = NOW()
           WHERE id = $1`,
-        [providerId, JSON.stringify({ syncedClientCount: count, lastClientSyncAt: new Date().toISOString() })],
+        [providerId, JSON.stringify(summary)],
     ).catch(() => undefined);
 
-    return { count, ...pruned };
+    return { count, fetched, erpTotal, pruneSkipped: decision.prune ? undefined : decision.reason, ...pruned };
 }
 
 async function scheduleAllProviderSyncs() {
@@ -307,8 +346,14 @@ const worker = new Worker(queueName, async (job, token) => {
     try { return await handlers[job.name](job); }
     catch (error) {
         if (error.status === 503) {
-            await job.moveToDelayed(Date.now() + 1500 + Math.floor(Math.random() * 1000), token);
-            throw new DelayedError();
+            const delayedCount = Number(job.data?.delayedCount || 0);
+            const delay = nextDelay(delayedCount);
+            if (delay !== null) {
+                await job.updateData({ ...job.data, delayedCount: delayedCount + 1 });
+                await job.moveToDelayed(Date.now() + delay, token);
+                throw new DelayedError();
+            }
+            console.error(JSON.stringify({ event: 'job.delay-limit', name: job.name, id: job.id, delayedCount }));
         }
         throw error;
     }

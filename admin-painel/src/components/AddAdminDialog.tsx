@@ -41,7 +41,7 @@ export default function AddAdminDialog({ onUpdate }: { onUpdate: () => void }) {
             return;
         }
         setIsSaving(true);
-        const toastId = toast.loading("Enviando pedido para criar utilizador...");
+        const toastId = toast.loading("Criando usuário...");
         try {
             await callFunction('CREATE_ADMIN_USER', {
                 email,
@@ -49,7 +49,7 @@ export default function AddAdminDialog({ onUpdate }: { onUpdate: () => void }) {
                 role: role as 'superAdmin' | 'providerAdmin',
                 ...(providerId ? { providerId } : {}),
             });
-            toast.success("Utilizador criado com sucesso!", { id: toastId });
+            toast.success("Usuário criado com sucesso!", { id: toastId });
             onUpdate();
             setIsOpen(false);
             setEmail(''); setPassword(''); setRole(''); setProviderId('');

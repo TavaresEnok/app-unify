@@ -11,7 +11,9 @@ import { getErrorMessage } from "@/shared/errors";
 import { DEFAULT_PROVIDER_CONFIG } from "@/features/provider-settings/defaults";
 import { saveProviderSettings } from "@/shared/settings/providerSettingsService";
 
-export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }) {
+import { newProviderIdError, normalizeProviderId } from "@/features/providers/providerId";
+
+export default function AddProviderDialog({ onUpdate, existingIds = [] }: { onUpdate: () => void; existingIds?: string[] }) {
     const [name, setName] = useState('');
     const [providerId, setProviderId] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -19,11 +21,14 @@ export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }
     const { callFunction } = useApi();
 
     const handleSave = async () => {
-        if (!name || !providerId) { toast.error("Nome e ID são obrigatórios."); return; }
+        if (!name.trim() || !providerId) { toast.error("Nome e ID são obrigatórios."); return; }
+        // Criar com um ID existente sobrescreveria a marca de um provedor em produção.
+        const idError = newProviderIdError(providerId, existingIds);
+        if (idError) { toast.error(idError); return; }
         setIsSaving(true);
-        const toastId = toast.loading("Enviando pedido para criar provedor...");
+        const toastId = toast.loading("Criando provedor...");
         try {
-            await callFunction('CREATE_PROVIDER', { name, providerId });
+            await callFunction('CREATE_PROVIDER', { name: name.trim(), providerId }, { silent: true });
             await saveProviderSettings(providerId, DEFAULT_PROVIDER_CONFIG);
             toast.success("Provedor criado com sucesso!", { id: toastId });
             onUpdate();
@@ -31,7 +36,7 @@ export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }
             setName('');
             setProviderId('');
         } catch (error) {
-            toast.error(`Erro ao solicitar criação: ${getErrorMessage(error)}`, { id: toastId });
+            toast.error(`Erro ao criar provedor: ${getErrorMessage(error)}`, { id: toastId });
         } finally {
             setIsSaving(false);
         }
@@ -47,7 +52,7 @@ export default function AddProviderDialog({ onUpdate }: { onUpdate: () => void }
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label htmlFor="name">Nome do Provedor</Label><Input id="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
-                    <div className="space-y-2"><Label htmlFor="id">ID do Provedor (sem espaços/caracteres especiais)</Label><Input id="id" value={providerId} onChange={(e) => setProviderId(e.target.value.toLowerCase().trim())} /></div>
+                    <div className="space-y-2"><Label htmlFor="id">ID do Provedor (letras minúsculas, números, - ou _)</Label><Input id="id" value={providerId} onChange={(e) => setProviderId(normalizeProviderId(e.target.value))} />{providerId && newProviderIdError(providerId, existingIds) && <p role="alert" className="text-[12px] text-destructive">{newProviderIdError(providerId, existingIds)}</p>}</div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>

@@ -89,3 +89,45 @@ it("coalesces simultaneous app startup reads and isolates providers", async () =
   expect(state.reads).toBe(2);
   responses.forEach((r, i) => { expect(r.status).toBe(200); expect(r.body.data.id).toBe(i % 2 ? "vibe" : "other"); });
 });
+
+it("returns generated privacy links when the provider has none, and keeps a custom one", async () => {
+  const data = (await request(app).get("/public/providers/vibe/config").expect(200)).body.data;
+  expect(data.privacyPolicyUrl).toBe("https://appisp.com.br/api/public/providers/vibe/privacidade");
+  expect(data.dataDeletionUrl).toBe("https://appisp.com.br/api/public/providers/vibe/exclusao-de-dados");
+  state.docs.set("custom", { name: "Custom", other: { privacyPolicyUrl: "https://custom.example/privacidade" } });
+  const custom = (await request(app).get("/public/providers/custom/config").expect(200)).body.data;
+  expect(custom.privacyPolicyUrl).toBe("https://custom.example/privacidade");
+});
+
+it("serves appVersion normalized for the app", async () => {
+  state.docs.set("upd", { name: "Upd", applicationId: "br.com.provedores.upd", appVersion: { minVersion: "1.0.20", latestVersion: "1.0.25", forceUpdate: true } });
+  const forced = (await request(app).get("/public/providers/upd/config").expect(200)).body.data;
+  expect(forced.appVersion).toMatchObject({ minVersion: "1.0.20", latestVersion: "1.0.25", storeUrl: "https://play.google.com/store/apps/details?id=br.com.provedores.upd" });
+  clearPublicConfigCache();
+  state.docs.set("upd", { name: "Upd", appVersion: { minVersion: "1.0.20", latestVersion: "1.0.25", forceUpdate: false, storeUrls: { android: "https://play.google.com/store/apps/details?id=x.y" } } });
+  const soft = (await request(app).get("/public/providers/upd/config").expect(200)).body.data;
+  expect(soft.appVersion.minVersion).toBeUndefined();
+  expect(soft.appVersion).toMatchObject({ latestVersion: "1.0.25", storeUrl: "https://play.google.com/store/apps/details?id=x.y" });
+  expect((await request(app).get("/public/providers/vibe/config").expect(200)).body.data.appVersion).toBeUndefined();
+});
+
+it("serves privacy and data deletion pages as escaped HTML", async () => {
+  state.docs.set("pg", {
+    name: "Pg <script>alert(1)</script>", themeColor: "#123456",
+    details: { email: "contato@pg.example", telefone: "(85) 4000-0000", razaoSocial: "PG Telecom LTDA", cnpj: "00.000.000/0001-00" },
+    supportChannels: [{ id: "1", type: "whatsapp", value: "5585999990000", name: "WhatsApp" }],
+  });
+  const privacy = await request(app).get("/public/providers/pg/privacidade").expect(200);
+  expect(privacy.headers["content-type"]).toContain("text/html");
+  expect(privacy.text).toContain("Política de privacidade");
+  expect(privacy.text).toContain("CPF ou CNPJ");
+  expect(privacy.text).toContain("localização");
+  expect(privacy.text).toContain("mailto:contato@pg.example");
+  expect(privacy.text).toContain("https://wa.me/5585999990000");
+  expect(privacy.text).not.toContain("<script>alert(1)</script>");
+  expect(privacy.text).toContain("&lt;script&gt;");
+  const deletion = await request(app).get("/public/providers/pg/exclusao-de-dados").expect(200);
+  expect(deletion.text).toContain("Exclusão de dados");
+  expect(deletion.text).toContain("/public/providers/pg/privacidade");
+  await request(app).get("/public/providers/missing/privacidade").expect(404);
+});

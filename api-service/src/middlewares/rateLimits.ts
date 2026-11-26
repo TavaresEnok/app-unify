@@ -23,6 +23,19 @@ function limiter(name: string, windowMs: number, max: number, keyGenerator = req
 // Proteção ampla de entrada; cotas de operações autenticadas são por usuário.
 export const globalLimiter = limiter("ingress", 60_000, 3000);
 export const loginLimiter = limiter("admin-login", 60_000, 20);
+// Tentativas por conta (independe do IP): segura força bruta distribuída.
+export const loginAccountLimiter = limiter("admin-login-account", 15 * 60_000, 10, (req) =>
+  createHash("sha256").update(String(req.body?.email || "").trim().toLowerCase()).digest("hex"));
+export const reauthLimiter = limiter("admin-reauth", 60_000, 5);
+export const passwordChangeLimiter = limiter("admin-password", 15 * 60_000, 5);
+// Login do assinante por IP real (o Caddy repassa o IP do cliente). Folgado
+// por causa de CGNAT; o limite por CPF continua valendo.
+export const subscriberLoginIpLimiter = limiter("subscriber-login-ip", 60_000, 60,
+  (req) => `ip:${ipKeyGenerator(req.ip || "unknown", 56)}`);
+// Cotas de escrita do assinante (protegem disco e a fila dos provedores).
+export const subscriberTicketLimiter = limiter("subscriber-ticket", 3_600_000, 5);
+export const subscriberReplyLimiter = limiter("subscriber-reply", 3_600_000, 30);
+export const attachmentUploadLimiter = limiter("attachment-upload", 3_600_000, 30);
 export const subscriberLoginLimiter = limiter("subscriber-login", 60_000, 10, (req) => {
   const identity = `${req.body?.providerId || ""}:${String(req.body?.cpf || "").replace(/\D/g, "")}`;
   return createHash("sha256").update(identity).digest("hex");

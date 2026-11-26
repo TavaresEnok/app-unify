@@ -56,7 +56,8 @@ function fakeIxc(data = dataset(), { onCall } = {}) {
         if (table === 'desbloqueio_confianca') return { type: 'success', message: 'Liberado' };
         const rows = data[table] || [];
         const field = body.qtype.split('.')[1];
-        const cmp = (value, op, p) => op === '=' ? String(value) === String(p) : op === '>=' ? String(value) >= String(p) : op === '<' ? String(value) < String(p) : false;
+        const cmp = (value, op, p) => op === '=' ? String(value) === String(p) : op === '>=' ? String(value) >= String(p) : op === '<' ? String(value) < String(p)
+            : op === '<=' ? String(value) <= String(p) : op === '>' ? String(value) > String(p) : false;
         const dateKey = value => {
             const m = String(value).match(/^(\d{2})\/(\d{2})\/(\d{4}) (.*)$/);
             return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]}` : String(value);
@@ -223,7 +224,10 @@ test('clientes: pagina clientes ativos com contratos ativos e total de páginas'
     assert.deepEqual(result.paginacao, { total: 2, total_paginas: 2 });
     const second = await g.handle('/api/ura/clientes/', { limit: 1, offset: 1 });
     assert.equal(second.clientes[0].cpfcnpj, '12345678000195');
-    assert.equal(g.calls.some(c => c.table === 'fn_areceber'), false, 'sync não consulta faturas');
+    // Sync só lê faturas numa janela curta para achar o dia de vencimento; nunca PIX.
+    const invoiceCalls = g.calls.filter(c => c.table === 'fn_areceber');
+    assert.ok(invoiceCalls.every(c => JSON.parse(c.body.grid_param).some(f => f.TB === 'fn_areceber.data_vencimento' && f.OP === '>=')));
+    assert.equal(g.calls.some(c => c.table === 'get_pix'), false);
 });
 
 test('erros do IXC viram 502 e rotas não suportadas viram 501', async () => {
@@ -278,4 +282,120 @@ test('titulos: resposta de PIX que não é EMV é descartada e a busca pode ser 
     const off = gateway({ gateway: { pixLookup: false } });
     await off.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos' });
     assert.equal(off.calls.some(c => c.table === 'get_pix'), false);
+});
+
+test('valor em aberto usa a data de Fortaleza: fatura que vence hoje não vira vencida às 21h', async () => {
+    // 10/12/2026 23:30 em Fortaleza = 11/12 02:30 UTC. A fatura de 10/12 ainda
+    // é a "próxima a vencer"; a de 2027 não pode entrar na soma.
+    const lateEvening = new Date('2026-12-11T02:30:00Z');
+    const g = gateway({ gateway: { now: () => lateEvening } });
+    const { contratos } = await g.handle('/api/ura/consultacliente/', { cpfcnpj: '12345678909' });
+    assert.equal(contratos[0].contratoValorAberto, 160);
+});
+
+test('titulos: get_pix em paralelo (até 3 por vez) sem mudar a ordem das faturas', async () => {
+    const data = dataset();
+    for (let i = 0; i < 6; i++) data.fn_areceber.push({ id: String(910 + i), id_cliente: '1', id_contrato: '100', status: 'A', valor: '10', data_vencimento: `2027-0${i + 2}-10` });
+    let inFlight = 0; let peak = 0;
+    const g = gateway({ onCall: (table, body) => {
+        if (table !== 'get_pix') return undefined;
+        inFlight++; peak = Math.max(peak, inFlight);
+        // Respostas fora de ordem: a mais antiga demora mais.
+        const delay = 30 - (Number(body.id_areceber) % 10) * 3;
+        return new Promise(resolve => setTimeout(() => { inFlight--; resolve({ pix: { qrCode: { qrcode: `000201${body.id_areceber}` } } }); }, delay));
+    } }, data);
+    const open = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos' })).titulos;
+    assert.equal(peak, 3, 'no máximo 3 get_pix simultâneos');
+    assert.deepEqual(open.map(t => t.id), ['900', '901', '902', '910', '911', '912', '913', '914', '915']);
+    const looked = open.filter(t => t.id !== '901');
+    assert.deepEqual(looked.slice(0, 6).map(t => t.codigoPix), looked.slice(0, 6).map(t => `000201${t.id}`), 'cada PIX volta para a própria fatura');
+    assert.equal(g.calls.filter(c => c.table === 'get_pix').length, 6, 'limite de consultas por lista mantido');
+});
+
+function looseDataset() {
+    const data = dataset();
+    data.fn_areceber.push(
+        { id: '950', id_cliente: '1', id_contrato: '0', id_contrato_avulso: '77', status: 'A', valor: '45.00', valor_aberto: '45.00', data_vencimento: '2026-11-20' },
+        { id: '951', id_cliente: '1', id_contrato: '', status: 'A', valor: '15.00', valor_aberto: '15.00', data_vencimento: '2026-11-05' },
+        { id: '952', id_cliente: '1', id_contrato: '0', status: 'R', valor: '30.00', valor_recebido: '30.00', data_vencimento: '2026-10-01', pagamento_data: '2026-10-01' },
+        { id: '953', id_cliente: '2', id_contrato: '0', status: 'A', valor: '99.00', valor_aberto: '99.00', data_vencimento: '2026-11-15' },
+    );
+    return data;
+}
+
+test('titulos: avulso/renegociação (id_contrato 0 ou vazio) aparece no contrato pedido', async () => {
+    const g = gateway({ gateway: { pixLookup: false } }, looseDataset());
+    const own = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos', contrato: '100' })).titulos;
+    assert.deepEqual(own.map(t => t.id), ['951', '900', '950', '901', '902'], 'ordenado por vencimento');
+    assert.ok(own.every(t => t.contratoId === '100' && t.contrato === '100'));
+    const other = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos', contrato: '101' })).titulos;
+    assert.deepEqual(other.map(t => t.id), ['951', '950'], 'cliente com vários contratos: vai para o contrato pedido');
+    const paid = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'pagos', contrato: '100' })).titulos;
+    assert.deepEqual(paid.map(t => t.id), ['903'], 'pagos seguem só pelo contrato');
+    const all = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos' })).titulos;
+    assert.equal(all.find(t => t.id === '950').contratoId, '100', 'sem contrato pedido: vai para o contrato principal');
+    assert.ok(!all.some(t => t.id === '953'), 'avulso de outro cliente nunca entra');
+});
+
+test('titulos: título com id_contrato 0 sem dono conhecido fica com contrato null (nunca "0")', async () => {
+    const data = looseDataset();
+    data.cliente_contrato = data.cliente_contrato.filter(c => c.id_cliente !== '1');
+    const g = gateway({ gateway: { pixLookup: false } }, data);
+    const all = (await g.handle('/api/ura/titulos/', { cpfcnpj: '12345678909', status: 'abertos' })).titulos;
+    assert.equal(all.find(t => t.id === '950').contrato, null);
+});
+
+test('consultacliente: avulso entra no valor em aberto de um único contrato do cliente', async () => {
+    const g = gateway({}, looseDataset());
+    const { contratos } = await g.handle('/api/ura/consultacliente/', { cpfcnpj: '12345678909' });
+    // 951 (05/11) + 900 (10/11) + 950 (20/11) vencidas + 901 (próxima) = 15 + 80 + 45 + 80.
+    assert.equal(contratos[0].contratoValorAberto, 220);
+    assert.equal(contratos[0].cobVencimento, '2026-11-05');
+    assert.equal(contratos[1].contratoValorAberto, 0, 'sem contar duas vezes no segundo contrato');
+});
+
+test('cidade "0" ou vazia conta como ausente e a cidade do contrato é buscada', async () => {
+    const data = dataset();
+    data.cidade.push({ id: '11', nome: 'Recife' });
+    data.cliente_contrato[0].cidade = '0';
+    data.cliente_contrato[1].cidade = '11';
+    data.cliente_contrato[2].cidade = '';
+    const g = gateway({}, data);
+    const { contratos } = await g.handle('/api/ura/consultacliente/', { cpfcnpj: '12345678909' });
+    assert.deepEqual(contratos.map(c => c.endereco.cidade), ['Olinda', 'Recife', 'Olinda']);
+    assert.ok(!g.calls.some(c => c.table === 'cidade' && String(c.body.query).split(',').includes('0')), 'id 0 nunca é consultado');
+    const none = dataset(); none.cliente[0].cidade = '0'; none.cliente_contrato[0].cidade = '0';
+    const n = await gateway({}, none).handle('/api/ura/consultacliente/', { cpfcnpj: '12345678909' });
+    assert.equal(n.contratos[0].endereco.cidade, '');
+});
+
+test('clientes (sync): login, OLT/slot/PON e dia de vencimento em lote, no formato servicos[].onu do SGP', async () => {
+    const data = dataset();
+    data.cliente_contrato[1].dia_vencimento = '15';
+    const g = gateway({}, data);
+    const result = await g.handle('/api/ura/clientes/', { limit: 100, offset: 0 });
+    const maria = result.clientes.find(c => c.cpfcnpj === '12345678909');
+    const [c100, c101] = maria.contratos;
+    assert.deepEqual(c100.servicos, [{ login: 'maria.fibra', onu: { olt_id: '3', olt_nome: 'OLT BOMBA', slot: '1', pon: '4' } }]);
+    assert.equal(c100.vencimento, 10, 'dia da fatura em aberto na janela');
+    assert.deepEqual(c101.servicos, [], 'contrato sem login');
+    assert.equal(c101.vencimento, 15, 'campo de dia de cobrança do contrato tem prioridade');
+    const empresa = result.clientes.find(c => c.cpfcnpj === '12345678000195').contratos[0];
+    assert.deepEqual(empresa.servicos, [{ login: 'empresa.fibra', onu: { olt_id: '3', olt_nome: 'OLT BOMBA', slot: null, pon: null } }]);
+    const perTable = table => g.calls.filter(c => c.table === table).length;
+    assert.deepEqual(['radusuarios', 'radpop_radio_cliente_fibra', 'radpop_radio', 'fn_areceber'].map(perTable), [1, 1, 1, 1], 'uma chamada em lote por tabela');
+    assert.ok(g.calls.filter(c => ['radusuarios', 'radpop_radio_cliente_fibra'].includes(c.table)).every(c => c.body.oper === 'IN'));
+});
+
+test('clientes (sync): sem permissão nas tabelas de rede/faturas, sincroniza sem enriquecer', async () => {
+    const denied = { type: 'error', message: 'Você não tem permissão para acessar o recurso' };
+    const g = gateway({ onCall: table => (['radusuarios', 'fn_areceber'].includes(table) ? denied : undefined) });
+    const result = await g.handle('/api/ura/clientes/', { limit: 100, offset: 0 });
+    assert.equal(result.clientes.length, 2);
+    const contrato = result.clientes[0].contratos[0];
+    assert.deepEqual(contrato.servicos, []);
+    assert.equal(contrato.vencimento, null);
+    const partial = gateway({ onCall: table => (table === 'radpop_radio_cliente_fibra' ? denied : undefined) });
+    const withLogins = (await partial.handle('/api/ura/clientes/', { limit: 100, offset: 0 })).clientes[0].contratos[0];
+    assert.deepEqual(withLogins.servicos, [{ login: 'maria.fibra', onu: null }]);
 });

@@ -214,16 +214,15 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
               ? state.fastUploadResultMbps
               : null);
 
-      final gwOk =
-          state.testResultsDisplay['pingGateway']?['status'] == TestStatus.success;
+      final gwOk = state.testResultsDisplay['pingGateway']?['status'] ==
+          TestStatus.success;
       final extFail =
           state.testResultsDisplay['pingGoogle']?['status'] == TestStatus.error;
       final onuOffline = onuStatus.toLowerCase().contains('offline') ||
           onuStatus.toLowerCase().contains('los');
       final onuWeak = onuRxDbm != null && onuRxDbm < -28.0;
 
-      final needsProviderSupport =
-          onuOffline || onuWeak || (gwOk && extFail);
+      final needsProviderSupport = onuOffline || onuWeak || (gwOk && extFail);
       final verdict = (onuOffline || (gwOk && extFail))
           ? 'critical'
           : (onuWeak || view.tone == 'wa')
@@ -335,7 +334,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                         Semantics(
                           header: true,
                           child: Text('Compartilhar resultado',
-                              style: vibeText(t, 19, 800, letterSpacingEm: -.01)),
+                              style:
+                                  vibeText(t, 19, 800, letterSpacingEm: -.01)),
                         ),
                         const SizedBox(height: 4),
                         Text('Print completo com todos os testes abertos.',
@@ -382,7 +382,8 @@ class _DiagnosticoPageState extends ConsumerState<DiagnosticoPage> {
                                       }
                                     }),
                           VibePageButton(
-                              label: capturing ? 'Gerando print…' : 'Enviar print',
+                              label:
+                                  capturing ? 'Gerando print…' : 'Enviar print',
                               icon: 'share',
                               onPressed: capturing
                                   ? null

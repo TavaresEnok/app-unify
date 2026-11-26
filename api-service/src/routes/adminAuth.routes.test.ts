@@ -15,6 +15,7 @@ interface AdminRow {
 
 const admins = new Map<string, AdminRow>();
 
+vi.mock("../services/auditService", () => ({ recordAdminAudit: async () => undefined }));
 vi.mock("../services/postgres", () => ({
   ensureCoreSchema: async () => undefined,
   requirePgPool: () => ({
@@ -27,6 +28,13 @@ vi.mock("../services/postgres", () => ({
       if (sql.includes("FROM admin_users") && sql.includes("WHERE uid = $1")) {
         const found = admins.get(String(params[0] || ""));
         return { rows: found ? [found] : [] };
+      }
+      if (sql.includes("SET password_hash = $2, token_version = token_version + 1")) {
+        const found = admins.get(String(params[0] || ""));
+        if (!found || found.token_version !== params[2]) return { rows: [] };
+        found.password_hash = String(params[1]);
+        found.token_version += 1;
+        return { rows: [{ token_version: found.token_version }] };
       }
       if (sql.includes("UPDATE admin_users SET token_version = token_version + 1")) {
         const found = admins.get(String(params[0] || ""));
@@ -111,9 +119,40 @@ describe("adminAuthRouter", () => {
     admins.get("u-super")!.disabled = true;
 
     const login = await request(app).post("/admin/auth/login").send({ email: "super@test.local", password: "Secret123!" });
-    expect(login.status).toBe(403);
+    expect(login.status).toBe(401);
+    expect(login.body.error.message).toBe("Credenciais inválidas.");
 
     const me = await request(app).get("/admin/auth/me").set("Authorization", `Bearer ${token}`);
     expect(me.status).toBe(401);
+  });
+
+  it("unknown e-mail gets the same answer as a wrong password", async () => {
+    const unknown = await request(app).post("/admin/auth/login").send({ email: "ninguem@test.local", password: "Secret123!" });
+    expect(unknown.status).toBe(401);
+    expect(unknown.body.error.message).toBe("Credenciais inválidas.");
+  });
+
+  it("changes the own password, revokes old sessions and keeps the current one", async () => {
+    const login = await request(app).post("/admin/auth/login").send({ email: "super@test.local", password: "Secret123!" });
+    const oldToken = login.body.token;
+    const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
+
+    const weak = await request(app).post("/admin/auth/password").set(auth(oldToken)).send({ currentPassword: "Secret123!", newPassword: "curta1" });
+    expect(weak.status).toBe(400);
+    const noDigit = await request(app).post("/admin/auth/password").set(auth(oldToken)).send({ currentPassword: "Secret123!", newPassword: "somenteletras" });
+    expect(noDigit.status).toBe(400);
+    const wrong = await request(app).post("/admin/auth/password").set(auth(oldToken)).send({ currentPassword: "errada", newPassword: "NovaSenha2026" });
+    expect(wrong.status).toBe(403);
+
+    const changed = await request(app).post("/admin/auth/password").set(auth(oldToken)).send({ currentPassword: "Secret123!", newPassword: "NovaSenha2026" });
+    expect(changed.status).toBe(200);
+    expect(changed.body.ok).toBe(true);
+    expect(typeof changed.body.token).toBe("string");
+    expect(admins.get("u-super")?.token_version).toBe(2);
+
+    expect((await request(app).get("/admin/auth/me").set(auth(oldToken))).status).toBe(401);
+    expect((await request(app).get("/admin/auth/me").set(auth(changed.body.token))).status).toBe(200);
+    expect((await request(app).post("/admin/auth/login").send({ email: "super@test.local", password: "Secret123!" })).status).toBe(401);
+    expect((await request(app).post("/admin/auth/login").send({ email: "super@test.local", password: "NovaSenha2026" })).status).toBe(200);
   });
 });

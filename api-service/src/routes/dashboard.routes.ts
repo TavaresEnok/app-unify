@@ -48,7 +48,7 @@ dashboardRouter.get("/", asyncRoute(async (req, res) => {
   await ensureCoreSchema(pool);
   if (req.user?.superAdmin === true) {
     const [providers, openTickets, tickets, users] = await Promise.all([
-      pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM providers`),
+      pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM providers WHERE NOT (data ? 'deletedAt')`),
       pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tickets WHERE status IN ('Aberto', 'Em Andamento')`),
       pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tickets`),
       pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM sgp_clients`),

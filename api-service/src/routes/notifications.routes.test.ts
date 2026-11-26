@@ -15,6 +15,7 @@ const mockMulticast = vi.fn();
 const mockQuery = vi.fn();
 const mockPool: SqlQueryable = { query: mockQuery };
 
+vi.mock("../services/auditService", () => ({ recordAdminAudit: async () => undefined }));
 vi.mock("../services/firebaseAdmin", () => ({
   getMessaging: () => ({
     send: (...args: unknown[]) => mockSend(...args),
@@ -153,10 +154,11 @@ describe("rotas /admin/notifications", () => {
   it("envia campanha segmentada por multicast e limpa tokens inválidos no Postgres", async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ count: "100" }] }) // ensureProviderSegments
+      .mockResolvedValueOnce({ rows: [{ created_at: new Date("2026-11-22T12:00:00Z") }] }) // INSERT campaign (processing)
       .mockResolvedValueOnce({ rows: [{ matched_subscribers: "2" }] }) // countRes
       .mockResolvedValueOnce({ rows: [{ fcm_token: "tok-ok" }, { fcm_token: "tok-dead" }] }) // tokenRes
       .mockResolvedValueOnce({ rows: [] }) // DELETE invalid tokens
-      .mockResolvedValueOnce({ rows: [{ created_at: new Date("2026-11-22T12:00:00Z") }] }); // INSERT campaign
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE sent
 
     mockMulticast.mockResolvedValueOnce({
       successCount: 1,
@@ -189,14 +191,47 @@ describe("rotas /admin/notifications", () => {
     expect(mockMulticast).toHaveBeenCalledTimes(1);
     const deleteCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes("DELETE FROM subscriber_devices"));
     expect(deleteCall?.[1]).toEqual(["vibe", ["tok-dead"]]);
+    // Registro criado antes do envio e fechado com as contagens reais.
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    const insertAt = sqls.findIndex((sql) => sql.includes("INSERT INTO notification_campaigns"));
+    const sentAt = sqls.findIndex((sql) => sql.includes("SET status = 'sent'"));
+    expect(insertAt).toBeGreaterThan(-1);
+    expect(sqls[insertAt]).toContain("'processing'");
+    expect(sentAt).toBeGreaterThan(insertAt);
+    expect(mockQuery.mock.calls[sentAt][1]).toEqual([expect.any(String), 2, 2, 1, 1, "multicast"]);
+  });
+
+  it("uma falha no meio do envio fica registrada como falhou, com contagem parcial", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ count: "100" }] })
+      .mockResolvedValueOnce({ rows: [{ created_at: new Date("2026-11-22T12:00:00Z") }] })
+      .mockResolvedValueOnce({ rows: [{ matched_subscribers: "2" }] })
+      .mockResolvedValueOnce({ rows: [{ fcm_token: "tok-a" }, { fcm_token: "tok-b" }] });
+    mockMulticast.mockRejectedValueOnce(Object.assign(new Error("network"), { code: "app/network-error" }));
+    await request(app).post("/admin/notifications/send").set({ Authorization: "Bearer adm-vibe" })
+      .send({ title: "T", body: "B", filters: { oltNames: ["OLT X"] } }).expect(500);
+    const failed = mockQuery.mock.calls.find(([sql]) => String(sql).includes("SET status = 'failed'"));
+    expect(failed?.[1]).toEqual([expect.any(String), 2, 2, 0, 0]);
+  });
+
+  it("Idempotency-Key repetido devolve a mesma campanha sem novo envio", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ count: "100" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "c1", provider_id: "vibe", title: "T", body: "B", category: "info", route: "", filters: {}, matched_subscribers: 3, targeted_devices: 3, success_count: 3, failure_count: 0, delivery_mode: "multicast", sent_by: "u1", status: "sent", scheduled_for: null, created_at: new Date("2026-11-22T12:00:00Z") }] });
+    const res = await request(app).post("/admin/notifications/send").set({ Authorization: "Bearer adm-vibe", "Idempotency-Key": "abc-123" })
+      .send({ title: "T", body: "B", filters: { oltNames: ["OLT X"] } }).expect(201);
+    expect(res.body.data).toMatchObject({ id: "c1", successCount: 3 });
+    expect(mockMulticast).not.toHaveBeenCalled();
+    expect(mockSend).not.toHaveBeenCalled();
   });
 
   it("envia broadcast sem filtros usando tópico FCM (zero varredura de tokens)", async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ count: "100" }] }) // ensureProviderSegments (sendCampaign)
+      .mockResolvedValueOnce({ rows: [{ created_at: new Date("2026-11-22T12:00:00Z") }] }) // INSERT (processing)
       .mockResolvedValueOnce({ rows: [{ count: "100" }] }) // ensureProviderSegments (previewAudience)
       .mockResolvedValueOnce({ rows: [{ matched_subscribers: "492", reachable_devices: "120" }] }) // preview
-      .mockResolvedValueOnce({ rows: [{ created_at: new Date("2026-11-22T12:00:00Z") }] }); // INSERT
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE sent
 
     mockSend.mockResolvedValueOnce("projects/x/messages/1");
 

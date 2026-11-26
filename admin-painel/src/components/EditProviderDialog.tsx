@@ -95,7 +95,7 @@ export default function EditProviderDialog({ provider, onUpdate }: EditProviderD
                     <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
                     <Button onClick={handleSave} disabled={isSaving}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Guardar Alterações
+                        Salvar alterações
                     </Button>
                 </DialogFooter>
             </DialogContent>

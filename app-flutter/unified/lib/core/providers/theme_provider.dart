@@ -7,7 +7,21 @@ class DynamicThemeProvider with ChangeNotifier, WidgetsBindingObserver {
   ThemeData _lightTheme;
   ThemeData _darkTheme;
   static const _preferenceKey = 'theme_mode';
-  ThemeMode _themeMode = ThemeMode.light;
+
+  /// Aparência salva, lida antes do primeiro quadro ([preload]) para o app
+  /// não abrir claro e trocar para escuro logo depois.
+  static ThemeMode? _preloaded;
+
+  static Future<void> preload() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_preferenceKey);
+      _preloaded =
+          ThemeMode.values.where((m) => m.toString() == saved).firstOrNull;
+    } catch (_) {}
+  }
+
+  ThemeMode _themeMode = _preloaded ?? ThemeMode.light;
   bool _disposed = false;
   bool _changedByUser = false;
   ThemeConfig _currentConfig;

@@ -52,7 +52,7 @@ export default function PersonalizedTextsSettings() {
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Saudação (Home)</Label>
-                            <Input 
+                            <Input aria-label="Saudação (Home)" 
                                 value={typeof strings.hello_prefix === 'string' ? strings.hello_prefix : ''}
                                 onChange={(e) => handleStringChange('hello_prefix', e.target.value)}
                                 placeholder="Ex: Olá,"
@@ -60,7 +60,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Prefixo do Plano</Label>
-                            <Input 
+                            <Input aria-label="Prefixo do Plano" 
                                 value={typeof strings.plan_prefix === 'string' ? strings.plan_prefix : ''}
                                 onChange={(e) => handleStringChange('plan_prefix', e.target.value)}
                                 placeholder="Ex: Seu plano é:"
@@ -68,7 +68,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Botão Sair</Label>
-                            <Input 
+                            <Input aria-label="Botão Sair" 
                                 value={strings.logout_label || ''} 
                                 onChange={(e) => handleStringChange('logout_label', e.target.value)}
                                 placeholder="Ex: Sair"
@@ -76,7 +76,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Título Aba Home</Label>
-                            <Input 
+                            <Input aria-label="Título Aba Home" 
                                 value={strings.home_tab_title || ''} 
                                 onChange={(e) => handleStringChange('home_tab_title', e.target.value)}
                                 placeholder="Ex: Início"
@@ -85,7 +85,7 @@ export default function PersonalizedTextsSettings() {
                     </div>
                     <div className="space-y-2">
                         <Label>Botão Diagnóstico de Rede</Label>
-                        <Input 
+                        <Input aria-label="Botão Diagnóstico de Rede" 
                             value={strings.diagnostics_button || ''} 
                             onChange={(e) => handleStringChange('diagnostics_button', e.target.value)}
                             placeholder="Ex: Diagnóstico de Rede"
@@ -94,7 +94,7 @@ export default function PersonalizedTextsSettings() {
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Status OK (Título)</Label>
-                            <Input 
+                            <Input aria-label="Status OK (Título)" 
                                 value={strings.status_ok_title || ''} 
                                 onChange={(e) => handleStringChange('status_ok_title', e.target.value)}
                                 placeholder="Ex: Tudo certo"
@@ -102,7 +102,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Status OK (Mensagem)</Label>
-                            <Input 
+                            <Input aria-label="Status OK (Mensagem)" 
                                 value={strings.status_ok_message || ''} 
                                 onChange={(e) => handleStringChange('status_ok_message', e.target.value)}
                                 placeholder="Ex: com seu(s) plano(s)!"
@@ -111,7 +111,7 @@ export default function PersonalizedTextsSettings() {
                     </div>
                      <div className="space-y-2">
                         <Label>Mensagem Selecionar Contrato</Label>
-                        <Input 
+                        <Input aria-label="Mensagem Selecionar Contrato" 
                             value={strings.select_contract_message || ''} 
                             onChange={(e) => handleStringChange('select_contract_message', e.target.value)}
                             placeholder="Ex: Selecionar contrato"
@@ -120,7 +120,7 @@ export default function PersonalizedTextsSettings() {
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Etiqueta Última Fatura</Label>
-                            <Input 
+                            <Input aria-label="Etiqueta Última Fatura" 
                                 value={strings.last_invoice_label || ''} 
                                 onChange={(e) => handleStringChange('last_invoice_label', e.target.value)}
                                 placeholder="Ex: Última fatura"
@@ -128,7 +128,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Botão Ver Faturas</Label>
-                            <Input 
+                            <Input aria-label="Botão Ver Faturas" 
                                 value={strings.view_invoices_label || ''} 
                                 onChange={(e) => handleStringChange('view_invoices_label', e.target.value)}
                             placeholder="Ex: Ver faturas"
@@ -157,7 +157,7 @@ export default function PersonalizedTextsSettings() {
                      <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label>Título da Tela</Label>
-                            <Input 
+                            <Input aria-label="Título da Tela" 
                                 value={strings.support_title || ''} 
                                 onChange={(e) => handleStringChange('support_title', e.target.value)}
                                 placeholder="Ex: Suporte Técnico"
@@ -165,7 +165,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Título Canais de Atendimento</Label>
-                            <Input 
+                            <Input aria-label="Título Canais de Atendimento" 
                                 value={strings.channels_title || ''} 
                                 onChange={(e) => handleStringChange('channels_title', e.target.value)}
                                 placeholder="Ex: Canais de Atendimento"
@@ -173,7 +173,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Título Abrir Ticket</Label>
-                            <Input 
+                            <Input aria-label="Título Abrir Ticket" 
                                 value={strings.open_ticket_title || ''} 
                                 onChange={(e) => handleStringChange('open_ticket_title', e.target.value)}
                                 placeholder="Ex: Abrir Novo Ticket"
@@ -181,7 +181,7 @@ export default function PersonalizedTextsSettings() {
                         </div>
                         <div className="space-y-2">
                             <Label>Título Termos de Uso</Label>
-                            <Input 
+                            <Input aria-label="Título Termos de Uso" 
                                 value={strings.terms_title || ''} 
                                 onChange={(e) => handleStringChange('terms_title', e.target.value)}
                                 placeholder="Ex: Termos de Serviço"

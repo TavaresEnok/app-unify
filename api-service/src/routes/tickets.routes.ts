@@ -284,7 +284,8 @@ async function notifyTicketReplyPush(input: {
     const resp = await fcm.sendEachForMulticast({
       tokens,
       notification: { title, body: input.message.slice(0, 140) },
-      data: { route: "/suporte", ticketId: input.ticketId },
+      // A resposta aparece em Notificações; não há tela de chamados no app.
+      data: { route: "/notificacoes", ticketId: input.ticketId },
     });
     const deadTokens: string[] = [];
     resp.responses.forEach((r, idx) => {

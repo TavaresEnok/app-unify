@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../vibe/vibe_home_parts.dart';
+import '../../../vibe/vibe_skeleton.dart';
 import '../../../vibe/vibe_text.dart';
 import '../../../vibe/vibe_tokens.dart';
 import 'vibe_home_blocks.dart';
@@ -22,10 +23,11 @@ class VibeCenteredHome extends ConsumerWidget {
     final t = VibeTokens.of(context);
     final data = VibeHomeData.watch(ref, onNavigate);
     final inset = MediaQuery.paddingOf(context).top;
-    final main = data.billing.main;
-    final slotState = vibeInvoiceSlotState(context, data,
-        onBrand: true, variant: VibeInvoiceSlotVariant.centered);
+    final slot = VibeInvoiceSlot(data.billing, onBrand: true);
+    final empty = vibeEmptyInvoice(context, data, onBrand: true, center: true);
+    final main = slot.view;
     final incomplete = vibeIncompleteNote(context, data, onBrand: true);
+    final stale = vibeStaleNote(context, data, onBrand: true, center: true);
 
     final top = Container(
       color: t.ac,
@@ -42,48 +44,84 @@ class VibeCenteredHome extends ConsumerWidget {
         ),
         if (data.can('invoices')) ...[
           const SizedBox(height: 20),
-          if (slotState != null)
-            slotState
-          else ...[
-            Text('Fatura de ${main!.month}',
-                textAlign: TextAlign.center,
-                style: vibeText(t, 13, 600, color: t.on)),
-            const SizedBox(height: 8),
-            Center(
-              child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: VibeAmount(main.invoice.valor,
-                      size: 48, color: t.on, currencyScale: .36)),
-            ),
-            const SizedBox(height: 12),
-            Center(
-                child: VibeStatusChip(
-                    tone: main.tone, label: main.chip, onBrand: true)),
-            const SizedBox(height: 8),
-            Center(
-              child: VibeDueLine(
-                  text: main.dueFull,
-                  tone: main.tone,
-                  paid: main.paid,
-                  onBrand: true,
-                  center: true),
-            ),
-            if (main.note != null) ...[
-              const SizedBox(height: 6),
-              Center(
-                child: Text(main.note!,
-                    textAlign: TextAlign.center,
-                    style: vibeText(t, 12.5, 650,
-                        color: t.on.withValues(alpha: .9))),
-              ),
-            ],
-            if (incomplete != null) incomplete,
-            const SizedBox(height: 16),
-            vibePayButton(context, main,
-                kind: VibeButtonKind.white,
-                paidKind: VibeButtonKind.white,
-                onBrand: true),
-          ],
+          if (empty != null)
+            empty
+          else if (main != null)
+            slot.semantics(VibeRefreshEdge(
+              active: data.billing.refreshing,
+              onBrand: true,
+              top: -11,
+              inset: 40,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    slot.title('Fatura de ', main.month,
+                        vibeText(t, 13, 600, color: t.on),
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 8),
+                    slot.amount(
+                      context,
+                      VibeAmount(main.invoice.valor,
+                          size: 48, color: t.on, currencyScale: .36),
+                      frame: (amount) => Center(
+                          child:
+                              FittedBox(fit: BoxFit.scaleDown, child: amount)),
+                      alignment: Alignment.center,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                        child: VibeStatusChip(
+                            tone: slot.failed ? VibeTone.warning : main.tone,
+                            label: slot.chipLabel(main),
+                            onBrand: true,
+                            redacted: slot.redacted)),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: slot.due(
+                        VibeDueLine(
+                            text: main.dueFull,
+                            tone: main.tone,
+                            paid: main.paid,
+                            onBrand: true,
+                            center: true,
+                            redacted: slot.redacted),
+                        slow: const VibeDueLine(
+                            text: VibeInvoiceSlot.slowMessage,
+                            tone: VibeTone.neutral,
+                            icon: 'clock',
+                            maxLines: 1,
+                            center: true,
+                            onBrand: true),
+                      ),
+                    ),
+                    if (main.note != null) ...[
+                      const SizedBox(height: 6),
+                      Center(
+                        child: Text(main.note!,
+                            textAlign: TextAlign.center,
+                            style: vibeText(t, 12.5, 650,
+                                color: t.on.withValues(alpha: .9))),
+                      ),
+                    ],
+                    if (incomplete != null) incomplete,
+                    VibeReveal(
+                        child: stale ?? const SizedBox(width: double.infinity)),
+                    const SizedBox(height: 16),
+                    slot.actions(
+                      vibePayButton(context, main,
+                          kind: VibeButtonKind.white,
+                          paidKind: VibeButtonKind.white,
+                          onBrand: true),
+                      retryButton: VibeButton(
+                          label: 'Tentar novamente',
+                          icon: 'g-refresh',
+                          kind: VibeButtonKind.white,
+                          onBrand: true,
+                          onPressed: slot.retry),
+                    ),
+                  ]),
+            )),
         ],
         const SizedBox(height: 12),
         VibeServiceRail(items: data.rail(context), onBrand: true),
@@ -99,12 +137,17 @@ class VibeCenteredHome extends ConsumerWidget {
       ),
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        ...vibeHomeAlerts(context, data),
-        if (promos.isNotEmpty)
-          VibePromoCarousel(
-              promos: promos,
-              title: promos.first.highlight ? 'Dicas do app' : 'Para você'),
-        if (late != null) ...[const SizedBox(height: 12), late],
+        VibeReveal(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            ...vibeHomeAlerts(context, data),
+            if (promos.isNotEmpty)
+              VibePromoCarousel(
+                  promos: promos,
+                  title: promos.first.highlight ? 'Dicas do app' : 'Para você'),
+            if (late != null) ...[const SizedBox(height: 12), late],
+          ]),
+        ),
       ]),
     );
 
@@ -129,7 +172,11 @@ class VibeCenteredHome extends ConsumerWidget {
       color: t.card,
       child: onRefresh == null
           ? list
-          : RefreshIndicator(onRefresh: onRefresh!, child: list),
+          : RefreshIndicator(
+              onRefresh: onRefresh!,
+              color: t.ac,
+              backgroundColor: t.card,
+              child: list),
     );
   }
 }

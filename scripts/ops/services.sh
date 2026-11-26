@@ -54,6 +54,17 @@ case "$action" in
   status)
     docker compose ps
     ;;
+  revision)
+    # Commit gravado em cada imagem em execução (ops-17). "desconhecida" =
+    # imagem construída sem GIT_REVISION; use "rebuild" para gerar de novo.
+    echo "HEAD: $(git rev-parse HEAD)"
+    for container in $(docker compose ps -q); do
+      docker inspect --format '{{.Name}} {{index .Config.Labels "org.opencontainers.image.revision"}} {{.Created}}' "$container" | sed 's#^/##'
+    done
+    ;;
+  monitor)
+    node scripts/ops/healthcheck.cjs
+    ;;
   health)
     curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8031/ >/dev/null
     curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8034/ready
@@ -70,7 +81,7 @@ case "$action" in
     node scripts/ops/backup-status.cjs
     ;;
   *)
-    echo "Uso: $0 {start|stop|restart|rebuild|logs|status|health} [servico]" >&2
+    echo "Uso: $0 {start|stop|restart|rebuild|logs|status|health|revision|monitor} [servico]" >&2
     exit 2
     ;;
 esac

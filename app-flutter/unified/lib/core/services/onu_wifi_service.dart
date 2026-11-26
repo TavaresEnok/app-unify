@@ -176,37 +176,23 @@ class OnuWifiService {
 
   /// Helper to get base proxy URL
 
+  /// Espera antes da segunda tentativa automática em 5xx (como nas faturas).
+  static Duration retryDelay = const Duration(milliseconds: 1500);
+
   /// Busca dados da ONU (sinal, temperatura, etc)
   Future<OnuData> fetchOnuSignal() async {
     final url = apiEndpoint(apiUrl, 'diagnostic/onu-signal').toString();
     if (kDebugMode) debugPrint('[ONU-Service] Iniciando consulta de sinal.');
 
     try {
-      String? token;
       try {
-        token = await SessionTokenStore.instance.getToken();
-      } catch (_) {}
-      final response = await client
-          .post(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              if (token != null) 'Authorization': 'Bearer $token',
-            },
-            body: json.encode({
-              'cpfCnpj': cpfCnpj,
-              'contrato': contrato,
-              'providerId': providerId,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      final data = decodeApiResponse(response,
-          fallback: 'Erro no servidor (${response.statusCode})');
-      if (data['data'] != null) {
-        return OnuData.fromJson(data['data']);
+        return await _fetchOnuSignalOnce(url);
+      } on ApiException catch (e) {
+        // ERP ocupado/instável (5xx): uma nova tentativa em silêncio.
+        if (e.statusCode < 500) rethrow;
+        await Future<void>.delayed(retryDelay);
+        return await _fetchOnuSignalOnce(url);
       }
-      throw Exception('Dados da ONU não encontrados.');
     } on http.ClientException catch (_) {
       throw Exception(
         'Servidor indisponível.\nVerifique se o servidor local está rodando.',
@@ -225,6 +211,34 @@ class OnuWifiService {
         'Erro ao buscar sinal: ${e.toString().replaceAll("Exception:", "").trim()}',
       );
     }
+  }
+
+  Future<OnuData> _fetchOnuSignalOnce(String url) async {
+    String? token;
+    try {
+      token = await SessionTokenStore.instance.getToken();
+    } catch (_) {}
+    final response = await client
+        .post(
+          Uri.parse(url),
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+          body: json.encode({
+            'cpfCnpj': cpfCnpj,
+            'contrato': contrato,
+            'providerId': providerId,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    final data = decodeApiResponse(response,
+        fallback: 'Erro no servidor (${response.statusCode})');
+    if (data['data'] != null) {
+      return OnuData.fromJson(data['data']);
+    }
+    throw Exception('Dados da ONU não encontrados.');
   }
 
   /// Lista redes WiFi do CPE/Roteador

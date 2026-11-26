@@ -14,6 +14,10 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         received.push({ host: req.headers.host, method: req.method, url: req.url, body });
         if (redirect) { res.writeHead(302, { Location: 'http://127.0.0.1:1/forbidden' }); res.end(); return; }
         if (req.url === '/api/central/verificaacesso/') { res.end(JSON.stringify({ status: online ? 1 : 0 })); return; }
+        if (req.url === '/api/ura/consultacliente/' && new URLSearchParams(body).get('cpfcnpj') === '98765432100') {
+            return res.end(JSON.stringify({ contratos: [{ contratoId: '7', contratoCentralSenha: 'synthetic-password', contratoStatus: 'Cancelado',
+                razaoSocial: 'Synthetic Name', email: 'synthetic@example.test', servico_plano: 'PLANO 300M', contratoValorAberto: '' }] }));
+        }
         if (req.url === '/api/ura/titulos/' && new URLSearchParams(body).get('contrato') === '1') {
             const paid = new URLSearchParams(body).get('status') === 'pagos';
             return res.end(JSON.stringify({ titulos: paid ? [] : [
@@ -184,6 +188,19 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
                 cpfcnpj: '12345678901', senha: 'synthetic-password', contrato: '1',
             });
         }
+        // Contrato encerrado: sem sessão e sem dados pessoais antes do login;
+        // sessões antigas desse CPF são encerradas (token_version + 1).
+        {
+            const start = received.length;
+            const readsStart = reads.length;
+            const closed = await post('/check-cpf', { providerId: 'a', cpf: '98765432100' });
+            assert.equal(closed.status, 200);
+            const closedPayload = await closed.json();
+            assert.deepEqual(Object.keys(closedPayload).sort(), ['contractStatus', 'message', 'status']);
+            assert.equal(closedPayload.contractStatus, 'Cancelado');
+            assert.ok(!received.slice(start).some(item => item.url !== '/api/ura/consultacliente/'));
+            assert.ok(reads.slice(readsStart).some(q => /UPDATE\s+subscribers\s+SET\s+token_version\s*=\s*token_version\s*\+\s*1/i.test(q)));
+        }
         const uid = 'subscriber:a:12345678901';
         const login = () => post('/check-cpf', { providerId: 'a', cpf: '12345678901' });
         const beforeDenied = issued.length;
@@ -269,8 +286,10 @@ test('real proxy routes and worker entrypoints isolate A/B and reject global, fo
         await assert.rejects(api.callSgpApi({ ...a.sgpParams, url: 'http://evil.synthetic.test/api/ura/clientes/' }));
         await assert.rejects(api.callSgpApi({ ...a.sgpParams, token: 'synthetic-b', url }));
         await assert.rejects(api.callSgpApi({ ...a.sgpParams, app: 'forged', url }));
-        mixedDns = true; await assert.rejects(api.callSgpApi({ ...a.sgpParams, url })); mixedDns = false;
-        failLookup = true; await assert.rejects(api.callSgpApi({ ...a.sgpParams, url })); failLookup = false;
+        // O cache de DNS guarda só endereços aprovados; limpando-o, cada resposta
+        // nova (mista ou com falha) volta a ser checada e recusada.
+        transport.clearDnsCache(); mixedDns = true; await assert.rejects(api.callSgpApi({ ...a.sgpParams, url })); mixedDns = false;
+        transport.clearDnsCache(); failLookup = true; await assert.rejects(api.callSgpApi({ ...a.sgpParams, url })); failLookup = false;
         assert.equal(received.length, count);
         for (const path of ['/api/ura/clientes/', '/api/ura/liberacaopromessa/', '/api/fttx/onu/list/']) await api.callSgpApi({ ...a.sgpParams, url: api.formatSgpUrl(a.sgpBaseUrl, path) });
         assert.ok(received.at(-1).url.includes('token=synthetic-a')); assert.equal(received.at(-1).method, 'GET');

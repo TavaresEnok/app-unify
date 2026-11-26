@@ -22,10 +22,13 @@ abstract final class AppFormatters {
 
   static String date(DateTime value) => _date.format(value);
 
-  /// Dia do mês em que o contrato vence: "20/11/2026", "Vence em 6/11/2026"
-  /// ou "2026-11-06" → 20 / 6 / 6. Nulo quando o texto não traz uma data.
+  /// Dia do mês em que o contrato vence: "20/11/2026", "Vence em 6/11/2026",
+  /// "2026-11-06", "Dia 9" ou "9" → 20 / 6 / 6 / 9 / 9. Nulo quando o texto
+  /// não traz uma data.
   static int? dueDayOf(String value) {
-    final match = RegExp(r'(?<!\d)(\d{1,2})/\d{1,2}(?:/\d{2,4})?(?!\d)')
+    final match = RegExp(r'^\s*(?:dia\s*)?(\d{1,2})\s*$', caseSensitive: false)
+            .firstMatch(value) ??
+        RegExp(r'(?<!\d)(\d{1,2})/\d{1,2}(?:/\d{2,4})?(?!\d)')
             .firstMatch(value) ??
         RegExp(r'\d{4}-\d{2}-(\d{2})').firstMatch(value);
     final day = int.tryParse(match?.group(1) ?? '');

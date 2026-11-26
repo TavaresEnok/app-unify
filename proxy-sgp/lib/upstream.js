@@ -7,9 +7,19 @@ for i=1,2 do redis.call('ZREMRANGEBYSCORE',KEYS[i],'-inf',now) end
 if redis.call('ZCARD',KEYS[1]) >= tonumber(ARGV[2]) or redis.call('ZCARD',KEYS[2]) >= tonumber(ARGV[3]) then return 0 end
 for i=1,2 do redis.call('ZADD',KEYS[i],now+90000,ARGV[1]);redis.call('PEXPIRE',KEYS[i],95000) end
 return 1`;
-function createUpstream({ getRedis, getCacheRedis, maxPerProvider = 4, maxPerHost = 8 }) {
+// Vagas esgotadas mesmo após a espera: mensagem amigável que chega ao app.
+const BUSY_MESSAGE = 'Muitos acessos agora. Tente novamente em alguns segundos.';
+function busyError(message) {
+    return Object.assign(new Error(message), { status: 503, code: 'erp-busy', busy: true, publicMessage: BUSY_MESSAGE });
+}
+const positiveLimit = (value, fallback) => (Number.isInteger(value) && value > 0 ? value : fallback);
+function createUpstream({ getRedis, getCacheRedis, maxPerProvider = 4, maxPerHost = 8, slotWaitMs = 0, slotPollMs = 100 }) {
     const pending = new Map();
-    async function execute({ providerId, url, body, ttl = 0, mutate = false }, operation) {
+    // `limits` permite um teto maior por chamada (ex.: IXC aceita mais consultas
+    // paralelas que o SGP); os dois tetos — provedor e host — continuam valendo.
+    async function execute({ providerId, url, body, ttl = 0, mutate = false, limits = {} }, operation) {
+        const providerCap = positiveLimit(limits.maxPerProvider, maxPerProvider);
+        const hostCap = positiveLimit(limits.maxPerHost, maxPerHost);
         const redis = getRedis();
         if (!redis) throw Object.assign(new Error('Controle de consultas indisponível.'), { status: 503 });
         const cacheRedis = getCacheRedis?.() || redis;
@@ -29,8 +39,12 @@ function createUpstream({ getRedis, getCacheRedis, maxPerProvider = 4, maxPerHos
             if (await redis.exists(openKey)) throw Object.assign(new Error('SGP temporariamente indisponível.'), { status: 503 });
             const token = randomUUID();
             const keys = [`sgp:slots:provider:${provider}`, `sgp:slots:host:${host}`];
-            if (!await redis.eval(ACQUIRE, 2, ...keys, token, maxPerProvider, maxPerHost)) {
-                throw Object.assign(new Error('SGP ocupado. Tente novamente em instantes.'), { status: 503 });
+            // Com todas as vagas ocupadas, espera um pouco por uma vaga em vez
+            // de devolver 503 na hora (picos curtos de vários assinantes).
+            const deadline = Date.now() + Math.max(0, slotWaitMs);
+            while (!await redis.eval(ACQUIRE, 2, ...keys, token, providerCap, hostCap)) {
+                if (Date.now() + slotPollMs > deadline) throw busyError('SGP ocupado. Tente novamente em instantes.');
+                await new Promise(resolve => setTimeout(resolve, slotPollMs));
             }
             try {
                 const value = await operation();
@@ -41,7 +55,9 @@ function createUpstream({ getRedis, getCacheRedis, maxPerProvider = 4, maxPerHos
                 return value;
             } catch (error) {
                 // Erros de validação/autorização não indicam indisponibilidade do SGP.
-                if (!error.response || error.response.status >= 500) {
+                // Falha de DNS local também não: abrir o disjuntor derrubaria o
+                // provedor inteiro por um soluço do resolvedor.
+                if (!error.dnsFailure && (!error.response || error.response.status >= 500)) {
                     const failures = await redis.incr(`sgp:fail:${host}`);
                     await redis.expire(`sgp:fail:${host}`, 30);
                     if (failures >= 5) await redis.set(openKey, '1', 'EX', 20);
@@ -61,7 +77,7 @@ function createUpstream({ getRedis, getCacheRedis, maxPerProvider = 4, maxPerHos
                     if (cached) return JSON.parse(cached);
                     if (!await redis.exists(lock)) break;
                 }
-                throw Object.assign(new Error('Consulta em andamento. Tente novamente.'), { status: 503 });
+                throw busyError('Consulta em andamento. Tente novamente.');
             }
             try { return await run(); }
             finally { await redis.eval("if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end return 0", 1, lock, lockToken).catch(() => undefined); }
@@ -78,4 +94,4 @@ function readTtl(url) {
     if (/\/onu\/|wifi\/list/.test(path)) return 10000;
     return 0;
 }
-module.exports = { createUpstream, readTtl, ACQUIRE };
+module.exports = { createUpstream, readTtl, ACQUIRE, BUSY_MESSAGE };

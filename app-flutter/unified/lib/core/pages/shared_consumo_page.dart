@@ -58,34 +58,7 @@ class ConsumoPage extends ConsumerWidget {
           onSelected: (month) =>
               controller.changeMonth(month.month, month.year),
         ),
-        if (state.isLoading) ...[
-          Semantics(
-            label: 'Carregando consumo',
-            liveRegion: true,
-            child: const VibeCard(
-              main: true,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  VibeLabel('Carregando consumo…'),
-                  SizedBox(height: 6),
-                  VibeShimmerBar(width: 130, height: 34, radius: 8),
-                  SizedBox(height: 10),
-                  VibeShimmerBar(height: 112, radius: 10),
-                  SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      VibeShimmerBar(width: 38, height: 14, radius: 4),
-                      VibeShimmerBar(width: 44, height: 14, radius: 4),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const VibeShimmerBar(height: 14, radius: 4),
-        ] else if (state.error != null)
+        if (data == null && state.error != null)
           VibeCard(
             child: VibeEmpty(
               icon: 'g-chart',
@@ -98,7 +71,36 @@ class ConsumoPage extends ConsumerWidget {
               ),
             ),
           )
-        else if (total == null)
+        else if (data == null || (total == null && state.isLoading)) ...[
+          // Primeira consulta do mês: o cartão real, só os números cobertos.
+          Semantics(
+            label: 'Consultando o consumo',
+            liveRegion: true,
+            child: VibeCard(
+              main: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  VibeLabel(_totalLabel(selectedMonth, currentMonth)),
+                  const VibeRedact(
+                      redacted: true, child: VibeBigText('000 GB')),
+                  const SizedBox(height: 10),
+                  const VibeShimmerBar(height: 112, radius: 10),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Flexible(child: VibeLabel('Dia 1')),
+                      const SizedBox(width: 8),
+                      Flexible(child: VibeLabel('Dia $lastDay')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const VibeNote(_note),
+        ] else if (total == null)
           const VibeCard(
             child: VibeEmpty(
               icon: 'g-chart',
@@ -107,31 +109,49 @@ class ConsumoPage extends ConsumerWidget {
             ),
           )
         else ...[
+          // Atualizando: o gráfico continua, esmaecido, com a barra fina no
+          // topo do cartão.
           VibeCard(
             main: true,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                VibeLabel(
-                    'Total em ${DateFormat.MMMM('pt_BR').format(selectedMonth)}'
-                    '${currentMonth ? ' até hoje' : ''}'),
-                VibeBigText('${_total(total)} GB'),
-                const SizedBox(height: 10),
-                if (entries.isEmpty)
-                  const VibeNote(
-                      'Detalhes diários indisponíveis para este período.')
-                else
-                  _DailyChart(entries: entries, lastDay: lastDay),
-              ],
+            child: VibeRefreshEdge(
+              active: state.isLoading,
+              top: -8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  VibeLabel(_totalLabel(selectedMonth, currentMonth)),
+                  VibeBigText('${_total(total)} GB'),
+                  const SizedBox(height: 10),
+                  AnimatedOpacity(
+                    opacity: state.isLoading ? .6 : 1,
+                    duration: const Duration(milliseconds: 180),
+                    child: entries.isEmpty
+                        ? const VibeNote(
+                            'Detalhes diários indisponíveis para este período.')
+                        : _DailyChart(entries: entries, lastDay: lastDay),
+                  ),
+                ],
+              ),
             ),
           ),
-          const VibeNote(
-              'Este é o histórico informado pelo provedor. Dias sem dados não significam consumo zero.'),
+          if (state.error != null && !state.isLoading)
+            const VibeOkBox(
+                strip: true,
+                warning: true,
+                title:
+                    'Não foi possível atualizar. Mostrando a última consulta.'),
+          const VibeNote(_note),
         ],
       ],
     );
   }
 }
+
+const _note =
+    'Este é o histórico informado pelo provedor. Dias sem dados não significam consumo zero.';
+
+String _totalLabel(DateTime month, bool current) =>
+    'Total em ${DateFormat.MMMM('pt_BR').format(month)}${current ? ' até hoje' : ''}';
 
 final _gb =
     NumberFormat.decimalPatternDigits(locale: 'pt_BR', decimalDigits: 2);

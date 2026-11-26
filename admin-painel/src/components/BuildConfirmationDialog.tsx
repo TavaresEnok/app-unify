@@ -7,12 +7,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 interface Props {
     email: string;
-    format: 'apk' | 'aab';
+    format?: 'apk' | 'aab';
     onConfirm: (password: string) => Promise<void>;
     onCancel: () => void;
+    title?: string;
+    description?: string;
+    confirmLabel?: string;
 }
 
-export default function BuildConfirmationDialog({ email, format, onConfirm, onCancel }: Props) {
+export default function BuildConfirmationDialog({ email, format = 'apk', onConfirm, onCancel, title, description, confirmLabel }: Props) {
     const [password, setPassword] = useState('');
     const [visible, setVisible] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -39,8 +42,8 @@ export default function BuildConfirmationDialog({ email, format, onConfirm, onCa
     return <Dialog open onOpenChange={open => { if (!open && !busy) onCancel(); }}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Confirmar geração</DialogTitle>
-                <DialogDescription>Confirme sua senha para gerar o aplicativo. Você continua no painel e suas configurações serão mantidas.</DialogDescription>
+                <DialogTitle>{title || 'Confirmar geração'}</DialogTitle>
+                <DialogDescription>{description || 'Confirme sua senha para gerar o aplicativo. Você continua no painel e suas configurações serão mantidas.'}</DialogDescription>
             </DialogHeader>
             <form onSubmit={submit} className="space-y-4">
                 <div className="space-y-2">
@@ -65,7 +68,7 @@ export default function BuildConfirmationDialog({ email, format, onConfirm, onCa
                     <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>Cancelar</Button>
                     <Button type="submit" disabled={busy || !password}>
                         {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Confirmar e gerar {format.toUpperCase()}
+                        {confirmLabel || `Confirmar e gerar ${format.toUpperCase()}`}
                     </Button>
                 </DialogFooter>
             </form>

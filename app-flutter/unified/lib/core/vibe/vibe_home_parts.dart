@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'vibe_icon.dart';
 export 'vibe_logo.dart';
+import 'vibe_skeleton.dart';
 import 'vibe_text.dart';
 import 'vibe_tokens.dart';
 
@@ -33,6 +34,16 @@ class VibeAmount extends StatelessWidget {
         .toString()
         .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
     final small = size * currencyScale;
+    // Uma linha sempre: com fonte muito grande o valor encolhe inteiro, em
+    // vez de cortar ou quebrar os centavos ("R$ 1.234,5").
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: _text(t, grouped, rest, small),
+    );
+  }
+
+  Widget _text(VibeTokens t, String grouped, String rest, double small) {
     return Text.rich(
       TextSpan(children: [
         TextSpan(
@@ -63,11 +74,15 @@ class VibeStatusChip extends StatelessWidget {
       {super.key,
       required this.tone,
       required this.label,
-      this.onBrand = false});
+      this.onBrand = false,
+      this.redacted = false});
 
   final VibeTone tone;
   final String label;
   final bool onBrand;
+
+  /// Moldura e ícone visíveis, texto coberto até a consulta terminar.
+  final bool redacted;
 
   static String iconFor(VibeTone tone) => switch (tone) {
         VibeTone.bad => 'alert',
@@ -89,7 +104,11 @@ class VibeStatusChip extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         VibeIcon(iconFor(tone), size: 14, strokeWidth: 2.2, color: fg),
         const SizedBox(width: 5),
-        Text(label, style: vibeText(t, 12, 650, color: fg, height: 1)),
+        VibeRedact(
+          redacted: redacted,
+          onBrand: onBrand,
+          child: Text(label, style: vibeText(t, 12, 650, color: fg, height: 1)),
+        ),
       ]),
     );
   }
@@ -103,13 +122,21 @@ class VibeDueLine extends StatelessWidget {
       required this.tone,
       this.paid = false,
       this.onBrand = false,
-      this.center = false});
+      this.center = false,
+      this.redacted = false,
+      this.icon,
+      this.maxLines = 2});
 
   final String text;
   final VibeTone tone;
   final bool paid;
   final bool onBrand;
   final bool center;
+
+  /// Ícone visível, data coberta até a consulta terminar.
+  final bool redacted;
+  final String? icon;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -122,11 +149,17 @@ class VibeDueLine extends StatelessWidget {
     return Row(
         mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
         children: [
-          VibeIcon(paid ? 'check' : 'cal', size: 16, color: color),
+          VibeIcon(icon ?? (paid ? 'check' : 'cal'), size: 16, color: color),
           const SizedBox(width: 6),
           Flexible(
-              child: Text(text,
-                  style: vibeText(t, 13, 600, color: color), maxLines: 2)),
+              child: VibeRedact(
+            redacted: redacted,
+            onBrand: onBrand,
+            child: Text(text,
+                style: vibeText(t, 13, 600, color: color),
+                maxLines: maxLines,
+                overflow: maxLines == 1 ? TextOverflow.ellipsis : null),
+          )),
         ]);
   }
 }
@@ -448,8 +481,12 @@ class VibeAvatar extends StatelessWidget {
             width: 40,
             height: 40,
             child: Center(
-                child: Text(initials,
-                    style: vibeText(t, 13, 750, color: fg, height: 1))),
+                child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(initials,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: vibeText(t, 13, 750, color: fg, height: 1)))),
           ),
         ),
       ),
@@ -533,7 +570,7 @@ class VibeShortcut {
   const VibeShortcut(this.label, this.icon, this.onTap);
   final String label;
   final String icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 }
 
 /// Grade de atalhos em quatro colunas (`.tg` e `.tq`).

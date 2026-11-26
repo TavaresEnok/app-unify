@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { SessionUser } from '@/shared/auth/session';
+const session = vi.hoisted(() => ({ currentUser: null as null | { uid: string; getIdToken: () => Promise<string> } }));
+vi.mock('@/shared/auth/session', () => ({ auth: session }));
 import { clearDashboardPrefetch, fetchDashboard } from './dashboard';
 
 const fetchMock = vi.fn();
@@ -37,4 +39,17 @@ it('retries failed requests and expires completed prefetches', async () => {
   await fetchDashboard(user('a'));
   expect(fetchMock).toHaveBeenCalledTimes(3);
   vi.restoreAllMocks();
+});
+it('announces an expired session only when the rejected token is still the current one', async () => {
+  const dispatchEvent = vi.fn();
+  vi.stubGlobal('window', { location: { protocol: 'https:', hostname: 'panel.test', port: '', origin: 'https://panel.test' }, dispatchEvent });
+  fetchMock.mockImplementation(async () => new Response(JSON.stringify({ error: { message: 'Sessão inválida.' } }), { status: 401 }));
+  session.currentUser = user('a');
+  await expect(fetchDashboard(user('a'), 'one')).rejects.toMatchObject({ status: 401 });
+  expect(dispatchEvent).toHaveBeenCalledTimes(1);
+  // Já entrou de novo com outro token: a resposta atrasada não derruba a sessão nova.
+  session.currentUser = { uid: 'a', getIdToken: async () => 'fresh-token' };
+  await expect(fetchDashboard(user('a'), 'two')).rejects.toMatchObject({ status: 401 });
+  expect(dispatchEvent).toHaveBeenCalledTimes(1);
+  session.currentUser = null;
 });

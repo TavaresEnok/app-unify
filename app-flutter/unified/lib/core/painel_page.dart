@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +17,7 @@ import 'vibe/vibe_tokens.dart';
 import 'services/incident_service.dart';
 import 'services/push_notification_service.dart';
 import 'widgets/content_state.dart';
+import 'widgets/app_update.dart';
 import 'widgets/offline_banner.dart';
 import 'pages/customer/customer_home_page.dart';
 import 'pages/customer/homes/vibe_home_data.dart';
@@ -45,6 +48,7 @@ class PainelPage extends ConsumerStatefulWidget {
 
 class _PainelPageState extends ConsumerState<PainelPage> {
   int _tab = 0;
+  final Set<int> _visited = {};
   ProviderIncident? _activeIncident;
   String? _dismissedIncidentId;
   static const _tabs = ['dashboard', 'invoices', 'connection', 'support'];
@@ -56,7 +60,12 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     _tab = _tabs.contains(destination) ? _tabs.indexOf(destination) : 0;
     PushNotificationService().setOnNotificationTap(_handlePushRoute);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.refreshOnOpen) _refresh();
+      if (widget.refreshOnOpen) {
+        _refresh(initial: true);
+        // Quem pulou a apresentação ouve o pedido de avisos já dentro da
+        // conta (uma vez só; nunca na tela de abertura).
+        unawaited(PushNotificationService().requestPermissionOnce());
+      }
       if (!_tabs.contains(destination) && mounted) _navigate(destination);
     });
   }
@@ -74,25 +83,36 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     _navigate(target);
   }
 
-  Future<void> _refresh() async {
+  /// Atualiza tudo em paralelo. O gesto de puxar espera só o que aparece
+  /// na tela (cadastro e faturas); configuração, avisos e incidentes vêm
+  /// por trás e se aplicam quando chegarem.
+  Future<void> _refresh({bool initial = false}) async {
     final config = ref.read(configurationProvider).providerConfig;
     if (config == null) return;
-    await ref.read(configurationProvider).loadConfig(config.id);
-    if (!mounted) return;
-    await ref.read(authNotifierProvider.notifier).refreshUserData(config);
-    if (!mounted) return;
+    unawaited(ref.read(configurationProvider).loadConfig(config.id));
+    // Na abertura a disponibilidade do Wi‑Fi acabou de ser consultada.
+    if (!initial) refreshWifiAvailability(ref);
+    unawaited(_refreshIncident(config.apiUrl));
     final user = ref.read(authNotifierProvider).valueOrNull;
-    if (user != null) {
-      await ref.read(financeiroViewModelProvider).fetchHistory();
-      if (!mounted) return;
+    await Future.wait([
+      ref.read(authNotifierProvider.notifier).refreshUserData(config),
+      if (user != null) ref.read(financeiroViewModelProvider).fetchHistory(),
+    ]);
+    if (!mounted) return;
+    final current = ref.read(authNotifierProvider).valueOrNull;
+    if (current != null) {
       final notif = ref.read(notificationProvider);
       notif.configureApiUrl(config.apiUrl);
-      await notif.syncRemoteNotifications(user, config.id);
+      unawaited(
+          notif.syncRemoteNotifications(current, config.id).catchError((_) {}));
     }
-    final incident = await IncidentService.fetchActiveFromApi(config.apiUrl);
-    if (mounted) {
-      setState(() => _activeIncident = incident);
-    }
+  }
+
+  Future<void> _refreshIncident(String apiUrl) async {
+    try {
+      final incident = await IncidentService.fetchActiveFromApi(apiUrl);
+      if (mounted) setState(() => _activeIncident = incident);
+    } catch (_) {}
   }
 
   void _showIncidentSheet(VibeTokens t, ProviderIncident incident) {
@@ -145,7 +165,8 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                   incident.message,
                   style: vibeText(t, 14, 500, color: t.mut, height: 1.45),
                 ),
-                if (incident.area != null || incident.estimatedResolution != null) ...[
+                if (incident.area != null ||
+                    incident.estimatedResolution != null) ...[
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -160,7 +181,8 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                         ),
                       if (incident.estimatedResolution != null)
                         Chip(
-                          label: Text('Previsão: ${incident.estimatedResolution!}',
+                          label: Text(
+                              'Previsão: ${incident.estimatedResolution!}',
                               style: vibeText(t, 12, 600)),
                           backgroundColor: t.ink.withValues(alpha: .06),
                           side: BorderSide.none,
@@ -390,6 +412,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
             data: theme,
             child: CustomerShellScope(
               frame: _frame,
+              navigate: _navigate,
               child: AnnotatedRegion<SystemUiOverlayStyle>(
                 value: _statusStyle(t, home: false),
                 child: Scaffold(
@@ -420,42 +443,54 @@ class _PainelPageState extends ConsumerState<PainelPage> {
     // A consulta da rede alimenta o Início e a marca da tela Dock.
     ref.watch(connectivityStatusProvider);
     if (user == null || config == null) {
-      return const ColoredBox(
-          color: Colors.white,
+      final dark = Theme.of(context).brightness == Brightness.dark;
+      final fg = dark ? const Color(0xFFE6E8EC) : const Color(0xFF18202C);
+      return ColoredBox(
+          color: dark ? const Color(0xFF0F1115) : Colors.white,
           child: Center(
               child: SizedBox(
                   width: 96,
                   child: LinearProgressIndicator(
                       minHeight: 3,
-                      color: Color(0xFF18202C),
-                      backgroundColor: Color(0x1A18202C)))));
+                      color: fg,
+                      backgroundColor: fg.withValues(alpha: .1)))));
     }
     final theme = tokens.themeData(base: Theme.of(context));
     final t = theme.extension<VibeTokens>()!;
-    final body = switch (_tab) {
-      0 => CustomerHomePage(
-          onNavigate: _navigate,
-          onRefresh: () async {
-            await _refresh();
-            if (mounted) {
-              await ref.read(financeiroViewModelProvider).fetchHistory();
-            }
-          }),
-      1 => CustomerRoutes.enabled(config, 'invoices')
-          ? LayoutSelector.getFinanceiroPage(layoutType: config.layoutType)
-          : const ContentState(
-              icon: Icons.receipt_long_outlined,
-              title: 'Faturas indisponíveis no app',
-              message: 'Consulte seu provedor.'),
-      2 => ConnectionHubPage(onNavigate: _navigate),
-      _ => CustomerSupportPage(onNavigate: _navigate),
-    };
+    // As quatro abas ficam vivas depois da primeira visita (rolagem, mês
+    // escolhido, seções abertas): voltar a uma aba não a recarrega.
+    _visited.add(_tab);
+    Widget tab(int index) => switch (index) {
+          0 => CustomerHomePage(onNavigate: _navigate, onRefresh: _refresh),
+          1 => CustomerRoutes.enabled(config, 'invoices')
+              ? LayoutSelector.getFinanceiroPage(layoutType: config.layoutType)
+              : const ContentState(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Faturas indisponíveis no app',
+                  message: 'Consulte seu provedor.'),
+          2 => ConnectionHubPage(onNavigate: _navigate),
+          _ => CustomerSupportPage(onNavigate: _navigate),
+        };
+    final body = IndexedStack(
+      index: _tab,
+      sizing: StackFit.expand,
+      children: [
+        for (var i = 0; i < _tabs.length; i++)
+          TickerMode(
+            enabled: i == _tab,
+            child: _visited.contains(i)
+                ? KeyedSubtree(key: ValueKey('tab-$i'), child: tab(i))
+                : const SizedBox.shrink(),
+          ),
+      ],
+    );
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: _statusStyle(t, home: _tab == 0),
       child: Theme(
           data: theme,
           child: CustomerShellScope(
             frame: _frame,
+            navigate: _navigate,
             child: Builder(
                 builder: (context) => PopScope(
                       canPop: _tab == 0,
@@ -469,6 +504,7 @@ class _PainelPageState extends ConsumerState<PainelPage> {
                           if (_activeIncident != null &&
                               _activeIncident!.id != _dismissedIncidentId)
                             _buildIncidentBanner(t, _activeIncident!),
+                          const UpdateAvailableBanner(),
                           const OfflineBanner(),
                         ]),
                         bottomNavigationBar: VibeNavBar(

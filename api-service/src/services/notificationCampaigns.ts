@@ -66,6 +66,8 @@ export interface SendCampaignInput {
   filters?: SegmentFilters;
   sentBy: string;
   scheduledFor?: string | null;
+  /** Mesmo valor em um reenvio devolve a campanha já criada, sem novo push. */
+  idempotencyKey?: string | null;
 }
 
 export type CampaignStatus = "sent" | "scheduled" | "processing" | "cancelled" | "failed";
@@ -561,6 +563,13 @@ async function resolveTargetTokens(
   return { matchedSubscribers, tokens };
 }
 
+interface DeliveryProgress {
+  matchedSubscribers: number;
+  targetedDevices: number;
+  successCount: number;
+  failureCount: number;
+}
+
 async function deliverCampaignFcm(
   db: SqlQueryable,
   messagingClient: MessagingLike | null | undefined,
@@ -573,6 +582,7 @@ async function deliverCampaignFcm(
     route: string;
     filters: NormalizedSegmentFilters;
   },
+  progress: DeliveryProgress = { matchedSubscribers: 0, targetedDevices: 0, successCount: 0, failureCount: 0 },
 ): Promise<{
   matchedSubscribers: number;
   targetedDevices: number;
@@ -597,6 +607,8 @@ async function deliverCampaignFcm(
     const preview = await previewAudience(db, params.providerId, params.filters);
     matchedSubscribers = preview.matchedSubscribers;
     targetedDevices = preview.reachableDevices;
+    progress.matchedSubscribers = matchedSubscribers;
+    progress.targetedDevices = targetedDevices;
 
     if (messagingClient) {
       await messagingClient.send({
@@ -608,12 +620,16 @@ async function deliverCampaignFcm(
           notification: { channelId: "high_importance_channel", priority: "high" },
         },
       });
-      successCount = Math.max(1, targetedDevices);
+      // Envio por tópico: o FCM aceita uma mensagem para o tópico e não
+      // informa quantos aparelhos receberam. Não inventa contagem.
+      successCount = 0;
     }
   } else {
     const resolved = await resolveTargetTokens(db, params.providerId, params.filters);
     matchedSubscribers = resolved.matchedSubscribers;
     targetedDevices = resolved.tokens.length;
+    progress.matchedSubscribers = matchedSubscribers;
+    progress.targetedDevices = targetedDevices;
 
     const invalidTokens: string[] = [];
     if (messagingClient) {
@@ -630,6 +646,8 @@ async function deliverCampaignFcm(
         });
         successCount += response.successCount;
         failureCount += response.failureCount;
+        progress.successCount = successCount;
+        progress.failureCount = failureCount;
         response.responses.forEach((item, idx) => {
           if (!item.success && item.error?.code && INVALID_TOKEN_CODES.has(item.error.code)) {
             invalidTokens.push(chunk[idx]);
@@ -718,38 +736,64 @@ export async function sendCampaign(
     };
   }
 
-  const delivered = await deliverCampaignFcm(db, messagingClient, {
-    id,
-    providerId: input.providerId,
-    title,
-    body,
-    category,
-    route,
-    filters,
-  });
+  const idempotencyKey = typeof input.idempotencyKey === "string" && input.idempotencyKey.trim()
+    ? input.idempotencyKey.trim().slice(0, 120)
+    : null;
+  if (idempotencyKey) {
+    const previous = await findCampaignByIdempotencyKey(db, input.providerId, idempotencyKey);
+    if (previous) return previous;
+  }
 
-  const inserted = await db.query<{ created_at: Date }>(
-    `INSERT INTO notification_campaigns (
-       id, provider_id, title, body, category, route, filters,
-       matched_subscribers, targeted_devices, success_count, failure_count,
-       delivery_mode, sent_by, status
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,'sent')
-     RETURNING created_at`,
-    [
+  // Registra a campanha ANTES do envio: mesmo uma falha no meio do caminho
+  // fica no histórico com as contagens parciais (sem reenvio automático).
+  const plannedMode: "topic" | "multicast" = hasActiveFilters(filters) ? "multicast" : "topic";
+  let inserted: { rows: Array<{ created_at: Date }> };
+  try {
+    inserted = await db.query<{ created_at: Date }>(
+      `INSERT INTO notification_campaigns (
+         id, provider_id, title, body, category, route, filters,
+         matched_subscribers, targeted_devices, success_count, failure_count,
+         delivery_mode, sent_by, status, processing_started_at, idempotency_key
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,0,0,0,0,$8,$9,'processing',NOW(),$10)
+       RETURNING created_at`,
+      [id, input.providerId, title, body, category, route, JSON.stringify(filters), plannedMode, input.sentBy, idempotencyKey],
+    );
+  } catch (error) {
+    if (idempotencyKey && (error as { code?: string }).code === "23505") {
+      const previous = await findCampaignByIdempotencyKey(db, input.providerId, idempotencyKey);
+      if (previous) return previous;
+    }
+    throw error;
+  }
+
+  const progress: DeliveryProgress = { matchedSubscribers: 0, targetedDevices: 0, successCount: 0, failureCount: 0 };
+  let delivered: Awaited<ReturnType<typeof deliverCampaignFcm>>;
+  try {
+    delivered = await deliverCampaignFcm(db, messagingClient, {
       id,
-      input.providerId,
+      providerId: input.providerId,
       title,
       body,
       category,
       route,
-      JSON.stringify(filters),
-      delivered.matchedSubscribers,
-      delivered.targetedDevices,
-      delivered.successCount,
-      delivered.failureCount,
-      delivered.deliveryMode,
-      input.sentBy,
-    ],
+      filters,
+    }, progress);
+  } catch (error) {
+    await db.query(
+      `UPDATE notification_campaigns
+          SET status = 'failed', matched_subscribers = $2, targeted_devices = $3, success_count = $4, failure_count = $5
+        WHERE id = $1`,
+      [id, progress.matchedSubscribers, progress.targetedDevices, progress.successCount, progress.failureCount],
+    ).catch(() => undefined);
+    throw error;
+  }
+
+  await db.query(
+    `UPDATE notification_campaigns
+        SET status = 'sent', matched_subscribers = $2, targeted_devices = $3, success_count = $4,
+            failure_count = $5, delivery_mode = $6
+      WHERE id = $1`,
+    [id, delivered.matchedSubscribers, delivered.targetedDevices, delivered.successCount, delivered.failureCount, delivered.deliveryMode],
   );
 
   return {
@@ -769,6 +813,41 @@ export async function sendCampaign(
     status: "sent",
     scheduledFor: null,
     createdAt: (inserted.rows[0]?.created_at ?? new Date()).toISOString(),
+  };
+}
+
+async function findCampaignByIdempotencyKey(db: SqlQueryable, providerId: string, key: string): Promise<CampaignRecord | null> {
+  const res = await db.query<{
+    id: string; provider_id: string; title: string; body: string; category: string; route: string; filters: SegmentFilters;
+    matched_subscribers: number; targeted_devices: number; success_count: number; failure_count: number;
+    delivery_mode: "topic" | "multicast"; sent_by: string; status: CampaignStatus; scheduled_for: Date | null; created_at: Date;
+  }>(
+    `SELECT id, provider_id, title, body, category, route, filters, matched_subscribers, targeted_devices,
+            success_count, failure_count, delivery_mode, sent_by, COALESCE(status, 'sent') AS status, scheduled_for, created_at
+       FROM notification_campaigns
+      WHERE provider_id = $1 AND idempotency_key = $2
+      LIMIT 1`,
+    [providerId, key],
+  );
+  const r = res.rows[0];
+  if (!r || !r.id) return null;
+  return {
+    id: r.id,
+    providerId: r.provider_id,
+    title: r.title,
+    body: r.body,
+    category: r.category,
+    route: r.route,
+    filters: normalizeFilters(r.filters),
+    matchedSubscribers: Number(r.matched_subscribers || 0),
+    targetedDevices: Number(r.targeted_devices || 0),
+    successCount: Number(r.success_count || 0),
+    failureCount: Number(r.failure_count || 0),
+    deliveryMode: r.delivery_mode === "topic" ? "topic" : "multicast",
+    sentBy: r.sent_by,
+    status: r.status,
+    scheduledFor: r.scheduled_for ? new Date(r.scheduled_for).toISOString() : null,
+    createdAt: new Date(r.created_at || Date.now()).toISOString(),
   };
 }
 
@@ -796,6 +875,14 @@ export async function processDueScheduledCampaigns(
   messagingClient: MessagingLike | null | undefined,
 ): Promise<number> {
   await ensureNotificationSchema(db);
+  // Campanha presa em "processando" (queda/deploy no meio): vira "falhou",
+  // sem reenviar, para não duplicar push.
+  await db.query(
+    `UPDATE notification_campaigns
+        SET status = 'failed'
+      WHERE status = 'processing'
+        AND COALESCE(processing_started_at, scheduled_for, created_at) < NOW() - INTERVAL '15 minutes'`,
+  ).catch(() => undefined);
   const claimed = await db.query<{
     id: string;
     provider_id: string;
@@ -806,7 +893,7 @@ export async function processDueScheduledCampaigns(
     filters: SegmentFilters;
   }>(
     `UPDATE notification_campaigns
-        SET status = 'processing'
+        SET status = 'processing', processing_started_at = NOW()
       WHERE id IN (
         SELECT id
           FROM notification_campaigns

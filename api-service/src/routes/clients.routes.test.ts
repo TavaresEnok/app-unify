@@ -14,6 +14,7 @@ vi.mock("../services/self-auth", () => ({
   },
 }));
 
+vi.mock("../services/auditService", () => ({ recordAdminAudit: async () => undefined }));
 vi.mock("../services/postgres", () => ({
   getPgPool: () => ({ query: mockQuery }),
   requirePgPool: () => ({ query: mockQuery }),
@@ -116,5 +117,15 @@ describe("clients.routes", () => {
     const listQuery = mockQuery.mock.calls[1];
     expect(listQuery[0]).toContain("c.client_id = $4");
     expect(listQuery[1]).toContain("407");
+  });
+
+  it("encerra as sessões do assinante só no próprio provedor", async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    const ok = await request(app).post("/admin/clients/111.222.333-44/revoke-sessions").set({ Authorization: "Bearer adm-vibe" }).send({}).expect(200);
+    expect(ok.body).toEqual({ success: true, revoked: true });
+    const call = mockQuery.mock.calls.find(([sql]) => String(sql).includes("token_version = token_version + 1"));
+    expect(call?.[1]).toEqual(["vibe", "11122233344"]);
+    await request(app).post("/admin/clients/11122233344/revoke-sessions").set({ Authorization: "Bearer adm-other" }).send({ providerId: "vibe" }).expect(403);
+    await request(app).post("/admin/clients/123/revoke-sessions").set({ Authorization: "Bearer adm-vibe" }).send({}).expect(400);
   });
 });

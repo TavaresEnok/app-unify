@@ -7,6 +7,12 @@ import type {
   FunctionResultMap,
 } from '@/shared/contracts';
 import { clearPanelReads, panelRequest, readPanel } from '@/shared/api/panelHttp';
+import { fetchDashboard } from '@/shared/api/dashboard';
+import { auth } from '@/shared/auth/session';
+import { withRecentLogin, ReauthCanceledError } from '@/shared/auth/recentLogin';
+
+// Ações que o servidor só aceita com login recente (401 "reauth-required").
+const RECENT_LOGIN_TYPES = new Set<FunctionRequestType>(['CREATE_ADMIN_USER', 'SET_SUPER_ADMIN_BY_EMAIL']);
 
 interface UseApiOptions {
   silent?: boolean;
@@ -26,16 +32,17 @@ async function dispatchRestFunction<T extends FunctionRequestType>(
 ): Promise<FunctionResultMap[T]> {
   switch (type) {
     case 'GET_DASHBOARD_DATA': {
-      const res = await readPanel<{ data: Record<string, unknown> }>('/admin/dashboard/panel');
-      return res.data as FunctionResultMap[T];
+      // Reaproveita a busca já disparada no login (fetchDashboard, por uid).
+      const user = auth.currentUser;
+      if (!user) throw new Error('Sessão necessária.');
+      return await fetchDashboard(user) as FunctionResultMap[T];
     }
     case 'GET_PROVIDER_DASHBOARD_DATA': {
       const p = payload as FunctionRequestPayloadMap['GET_PROVIDER_DASHBOARD_DATA'];
       const target = scopedProviderId || p.providerId;
-      const res = await readPanel<{ data: Record<string, unknown> }>(
-        `/admin/dashboard/panel/providers/${encodeURIComponent(target)}`,
-      );
-      return res.data as FunctionResultMap[T];
+      const user = auth.currentUser;
+      if (!user) throw new Error('Sessão necessária.');
+      return await fetchDashboard(user, target) as FunctionResultMap[T];
     }
     case 'CREATE_PROVIDER': {
       const p = payload as FunctionRequestPayloadMap['CREATE_PROVIDER'];
@@ -220,7 +227,9 @@ export function useApi() {
         throw new Error('Autenticação necessária para realizar esta operação.');
       }
       const scopedProviderId = userRole === 'providerAdmin' ? providerId : null;
-      const result = await dispatchRestFunction(type, payload, scopedProviderId);
+      const result = RECENT_LOGIN_TYPES.has(type)
+        ? await withRecentLogin(() => dispatchRestFunction(type, payload, scopedProviderId))
+        : await dispatchRestFunction(type, payload, scopedProviderId);
 
       const maybeSuccess = result && typeof result === 'object' ? result as { success?: boolean; message?: string } : null;
       if (!options.silent && maybeSuccess?.success && maybeSuccess.message) {
@@ -230,7 +239,7 @@ export function useApi() {
       return result;
     } catch (err: unknown) {
       const message = getErrorMessage(err);
-      if (!options.silent) {
+      if (!options.silent && !(err instanceof ReauthCanceledError)) {
         toast.error(message);
       }
       throw err;

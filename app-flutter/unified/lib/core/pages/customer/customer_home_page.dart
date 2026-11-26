@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/layout_registry.dart';
 import '../../providers/providers.dart';
+import '../../vibe/vibe_skeleton.dart';
 import 'homes/home_blocks.dart';
 import 'homes/home_centered.dart';
 import 'homes/home_dock.dart';
@@ -30,7 +31,9 @@ class CustomerHomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final layout = LayoutRegistry.normalize(layoutType ??
         ref.watch(configurationProvider).providerConfig?.layoutType);
-    return switch (layout) {
+    // Um relógio só para o brilho de todas as barras do Início.
+    return VibeSkeletonScope(
+        child: switch (layout) {
       'layout_02' =>
         VibeSheetHome(onNavigate: onNavigate, onRefresh: onRefresh),
       'layout_03' => VibeDockHome(onNavigate: onNavigate, onRefresh: onRefresh),
@@ -39,6 +42,6 @@ class CustomerHomePage extends ConsumerWidget {
       'layout_05' =>
         VibeRibbonHome(onNavigate: onNavigate, onRefresh: onRefresh),
       _ => VibeCenteredHome(onNavigate: onNavigate, onRefresh: onRefresh),
-    };
+    });
   }
 }

@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 import { Tag, Calendar, Percent, Trash2 } from 'lucide-react';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 import StatusBadge from '@/components/StatusBadge';
+import ImageUploadButton from '@/components/ImageUploadButton';
 
 export default function PromotionsManager() {
-  const { config, setConfig, saveConfig, isSaving } = useSettings();
+  const { config, setConfig, saveConfig, isSaving, providerId } = useSettings();
   const [promotions, setPromotions] = useState(config.promotions?.items || []);
   const [newPromo, setNewPromo] = useState({
     title: '',
@@ -115,12 +116,17 @@ export default function PromotionsManager() {
             </div>
 
             <div>
-              <Label>URL da Imagem (opcional)</Label>
-              <Input
-                value={newPromo.imageUrl}
-                onChange={(e) => setNewPromo({ ...newPromo, imageUrl: e.target.value })}
-                placeholder="https://..."
-              />
+              <Label htmlFor="promotion-image">Imagem (opcional)</Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="promotion-image"
+                  value={newPromo.imageUrl}
+                  onChange={(e) => setNewPromo({ ...newPromo, imageUrl: e.target.value })}
+                  placeholder="https://..."
+                />
+                <ImageUploadButton providerId={providerId} disabled={isSaving} label="Enviar" onUploaded={(url) => setNewPromo((current) => ({ ...current, imageUrl: url }))} />
+              </div>
+              {newPromo.imageUrl && <img src={newPromo.imageUrl} alt="Prévia da imagem da oferta" className="mt-2 h-20 w-auto rounded border object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />}
             </div>
 
             <div>

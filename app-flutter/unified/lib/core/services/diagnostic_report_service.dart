@@ -39,7 +39,8 @@ class DiagnosticReportService {
 
   static String _opaqueId(String prefix) {
     final rng = math.Random.secure();
-    final rand = List.generate(8, (_) => rng.nextInt(36).toRadixString(36)).join();
+    final rand =
+        List.generate(8, (_) => rng.nextInt(36).toRadixString(36)).join();
     return '${prefix}_${DateTime.now().millisecondsSinceEpoch}_$rand';
   }
 
@@ -74,9 +75,8 @@ class DiagnosticReportService {
       throw ReportDeliveryException(
           'Sessão indisponível para publicar o relatório.');
     }
-    final resId = (resultId != null && resultId.isNotEmpty)
-        ? resultId
-        : _opaqueId('res');
+    final resId =
+        (resultId != null && resultId.isNotEmpty) ? resultId : _opaqueId('res');
     final attId = _opaqueId('rep');
     final path =
         '$base/private/providers/${Uri.encodeComponent(report.provider.id)}/results/${Uri.encodeComponent(resId)}/reports/${Uri.encodeComponent(attId)}';

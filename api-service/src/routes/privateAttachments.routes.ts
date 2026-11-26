@@ -4,9 +4,51 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { verifyToken, verifyFreshToken } from "../middlewares/auth";
 import { ApiError, asyncRoute } from "../middlewares/errorHandler";
+import { attachmentUploadLimiter } from "../middlewares/rateLimits";
 import { ensureCoreSchema, requirePgPool, type SqlQueryable } from "../services/postgres";
 
 const MAX = 5 * 1024 * 1024;
+// Cotas do assinante: protegem o disco (Postgres e uploads dividem o volume).
+const MAX_ATTACHMENTS_PER_TICKET = 5;
+const MAX_SUBSCRIBER_BYTES_PER_DAY = 25 * 1024 * 1024;
+const MIN_FREE_BYTES = Number(process.env.UPLOADS_MIN_FREE_BYTES) > 0 ? Number(process.env.UPLOADS_MIN_FREE_BYTES) : 2 * 1024 * 1024 * 1024;
+
+async function assertDiskSpace(dir: string, incoming: number): Promise<void> {
+  const statfs = (fs as unknown as { statfs?: (p: string) => Promise<{ bavail: number | bigint; bsize: number | bigint }> }).statfs;
+  if (typeof statfs !== "function") return;
+  let free: number;
+  try {
+    const stats = await statfs(dir);
+    free = Number(stats.bavail) * Number(stats.bsize);
+  } catch {
+    return;
+  }
+  if (Number.isFinite(free) && free - incoming < MIN_FREE_BYTES) {
+    throw new ApiError(507, "Não foi possível guardar o arquivo agora. Tente mais tarde.", "storage-full");
+  }
+}
+
+async function assertSubscriberQuota(pool: SqlQueryable, resourceKind: string, resourceId: string, ownerUid: string, incoming: number): Promise<void> {
+  const [perTicket, perDay] = await Promise.all([
+    pool.query<{ count: string | number }>(
+      `SELECT COUNT(*) AS count FROM private_attachments WHERE resource_kind = $1 AND resource_id = $2`,
+      [resourceKind, resourceId],
+    ),
+    pool.query<{ bytes: string | number }>(
+      `SELECT COALESCE(SUM(size_bytes), 0) AS bytes FROM private_attachments WHERE owner_uid = $1 AND created_at > NOW() - INTERVAL '1 day'`,
+      [ownerUid],
+    ),
+  ]);
+  if (Number(perTicket.rows[0]?.count || 0) >= MAX_ATTACHMENTS_PER_TICKET) {
+    throw new ApiError(429, `Limite de ${MAX_ATTACHMENTS_PER_TICKET} anexos por chamado.`, "resource-exhausted");
+  }
+  if (Number(perDay.rows[0]?.bytes || 0) + incoming > MAX_SUBSCRIBER_BYTES_PER_DAY) {
+    throw new ApiError(429, "Limite diário de anexos atingido. Tente amanhã.", "resource-exhausted");
+  }
+}
+
+const subscriberUploadLimiter: RequestHandler = (req, res, next) =>
+  (req.user?.role === "subscriber" ? attachmentUploadLimiter(req, res, next) : next());
 const id = (value: unknown): string => {
   if (typeof value !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new ApiError(400, "Identificador inválido.");
   return value;
@@ -138,7 +180,7 @@ const rawBody = express.raw({ type: () => true, limit: MAX, inflate: false });
 const boundedBody: RequestHandler = (req, res, next) => rawBody(req, res, (error) =>
   next(error ? new ApiError((error as { status?: number }).status === 413 ? 413 : 400, "Corpo inválido ou maior que 5 MiB.") : undefined));
 
-privateAttachmentsRouter.put(paths, boundedBody, privateRoute(async (req, res) => {
+privateAttachmentsRouter.put(paths, subscriberUploadLimiter, boundedBody, privateRoute(async (req, res) => {
   if (Object.keys(req.query).length || req.headers["content-encoding"]) throw new ApiError(400, "Metadados não permitidos.");
   const loc = parseLocation(req);
   const mime = String(req.headers["content-type"] || "").split(";")[0].trim();
@@ -164,6 +206,9 @@ privateAttachmentsRouter.put(paths, boundedBody, privateRoute(async (req, res) =
       return res.status(200).json({ attachmentId: loc.attachmentId, version: 2 });
     }
   } else {
+    if (req.user?.role === "subscriber") await assertSubscriberQuota(pool, loc.resourceKind, loc.resourceId, canonical.owner, req.body.length);
+    await fs.mkdir(privateRootDir(), { recursive: true }).catch(() => undefined);
+    await assertDiskSpace(privateRootDir(), req.body.length);
     const rowId = randomUUID().replace(/-/g, "").slice(0, 24);
     await pool.query(
       `INSERT INTO private_attachments (id, resource_kind, resource_id, attachment_id, provider_id, owner_uid, rel_path, checksum, size_bytes, mime, state, created_at)

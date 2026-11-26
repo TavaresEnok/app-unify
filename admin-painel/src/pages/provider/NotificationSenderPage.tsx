@@ -22,7 +22,6 @@ import {
   Radio,
   MapPin,
   Cpu,
-  Download,
   CalendarClock,
   Receipt,
 } from 'lucide-react';
@@ -44,10 +43,9 @@ import {
 } from '@/shared/api/notifications';
 
 const routeOptions = [
-  { value: 'none', label: 'Tela inicial do app' },
+  { value: 'none', label: 'Central de avisos (padrão)' },
   { value: '/faturas', label: 'Faturas (Pix e boleto)' },
   { value: '/diagnostico', label: 'Diagnóstico da conexão' },
-  { value: '/notificacoes', label: 'Central de avisos' },
 ];
 
 interface DraftState {
@@ -423,7 +421,7 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
             <div>
               <CardTitle>Histórico de envios</CardTitle>
               <p className="mt-0.5 text-[12.5px] text-[#687181]">
-                Campanhas registradas no banco local (PostgreSQL) — sem custo de leitura no Firebase.
+                Campanhas enviadas por este painel.
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => void loadHistory()} disabled={historyLoading} className="gap-1.5">
@@ -514,7 +512,7 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
               Segmentação avançada de destinatários
             </CardTitle>
             <p className="mt-0.5 text-[12.5px] text-[#687181]">
-              Filtre por OLT, Porta PON, CTO, Cidade, Bairro, Status do contrato ou Plano direto no PostgreSQL local (sem custo extra).
+              Filtre por OLT, Porta PON, CTO, Cidade, Bairro, Status do contrato ou Plano.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -688,16 +686,9 @@ export default function NotificationSenderPage({ historyOnly = false }: { histor
             </div>
 
             {segments && segments.totals.totalDevices === 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleSyncSegments(true)}
-                disabled={syncing || sending}
-                className="gap-1.5 bg-white text-xs"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Importar tokens legados do app
-              </Button>
+              <p className="max-w-xs text-[11.5px] text-[#5B677B]">
+                Nenhum aparelho com push ativo ainda. Os aparelhos aparecem quando o assinante entra na versão nova do app.
+              </p>
             )}
           </div>
         </CardContent>

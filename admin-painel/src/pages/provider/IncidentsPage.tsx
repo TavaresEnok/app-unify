@@ -214,6 +214,7 @@ export default function IncidentsPage() {
 
     const handleDelete = async (incident: Incident) => {
         if (!providerId) return;
+        if (!window.confirm('Excluir este aviso? Ele some do app dos assinantes.')) return;
         try {
             await deleteIncident(providerId, incident.id);
             toast.success('Aviso removido.');
@@ -519,6 +520,7 @@ export default function IncidentsPage() {
                                                 {incident.active ? 'Encerrar' : 'Reativar'}
                                             </Button>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                                                aria-label="Excluir aviso" title="Excluir aviso"
                                                 onClick={() => handleDelete(incident)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>

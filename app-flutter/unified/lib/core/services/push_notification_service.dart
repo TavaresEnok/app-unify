@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../models/in_app_notification.dart';
 import 'notification_service.dart';
@@ -36,6 +39,10 @@ class PushNotificationService {
       Future.microtask(() => handler(route));
     }
   }
+
+  /// Abre uma rota do app (links provedorapp://). Antes do login, fica
+  /// guardada até a tela principal assumir a navegação.
+  void openRoute(String route) => _dispatchRoute(route);
 
   void _dispatchRoute(String? rawRoute) {
     final route = rawRoute?.trim();
@@ -82,16 +89,9 @@ class PushNotificationService {
         iOS: iosSettings,
       );
 
-      // Request permission (Critical for Android 13+)
-      await _messaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
+      // A permissão de notificações não é pedida aqui (abertura do app):
+      // ver [requestPermissionOnce], chamada no fim da apresentação ou
+      // depois do primeiro login.
 
       await _localNotifications.initialize(
         initSettings,
@@ -165,7 +165,9 @@ class PushNotificationService {
     // Salva no histórico in-app
     if (notification.title != null && notification.body != null) {
       _addToHistory(
-        id: message.messageId,
+        // Mesmo id do aviso que a sincronização traz da API (campanha):
+        // assim o aviso não aparece duas vezes na lista.
+        id: foregroundNotificationId(message.data, message.messageId),
         title: notification.title!,
         message: notification.body!,
         type: NotificationType.info, // Default info for regular push
@@ -197,6 +199,15 @@ class PushNotificationService {
     );
   }
 
+  /// Id do aviso no histórico: o da campanha quando existe.
+  @visibleForTesting
+  static String? foregroundNotificationId(
+      Map<String, dynamic> data, String? messageId) {
+    final campaign = data['campaignId']?.toString().trim();
+    if (campaign != null && campaign.isNotEmpty) return campaign;
+    return messageId;
+  }
+
   /// Handle quando usuário toca na notificação (app em background ou terminado)
   void _handleMessageOpenedApp(RemoteMessage message) {
     debugPrint('🔔 App aberto via notificação: ${message.data}');
@@ -210,15 +221,56 @@ class PushNotificationService {
     _dispatchRoute(response.payload);
   }
 
+  static const _permissionAskedKey = 'push_permission_asked_v1';
+
+  /// Já mostramos o pedido de permissão (ou o assinante disse "Agora não").
+  static Future<bool> permissionAlreadyAsked() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_permissionAskedKey) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> markPermissionAsked() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_permissionAskedKey, true);
+    } catch (_) {}
+  }
+
+  /// Pede a permissão de notificações uma única vez, no momento certo
+  /// (fim da apresentação ou após o primeiro login), nunca na abertura.
+  Future<void> requestPermissionOnce() async {
+    if (await permissionAlreadyAsked()) return;
+    await markPermissionAsked();
+    try {
+      await _messaging
+          .requestPermission(alert: true, badge: true, sound: true)
+          .timeout(const Duration(minutes: 2));
+    } catch (e) {
+      debugPrint('ℹ️ Permissão de notificações indisponível: $e');
+    }
+  }
+
   /// Obtém o token FCM atual
   Future<String?> getToken() async {
     return await _messaging.getToken();
   }
 
-  /// Inscreve em um tópico para notificações broadcast
+  /// Inscreve em um tópico para notificações broadcast. Nunca falha nem
+  /// segura quem chama: sem rede ou sem Google Play services o FCM pode
+  /// ficar pendente indefinidamente.
   Future<void> subscribeToTopic(String topic) async {
-    await _messaging.subscribeToTopic(topic);
-    debugPrint('🔔 Inscrito no tópico: $topic');
+    try {
+      await _messaging
+          .subscribeToTopic(topic)
+          .timeout(const Duration(seconds: 10));
+      debugPrint('🔔 Inscrito no tópico: $topic');
+    } catch (e) {
+      debugPrint('ℹ️ Tópico $topic não inscrito agora: $e');
+    }
   }
 
   /// Cancela inscrição de um tópico

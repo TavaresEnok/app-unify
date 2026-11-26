@@ -88,3 +88,14 @@ export const verifySuperAdmin: RequestHandler[] = [
 export function canAccessProvider(req: Express.Request, providerId: string): boolean {
   return req.user?.superAdmin === true || (req.user?.role === "providerAdmin" && req.user?.providerId === providerId);
 }
+
+// Ações sensíveis exigem login recente (últimos 5 min). O painel reconhece o
+// código "reauth-required", pede a senha (POST /admin/auth/reauthenticate) e
+// repete a ação; não é sessão expirada e não deve deslogar.
+export const REAUTH_WINDOW_SECONDS = 300;
+export function requireRecentLogin(req: Express.Request): void {
+  const authTime = Number(req.user?.auth_time || 0);
+  if (!Number.isFinite(authTime) || Date.now() / 1000 - authTime > REAUTH_WINDOW_SECONDS) {
+    throw new ApiError(401, "Confirme sua senha para continuar.", "reauth-required");
+  }
+}

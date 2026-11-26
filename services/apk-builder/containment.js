@@ -17,8 +17,24 @@ function identity(registryPath, tenant, name) {
         tenants.add(row.providerId); packages.add(row.applicationId); names.add(n); normalizedIds.add(id);
     }
     const row = rows.find(row => row.providerId === tenant);
-    if (!row || row.appName !== name) throw Error('identity-inventory-required');
+    if (!row) throw Error('identity-inventory-required');
+    if (row.appName !== name) throw Object.assign(Error('identity-name-mismatch'), { expectedAppName: row.appName });
     return row;
+}
+
+// Mensagens claras para o painel. A identidade (applicationId + chave de
+// assinatura) é permanente na Play Store, então nunca é criada automaticamente:
+// o cadastro é feito pelo suporte no arquivo de identidades revisado.
+function identityFailure(error) {
+    const code = error && error.message;
+    if (code === 'identity-inventory-required') {
+        return { code, error: 'Este provedor ainda não tem identidade de app cadastrada. Peça ao suporte da Unify para liberar a geração do aplicativo.' };
+    }
+    if (code === 'identity-name-mismatch') {
+        const expected = typeof error.expectedAppName === 'string' ? error.expectedAppName.slice(0, 80) : '';
+        return { code, error: `O nome do app não confere com o cadastro${expected ? ` (cadastrado: "${expected}")` : ''}. Ajuste o nome do provedor ou peça ao suporte para atualizar o cadastro.` };
+    }
+    return { code: 'identity-registry-unavailable', error: 'Cadastro de identidades de app indisponível. Fale com o suporte da Unify.' };
 }
 function childEnvironment() {
     // Explicit allowlist, including fixed tool paths. No inherited bearer/ADC/SGP.
@@ -64,4 +80,4 @@ async function authorize(endpoint, bearer, binding, fetcher = fetch) {
     if (result.authorized !== true || Object.keys(binding).some(k => result[k] !== binding[k])) throw Error('build-authorization-denied');
     return result.uid;
 }
-module.exports = { identity, childEnvironment, verifyOutput, authorize, digest };
+module.exports = { identity, identityFailure, childEnvironment, verifyOutput, authorize, digest };

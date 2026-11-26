@@ -48,14 +48,14 @@ export default function ProviderDashboardPage() {
         ? totalClientsNum > 0
             ? `${appUsersNum} cliente(s) com push ativo no app (${Math.round((appUsersNum / totalClientsNum) * 100)}%).`
             : `${appUsersNum} cliente(s) com push ativo no app.`
-        : 'Total sincronizado no cache local (PostgreSQL).';
+        : 'Clientes sincronizados do seu sistema (ERP).';
 
     return (
         <div className="space-y-5">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
                 <div>
                     <h2 className="m-0 mb-1 text-xl font-bold tracking-normal text-[#0E1320]">Visão geral</h2>
-                    <p className="m-0 text-[13px] text-[#687181]">Contagens do provedor consolidadas do cache local (PostgreSQL) e dos chamados.</p>
+                    <p className="m-0 text-[13px] text-[#687181]">Resumo dos seus clientes e chamados.</p>
                 </div>
                 <Button onClick={() => navigate('/provedor/comunicados/notificacoes')} className="gap-1.5">
                     <Send className="h-3.5 w-3.5" />

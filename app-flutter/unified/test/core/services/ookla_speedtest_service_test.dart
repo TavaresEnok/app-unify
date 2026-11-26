@@ -37,7 +37,8 @@ void main() {
         isTrue);
   });
 
-  test('discoverAndSelect prioriza servidor local do provedor sem desviar para SP ou EUA',
+  test(
+      'discoverAndSelect prioriza servidor local do provedor sem desviar para SP ou EUA',
       () async {
     final nearestPayload = jsonEncode([
       {
@@ -48,7 +49,8 @@ void main() {
         'cc': 'BR',
         'distance': 1,
         'host': 'conectteste.ajustconsulting.com.br:8080',
-        'url': 'http://conectteste.ajustconsulting.com.br:8080/speedtest/upload.php',
+        'url':
+            'http://conectteste.ajustconsulting.com.br:8080/speedtest/upload.php',
         'https_functional': 1,
       },
       {
@@ -72,7 +74,8 @@ void main() {
         'cc': 'BR',
         'distance': 7,
         'host': 'speedtestvibe.ajustconsulting.com.br:8080',
-        'url': 'http://speedtestvibe.ajustconsulting.com.br:8080/speedtest/upload.php',
+        'url':
+            'http://speedtestvibe.ajustconsulting.com.br:8080/speedtest/upload.php',
         'https_functional': 0,
       },
       {
@@ -124,7 +127,8 @@ void main() {
     expect(plan.probed.any((s) => s.id == '77777'), isFalse);
   });
 
-  test('discoverAndSelect evita homônimo distante mesmo com busca explícita de marca',
+  test(
+      'discoverAndSelect evita homônimo distante mesmo com busca explícita de marca',
       () async {
     final nearestPayload = jsonEncode([
       {
@@ -135,7 +139,8 @@ void main() {
         'cc': 'BR',
         'distance': 2,
         'host': 'conectteste.ajustconsulting.com.br:8080',
-        'url': 'http://conectteste.ajustconsulting.com.br:8080/speedtest/upload.php',
+        'url':
+            'http://conectteste.ajustconsulting.com.br:8080/speedtest/upload.php',
         'https_functional': 1,
       },
     ]);
@@ -178,7 +183,8 @@ void main() {
     expect(plan!.primary.id, '60652');
   });
 
-  test('runSpeedTest mede download e upload reais contra servidor HTTP local compatível com Ookla',
+  test(
+      'runSpeedTest mede download e upload reais contra servidor HTTP local compatível com Ookla',
       () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final payload = Uint8List(512 * 1024);
@@ -197,15 +203,30 @@ void main() {
         downloadHits++;
         req.response.statusCode = 200;
         req.response.add(payload);
-        await req.response.close();
+        try {
+          await req.response.close();
+        } on HttpException {
+          // Download interrompido pelo cliente no fim da fase.
+        } on SocketException {
+          // Idem.
+        }
         return;
       }
       if (req.uri.path == '/speedtest/upload.php') {
-        await for (final chunk in req) {
-          uploadBytes += chunk.length;
+        // O cliente aborta o POST em andamento quando o tempo da fase
+        // acaba: o servidor recebe "Connection closed while receiving
+        // data", como um servidor Ookla real. Isso não é falha do teste.
+        try {
+          await for (final chunk in req) {
+            uploadBytes += chunk.length;
+          }
+          req.response.write('size=$uploadBytes');
+          await req.response.close();
+        } on HttpException {
+          // Upload abortado pelo cliente no fim da fase.
+        } on SocketException {
+          // Idem, quando a conexão cai antes da resposta.
         }
-        req.response.write('size=$uploadBytes');
-        await req.response.close();
         return;
       }
       req.response.statusCode = 404;

@@ -1,6 +1,7 @@
-import type { SessionUser } from '@/shared/auth/session';
+import { auth, type SessionUser } from '@/shared/auth/session';
 import { resolvePublicApiBaseUrl } from '@/shared/config/publicApi';
 import { markDashboardRequest, markDashboardResponse } from './panelTiming';
+import { fallbackErrorMessage, notifySessionExpired, PanelHttpError } from './panelHttp';
 
 const pending = new Map<string, { expires: number; value: Promise<Record<string, unknown>> }>();
 
@@ -24,13 +25,22 @@ async function requestDashboard(user: Pick<SessionUser, 'uid' | 'getIdToken'>, p
   markDashboardRequest();
   const base = resolvePublicApiBaseUrl(import.meta.env.VITE_API_URL, window.location);
   const path = providerId ? `/admin/dashboard/panel/providers/${encodeURIComponent(providerId)}` : '/admin/dashboard/panel';
+  const token = await user.getIdToken();
   const response = await fetch(`${base}${path}`, {
-    headers: { Authorization: `Bearer ${await user.getIdToken()}` },
+    headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
     signal: AbortSignal.timeout(15000),
   });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error?.message || 'Falha ao carregar o dashboard.');
+  const body = await response.json().catch(() => ({})) as { data?: Record<string, unknown>; error?: { message?: string } };
+  if (!response.ok) {
+    if (response.status === 401) {
+      // Resposta atrasada de uma sessão anterior não derruba a sessão nova.
+      const current = auth.currentUser;
+      if (current && current.uid === user.uid && await current.getIdToken().catch(() => null) === token) notifySessionExpired();
+      throw new PanelHttpError('Sua sessão expirou. Entre novamente.', 401);
+    }
+    throw new PanelHttpError(body.error?.message || fallbackErrorMessage(response.status), response.status);
+  }
   markDashboardResponse();
-  return body.data;
+  return body.data as Record<string, unknown>;
 }

@@ -75,7 +75,16 @@ export async function resolveSgpCredentials(providerId?: string): Promise<SgpCre
   try { return await value; } catch (error) { credentialCache.delete(providerId); throw error; }
 }
 
-const upstream = createUpstream({ getRedis: () => redis, getCacheRedis: () => cacheRedis });
+const positiveEnv = (name: string, fallback: number) => {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+};
+// Pedidos do app esperam por uma vaga (picos da home) em vez de 503 imediato.
+const upstream = createUpstream({ getRedis: () => redis, getCacheRedis: () => cacheRedis, slotWaitMs: positiveEnv("SGP_SLOT_WAIT_MS", 8000) });
+// IXC aceita bem consultas paralelas: teto maior por provedor (o de host continua).
+const IXC_MAX_PER_PROVIDER = positiveEnv("IXC_MAX_PER_PROVIDER", 12);
+const IXC_LIMITS = { maxPerProvider: IXC_MAX_PER_PROVIDER, maxPerHost: Math.max(8, IXC_MAX_PER_PROVIDER) };
+export const ERP_BUSY_MESSAGE = "Muitos acessos agora. Tente novamente em alguns segundos.";
 
 export function createSgpSession(
   providerId: string,
@@ -102,10 +111,15 @@ export function createSgpSession(
         ? async () => ixc.handle(target.pathname.slice(approved.pathname.replace(/\/$/, "").length) || "/", params)
         : async () => (await outbound.request(url, body)).data;
       try {
-        const data = await upstream.execute({ providerId, url: String(url), body, ttl: readTtl(String(url)), mutate: /liberacaopromessa|wifi\/update/.test(String(url)) }, operation);
+        const data = await upstream.execute({
+          providerId, url: String(url), body, ttl: readTtl(String(url)), mutate: /liberacaopromessa|wifi\/update/.test(String(url)),
+          limits: ixc ? IXC_LIMITS : undefined,
+        }, operation);
         return { data, status: 200, statusText: "OK", headers: {}, config: {} } as never;
       } catch (error) {
-        if ((error as { status?: number }).status === 503) throw new ApiError(503, "SGP ocupado ou indisponível. Tente novamente.", "unavailable");
+        const failure = error as { status?: number; busy?: boolean };
+        if (failure.status === 503 && failure.busy) throw new ApiError(503, ERP_BUSY_MESSAGE, "unavailable");
+        if (failure.status === 503) throw new ApiError(503, "SGP ocupado ou indisponível. Tente novamente.", "unavailable");
         throw error;
       }
     } } as Pick<AxiosInstance, "post">;

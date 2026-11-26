@@ -48,7 +48,10 @@ export interface CpeLanPort {
 }
 
 export interface CpeStatusOverview {
-  online: boolean;
+  /** null quando o gerenciador não sabe o estado ao vivo (ex.: SGP CPE Manager). */
+  online: boolean | null;
+  /** Quando os dados do roteador foram capturados (null = leitura ao vivo). */
+  snapshotAt?: string | null;
   driver: Exclude<AcsDriverType, 'none'>;
   deviceId: string;
   manufacturer: string;
@@ -70,7 +73,7 @@ export interface CpeStatusOverview {
 export interface AdminCpeOverviewResponse {
   enabled: boolean;
   driver: AcsDriverType;
-  features?: AcsFeatureFlags;
+  features?: Partial<AcsFeatureFlags>;
   overview: CpeStatusOverview | null;
   hosts: CpeConnectedHost[];
 }
@@ -161,4 +164,36 @@ export async function runAdminClientCpeDiagnostic(
     { method: 'POST', body: { providerId, target } },
   );
   return res.data;
+}
+
+/** Recursos que o SGP CPE Manager não executa (ver DRIVER_LIMITS no api-service). */
+const SGP_UNSUPPORTED: ReadonlyArray<keyof AcsFeatureFlags> = ['reboot', 'channelOptimize', 'speedDiagnostic', 'guestWifi'];
+
+/** Recursos que o driver escolhido consegue executar. */
+export function driverSupportsFeature(driver: AcsDriverType, feature: keyof AcsFeatureFlags): boolean {
+  if (driver === 'none') return false;
+  if (driver === 'sgp') return !SGP_UNSUPPORTED.includes(feature);
+  return true;
+}
+
+export interface CpeActionAvailability {
+  reboot: boolean;
+  optimize: boolean;
+  diagnostic: boolean;
+}
+
+/**
+ * Quais ações N1 mostrar para o roteador. Usa `features` devolvido pelo servidor;
+ * sem ele (API antiga), cai nos limites conhecidos do driver.
+ * Super Admin acessa a base do provedor só para consulta.
+ */
+export function cpeActionAvailability(data: AdminCpeOverviewResponse | null, readOnly = false): CpeActionAvailability {
+  const none = { reboot: false, optimize: false, diagnostic: false };
+  if (readOnly || !data?.enabled || !data.overview) return none;
+  const allowed = (feature: keyof AcsFeatureFlags) => {
+    const flag = data.features?.[feature];
+    if (typeof flag === 'boolean') return flag && driverSupportsFeature(data.driver, feature);
+    return driverSupportsFeature(data.driver, feature);
+  };
+  return { reboot: allowed('reboot'), optimize: allowed('channelOptimize'), diagnostic: allowed('speedDiagnostic') };
 }

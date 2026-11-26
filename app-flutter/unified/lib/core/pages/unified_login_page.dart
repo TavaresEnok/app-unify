@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/provider_config.dart';
 import '../models/usuario.dart';
 import '../providers/providers.dart';
+import '../utils/external_link.dart';
 import '../vibe/vibe_home_parts.dart' show VibeLogo;
 import '../vibe/vibe_icon.dart';
 import '../vibe/vibe_page_parts.dart';
@@ -31,26 +34,75 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  /// Erro de digitação (sem ida ao servidor): o botão segue "Entrar".
+  bool _localError = false;
+
+  /// Documento que já recebeu o aviso de dígito verificador: tocar em
+  /// Entrar de novo com o mesmo número consulta o provedor assim mesmo.
+  String? _warnedDigits;
+
+  /// Etapas da espera: 0 até 3 s, 1 até 10 s, 2 depois disso.
+  int _waitStage = 0;
+  final List<Timer> _waitTimers = [];
+
+  void _startWait() {
+    _stopWait();
+    _waitStage = 0;
+    _waitTimers
+      ..add(Timer(const Duration(seconds: 3), () {
+        if (mounted && _isLoading) setState(() => _waitStage = 1);
+      }))
+      ..add(Timer(const Duration(seconds: 10), () {
+        if (mounted && _isLoading) setState(() => _waitStage = 2);
+      }));
+  }
+
+  void _stopWait() {
+    for (final timer in _waitTimers) {
+      timer.cancel();
+    }
+    _waitTimers.clear();
+    _waitStage = 0;
+  }
+
   @override
   void dispose() {
+    _stopWait();
     _cpfController.dispose();
     _focus.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin(ProviderConfig? config) async {
-    if (_cpfController.text.trim().isEmpty) {
-      setState(() => _errorMessage = 'Por favor, digite seu CPF ou CNPJ.');
+    final invalid = validateDocument(_cpfController.text);
+    final digits = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    // Dígito verificador errado (ou 12-13 números) só avisa uma vez: há
+    // cadastros no ERP com documento digitado errado, e esse assinante
+    // precisa conseguir entrar com o número que o provedor tem.
+    final soft = isSoftDocumentWarning(_cpfController.text);
+    if (invalid != null && !(soft && _warnedDigits == digits)) {
+      setState(() {
+        _errorMessage = soft
+            ? '$invalid Se estiver certo, toque em Entrar de novo.'
+            : invalid;
+        _localError = true;
+        _warnedDigits = digits;
+      });
       return;
     }
     if (config == null) {
-      setState(() => _errorMessage = 'Erro de configuração. Tente novamente.');
+      setState(() {
+        _errorMessage = 'Erro de configuração. Tente novamente.';
+        _localError = false;
+      });
       return;
     }
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _localError = false;
+      _startWait();
     });
 
     try {
@@ -65,7 +117,12 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _stopWait();
+        });
+      }
     }
   }
 
@@ -75,6 +132,8 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
       if (next is AsyncError && mounted) {
         setState(() {
           _isLoading = false;
+          _stopWait();
+          _localError = false;
           _errorMessage =
               next.error.toString().replaceAll('Exception:', '').trim();
         });
@@ -134,11 +193,32 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                       VibePageButton(
                         label: _isLoading
                             ? 'Entrando…'
-                            : _errorMessage != null
+                            : _errorMessage != null && !_localError
                                 ? 'Tentar novamente'
                                 : 'Entrar',
+                        loading: _isLoading,
                         onPressed:
                             _isLoading ? null : () => _handleLogin(config),
+                      ),
+                      // O provedor pode levar alguns segundos para
+                      // responder: a espera ganha explicação em vez de um
+                      // botão parado.
+                      VibeReveal(
+                        child: _isLoading && _waitStage > 0
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Semantics(
+                                  liveRegion: true,
+                                  child: Text(
+                                      _waitStage == 1
+                                          ? 'Consultando seu cadastro no provedor… isso pode levar alguns segundos.'
+                                          : 'Quase lá. A resposta do provedor está mais lenta que o normal.',
+                                      textAlign: TextAlign.center,
+                                      style: vibeText(t, 13, 600,
+                                          color: t.mut, height: 1.45)),
+                                ),
+                              )
+                            : const SizedBox(width: double.infinity),
                       ),
                       const SizedBox(height: 14),
                       Text(
@@ -148,6 +228,22 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                           textAlign: TextAlign.center,
                           style: vibeText(t, 12.5, 500,
                               color: t.mut, height: 1.5)),
+                      if (config?.privacyPolicyUrl.isNotEmpty == true) ...[
+                        const SizedBox(height: 6),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => openExternalLink(
+                                context, config!.privacyPolicyUrl),
+                            style: TextButton.styleFrom(
+                                foregroundColor: t.mut,
+                                minimumSize: const Size(48, 44)),
+                            child: Text('Política de privacidade',
+                                style: vibeText(t, 12.5, 650, color: t.mut)
+                                    .copyWith(
+                                        decoration: TextDecoration.underline)),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -193,6 +289,14 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
               ),
+              onChanged: (_) {
+                if (_localError) {
+                  setState(() {
+                    _localError = false;
+                    _errorMessage = null;
+                  });
+                }
+              },
               onSubmitted: (_) {
                 if (!_isLoading) {
                   _handleLogin(ref.read(configurationProvider).providerConfig);
@@ -206,13 +310,71 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
   }
 }
 
+/// Confere o CPF ou CNPJ antes de ir ao provedor (tamanho e dígitos
+/// verificadores). `null` quando está certo.
+String? validateDocument(String input) {
+  final d = input.replaceAll(RegExp(r'[^0-9]'), '');
+  if (d.isEmpty) return 'Por favor, digite seu CPF ou CNPJ.';
+  if (d.length < 11) return 'CPF incompleto. Confira os 11 números.';
+  if (d.length == 11) {
+    return _validCpf(d) ? null : 'CPF inválido. Confira os números.';
+  }
+  if (d.length < 14) return 'CNPJ incompleto. Confira os 14 números.';
+  return _validCnpj(d) ? null : 'CNPJ inválido. Confira os números.';
+}
+
+/// O aviso de [validateDocument] pode estar errado (documento com dígito
+/// verificador inválido no cadastro do ERP): vale para 11 números ou mais.
+bool isSoftDocumentWarning(String input) =>
+    input.replaceAll(RegExp(r'[^0-9]'), '').length >= 11 &&
+    validateDocument(input) != null;
+
+bool _validCpf(String d) {
+  if (RegExp(r'^(\d)\1{10}$').hasMatch(d)) return false;
+  int digit(int len) {
+    var sum = 0;
+    for (var i = 0; i < len; i++) {
+      sum += int.parse(d[i]) * (len + 1 - i);
+    }
+    final r = (sum * 10) % 11;
+    return r == 10 ? 0 : r;
+  }
+
+  return digit(9) == int.parse(d[9]) && digit(10) == int.parse(d[10]);
+}
+
+bool _validCnpj(String d) {
+  if (RegExp(r'^(\d)\1{13}$').hasMatch(d)) return false;
+  int digit(List<int> weights) {
+    var sum = 0;
+    for (var i = 0; i < weights.length; i++) {
+      sum += int.parse(d[i]) * weights[i];
+    }
+    final r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  }
+
+  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  return digit(w1) == int.parse(d[12]) && digit(w2) == int.parse(d[13]);
+}
+
 /// Máscara de CPF (000.000.000-00) ou CNPJ (00.000.000/0000-00) enquanto o
-/// assinante digita. A API recebe só os dígitos.
+/// assinante digita. A API recebe só os dígitos. O cursor fica depois do
+/// mesmo dígito em que estava (corrigir um número no meio não o joga para
+/// o fim).
 class CpfCnpjInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
     final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final cursor = newValue.selection.isValid
+        ? newValue.selection.extentOffset.clamp(0, newValue.text.length)
+        : newValue.text.length;
+    final digitsBefore = newValue.text
+        .substring(0, cursor)
+        .replaceAll(RegExp(r'[^0-9]'), '')
+        .length;
     final capped = digits.length > 14 ? digits.substring(0, 14) : digits;
     final buffer = StringBuffer();
     for (var i = 0; i < capped.length; i++) {
@@ -227,7 +389,20 @@ class CpfCnpjInputFormatter extends TextInputFormatter {
       buffer.write(capped[i]);
     }
     final text = buffer.toString();
+    var offset = text.length;
+    final wanted = digitsBefore.clamp(0, capped.length);
+    if (wanted < capped.length) {
+      var seen = 0;
+      for (var i = 0; i < text.length; i++) {
+        if (seen == wanted) {
+          offset = i;
+          break;
+        }
+        if (RegExp(r'[0-9]').hasMatch(text[i])) seen++;
+      }
+      if (wanted == 0) offset = 0;
+    }
     return TextEditingValue(
-        text: text, selection: TextSelection.collapsed(offset: text.length));
+        text: text, selection: TextSelection.collapsed(offset: offset));
   }
 }

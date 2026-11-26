@@ -3,6 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { auth } from "@/shared/auth/session";
 import { resolvePublicApiBaseUrl } from "@/shared/config/publicApi";
+import { confirmBuildSession, needsBuildConfirmation } from "@/shared/settings/buildSession";
+import BuildConfirmationDialog from "@/components/BuildConfirmationDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +15,21 @@ import {
   fetchAcsConfig,
   saveAcsConfig,
   testAcsConnection,
+  driverSupportsFeature,
   type AcsDriverType,
   type AcsFeatureFlags,
 } from "@/shared/api/tr069";
+
+const SGP_UNSUPPORTED_HINT = "Indisponível no SGP CPE Manager — requer GenieACS/Flashman direto.";
+
+/** Mensagem de erro do servidor ({error:{message}} ou {error:"..."}), com texto padrão. */
+export function integrationErrorMessage(body: unknown, status: number): string {
+  const error = body && typeof body === "object" ? (body as { error?: unknown }).error : undefined;
+  const message = typeof error === "string" ? error : error && typeof error === "object" ? (error as { message?: unknown }).message : undefined;
+  if (typeof message === "string" && message.trim()) return message;
+  if (status === 403) return "Confirme sua senha e tente de novo.";
+  return "Não foi possível substituir a integração.";
+}
 
 const DEFAULT_FEATURES: AcsFeatureFlags = {
   wifi: true,
@@ -34,6 +48,7 @@ export default function IntegrationsSettings() {
   const [appName, setApp] = useState("");
   const [erp, setErp] = useState<"sgp" | "ixc">("sgp");
   const [saving, setSaving] = useState(false);
+  const [confirmingReplace, setConfirmingReplace] = useState(false);
 
   // TR-069 / ACS state
   const [acsDriver, setAcsDriver] = useState<AcsDriverType>("none");
@@ -66,27 +81,52 @@ export default function IntegrationsSettings() {
 
   if (userRole !== "superAdmin") return <p>Integração administrada pela equipe SaaS.</p>;
 
+  const sendReplacement = async () => {
+    if (!auth.currentUser) throw new Error("Sessão necessária.");
+    const base = resolvePublicApiBaseUrl(import.meta.env.VITE_API_URL, window.location);
+    const response = await fetch(`${base}/admin/providers/${encodeURIComponent(providerId)}/integration`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${await auth.currentUser.getIdToken()}`,
+      },
+      body: JSON.stringify(erp === "ixc" ? { erp, apiToken, sgpBaseUrl } : { erp, apiToken, sgpBaseUrl, appName }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(integrationErrorMessage(data, response.status));
+    setToken(""); setUrl(""); setApp(""); setErp("sgp");
+    toast.success(
+      data?.syncQueued
+        ? "Integração salva e sincronização inicial de clientes iniciada."
+        : "Integração substituída.",
+    );
+  };
+
   const replace = async () => {
     setSaving(true);
     try {
       if (!auth.currentUser) throw new Error("Sessão necessária.");
-      const base = resolvePublicApiBaseUrl(import.meta.env.VITE_API_URL, window.location);
-      const response = await fetch(`${base}/admin/providers/${encodeURIComponent(providerId)}/integration`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${await auth.currentUser.getIdToken(true)}`,
-        },
-        body: JSON.stringify(erp === "ixc" ? { erp, apiToken, sgpBaseUrl } : { erp, apiToken, sgpBaseUrl, appName }),
-      });
-      if (!response.ok) throw new Error("Não foi possível substituir a integração.");
-      const data = await response.json().catch(() => ({}));
-      setToken(""); setUrl(""); setApp(""); setErp("sgp");
-      toast.success(
-        data?.syncQueued
-          ? "Integração salva e sincronização inicial de clientes iniciada."
-          : "Integração substituída.",
-      );
+      // O servidor exige login recente (5 min) para trocar credenciais do ERP.
+      if (await needsBuildConfirmation(auth.currentUser)) {
+        setConfirmingReplace(true);
+        return;
+      }
+      await sendReplacement();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao substituir.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmAndReplace = async (password: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Sessão necessária.");
+    await confirmBuildSession(user, password);
+    setConfirmingReplace(false);
+    setSaving(true);
+    try {
+      await sendReplacement();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao substituir.");
     } finally {
@@ -104,7 +144,7 @@ export default function IntegrationsSettings() {
         username: acsUsername,
         password: acsPassword || undefined,
         apiKey: acsApiKey || undefined,
-        features: acsFeatures,
+        features: effectiveFeatures(acsDriver, acsFeatures),
       });
       setAcsPassword("");
       setAcsApiKey("");
@@ -133,11 +173,32 @@ export default function IntegrationsSettings() {
     setAcsFeatures((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Recursos que o driver não executa vão desligados para o servidor.
+  // Com o gerenciador desativado ("none") mantém as escolhas para quando ele for religado.
+  const effectiveFeatures = (driver: AcsDriverType, features: AcsFeatureFlags): AcsFeatureFlags => driver === "none" ? features : ({
+    wifi: features.wifi && driverSupportsFeature(driver, "wifi"),
+    reboot: features.reboot && driverSupportsFeature(driver, "reboot"),
+    hosts: features.hosts && driverSupportsFeature(driver, "hosts"),
+    guestWifi: features.guestWifi && driverSupportsFeature(driver, "guestWifi"),
+    channelOptimize: features.channelOptimize && driverSupportsFeature(driver, "channelOptimize"),
+    speedDiagnostic: features.speedDiagnostic && driverSupportsFeature(driver, "speedDiagnostic"),
+  });
+
   return (
     <div className="space-y-8">
+      {confirmingReplace && auth.currentUser && (
+        <BuildConfirmationDialog
+          email={auth.currentUser.email}
+          title="Confirmar senha"
+          description="Confirme sua senha para alterar a integração do ERP."
+          confirmLabel="Confirmar e substituir"
+          onConfirm={confirmAndReplace}
+          onCancel={() => setConfirmingReplace(false)}
+        />
+      )}
       <section className="space-y-4">
-        <h1>Substituir integração do ERP</h1>
-        <p>Informe todos os novos valores. O token armazenado não é exibido.</p>
+        <h2 className="text-lg font-semibold text-[#1A2233]">Substituir integração do ERP</h2>
+        <p className="text-[13px] text-[#687181]">Informe todos os novos valores. O token armazenado não é exibido.</p>
         <Label htmlFor="replacement-erp">Sistema (ERP)</Label>
         <Select value={erp} onValueChange={(value) => setErp(value === "ixc" ? "ixc" : "sgp")}>
           <SelectTrigger id="replacement-erp"><SelectValue /></SelectTrigger>
@@ -168,6 +229,7 @@ export default function IntegrationsSettings() {
             </p>
           </div>
           <Switch
+            aria-label="Ativar gestão remota de roteadores"
             checked={acsEnabled && acsDriver !== "none"}
             disabled={acsDriver === "none" || savingAcs}
             onCheckedChange={setAcsEnabled}
@@ -176,7 +238,7 @@ export default function IntegrationsSettings() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5">
-            <Label>Servidor / Driver TR-069</Label>
+            <Label htmlFor="acs-driver">Servidor / Driver TR-069</Label>
             <Select
               value={acsDriver}
               onValueChange={(v) => {
@@ -185,7 +247,7 @@ export default function IntegrationsSettings() {
                 setAcsEnabled(next !== "none");
               }}
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="acs-driver"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Desativado</SelectItem>
                 <SelectItem value="sgp">SGP CPE Manager (usa credenciais SGP)</SelectItem>
@@ -250,12 +312,23 @@ export default function IntegrationsSettings() {
                 { key: "guestWifi", label: "Rede para visitantes (Guest)" },
                 { key: "channelOptimize", label: "Otimizar canal Wi-Fi" },
                 { key: "speedDiagnostic", label: "Diagnóstico no roteador (TR-143)" },
-              ] as const).map((item) => (
-                <label key={item.key} className="flex items-center justify-between gap-2 rounded-md border border-[#E4E7EC] bg-white px-3 py-2 text-[12.5px]">
-                  <span>{item.label}</span>
-                  <Switch checked={acsFeatures[item.key]} onCheckedChange={() => toggleFeature(item.key)} />
-                </label>
-              ))}
+              ] as const).map((item) => {
+                const supported = driverSupportsFeature(acsDriver, item.key);
+                return (
+                  <label key={item.key} className={`flex items-center justify-between gap-2 rounded-md border border-[#E4E7EC] bg-white px-3 py-2 text-[12.5px] ${supported ? "" : "opacity-60"}`}>
+                    <span>
+                      {item.label}
+                      {!supported && <span className="block text-[11px] text-[#687181]">{SGP_UNSUPPORTED_HINT}</span>}
+                    </span>
+                    <Switch
+                      aria-label={item.label}
+                      checked={supported && acsFeatures[item.key]}
+                      disabled={!supported}
+                      onCheckedChange={() => toggleFeature(item.key)}
+                    />
+                  </label>
+                );
+              })}
             </div>
           </div>
         )}

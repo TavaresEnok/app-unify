@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -45,8 +47,12 @@ class ConfigurationProvider with ChangeNotifier {
     return defaultValue;
   }
 
-  /// Método para carregar a configuração de forma assíncrona.
-  Future<void> loadConfig(String providerId) async {
+  /// Carrega a configuração: primeiro o cache do aparelho, depois o servidor.
+  ///
+  /// Com [preferCache], quando já existe uma configuração guardada a abertura
+  /// não espera a rede: o app entra com o cache e a versão do servidor
+  /// chega por trás (sem internet, o app abre do mesmo jeito).
+  Future<void> loadConfig(String providerId, {bool preferCache = false}) async {
     final initialLoad = _providerConfig == null;
     if (initialLoad) {
       _isLoading = true;
@@ -57,8 +63,17 @@ class ConfigurationProvider with ChangeNotifier {
     // 1. Tenta carregar do cache local apenas no carregamento inicial
     if (initialLoad) {
       await _loadFromCache(providerId);
+      if (preferCache && _providerConfig != null) {
+        _isLoading = false;
+        notifyListeners();
+        unawaited(_refreshFromServer(providerId));
+        return;
+      }
     }
+    await _refreshFromServer(providerId);
+  }
 
+  Future<void> _refreshFromServer(String providerId) async {
     try {
       // 2. Busca do servidor via API pública sanitizada (self-hosted PostgreSQL)
       var safeData = await _loadFromApi(providerId);

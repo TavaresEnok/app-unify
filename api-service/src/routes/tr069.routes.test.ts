@@ -82,6 +82,14 @@ describe("TR-069 / ACS drivers and routes", () => {
   it("interpreta TR-098 no GenieACS, classifica sinal RSSI e detecta gargalo LAN 100 Mbps", () => {
     expect(inferPlanDownloadMbps("VIBE 500 MEGA")).toBe(500);
     expect(inferPlanDownloadMbps("FIBRA 1 GIGA")).toBe(1000);
+    // Nomes reais da InsNet.
+    expect(inferPlanDownloadMbps("300 MEGAS FIBRA")).toBe(300);
+    expect(inferPlanDownloadMbps("100 megas")).toBe(100);
+    expect(inferPlanDownloadMbps("10_mega_pro")).toBe(10);
+    expect(inferPlanDownloadMbps("800 MEGA+GLOBOPLAY")).toBe(800);
+    expect(inferPlanDownloadMbps("PLANO DE 1 GB")).toBe(1000);
+    expect(inferPlanDownloadMbps("1,5 GIGA")).toBe(1500);
+    expect(inferPlanDownloadMbps("VIBE RESIDENCIAL 150")).toBeNull();
     expect(classifySignalQuality("wifi_5g", -52)).toBe("excellent");
     expect(classifySignalQuality("wifi_2g", -79)).toBe("weak");
 
@@ -229,5 +237,30 @@ describe("TR-069 / ACS drivers and routes", () => {
       .get("/admin/tr069/clients/10331142430/overview?providerId=vibe")
       .set({ Authorization: "Bearer adm-other" })
       .expect(403);
+  });
+
+  it("capabilities diz se o serviço deste assinante tem roteador gerenciado (SGP)", async () => {
+    acsDocs.set("vibe:acs", { driver: "sgp", enabled: true, features: {} });
+    const contratos = [
+      { id: 1, status: "Cancelado", servicos: [{ id: 10, tipo: "internet", serial: "" }] },
+      { id: 2, status: "Ativo", servicos: [{ id: 20, tipo: "internet", serial: "NV21ABC" }] },
+    ];
+    mockQuery.mockImplementation(async (sql: string) => (sql.includes("FROM sgp_clients") ? { rows: [{ cpfcnpj: "10331142430", contratos }] } : { rows: [] }));
+    const managed = await request(app).get("/tr069/capabilities").set({ Authorization: "Bearer sub-vibe" }).expect(200);
+    expect(managed.body.data).toMatchObject({ enabled: true, deviceManaged: true, driver: "sgp" });
+    const other = await request(app).get("/tr069/capabilities?contratoId=1").set({ Authorization: "Bearer sub-vibe" }).expect(200);
+    expect(other.body.data.deviceManaged).toBe(false);
+  });
+
+  it("ações que o gerenciador não executa respondem 409 sem tocar no ERP", async () => {
+    acsDocs.set("vibe:acs", { driver: "sgp", enabled: true, features: { reboot: true, channelOptimize: true, speedDiagnostic: true } });
+    mockQuery.mockResolvedValue({ rows: [] });
+    for (const action of ["reboot", "optimize-wifi", "diagnostic"]) {
+      const admin = await request(app).post(`/admin/tr069/clients/10331142430/${action}?providerId=vibe`).set({ Authorization: "Bearer adm-vibe" }).send({}).expect(409);
+      expect(admin.body.error.message).toBe("Recurso não suportado por este gerenciador.");
+      await request(app).post(`/tr069/${action}`).set({ Authorization: "Bearer sub-vibe" }).send({}).expect(409);
+    }
+    const caps = await request(app).get("/tr069/capabilities").set({ Authorization: "Bearer sub-vibe" });
+    expect(caps.body.data.features).toMatchObject({ reboot: false, channelOptimize: false, speedDiagnostic: false });
   });
 });

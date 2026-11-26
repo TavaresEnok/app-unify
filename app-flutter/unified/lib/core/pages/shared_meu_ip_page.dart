@@ -24,15 +24,44 @@ class MeuIpPage extends ConsumerStatefulWidget {
 
 class _MeuIpPageState extends ConsumerState<MeuIpPage> {
   final _service = MeuIpService();
-  late Future<Map<String, dynamic>> _ipFuture;
+
+  /// Última consulta da sessão: voltar à página mostra o IP na hora e
+  /// atualiza por trás.
+  static Map<String, dynamic>? _sessionLast;
+
+  Map<String, dynamic>? _data = _sessionLast;
+  bool _loading = false;
+  bool _failed = false;
+  int _request = 0;
 
   @override
   void initState() {
     super.initState();
-    _ipFuture = _service.fetchIpInfo();
+    _retry();
   }
 
-  void _retry() => setState(() => _ipFuture = _service.fetchIpInfo());
+  Future<void> _retry() async {
+    final request = ++_request;
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    try {
+      final data = await _service.fetchIpInfo();
+      if (!mounted || request != _request) return;
+      _sessionLast = data;
+      setState(() {
+        _data = data;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted || request != _request) return;
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
+    }
+  }
 
   static const _states = {
     'Acre': 'AC',
@@ -122,59 +151,13 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
     final t = VibeTokens.of(context);
     final network = ref.watch(connectivityStatusProvider).valueOrNull;
     final navigator = Navigator.of(context);
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _ipFuture,
-      builder: (context, snapshot) {
-        final loading = snapshot.connectionState != ConnectionState.done;
-        final data = snapshot.data;
-        final ip = data?['ip']?.toString() ?? '';
-        final List<Widget> children;
-        if (loading) {
-          children = [
-            Semantics(
-              label: 'Consultando seu IP',
-              liveRegion: true,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const VibeCard(
-                    main: true,
-                    child: Column(children: [
-                      VibeLabel('IP público'),
-                      SizedBox(height: 8),
-                      VibeShimmerBar(width: 180, height: 34, radius: 8),
-                    ]),
-                  ),
-                  const SizedBox(height: 12),
-                  VibeCard(
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < 4; i++) ...[
-                          if (i > 0)
-                            Divider(height: 1, thickness: 1, color: t.line),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 11),
-                            child: Row(children: [
-                              VibeShimmerBar(width: 110, height: 14, radius: 5),
-                              Spacer(),
-                              VibeShimmerBar(width: 95, height: 14, radius: 5),
-                            ]),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Row(children: [
-                    Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
-                    SizedBox(width: 8),
-                    Expanded(child: VibeShimmerBar(height: 48, radius: 12)),
-                  ]),
-                ],
-              ),
-            ),
-          ];
-        } else if (snapshot.hasError || data == null) {
+    final data = _data;
+    final redacted = data == null;
+    final ip = data?['ip']?.toString() ?? '';
+    final List<Widget> children;
+    {
+      {
+        if (data == null && _failed) {
           children = [
             VibeCard(
               child: VibeEmpty(
@@ -192,54 +175,86 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
             ),
           ];
         } else {
+          // Mesmo desenho carregando ou com dados: rótulos sempre visíveis,
+          // só os valores cobertos na primeira consulta. Ao atualizar, os
+          // valores anteriores ficam até a resposta chegar.
           String shown(String value) => value.isEmpty ? 'Não informado' : value;
+          String value(String sample, String Function() read) =>
+              redacted ? sample : shown(read());
           children = [
-            VibeCard(
-              main: true,
-              child: Column(children: [
-                const VibeLabel('IP público'),
-                const SizedBox(height: 8),
-                FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: SelectableText(shown(ip),
-                        maxLines: 1,
-                        style: vibeText(t, 28, 800, letterSpacingEm: -.01))),
-              ]),
+            Semantics(
+              label: redacted ? 'Consultando seu IP' : null,
+              liveRegion: redacted,
+              child: VibeCard(
+                main: true,
+                child: VibeRefreshEdge(
+                  active: _loading && !redacted,
+                  top: -8,
+                  child: Column(children: [
+                    const VibeLabel('IP público'),
+                    const SizedBox(height: 8),
+                    FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: VibeRedact(
+                          redacted: redacted,
+                          child: SelectableText(
+                              redacted ? '000.000.000.000' : shown(ip),
+                              maxLines: 1,
+                              style:
+                                  vibeText(t, 28, 800, letterSpacingEm: -.01)),
+                        )),
+                  ]),
+                ),
+              ),
             ),
             VibeCard(
               child: VibeKvList([
-                VibeKv('Localização aproximada',
-                    shown(location(data['city'], data['region']))),
-                VibeKv('País', shown(country(data['country']))),
-                VibeKv('Provedor', shown(organization(data['org']))),
-                VibeKv('Fuso horário', shown(timezone(data['timezone']))),
+                VibeKv(
+                    'Localização aproximada',
+                    value('Cidade, UF',
+                        () => location(data!['city'], data['region'])),
+                    redacted: redacted),
+                VibeKv('País', value('Brasil', () => country(data!['country'])),
+                    redacted: redacted),
+                VibeKv('Provedor',
+                    value('Provedor', () => organization(data!['org'])),
+                    redacted: redacted),
+                VibeKv(
+                    'Fuso horário',
+                    value(
+                        'UTC−3 (Brasília)', () => timezone(data!['timezone'])),
+                    redacted: redacted),
               ]),
             ),
-            if (ip.isNotEmpty)
-              VibeTwo(
+            if (_failed)
+              const VibeOkBox(
+                  strip: true,
+                  warning: true,
+                  title:
+                      'Não foi possível atualizar. Mostrando a última consulta.'),
+            VibeDimmed(
+              dimmed: redacted,
+              child: VibeTwo(
                 VibePageButton(
                     label: 'Copiar IP',
                     icon: 'copy',
                     ghost: true,
-                    onPressed: () async {
-                      await Clipboard.setData(ClipboardData(text: ip));
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('IP copiado.')));
-                      }
-                    }),
+                    onPressed: ip.isEmpty
+                        ? null
+                        : () async {
+                            await Clipboard.setData(ClipboardData(text: ip));
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('IP copiado.')));
+                            }
+                          }),
                 VibePageButton(
-                    label: 'Atualizar',
+                    label: _loading && !redacted ? 'Atualizando…' : 'Atualizar',
                     icon: 'g-refresh',
                     ghost: true,
-                    onPressed: _retry),
-              )
-            else
-              VibePageButton(
-                  label: 'Atualizar',
-                  icon: 'g-refresh',
-                  ghost: true,
-                  onPressed: _retry),
+                    onPressed: _loading ? null : _retry),
+              ),
+            ),
           ];
         }
         return VibePageScaffold(
@@ -252,9 +267,10 @@ class _MeuIpPageState extends ConsumerState<MeuIpPage> {
             _ => 'IP público e localização',
           },
           onBack: navigator.canPop() ? () => navigator.maybePop() : null,
+          onRefresh: _retry,
           children: children,
         );
-      },
-    );
+      }
+    }
   }
 }

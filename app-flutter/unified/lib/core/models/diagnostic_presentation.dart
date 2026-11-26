@@ -200,7 +200,8 @@ class DiagnosticPresentation {
     }
 
     final groupLines = <String>[
-      for (final group in groups) '${group.title}: ${label(groupOutcome(group))}',
+      for (final group in groups)
+        '${group.title}: ${label(groupOutcome(group))}',
       'Concluídas: $completed de ${plannedKeys.length} verificações selecionadas.',
     ];
 
@@ -222,10 +223,10 @@ class DiagnosticPresentation {
     if (state.testResultsDisplay['speedTestCustom']?['status'] ==
         TestStatus.success) {
       final server = state.speedTestServerName;
-      metricLines.add(
-          'Velocidade neste celular${server != null ? ' ($server)' : ''}: '
-          '${state.customDownloadResultMbps.round()} Mbps de download; '
-          '${state.customUploadResultMbps.round()} Mbps de upload.');
+      metricLines
+          .add('Velocidade neste celular${server != null ? ' ($server)' : ''}: '
+              '${state.customDownloadResultMbps.round()} Mbps de download; '
+              '${state.customUploadResultMbps.round()} Mbps de upload.');
     }
 
     final sections = <String>[

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../vibe/vibe_home_parts.dart';
+import '../../../vibe/vibe_invoice.dart';
+import '../../../vibe/vibe_skeleton.dart';
 import '../../../vibe/vibe_text.dart';
 import '../../../vibe/vibe_tokens.dart';
 import 'vibe_home_blocks.dart';
@@ -22,10 +24,12 @@ class VibeRibbonHome extends ConsumerWidget {
     final t = VibeTokens.of(context);
     final data = VibeHomeData.watch(ref, onNavigate);
     final inset = MediaQuery.paddingOf(context).top;
-    final main = data.billing.main;
-    final slotState = vibeInvoiceSlotState(context, data,
-        variant: VibeInvoiceSlotVariant.ribbon);
+    final slot = VibeInvoiceSlot(data.billing);
+    final empty = vibeEmptyInvoice(context, data);
+    final main = slot.view;
+    final realMain = data.billing.main;
     final incomplete = vibeIncompleteNote(context, data);
+    final stale = vibeStaleNote(context, data);
 
     Widget planFooter() {
       final suspended = data.suspended;
@@ -79,7 +83,7 @@ class VibeRibbonHome extends ConsumerWidget {
       );
     }
 
-    final card = Container(
+    final card = slot.semantics(Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -93,47 +97,90 @@ class VibeRibbonHome extends ConsumerWidget {
               spreadRadius: -14),
         ],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (!data.can('invoices'))
-          Text('Olá, ${data.firstName}!', style: vibeText(t, 18, 750))
-        else if (slotState != null)
-          slotState
-        else ...[
-          Row(children: [
-            Expanded(
-                child: Text('Fatura de internet',
-                    style: vibeText(t, 13, 600, color: t.mut))),
-            VibeStatusChip(tone: main!.tone, label: main.chip),
-          ]),
-          const SizedBox(height: 10),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.end,
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              VibeAmount(main.invoice.valor, size: 32, color: t.ink),
-              vibePayButton(context, main,
-                  kind: VibeButtonKind.primary,
-                  paidKind: VibeButtonKind.tinted,
-                  size: VibeButtonSize.small,
-                  pixLabel: 'Copiar Pix'),
+      clipBehavior: Clip.antiAlias,
+      child: VibeRefreshEdge(
+        active: data.billing.refreshing,
+        top: -18,
+        inset: -18,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (!data.can('invoices'))
+            Text('Olá, ${data.firstName}!', style: vibeText(t, 18, 750))
+          else if (empty != null)
+            empty
+          else if (main != null) ...[
+            Row(children: [
+              Expanded(
+                  child: Text('Fatura de internet',
+                      style: vibeText(t, 13, 600, color: t.mut))),
+              VibeStatusChip(
+                  tone: slot.failed ? VibeTone.warning : main.tone,
+                  label: slot.chipLabel(main),
+                  redacted: slot.redacted),
+            ]),
+            const SizedBox(height: 10),
+            if (slot.failed)
+              VibeInvoiceSlot.overlay(
+                _amountRow(context, main),
+                Row(children: [
+                  Expanded(
+                    child: Text(VibeInvoiceSlot.failedMessage,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: vibeText(t, 14, 700, height: 1.25)),
+                  ),
+                  const SizedBox(width: 10),
+                  VibeButton(
+                      label: 'Tentar de novo',
+                      icon: 'g-refresh',
+                      kind: VibeButtonKind.primary,
+                      size: VibeButtonSize.small,
+                      onPressed: slot.retry),
+                ]),
+              )
+            else
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  slot.value(
+                      VibeAmount(main.invoice.valor, size: 32, color: t.ink)),
+                  slot.actions(vibePayButton(context, main,
+                      kind: VibeButtonKind.primary,
+                      paidKind: VibeButtonKind.tinted,
+                      size: VibeButtonSize.small,
+                      pixLabel: 'Copiar Pix')),
+                ],
+              ),
+            const SizedBox(height: 10),
+            slot.due(
+              VibeDueLine(
+                  text: main.dueFull,
+                  tone: main.tone,
+                  paid: main.paid,
+                  redacted: slot.redacted),
+              slow: const VibeDueLine(
+                  text: VibeInvoiceSlot.slowMessage,
+                  tone: VibeTone.neutral,
+                  icon: 'clock',
+                  maxLines: 1),
+            ),
+            if (main.note != null) ...[
+              const SizedBox(height: 6),
+              VibeNoteLine(text: main.note!, tone: main.tone, icon: 'bolt'),
             ],
-          ),
-          const SizedBox(height: 10),
-          VibeDueLine(text: main.dueFull, tone: main.tone, paid: main.paid),
-          if (main.note != null) ...[
-            const SizedBox(height: 6),
-            VibeNoteLine(text: main.note!, tone: main.tone, icon: 'bolt'),
+            if (incomplete != null) incomplete,
+            VibeReveal(child: stale ?? const SizedBox(width: double.infinity)),
           ],
-          if (incomplete != null) incomplete,
-        ],
-        planFooter(),
-      ]),
-    );
+          planFooter(),
+        ]),
+      ),
+    ));
 
     final promos = data.promos(context);
-    final reminder = vibeReminder(context, main);
+    final reminder = vibeReminder(context, realMain);
     final late = vibeLateHelp(data);
     final list = ListView(
       padding: const EdgeInsets.only(bottom: 28),
@@ -173,21 +220,33 @@ class VibeRibbonHome extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            ...vibeHomeAlerts(context, data),
+            VibeReveal(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: vibeHomeAlerts(context, data)),
+            ),
             const SizedBox(height: 10),
             const VibeSectionTitle('Seus atalhos'),
             VibeServiceRail(items: data.rail(context)),
-            if (reminder != null) ...[
-              const SizedBox(height: 18),
-              reminder,
-            ],
-            if (promos.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              VibePromoCarousel(
-                  promos: promos,
-                  title: promos.first.highlight ? 'Dicas do app' : 'Para você'),
-            ],
-            if (late != null) ...[const SizedBox(height: 12), late],
+            VibeReveal(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (reminder != null) ...[
+                      const SizedBox(height: 18),
+                      reminder,
+                    ],
+                    if (promos.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      VibePromoCarousel(
+                          promos: promos,
+                          title: promos.first.highlight
+                              ? 'Dicas do app'
+                              : 'Para você'),
+                    ],
+                    if (late != null) ...[const SizedBox(height: 12), late],
+                  ]),
+            ),
           ]),
         ),
       ],
@@ -196,9 +255,31 @@ class VibeRibbonHome extends ConsumerWidget {
       color: t.bg,
       child: onRefresh == null
           ? list
-          : RefreshIndicator(onRefresh: onRefresh!, child: list),
+          : RefreshIndicator(
+              onRefresh: onRefresh!,
+              color: t.ac,
+              backgroundColor: t.card,
+              child: list),
     );
   }
+}
+
+/// Linha do valor com o botão (só para medir o espaço no erro sem dados).
+Widget _amountRow(BuildContext context, VibeInvoiceView main) {
+  final t = VibeTokens.of(context);
+  return Wrap(
+    alignment: WrapAlignment.spaceBetween,
+    crossAxisAlignment: WrapCrossAlignment.end,
+    spacing: 10,
+    runSpacing: 10,
+    children: [
+      VibeAmount(main.invoice.valor, size: 32, color: t.ink),
+      vibePayButton(context, main,
+          kind: VibeButtonKind.primary,
+          size: VibeButtonSize.small,
+          pixLabel: 'Copiar Pix'),
+    ],
+  );
 }
 
 /// Borda tracejada do rodapé do cartão (`border-top:1px dashed`).

@@ -51,7 +51,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <p>Consultas agregadas no Firestore; sem garantia de frescor da origem.</p>
+            <p>Dados consolidados da plataforma.</p>
             <Button variant="outline" onClick={() => void dashboard.reload()} disabled={status === 'loading' || status === 'denied'}>Recarregar</Button>
             {status === 'loading' && <div role="status">Carregando…<DashboardSkeleton /></div>}
             {status === 'denied' && <p role="alert">Sessão sem acesso ao dashboard SaaS.</p>}
@@ -89,7 +89,7 @@ export default function DashboardPage() {
                 <Card className="overflow-hidden">
                     <CardHeader className="border-b border-[#EEF0F4]">
                         <CardTitle>Clientes por provedor</CardTitle>
-                        <CardDescription>Registros no Firestore por provedor (até 6 exibidos); não mede instalações.</CardDescription>
+                        <CardDescription>Clientes sincronizados do ERP por provedor (até 6 exibidos); não mede instalações.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3 p-[18px]">
                         {visibleProviders.length === 0 ? (
