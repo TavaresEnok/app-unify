@@ -30,7 +30,7 @@ export const personalizationSchema: Record<string, Shape> = {
   socialNetworks: strings("facebook instagram twitter youtube linkedin whatsapp tiktok website"),
   other: { ...strings("privacyPolicyUrl customDomain speedTestUrl"), ...booleans("useBackgroundImage showTvService showPhoneService") },
   splash: { ...strings("logoUrl backgroundColor animation progressBarColor"), enabled: "boolean", duration: "number", showProgressBar: "boolean" },
-  login: { ...strings("style backgroundType quote backgroundColor backgroundUrl"), showLogo: "boolean" },
+  login: { ...strings("style backgroundType quote backgroundColor backgroundUrl headline subheadline"), showLogo: "boolean", showHeadline: "boolean" },
   promotions: { enabled: "boolean", items: [{ ...strings("id title description imageUrl link startDate endDate badge status type createdAt"), active: "boolean", showCountdown: "boolean" }] },
   notifications: { list: [{ ...strings("id title message date type category createdAt"), read: "boolean", targetAll: "boolean", dismissible: "boolean", sent: "boolean" }] },
   dashboardConfig: dashboard, dashboard,

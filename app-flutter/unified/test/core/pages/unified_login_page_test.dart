@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:app_provedor_unified/core/models/provider_config.dart';
 import 'package:app_provedor_unified/core/models/usuario.dart';
 import 'package:app_provedor_unified/core/notifiers/auth_notifier.dart';
 import 'package:app_provedor_unified/core/pages/unified_login_page.dart';
@@ -14,6 +15,7 @@ class TestAuth extends AuthNotifier {
 }
 
 void main() {
+  loginHeadlineConfigTests();
   testWidgets('login has a single CPF/CNPJ field in dark mode', (tester) async {
     final tokens = LayoutTokens.of('layout_04');
     await tester.pumpWidget(ProviderScope(
@@ -63,5 +65,38 @@ void main() {
     await tester.tap(find.text('Entrar').last);
     await tester.pump();
     expect(find.text('CPF incompleto. Confira os 11 números.'), findsOneWidget);
+  });
+}
+
+// Frase da faixa de entrada configurável pelo painel (login.headline etc.).
+void loginHeadlineConfigTests() {
+  ConfigSection section(Map<String, dynamic> json) =>
+      ConfigSection.fromJson(json, '');
+
+  test('sem configuração: frase ligada e textos vazios (app usa o padrão)', () {
+    final c = section({});
+    expect(c.loginShowHeadline, isTrue);
+    expect(c.loginHeadline, '');
+    expect(c.loginSubheadline, '');
+  });
+
+  test('frase do painel é lida, aparada e limitada', () {
+    final c = section({
+      'login': {
+        'headline': '  Conectando você  ',
+        'subheadline': 'x' * 300,
+        'showHeadline': true,
+      }
+    });
+    expect(c.loginHeadline, 'Conectando você');
+    expect(c.loginSubheadline.length, 120);
+  });
+
+  test('provedor pode desligar a frase', () {
+    expect(
+        section({
+          'login': {'showHeadline': false}
+        }).loginShowHeadline,
+        isFalse);
   });
 }

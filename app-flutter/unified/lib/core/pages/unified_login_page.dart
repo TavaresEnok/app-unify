@@ -197,6 +197,16 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
   Widget _brandHero(VibeTokens t, String name, ProviderConfig? config) {
     // Em tela larga a coluna fica com 440 de largura pela margem (e não por
     // um ConstrainedBox): assim a altura medida vale para a largura real.
+    // A frase vem do painel (Splash & Login): vazia usa a padrão, e o
+    // provedor pode desligá-la; aí a faixa fica só com a logo.
+    final section = config?.config;
+    final showHeadline = section?.loginShowHeadline ?? true;
+    final headline = (section?.loginHeadline ?? '').isNotEmpty
+        ? section!.loginHeadline
+        : 'Sua internet,\nna palma da mão.';
+    final subheadline = (section?.loginSubheadline ?? '').isNotEmpty
+        ? section!.loginSubheadline
+        : 'Faturas, Wi-Fi e suporte em um só lugar.';
     final side =
         ((MediaQuery.sizeOf(context).width - 440) / 2).clamp(22.0, 4000.0);
     return SizedBox(
@@ -229,16 +239,18 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                         ),
                         const Spacer(),
                         const SizedBox(height: 20),
-                        Text('Sua internet,\nna palma da mão.',
-                            style: vibeText(t, 29, 800,
-                                color: t.on,
-                                height: 1.12,
-                                letterSpacingEm: -.03)),
-                        const SizedBox(height: 10),
-                        Text('Faturas, Wi-Fi e suporte em um só lugar.',
-                            style: vibeText(t, 14.5, 500,
-                                color: t.on.withValues(alpha: .78),
-                                height: 1.4)),
+                        if (showHeadline) ...[
+                          Text(headline,
+                              style: vibeText(t, 29, 800,
+                                  color: t.on,
+                                  height: 1.12,
+                                  letterSpacingEm: -.03)),
+                          const SizedBox(height: 10),
+                          Text(subheadline,
+                              style: vibeText(t, 14.5, 500,
+                                  color: t.on.withValues(alpha: .78),
+                                  height: 1.4)),
+                        ],
                       ],
                     ),
                   ),

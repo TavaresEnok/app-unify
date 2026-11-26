@@ -3,6 +3,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Sparkles, Save } from 'lucide-react';
 import { SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+
+// Mesmos textos e limites do app (unified_login_page.dart / provider_config.dart).
+const DEFAULT_LOGIN_HEADLINE = 'Sua internet,\nna palma da mão.';
+const DEFAULT_LOGIN_SUBHEADLINE = 'Faturas, Wi-Fi e suporte em um só lugar.';
+const LOGIN_HEADLINE_MAX = 80;
+const LOGIN_SUBHEADLINE_MAX = 120;
 
 export default function SplashLoginConfig() {
   const { config, setConfig, saveConfig, isSaving } = useSettings();
@@ -30,6 +37,9 @@ export default function SplashLoginConfig() {
     showLogo: true,
     backgroundType: 'gradient',
     quote: 'Bem-vindo!',
+    showHeadline: true,
+    headline: '',
+    subheadline: '',
   });
 
   const handleSave = async () => {
@@ -52,10 +62,10 @@ export default function SplashLoginConfig() {
       )}
     >
 
-      <Tabs defaultValue="splash">
+      <Tabs defaultValue="login">
         <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="login">Tela de entrada</TabsTrigger>
           <TabsTrigger value="splash">Splash Screen</TabsTrigger>
-          <TabsTrigger value="login">Login Screen</TabsTrigger>
         </TabsList>
 
         <TabsContent value="splash" className="space-y-4">
@@ -141,7 +151,67 @@ export default function SplashLoginConfig() {
         </TabsContent>
 
         <TabsContent value="login" className="space-y-4">
-          <SettingsSection title="Login Screen" description="Estilo, fundo e frase exibidos na entrada.">
+          <SettingsSection
+            title="Frase da tela de entrada"
+            description="Texto que aparece na faixa colorida do login, acima do campo de CPF. Vale para apps gerados a partir da versão 1.0.19."
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="login-show-headline">Mostrar frase</Label>
+                  <p className="text-xs text-muted-foreground">Desligado, a faixa mostra só a logo do provedor.</p>
+                </div>
+                <Switch
+                  id="login-show-headline"
+                  checked={login.showHeadline !== false}
+                  onCheckedChange={(c) => setLogin({ ...login, showHeadline: c })}
+                />
+              </div>
+
+              {login.showHeadline !== false && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-headline">Frase principal</Label>
+                    <Textarea
+                      id="login-headline"
+                      rows={2}
+                      maxLength={LOGIN_HEADLINE_MAX}
+                      value={login.headline ?? ''}
+                      onChange={(e) => setLogin({ ...login, headline: e.target.value })}
+                      placeholder={DEFAULT_LOGIN_HEADLINE}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Até {LOGIN_HEADLINE_MAX} caracteres; use Enter para quebrar a linha. Em branco, o app usa a frase padrão.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-subheadline">Texto de apoio</Label>
+                    <Input
+                      id="login-subheadline"
+                      maxLength={LOGIN_SUBHEADLINE_MAX}
+                      value={login.subheadline ?? ''}
+                      onChange={(e) => setLogin({ ...login, subheadline: e.target.value })}
+                      placeholder={DEFAULT_LOGIN_SUBHEADLINE}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Até {LOGIN_SUBHEADLINE_MAX} caracteres. Em branco, o app usa o texto padrão.
+                    </p>
+                  </div>
+                  <div className="rounded-xl p-5 text-white" style={{ backgroundColor: config.themeColor || '#2456C9' }}>
+                    <p className="text-xs opacity-75 mb-2">Prévia</p>
+                    <p className="text-2xl font-extrabold leading-tight whitespace-pre-line">
+                      {(login.headline ?? '').trim() || DEFAULT_LOGIN_HEADLINE}
+                    </p>
+                    <p className="text-sm opacity-80 mt-2">
+                      {(login.subheadline ?? '').trim() || DEFAULT_LOGIN_SUBHEADLINE}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </SettingsSection>
+
+          <SettingsSection title="Login Screen" description="Estilo e fundo da entrada.">
             <div className="space-y-4">
               <div>
                 <Label>Estilo</Label>
@@ -171,15 +241,6 @@ export default function SplashLoginConfig() {
                     <SelectItem value="image">Imagem</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div>
-                <Label>Slogan/Quote</Label>
-                <Input
-                  value={login.quote}
-                  onChange={(e) => setLogin({ ...login, quote: e.target.value })}
-                  placeholder="Ex: Bem-vindo ao futuro!"
-                />
               </div>
 
               <div className="flex items-center justify-between">

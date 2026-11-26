@@ -30,7 +30,7 @@ export const personalizationSchema: Record<string, Shape> = {
   socialNetworks: strings("facebook instagram twitter youtube linkedin whatsapp tiktok website"),
   other: { ...strings("privacyPolicyUrl customDomain speedTestUrl"), ...booleans("useBackgroundImage showTvService showPhoneService") },
   splash: { ...strings("logoUrl backgroundColor animation progressBarColor"), enabled: "boolean", duration: "number", showProgressBar: "boolean" },
-  login: { ...strings("style backgroundType quote backgroundColor backgroundUrl"), showLogo: "boolean" },
+  login: { ...strings("style backgroundType quote backgroundColor backgroundUrl headline subheadline"), showLogo: "boolean", showHeadline: "boolean" },
   promotions: { enabled: "boolean", items: [{ ...strings("id title description imageUrl link startDate endDate badge status type createdAt"), active: "boolean", showCountdown: "boolean" }] },
   notifications: { list: [{ ...strings("id title message date type category createdAt"), read: "boolean", targetAll: "boolean", dismissible: "boolean", sent: "boolean" }] },
   dashboardConfig: dashboard, dashboard,
@@ -141,7 +141,11 @@ export function parsePrivateIntegration(value: unknown): Record<string, string> 
   if (!["sgp", "ixc"].includes(erp)) throw new Error("ERP inválido.");
   if (!object(parsed) || !parsed.apiToken?.trim() || (erp === "sgp" && !parsed.appName?.trim()) || !parsed.sgpBaseUrl) throw new Error("Integração incompleta.");
   // Só IXC é gravado com `erp`; provedores SGP mantêm o formato legado (sem o campo).
-  if (erp === "ixc") { parsed.erp = "ixc"; delete parsed.appName; } else delete parsed.erp;
+  if (erp === "ixc") {
+    parsed.erp = "ixc"; delete parsed.appName;
+    // O gateway já acrescenta /webservice/v1; colar a URL completa duplicaria o caminho.
+    if (typeof parsed.sgpBaseUrl === "string") parsed.sgpBaseUrl = parsed.sgpBaseUrl.trim().replace(/\/+$/, "").replace(/\/webservice\/v1$/i, "");
+  } else delete parsed.erp;
   const url = new URL(parsed.sgpBaseUrl);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw new Error("Destino de integração inválido.");
   return parsed;

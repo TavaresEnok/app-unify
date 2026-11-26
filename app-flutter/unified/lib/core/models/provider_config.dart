@@ -293,6 +293,12 @@ class ConfigSection {
   final String logoUrl;
   final LogoFraming logoFraming;
   final String loginQuote;
+
+  /// Frase da faixa da tela de entrada, definida no painel. Vazio usa a
+  /// frase padrão; [loginShowHeadline] falso esconde a frase.
+  final String loginHeadline;
+  final String loginSubheadline;
+  final bool loginShowHeadline;
   final SgpIntegration integrations;
   final List<FaqItem> faq;
   final List<TipItem> tips;
@@ -320,6 +326,9 @@ class ConfigSection {
     required this.logoUrl,
     this.logoFraming = const LogoFraming(),
     required this.loginQuote,
+    this.loginHeadline = '',
+    this.loginSubheadline = '',
+    this.loginShowHeadline = true,
     required this.integrations,
     required this.faq,
     required this.tips,
@@ -358,6 +367,10 @@ class ConfigSection {
       logoUrl: json['logoUrl'] as String? ?? '',
       logoFraming: LogoFraming.fromJson(json['logoFraming']),
       loginQuote: json['loginQuote'] as String? ?? 'Acesse sua conta.',
+      loginHeadline: _loginText(json['login'], 'headline', 80),
+      loginSubheadline: _loginText(json['login'], 'subheadline', 120),
+      loginShowHeadline: !(json['login'] is Map &&
+          (json['login'] as Map)['showHeadline'] == false),
       integrations: SgpIntegration.fromJson(
         json['integrations'] as Map<String, dynamic>? ?? {},
         fallbackSgpUrl,
@@ -401,6 +414,11 @@ class ConfigSection {
       'logoUrl': logoUrl,
       'logoFraming': logoFraming.toJson(),
       'loginQuote': loginQuote,
+      'login': {
+        'headline': loginHeadline,
+        'subheadline': loginSubheadline,
+        'showHeadline': loginShowHeadline,
+      },
       'integrations': integrations.toJson(),
       'faq': faq.map((e) => e.toJson()).toList(),
       'tips': tips.map((e) => e.toJson()).toList(),
@@ -767,4 +785,14 @@ class MenuItemDetails {
       'color': color,
     };
   }
+}
+
+/// Texto curto de `login.<key>` da configuração: sem espaços nas pontas e
+/// limitado a [max] caracteres.
+String _loginText(Object? login, String key, int max) {
+  if (login is! Map) return '';
+  final value = login[key];
+  if (value is! String) return '';
+  final text = value.trim();
+  return text.length > max ? text.substring(0, max) : text;
 }
