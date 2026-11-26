@@ -269,4 +269,57 @@ void main() {
     expect(progressEvents.any((e) => !e.$3), isTrue);
     expect(progressEvents.any((e) => e.$3), isTrue);
   });
+
+  test('ID fixado (ookla:43431) busca pelo nome do provedor e escolhe o ID',
+      () async {
+    final searched = <String?>[];
+    final client = MockClient((req) async {
+      searched.add(req.url.queryParameters['search']);
+      if (req.url.queryParameters['search'] == 'vibe') {
+        return http.Response(
+            jsonEncode([
+              {
+                'id': '43431',
+                'sponsor': 'VIBE',
+                'name': 'Paulista',
+                'cc': 'BR',
+                'distance': 7,
+                'host': 'speedtestvibe.ajustconsulting.com.br:8080',
+                'url':
+                    'http://speedtestvibe.ajustconsulting.com.br:8080/speedtest/upload.php',
+              },
+            ]),
+            200);
+      }
+      return http.Response(
+          jsonEncode([
+            {
+              'id': '60652',
+              'sponsor': 'Conect Fibra',
+              'name': 'Abreu e Lima',
+              'cc': 'BR',
+              'distance': 2,
+              'host': 'conect.example:8080',
+              'url': 'http://conect.example:8080/speedtest/upload.php',
+            },
+          ]),
+          200);
+    });
+    final service = OoklaSpeedtestService(
+      probeServer: (server, _) async => server.copyWith(
+        resolvedBaseUrl: 'https://${server.host}',
+        latencyMs: server.id == '43431' ? 9 : 5,
+        jitterMs: 1,
+      ),
+    );
+    final plan = await service.discoverAndSelect(
+      client: client,
+      providerName: 'Vibe Telecom',
+      providerId: 'vibe',
+      configuredUrl: 'ookla:43431',
+    );
+    expect(searched, contains('vibe'));
+    expect(searched, isNot(contains('43431')));
+    expect(plan!.primary.id, '43431');
+  });
 }

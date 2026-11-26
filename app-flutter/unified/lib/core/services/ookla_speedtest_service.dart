@@ -373,7 +373,10 @@ class OoklaSpeedtestService {
 
     final nearestFuture = fetchList(Uri.parse(
         'https://www.speedtest.net/api/js/servers?engine=js&limit=12'));
-    final searchQuery = explicitId ?? keyword;
+    // A busca do Speedtest não acha servidor pelo número: busca sempre pelo
+    // nome do provedor e o ID configurado (ookla:43431) só escolhe entre os
+    // resultados.
+    final searchQuery = keyword ?? explicitId;
     final searchFuture = searchQuery == null
         ? Future<List<OoklaServer>>.value(const [])
         : fetchList(Uri.https('www.speedtest.net', '/api/js/servers', {
@@ -437,7 +440,9 @@ class OoklaSpeedtestService {
       }
     }
 
-    if (explicitServer != null) mergeCandidate(explicitServer, fromSearch: true);
+    if (explicitServer != null) {
+      mergeCandidate(explicitServer, fromSearch: true);
+    }
     for (final s in nearest) {
       mergeCandidate(s, fromSearch: false);
     }
