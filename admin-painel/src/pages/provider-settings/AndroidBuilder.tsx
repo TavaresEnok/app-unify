@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { clearBuildResult, currentBuildState, isBuildTracked, subscribeBuild, trackBuild, type BuildState } from '@/features/app-build/buildTracker';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -51,49 +52,66 @@ async function parseBuildResponse(response: Response): Promise<BuildResult> {
     }
 }
 
-const BUILD_POLL_INTERVAL_MS = 2_000;
-const BUILD_POLL_TIMEOUT_MS = 30 * 60 * 1_000;
+async function fetchBuildJob(jobId: string, token: string) {
+    const response = await fetch(
+        `${runtimeConfig.apkBuilderBaseUrl}/jobs/${encodeURIComponent(jobId)}`,
+        { headers: { 'Authorization': `Bearer ${token}` } },
+    );
+    const body = await parseBuildResponse(response);
+    return { ok: response.ok, status: response.status, body };
+}
 
-async function waitForBuild(jobId: string, token: string): Promise<BuildResult> {
-    const deadline = Date.now() + BUILD_POLL_TIMEOUT_MS;
-    let consecutiveNetworkErrors = 0;
+type BuildUser = { getIdToken: () => Promise<string> };
 
-    while (Date.now() < deadline) {
-        await new Promise((resolve) => window.setTimeout(resolve, BUILD_POLL_INTERVAL_MS));
-
-        let response: Response;
-        try {
-            response = await fetch(
-                `${runtimeConfig.apkBuilderBaseUrl}/jobs/${encodeURIComponent(jobId)}`,
-                { headers: { 'Authorization': `Bearer ${token}` } },
-            );
-            consecutiveNetworkErrors = 0;
-        } catch (error) {
-            consecutiveNetworkErrors += 1;
-            if (consecutiveNetworkErrors >= 5) throw error;
-            continue;
-        }
-
-        const result = await parseBuildResponse(response);
-        if (!response.ok) {
-            throw new Error(result.error || `HTTP ${response.status}`);
-        }
-        if (result.status === 'succeeded') return result;
-        if (result.status === 'failed') {
-            throw new Error(result.error || 'A geração do aplicativo falhou.');
-        }
-    }
-
-    throw new Error('A geração excedeu o tempo máximo de 30 minutos.');
+// Segue o build fora do ciclo de vida da página: o toast final aparece em
+// qualquer tela do painel, e o resultado fica salvo para quando o admin voltar.
+function followBuild(providerId: string, jobId: string, format: 'apk' | 'aab', user: BuildUser, startedAt?: number) {
+    if (isBuildTracked(providerId)) return;
+    trackBuild(providerId, jobId, format, () => user.getIdToken(), fetchBuildJob, { startedAt })
+        .then((result) => {
+            if (result.success) {
+                toast.success(`${format.toUpperCase()} gerado com sucesso!`, {
+                    description: 'O link de download está na tela Gerar app.',
+                    duration: 15_000,
+                });
+            } else {
+                toast.error(`Erro ao gerar ${format.toUpperCase()}`, { description: result.error });
+            }
+        })
+        .catch(() => {
+            toast.warning('Sem conexão com o gerador', {
+                description: 'A geração continua no servidor. Volte à tela Gerar app para acompanhar.',
+            });
+        });
 }
 
 // FINAL-FINAL FIX - RENAMED FILE
 export default function AndroidBuilderPage() {
     const { userRole, user } = useAuth();
     const settings = useSettings();
-    const [loading, setLoading] = useState(false);
-    const [lastResult, setLastResult] = useState<BuildResult | null>(null);
+    const [starting, setStarting] = useState(false);
+    const [startError, setStartError] = useState<string | null>(null);
     const [pendingFormat, setPendingFormat] = useState<'apk' | 'aab' | null>(null);
+    const trackedProviderId = settings.providerId || settings.provider?.id || '';
+    const [buildState, setBuildState] = useState<BuildState>(() =>
+        trackedProviderId ? currentBuildState(trackedProviderId) : { kind: 'idle' });
+
+    useEffect(() => {
+        if (!trackedProviderId) return;
+        setBuildState(currentBuildState(trackedProviderId));
+        const unsubscribe = subscribeBuild(trackedProviderId, setBuildState);
+        // Retoma um build iniciado antes (outra tela, recarga ou nova aba).
+        const state = currentBuildState(trackedProviderId);
+        if (state.kind === 'running' && user) {
+            followBuild(trackedProviderId, state.jobId, state.format, user, state.startedAt);
+        }
+        return unsubscribe;
+    }, [trackedProviderId, user]);
+
+    const loading = starting || buildState.kind === 'running';
+    const lastResult: BuildResult | null = startError
+        ? { success: false, error: startError }
+        : buildState.kind === 'done' ? (buildState.result as BuildResult) : null;
 
     // --- SAFETY CHECK (CRITICAL) ---
     // Handle undefined context or missing provider data gracefully
@@ -146,8 +164,9 @@ export default function AndroidBuilderPage() {
             return;
         }
 
-        setLoading(true);
-        setLastResult(null);
+        setStarting(true);
+        setStartError(null);
+        clearBuildResult(providerId);
 
         try {
             if (!user) {
@@ -175,7 +194,7 @@ export default function AndroidBuilderPage() {
                 })
             });
 
-            let result = await parseBuildResponse(response);
+            const result = await parseBuildResponse(response);
 
             if (!response.ok || !result.success) {
                 if (response.status === 403 && result.error === 'build-authorization-denied' && await needsBuildConfirmation(user)) {
@@ -190,23 +209,24 @@ export default function AndroidBuilderPage() {
             }
             if (response.status === 202 && result.jobId) {
                 toast.info(`${format.toUpperCase()} em geração`, {
-                    description: 'O progresso continuará mesmo se a conexão for renovada.',
+                    description: 'Pode sair desta tela: a geração continua e você será avisado ao terminar.',
                 });
-                result = await waitForBuild(result.jobId, token);
+                followBuild(providerId, result.jobId, format, user);
+                return;
             }
 
-            setLastResult({ ...result, format });
-            toast.success(`${format.toUpperCase()} Gerado com Sucesso!`, {
-                description: "O arquivo está disponível na pasta pública do servidor."
-            });
+            // Resposta síncrona (builder antigo): já veio pronta.
+            toast.success(`${format.toUpperCase()} Gerado com Sucesso!`);
+            setStartError(null);
+            setBuildState({ kind: 'done', result: { ...result, format } });
         } catch (error) {
             console.error(error);
             toast.error(`Erro ao gerar ${format.toUpperCase()}`, {
                 description: getErrorMessage(error)
             });
-            setLastResult({ success: false, error: getErrorMessage(error) });
+            setStartError(getErrorMessage(error));
         } finally {
-            setLoading(false);
+            setStarting(false);
         }
     };
 
@@ -463,6 +483,17 @@ export default function AndroidBuilderPage() {
                             Gerar AAB (Play Store)
                         </Button>
                     </div>
+
+                    {buildState.kind === 'running' && (
+                        <Alert>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <AlertTitle>Gerando {buildState.format.toUpperCase()}…</AlertTitle>
+                            <AlertDescription>
+                                Iniciado às {new Date(buildState.startedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.
+                                Leva alguns minutos. Pode sair desta tela: a geração continua no servidor e o link aparece aqui quando terminar.
+                            </AlertDescription>
+                        </Alert>
+                    )}
 
                     {lastResult && lastResult.success && (
                         <Alert className="bg-green-500/10 border-green-500/50 text-green-700 dark:text-green-400">
