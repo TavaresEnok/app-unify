@@ -220,21 +220,23 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
               child: SizedBox(
                 width: double.infinity,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // As ondas ocupam o alto da faixa; marca e frase ficam
-                    // juntas embaixo, perto da folha de entrada.
+                    // centralizadas e juntas embaixo, perto da folha.
                     const Spacer(),
                     _brandCard(t, name, config),
                     if (showHeadline) ...[
                       const SizedBox(height: 22),
                       Text(headline,
+                          textAlign: TextAlign.center,
                           style: vibeText(t, 29, 800,
                               color: t.on,
                               height: 1.12,
                               letterSpacingEm: -.03)),
                       const SizedBox(height: 10),
                       Text(subheadline,
+                          textAlign: TextAlign.center,
                           style: vibeText(t, 14.5, 500,
                               color: t.on.withValues(alpha: .78), height: 1.4)),
                     ],
@@ -297,10 +299,12 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                   Semantics(
                     header: true,
                     child: Text('Acesse sua conta',
+                        textAlign: TextAlign.center,
                         style: vibeText(t, 21, 800, letterSpacingEm: -.02)),
                   ),
                   const SizedBox(height: 6),
                   Text('Digite o CPF ou CNPJ do titular do contrato.',
+                      textAlign: TextAlign.center,
                       style: vibeText(t, 14, 500, color: t.mut, height: 1.45)),
                   const SizedBox(height: 18),
                   _cpfField(t),
@@ -451,7 +455,7 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
   }
 }
 
-/// Ondas de sinal saindo do canto superior direito da faixa da marca.
+/// Ondas de sinal saindo do centro do topo da faixa da marca.
 class _SignalPainter extends CustomPainter {
   const _SignalPainter(this.background, this.color);
 
@@ -460,7 +464,7 @@ class _SignalPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = background);
-    final center = Offset(size.width + 10, -10);
+    final center = Offset(size.width / 2, -24);
     for (var i = 0; i < 5; i++) {
       final paint = Paint()
         ..style = PaintingStyle.stroke
