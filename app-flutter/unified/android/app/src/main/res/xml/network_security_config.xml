@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HTTP em claro só é aceito para o teste de velocidade: os servidores do
+  Speedtest (Ookla) dos provedores são de terceiros, muitos só respondem em
+  HTTP ou estão com o certificado vencido, e o teste transfere apenas dados
+  aleatórios. Login, faturas e Wi-Fi vão sempre pela API em HTTPS: o domínio
+  da plataforma nunca aceita HTTP e o app força https na apiUrl em release
+  (ProviderConfig._validateApiUrl).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">appisp.com.br</domain>
+    </domain-config>
+</network-security-config>

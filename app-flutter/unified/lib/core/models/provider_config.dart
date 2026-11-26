@@ -55,8 +55,8 @@ class ProviderConfig {
 
   /// Valida o esquema da apiUrl (A8). Rejeita esquemas não-http(s) (evita
   /// file:/javascript: vindos de config). Em release, bloqueia HTTP em claro
-  /// para hosts não-loopback quando ENFORCE_HTTPS=true — assim, após habilitar o
-  /// TLS no proxy reverso, token/CPF/senha nunca trafegam em texto puro.
+  /// para hosts não-loopback (troca por https) em release ou com
+  /// ENFORCE_HTTPS=true: token/CPF/senha nunca trafegam em texto puro.
   static String _validateApiUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
@@ -66,18 +66,14 @@ class ProviderConfig {
     final isLoopback =
         host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
     if (uri.scheme == 'http' && !isLoopback) {
+      // O Android aceita HTTP para o teste de velocidade; a API nunca: em
+      // release (ou com ENFORCE_HTTPS) token, CPF e senha só vão por HTTPS.
       const enforceHttps = bool.fromEnvironment(
         'ENFORCE_HTTPS',
         defaultValue: false,
       );
-      if (enforceHttps) {
+      if (enforceHttps || kReleaseMode) {
         return uri.replace(scheme: 'https').toString();
-      }
-      if (kReleaseMode) {
-        debugPrint(
-          '[SECURITY] apiUrl usa HTTP em claro em release: $host. '
-          'Habilite TLS e ENFORCE_HTTPS.',
-        );
       }
     }
     return url;
