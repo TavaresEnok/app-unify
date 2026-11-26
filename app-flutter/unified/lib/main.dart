@@ -128,6 +128,11 @@ class MyApp extends ConsumerWidget {
     final appName = ref.watch(
         configurationProvider.select((c) => c.providerConfig?.name ?? ''));
 
+    // Tamanho do texto escolhido pelo provedor (Tipografia no painel), por
+    // cima do tamanho que o assinante usa no celular.
+    final textScale = ref.watch(configurationProvider
+        .select((c) => c.providerConfig?.config.textScale ?? 1.0));
+
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
@@ -135,6 +140,17 @@ class MyApp extends ConsumerWidget {
       theme: themeNotifer.lightTheme,
       darkTheme: themeNotifer.darkTheme,
       themeMode: themeNotifer.themeMode,
+      builder: textScale == 1.0
+          ? null
+          : (context, child) {
+              final media = MediaQuery.of(context);
+              final device = media.textScaler.scale(1);
+              return MediaQuery(
+                data: media.copyWith(
+                    textScaler: TextScaler.linear(device * textScale)),
+                child: child!,
+              );
+            },
       home: const AppInitializationWrapper(),
     );
   }
@@ -296,9 +312,14 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    // Cor da abertura escolhida no painel (Splash & Login), gravada no app
+    // na geração: continua a abertura nativa sem trocar de cor no meio.
+    final brand = _splashBrandColor();
     final backgroundColor =
-        background ?? (dark ? const Color(0xFF0F1115) : Colors.white);
-    final fg = dark ? const Color(0xFFE6E8EC) : const Color(0xFF18202C);
+        background ?? brand ?? (dark ? const Color(0xFF0F1115) : Colors.white);
+    final darkSurface = ThemeData.estimateBrightnessForColor(backgroundColor) ==
+        Brightness.dark;
+    final fg = darkSurface ? const Color(0xFFE6E8EC) : const Color(0xFF18202C);
     return Scaffold(
       backgroundColor: backgroundColor,
       body: Center(
@@ -330,6 +351,17 @@ class SplashScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// `--dart-define=SPLASH_COLOR=#RRGGBB` da geração do app; branco ou
+/// ausente segue a aparência (clara ou escura) como antes.
+Color? _splashBrandColor() {
+  const raw = String.fromEnvironment('SPLASH_COLOR');
+  if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(raw) ||
+      raw.toUpperCase() == '#FFFFFF') {
+    return null;
+  }
+  return Color(0xFF000000 | int.parse(raw.substring(1), radix: 16));
 }
 
 class FatalErrorScreen extends StatelessWidget {

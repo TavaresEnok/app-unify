@@ -14,9 +14,9 @@ const menuKeys = "invoices support contract consumption diagnostics notification
 const appVersion: Shape = { ...strings("minVersion latestVersion storeUrl"), forceUpdate: "boolean", storeUrls: strings("android ios"), updateMessage: { pt_BR: strings("title message buttonText") } };
 const dashboard: Shape = { widgets: [{ ...strings("id type title size color icon"), enabled: "boolean", order: "number", position: "number", visible: "boolean", config: { ...booleans("showInvoice showConnection showPlan showLabels"), ...strings("imageUrl chartType"), height: "number", borderRadius: "number", columns: "number", iconSize: "number", period: "number", actions: ["string"] } }] };
 export const personalizationSchema: Record<string, Shape> = {
-  ...strings("layoutType diagnosticStyle themeColor secondaryColor backgroundColor cardColor cardTextColor textColor textSecondaryColor iconColor actionColor invoiceColor quickActionsCardColor quickActionsTextColor otherCardsColor otherCardsTextColor logoUrl iconUrl backgroundUrl loginQuote termsOfUse iconPack"),
+  ...strings("layoutType diagnosticStyle themeColor secondaryColor backgroundColor cardColor cardTextColor textColor textSecondaryColor iconColor actionColor invoiceColor quickActionsCardColor quickActionsTextColor otherCardsColor otherCardsTextColor logoUrl iconUrl backgroundUrl loginQuote termsOfUse iconPack iconStyle"),
   logoFraming: { shape: "string", fit: "string", zoom: "number", x: "number", y: "number" },
-  typography: strings("fontFamily titleSize bodySize fontWeight"),
+  typography: strings("appFont textScale fontFamily titleSize bodySize fontWeight"),
   imageCarousel: ["string"],
   menuConfig: { order: ["string"], items: Object.fromEntries(menuKeys.split(" ").map(k => [k, menuItem]).concat([["$customMenu", menuItem]])) },
   supportContacts: [{ ...strings("id name type value") }],

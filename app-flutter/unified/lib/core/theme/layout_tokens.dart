@@ -42,6 +42,13 @@ class LayoutTokens {
   /// Raio padrão de cantos (cards, campos, botões).
   final double radius;
 
+  /// Fonte escolhida pelo provedor no painel (`PlusJakartaSans`, `Sora` ou
+  /// `Inter`); nula usa a do layout.
+  final String? appFont;
+
+  /// Fator do traço dos ícones (fino 0,8 · padrão 1 · forte 1,25).
+  final double iconWeight;
+
   const LayoutTokens({
     required this.layoutType,
     required this.background,
@@ -65,6 +72,8 @@ class LayoutTokens {
     required this.isDark,
     required this.isNeumorphic,
     this.radius = 16,
+    this.appFont,
+    this.iconWeight = 1.0,
   });
 
   /// Contrast is measured after compositing translucent foregrounds.
@@ -110,6 +119,8 @@ class LayoutTokens {
         isDark: isDark,
         isNeumorphic: isNeumorphic,
         radius: radius,
+        appFont: appFont,
+        iconWeight: iconWeight,
       );
 
   /// White and dark appearances are available for every provider layout.
@@ -129,6 +140,8 @@ class LayoutTokens {
       isDark: dark,
       isNeumorphic: false,
       radius: radius,
+      appFont: appFont,
+      iconWeight: iconWeight,
     );
   }
 
@@ -193,8 +206,39 @@ class LayoutTokens {
       isDark: isDark,
       isNeumorphic: isNeumorphic,
       radius: radius,
+      appFont: appFont,
+      iconWeight: iconWeight,
     );
   }
+
+  /// Fonte e traço dos ícones escolhidos no painel (Tipografia e Estilo dos
+  /// ícones). Valores desconhecidos mantêm o padrão do layout.
+  LayoutTokens withAppearance(ConfigSection config) => LayoutTokens(
+        layoutType: layoutType,
+        background: background,
+        primary: primary,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        card: card,
+        border: border,
+        success: success,
+        error: error,
+        warning: warning,
+        secondary: secondary,
+        cardText: cardText,
+        iconColor: iconColor,
+        quickActionsCard: quickActionsCard,
+        quickActionsText: quickActionsText,
+        otherCards: otherCards,
+        otherCardsText: otherCardsText,
+        invoiceColor: invoiceColor,
+        actionColor: actionColor,
+        isDark: isDark,
+        isNeumorphic: isNeumorphic,
+        radius: radius,
+        appFont: config.appFont,
+        iconWeight: config.iconWeight,
+      );
 
   /// Tokens do layout aprovado (layout-app/vibe-5-definitivas.html) para a
   /// cor da marca e a aparência atuais.
@@ -203,8 +247,12 @@ class LayoutTokens {
   /// o modo claro ou escuro variam, como na galeria do protótipo. As cores
   /// avulsas gravadas pelo painel antigo (fundo, cartão, texto) não entram
   /// aqui, porque descaracterizam o layout e quebram a hierarquia de texto.
-  VibeTokens get vibe =>
-      VibeTokens.resolve(layout: layoutType, brand: primary, dark: isDark);
+  VibeTokens get vibe => VibeTokens.resolve(
+      layout: layoutType,
+      brand: primary,
+      dark: isDark,
+      font: appFont,
+      iconWeight: iconWeight);
 
   /// Componentes Material com a tipografia, as cores e os raios do layout
   /// aprovado, para que as telas comuns sigam o mesmo desenho.

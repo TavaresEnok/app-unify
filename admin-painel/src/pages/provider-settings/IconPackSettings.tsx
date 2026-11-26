@@ -1,146 +1,70 @@
-import { useCallback } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
-import { Save, Loader2, Check, Circle, Square, Hexagon, Diamond } from 'lucide-react';
-import { toast } from 'sonner';
+import { Save, Loader2, Check, Shapes } from 'lucide-react';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
+import { cn } from '@/lib/utils';
 
-// Icon pack options
-const ICON_PACKS = [
-    {
-        id: 'material',
-        name: 'Material Design',
-        description: 'Ícones padrão do Material Design',
-        style: 'Preenchido',
-    },
-    {
-        id: 'outlined',
-        name: 'Outlined',
-        description: 'Ícones com borda, sem preenchimento',
-        style: 'Contorno',
-    },
-    {
-        id: 'rounded',
-        name: 'Rounded',
-        description: 'Ícones com cantos suaves e arredondados',
-        style: 'Arredondado',
-    },
-    {
-        id: 'phosphor',
-        name: 'Phosphor',
-        description: 'Pack de ícones moderno e elegante',
-        style: 'Moderno',
-    },
-];
+// O app desenha os próprios ícones de traço (layout aprovado); o que muda
+// por provedor é a espessura do traço. Fatores iguais aos do app
+// (provider_config.dart: thin 0,8 · regular 1 · bold 1,25 sobre 1,8).
+const ICON_STYLES = [
+    { value: 'thin', label: 'Fino', description: 'Leve e delicado.', stroke: 1.45 },
+    { value: 'regular', label: 'Padrão', description: 'O traço do layout.', stroke: 1.8 },
+    { value: 'bold', label: 'Forte', description: 'Mais presença e contraste.', stroke: 2.25 },
+] as const;
+
+type IconStyle = typeof ICON_STYLES[number]['value'];
+
+function PreviewIcons({ stroke }: { stroke: number }) {
+    const common = { width: 26, height: 26, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: stroke, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+    return (
+        <div className="flex gap-4 text-primary">
+            {/* fatura, wi-fi, chat e casa no mesmo desenho de traço do app */}
+            <svg {...common}><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v4h4M10 12h5M10 16h5" /></svg>
+            <svg {...common}><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M9 16a4.5 4.5 0 0 1 6 0" /><circle cx="12" cy="19.5" r=".8" /></svg>
+            <svg {...common}><path d="M20 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z" /></svg>
+            <svg {...common}><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+        </div>
+    );
+}
 
 export default function IconPackSettings() {
     const { config, setConfig, saveConfig, isSaving } = useSettings();
-
-    const currentPack = config.iconPack || 'material';
-
-    const handlePackChange = useCallback((pack: string) => {
-        setConfig((prev) => ({
-            ...prev,
-            iconPack: pack,
-        }));
-    }, [setConfig]);
-
-    const handleSave = async () => {
-        await saveConfig();
-        toast.success('Pack de ícones salvo!');
-    };
-
-    const renderPreviewIcons = (packId: string) => {
-        const baseClass = "h-6 w-6 text-primary";
-        switch (packId) {
-            case 'material':
-                return (
-                    <>
-                        <Circle className={`${baseClass} fill-current`} />
-                        <Square className={`${baseClass} fill-current`} />
-                        <Hexagon className={`${baseClass} fill-current`} />
-                        <Diamond className={`${baseClass} fill-current`} />
-                    </>
-                );
-            case 'outlined':
-                return (
-                    <>
-                        <Circle className={baseClass} />
-                        <Square className={baseClass} />
-                        <Hexagon className={baseClass} />
-                        <Diamond className={baseClass} />
-                    </>
-                );
-            case 'rounded':
-                return (
-                    <>
-                        <Circle className={`${baseClass} stroke-[3]`} />
-                        <Square className={`${baseClass} stroke-[3]`} />
-                        <Hexagon className={`${baseClass} stroke-[3]`} />
-                        <Diamond className={`${baseClass} stroke-[3]`} />
-                    </>
-                );
-            case 'phosphor':
-                return (
-                    <>
-                        <Circle className={`${baseClass} fill-current stroke-[1.5]`} />
-                        <Square className={`${baseClass} fill-current stroke-[1.5]`} />
-                        <Hexagon className={`${baseClass} fill-current stroke-[1.5]`} />
-                        <Diamond className={`${baseClass} fill-current stroke-[1.5]`} />
-                    </>
-                );
-            default:
-                return null;
-        }
-    };
+    const current = (ICON_STYLES.some(s => s.value === config.iconStyle) ? config.iconStyle : 'regular') as IconStyle;
 
     return (
         <SettingsPage
-            title="Pack de Ícones"
-            description="Escolha o estilo dos ícones do aplicativo."
-            icon={Hexagon}
+            title="Ícones"
+            description="Espessura do traço dos ícones do aplicativo."
+            icon={Shapes}
             footer={(
                 <>
-                    <SettingsFooterNote>A mudança do pack de ícones requer rebuild para ser aplicada no app.</SettingsFooterNote>
-                    <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+                    <SettingsFooterNote>Vale para apps a partir da versão 1.0.22: o app aplica ao abrir, sem gerar um app novo.</SettingsFooterNote>
+                    <Button onClick={() => void saveConfig()} disabled={isSaving} className="gap-2">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        {isSaving ? "Salvando..." : "Salvar alterações"}
+                        {isSaving ? 'Salvando...' : 'Salvar alterações'}
                     </Button>
                 </>
             )}
         >
-            <SettingsSection title="Estilo de ícones" description="O pack selecionado será usado em todo o aplicativo.">
-                <div className="grid gap-3">
-                    {ICON_PACKS.map((pack) => (
-                        <div
-                            key={pack.id}
-                            onClick={() => handlePackChange(pack.id)}
-                            className={`flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-all
-                                ${currentPack === pack.id
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-[#EEF0F4] bg-white hover:bg-[#F8FAFC]'}`}
-                        >
-                            {/* Preview icons grid */}
-                            <div className="grid min-w-[70px] grid-cols-2 gap-1 rounded-lg bg-[#F2F4F7] p-3">
-                                {renderPreviewIcons(pack.id)}
-                            </div>
-
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-semibold">{pack.name}</span>
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                        {pack.style}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                    {pack.description}
-                                </p>
-                            </div>
-
-                            {currentPack === pack.id && (
-                                <Check className="h-5 w-5 text-primary" />
+            <SettingsSection title="Estilo do traço" description="Os ícones usam a cor da marca; aqui muda só a espessura.">
+                <div className="grid gap-3 sm:grid-cols-3">
+                    {ICON_STYLES.map((style) => (
+                        <button
+                            key={style.value}
+                            type="button"
+                            aria-pressed={current === style.value}
+                            onClick={() => setConfig((prev) => ({ ...prev, iconStyle: style.value }))}
+                            className={cn(
+                                'relative rounded-lg border bg-white p-4 text-left transition-colors',
+                                current === style.value ? 'border-primary ring-2 ring-primary/20' : 'border-[#EEF0F4] hover:border-[#D5DAE3]',
                             )}
-                        </div>
+                        >
+                            {current === style.value && <Check className="absolute right-3 top-3 h-4 w-4 text-primary" />}
+                            <PreviewIcons stroke={style.stroke} />
+                            <span className="mt-3 block font-semibold text-[#18202C]">{style.label}</span>
+                            <span className="block text-xs text-muted-foreground">{style.description}</span>
+                        </button>
                     ))}
                 </div>
             </SettingsSection>

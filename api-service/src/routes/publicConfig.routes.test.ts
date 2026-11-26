@@ -131,3 +131,21 @@ it("serves privacy and data deletion pages as escaped HTML", async () => {
   expect(deletion.text).toContain("/public/providers/pg/privacidade");
   await request(app).get("/public/providers/missing/privacidade").expect(404);
 });
+
+it("serves terms of use as plain escaped text and links them in the config", async () => {
+  state.docs.set("tos", {
+    name: "Tos",
+    termsOfUse: "<h2>Uso</h2><p>Primeira <b>regra</b> &amp; mais.</p><script>alert(1)</script><p onclick=\"x()\">Segunda</p>",
+  });
+  const page = await request(app).get("/public/providers/tos/termos").expect(200);
+  expect(page.text).toContain("Termos de uso");
+  expect(page.text).toContain("<p>Primeira regra &amp; mais.</p>");
+  expect(page.text).toContain("<p>Segunda</p>");
+  expect(page.text).not.toContain("alert(1)");
+  expect(page.text).not.toContain("onclick");
+  const config = (await request(app).get("/public/providers/tos/config").expect(200)).body.data;
+  expect(config.termsUrl).toBe("https://appisp.com.br/api/public/providers/tos/termos");
+
+  state.docs.set("tos2", { name: "Sem termos", termsOfUse: "<p>Estes são os termos de uso padrão. Por favor, edite-os no painel.</p>" });
+  expect((await request(app).get("/public/providers/tos2/config").expect(200)).body.data.termsUrl).toBeUndefined();
+});

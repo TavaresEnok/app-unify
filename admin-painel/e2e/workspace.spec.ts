@@ -109,7 +109,7 @@ test('SaaS saves a permitted logo configuration before building with the current
   await expect.poll(() => page.evaluate(() => (window as any).workspaceCalls.filter((item: any) => item.type === 'UPDATE_PROVIDER_CONFIG').length)).toBe(1);
   await page.getByRole('button', { name: 'Gerar APK (Teste)', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Baixar APK', exact: true })).toBeVisible();
-  expect(builds).toEqual([{ providerId: 'fixture', appName: 'Provedor Teste', logoUrl, format: 'apk', async: true }]);
+  expect(builds).toEqual([{ providerId: 'fixture', appName: 'Provedor Teste', logoUrl, format: 'apk', splashColor: '#FFFFFF', async: true }]);
   const saved = await page.evaluate(() => (window as any).workspaceCalls.filter((item: any) => item.type === 'UPDATE_PROVIDER_CONFIG'));
   expect(saved).toHaveLength(2);
   for (const item of saved) {

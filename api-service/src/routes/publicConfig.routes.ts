@@ -6,7 +6,7 @@ import { publicConfigLimiter } from "../middlewares/rateLimits";
 import { requirePgPool } from "../services/postgres";
 import { getProviderRow, serializeProviderRow } from "../services/providersStore";
 import { publicConfigCache } from "../services/publicConfigCache";
-import { dataDeletionHtml, privacyPolicyHtml, publicConfigExtras } from "../services/privacyPages";
+import { dataDeletionHtml, privacyPolicyHtml, publicConfigExtras, termsHtml } from "../services/privacyPages";
 
 // O app do assinante carrega marca/menus antes do login pelo PostgreSQL + cache em memória.
 export const publicConfigRouter = Router();
@@ -51,7 +51,7 @@ function updatedLabel(data: Record<string, unknown>): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Fortaleza", day: "2-digit", month: "2-digit", year: "numeric" }).format(valid);
 }
 
-for (const [slug, render] of [["privacidade", privacyPolicyHtml], ["exclusao-de-dados", dataDeletionHtml]] as const) {
+for (const [slug, render] of [["privacidade", privacyPolicyHtml], ["exclusao-de-dados", dataDeletionHtml], ["termos", termsHtml]] as const) {
   publicConfigRouter.get(`/providers/:providerId/${slug}`, publicConfigLimiter, asyncRoute(async (req, res) => {
     const providerId = String(req.params.providerId || "");
     if (!/^[a-z0-9_-]{1,64}$/i.test(providerId)) throw new ApiError(400, "Provedor inválido.", "invalid-argument");

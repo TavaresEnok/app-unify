@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'pages/unified_login_page.dart' show pendingWelcomeMessage;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../layout_selector.dart';
@@ -67,6 +68,15 @@ class _PainelPageState extends ConsumerState<PainelPage> {
         unawaited(PushNotificationService().requestPermissionOnce());
       }
       if (!_tabs.contains(destination) && mounted) _navigate(destination);
+      final welcome = pendingWelcomeMessage;
+      pendingWelcomeMessage = '';
+      if (welcome.isNotEmpty && mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+          content: Text(welcome),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+        ));
+      }
     });
   }
 

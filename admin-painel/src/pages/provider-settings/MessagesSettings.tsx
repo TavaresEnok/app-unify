@@ -1,81 +1,88 @@
 import { useState, useEffect } from 'react';
-import { useSettings, ProviderConfig } from '@/contexts/SettingsContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Save, Loader2, MessageSquare } from 'lucide-react';
 import { SettingsFooterNote, SettingsPage, SettingsSection } from '@/components/settings/SettingsPage';
 
-export default function MessagesSettings() {
-    const { config, setConfig, isSaving } = useSettings();
+// Textos de exemplo que o painel salvava antes; app e lembrete os ignoram.
+const OLD_WELCOME = 'Bem-vindo ao app!';
+const OLD_REMINDER = 'Lembrete: Sua fatura está próxima do vencimento.';
+const WELCOME_MAX = 160;
+const REMINDER_MAX = 200;
 
-    // Estados locais para campos de texto (exemplo)
-    const [localWelcomeMessage, setLocalWelcomeMessage] = useState(config.messages?.welcome || 'Bem-vindo ao app!');
-    const [localInvoiceReminder, setLocalInvoiceReminder] = useState(config.messages?.invoiceReminder || 'Lembrete: Sua fatura está próxima do vencimento.');
+const clean = (value: string | undefined, old: string) => (value && value.trim() !== old ? value : '');
+
+export default function MessagesSettings() {
+    const { config, saveConfig, isSaving } = useSettings();
+    const [welcome, setWelcome] = useState(clean(config.messages?.welcome, OLD_WELCOME));
+    const [reminder, setReminder] = useState(clean(config.messages?.invoiceReminder, OLD_REMINDER));
 
     useEffect(() => {
-        setLocalWelcomeMessage(config.messages?.welcome || 'Bem-vindo ao app!');
-        setLocalInvoiceReminder(config.messages?.invoiceReminder || 'Lembrete: Sua fatura está próxima do vencimento.');
-    }, [config]);
+        setWelcome(clean(config.messages?.welcome, OLD_WELCOME));
+        setReminder(clean(config.messages?.invoiceReminder, OLD_REMINDER));
+    }, [config.messages?.welcome, config.messages?.invoiceReminder]);
 
-    // Função para salvar localmente e atualizar o contexto
-    const handleSaveMessages = () => {
-        const newMessages = {
-            welcome: localWelcomeMessage.trim(),
-            invoiceReminder: localInvoiceReminder.trim(),
-        };
+    const reminderPreview = (reminder.trim() || 'Sua fatura de {valor} vence {quando}. Toque para pagar com PIX ou boleto.')
+        .replace(/\{valor\}/gi, 'R$ 99,90').replace(/\{quando\}/gi, 'amanhã');
 
-        // Atualiza o contexto, aninhando a nova configuração de mensagens
-        // CORRIGIDO: Tipagem do prevConfig para resolver TS7006
-        setConfig((prevConfig: ProviderConfig) => ({
-            ...prevConfig,
-            messages: newMessages,
-        }));
-        
-        toast.info("Configurações de mensagens salvas localmente. Clique em 'Salvar Alterações' no topo da página para confirmar.");
+    const handleSave = async () => {
+        await saveConfig({ ...config, messages: { ...(config.messages ?? {}), welcome: welcome.trim(), invoiceReminder: reminder.trim() } });
+        toast.success('Mensagens salvas!');
     };
 
     return (
         <SettingsPage
             title="Mensagens"
-            description="Configure mensagens específicas que aparecem em telas ou notificações."
+            description="Boas-vindas depois do login e o texto dos lembretes de fatura."
             icon={MessageSquare}
             footer={(
                 <>
-                    <SettingsFooterNote>Aplica no estado local; depois salve as alterações gerais para persistir.</SettingsFooterNote>
-                    <Button onClick={handleSaveMessages} disabled={isSaving} className="gap-2">
+                    <SettingsFooterNote>Em branco, o app usa os textos automáticos.</SettingsFooterNote>
+                    <Button onClick={() => void handleSave()} disabled={isSaving} className="gap-2">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Aplicar mensagens
+                        {isSaving ? 'Salvando...' : 'Salvar alterações'}
                     </Button>
                 </>
             )}
         >
-            <SettingsSection title="Textos operacionais" description="Mensagens exibidas após login e em lembretes financeiros.">
-                <div className="grid gap-4">
+            <SettingsSection title="Boas-vindas" description="Aparece uma vez, na parte de baixo da tela, logo depois que o assinante entra. Apps a partir da versão 1.0.22.">
                 <div className="space-y-2">
-                    <Label htmlFor="welcome">Mensagem de Boas-Vindas (Após Login)</Label>
+                    <Label htmlFor="welcome">Mensagem</Label>
                     <Input
                         id="welcome"
-                        placeholder="Ex: Olá, aproveite nossos serviços!"
-                        value={localWelcomeMessage}
-                        onChange={(e) => setLocalWelcomeMessage(e.target.value)}
+                        maxLength={WELCOME_MAX}
+                        placeholder="Ex: Que bom ter você aqui! Qualquer dúvida, fale com a gente no Suporte."
+                        value={welcome}
+                        onChange={(e) => setWelcome(e.target.value)}
                         disabled={isSaving}
                     />
-                    <p className="text-sm text-muted-foreground">Mensagem exibida na tela inicial após o login.</p>
+                    <p className="text-xs text-muted-foreground">Até {WELCOME_MAX} caracteres. Em branco, nada aparece.</p>
                 </div>
+            </SettingsSection>
 
+            <SettingsSection title="Lembrete de fatura" description="Texto da notificação enviada antes e depois do vencimento (regras em Comunicados). O título continua automático, dizendo quando vence.">
                 <div className="space-y-2">
-                    <Label htmlFor="reminder">Lembrete de Fatura</Label>
-                    <Input
+                    <Label htmlFor="reminder">Texto da notificação</Label>
+                    <Textarea
                         id="reminder"
-                        placeholder="Ex: Sua fatura vence amanhã."
-                        value={localInvoiceReminder}
-                        onChange={(e) => setLocalInvoiceReminder(e.target.value)}
+                        rows={2}
+                        maxLength={REMINDER_MAX}
+                        placeholder="Ex: Olá! Sua fatura de {valor} vence {quando}. Pague pelo app com PIX."
+                        value={reminder}
+                        onChange={(e) => setReminder(e.target.value)}
                         disabled={isSaving}
                     />
-                    <p className="text-sm text-muted-foreground">Texto usado em notificações e alertas sobre faturas.</p>
-                </div>
+                    <p className="text-xs text-muted-foreground">
+                        Use <code>{'{valor}'}</code> para o valor e <code>{'{quando}'}</code> para "amanhã", "hoje", "em 3 dias" ou "há 2 dias". Em branco, vale o texto automático.
+                    </p>
+                    <div className="rounded-lg border border-[#EEF0F4] bg-white p-3 text-sm">
+                        <p className="font-semibold text-[#18202C]">Fatura vencendo amanhã</p>
+                        <p className="text-[#596577]">{reminderPreview}</p>
+                    </div>
                 </div>
             </SettingsSection>
         </SettingsPage>

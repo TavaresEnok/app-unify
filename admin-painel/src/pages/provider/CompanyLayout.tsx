@@ -11,7 +11,7 @@ export default function CompanyLayout() {
     <WorkspaceTabs title="Minha empresa" description="Dados da empresa e canais de contato exibidos no aplicativo." tabs={[
       { label: "Dados da empresa", to: "/provedor/minha-empresa/dados" },
       { label: "Canais de suporte", to: "/provedor/minha-empresa/contatos" },
-      { label: "Redes sociais", to: "/provedor/minha-empresa/redes-sociais", badge: "Em breve" },
+      { label: "Redes sociais", to: "/provedor/minha-empresa/redes-sociais" },
     ]} />
   </div>;
 }

@@ -180,9 +180,18 @@ class _CustomerAccountPageState extends ConsumerState<CustomerAccountPage> {
           ),
         if (config != null &&
             (config.privacyPolicyUrl.isNotEmpty ||
-                config.dataDeletionUrl.isNotEmpty))
+                config.dataDeletionUrl.isNotEmpty ||
+                config.termsUrl.isNotEmpty))
           VibeCard(
             child: VibeRows(children: [
+              if (config.termsUrl.isNotEmpty)
+                VibeRow(
+                  icon: 'file',
+                  title: 'Termos de uso',
+                  subtitle: 'Regras de uso do aplicativo',
+                  trailing: VibeIcon('arr', size: 16, color: t.mut),
+                  onTap: () => _openExternal(context, config.termsUrl),
+                ),
               if (config.privacyPolicyUrl.isNotEmpty)
                 VibeRow(
                   icon: 'g-shield',

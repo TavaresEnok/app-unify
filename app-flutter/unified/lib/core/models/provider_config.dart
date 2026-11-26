@@ -23,6 +23,9 @@ class ProviderConfig {
   /// Como pedir a exclusão dos dados (LGPD).
   final String dataDeletionUrl;
 
+  /// Página pública dos termos de uso (só quando o provedor escreveu).
+  final String termsUrl;
+
   /// Versão mínima e mais recente do app (atualização obrigatória/sugerida).
   final AppVersionPolicy? appVersion;
 
@@ -38,6 +41,7 @@ class ProviderConfig {
     this.theme,
     this.privacyPolicyUrl = '',
     this.dataDeletionUrl = '',
+    this.termsUrl = '',
     this.appVersion,
   });
 
@@ -156,6 +160,7 @@ class ProviderConfig {
     return ProviderConfig(
       privacyPolicyUrl: privacyPolicyUrl,
       dataDeletionUrl: _httpsUrl(json['dataDeletionUrl']),
+      termsUrl: _httpsUrl(json['termsUrl']),
       appVersion: AppVersionPolicy.fromJson(json['appVersion']),
       id: providerId,
       name: providerName,
@@ -186,6 +191,7 @@ class ProviderConfig {
       'theme': theme,
       'privacyPolicyUrl': privacyPolicyUrl,
       'dataDeletionUrl': dataDeletionUrl,
+      'termsUrl': termsUrl,
       if (appVersion != null) 'appVersion': appVersion!.toJson(),
     };
   }
@@ -299,6 +305,22 @@ class ConfigSection {
   final String loginHeadline;
   final String loginSubheadline;
   final bool loginShowHeadline;
+
+  /// Tipografia do painel: fonte do app (nula = a do layout) e escala do
+  /// texto (pequeno 0,94 · padrão 1 · grande 1,08).
+  final String? appFont;
+  final double textScale;
+
+  /// Traço dos ícones (Estilo dos ícones no painel).
+  final double iconWeight;
+
+  /// Boas-vindas mostradas uma vez logo depois de entrar (Mensagens no
+  /// painel). Vazio quando o provedor não escreveu.
+  final String welcomeMessage;
+
+  /// Redes sociais do provedor já como links abríveis, na ordem de exibição
+  /// (Instagram, Facebook, site, WhatsApp). Só entram os preenchidos.
+  final List<SocialLink> socialLinks;
   final SgpIntegration integrations;
   final List<FaqItem> faq;
   final List<TipItem> tips;
@@ -329,6 +351,11 @@ class ConfigSection {
     this.loginHeadline = '',
     this.loginSubheadline = '',
     this.loginShowHeadline = true,
+    this.appFont,
+    this.textScale = 1.0,
+    this.iconWeight = 1.0,
+    this.welcomeMessage = '',
+    this.socialLinks = const [],
     required this.integrations,
     required this.faq,
     required this.tips,
@@ -369,6 +396,11 @@ class ConfigSection {
       loginQuote: json['loginQuote'] as String? ?? 'Acesse sua conta.',
       loginHeadline: _loginText(json['login'], 'headline', 80),
       loginSubheadline: _loginText(json['login'], 'subheadline', 120),
+      appFont: _appFont(json['typography']),
+      textScale: _textScale(json['typography']),
+      iconWeight: _iconWeight(json['iconStyle']),
+      welcomeMessage: _welcome(json['messages']),
+      socialLinks: socialLinksFrom(json['socialNetworks'] ?? json['social']),
       loginShowHeadline: !(json['login'] is Map &&
           (json['login'] as Map)['showHeadline'] == false),
       integrations: SgpIntegration.fromJson(
@@ -414,6 +446,19 @@ class ConfigSection {
       'logoUrl': logoUrl,
       'logoFraming': logoFraming.toJson(),
       'loginQuote': loginQuote,
+      'typography': {
+        if (appFont != null) 'appFont': appFont,
+        'textScale': textScale == 1.0
+            ? 'medium'
+            : textScale < 1
+                ? 'small'
+                : 'large',
+      },
+      'iconStyle': iconWeight == 1.0
+          ? 'regular'
+          : iconWeight < 1
+              ? 'thin'
+              : 'bold',
       'login': {
         'headline': loginHeadline,
         'subheadline': loginSubheadline,
@@ -795,4 +840,88 @@ String _loginText(Object? login, String key, int max) {
   if (value is! String) return '';
   final text = value.trim();
   return text.length > max ? text.substring(0, max) : text;
+}
+
+/// Fonte escolhida no painel; só as fontes que vêm no app valem.
+String? _appFont(Object? typography) {
+  if (typography is! Map) return null;
+  final value = typography['appFont'];
+  return const {'PlusJakartaSans', 'Sora', 'Inter'}.contains(value)
+      ? value as String
+      : null;
+}
+
+double _textScale(Object? typography) {
+  if (typography is! Map) return 1.0;
+  return switch (typography['textScale']) {
+    'small' => .94,
+    'large' => 1.08,
+    _ => 1.0,
+  };
+}
+
+double _iconWeight(Object? style) => switch (style) {
+      'thin' => .8,
+      'bold' => 1.25,
+      _ => 1.0,
+    };
+
+/// Rede social do provedor pronta para abrir.
+class SocialLink {
+  const SocialLink(this.kind, this.url);
+
+  /// `instagram`, `facebook`, `website` ou `whatsapp`.
+  final String kind;
+  final String url;
+}
+
+/// Converte o que o painel salvou (link, @perfil ou número) em links https.
+/// Valores que não viram um link seguro ficam de fora.
+List<SocialLink> socialLinksFrom(Object? raw) {
+  if (raw is! Map) return const [];
+  String text(String key) {
+    final v = raw[key];
+    return v is String ? v.trim() : '';
+  }
+
+  String? https(String value, {String? profileHost}) {
+    if (value.isEmpty) return null;
+    if (profileHost != null && !value.contains('/') && !value.contains('.')) {
+      final handle = value.replaceFirst('@', '');
+      if (!RegExp(r'^[A-Za-z0-9._]{1,60}$').hasMatch(handle)) return null;
+      return 'https://$profileHost/$handle';
+    }
+    final withScheme = value.startsWith(RegExp(r'https?://'))
+        ? value.replaceFirst('http://', 'https://')
+        : 'https://$value';
+    final uri = Uri.tryParse(withScheme);
+    if (uri == null || uri.host.isEmpty || !uri.host.contains('.')) {
+      return null;
+    }
+    return uri.toString();
+  }
+
+  final links = <SocialLink>[];
+  final instagram = https(text('instagram'), profileHost: 'instagram.com');
+  if (instagram != null) links.add(SocialLink('instagram', instagram));
+  final facebook = https(text('facebook'), profileHost: 'facebook.com');
+  if (facebook != null) links.add(SocialLink('facebook', facebook));
+  final website = https(text('website'));
+  if (website != null) links.add(SocialLink('website', website));
+  final digits = text('whatsapp').replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.length >= 10 && digits.length <= 13) {
+    final full = digits.length <= 11 ? '55$digits' : digits;
+    links.add(SocialLink('whatsapp', 'https://wa.me/$full'));
+  }
+  return links;
+}
+
+/// Boas-vindas do painel; o texto de exemplo antigo não conta.
+String _welcome(Object? messages) {
+  if (messages is! Map) return '';
+  final value = messages['welcome'];
+  if (value is! String) return '';
+  final text = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (text.toLowerCase() == 'bem-vindo ao app!') return '';
+  return text.length > 160 ? text.substring(0, 160) : text;
 }

@@ -190,6 +190,10 @@ export default function AndroidBuilderPage() {
                     appName,
                     logoUrl,
                     format,
+                    // Cor da abertura (Splash & Login); branco quando não há.
+                    splashColor: /^#[0-9a-fA-F]{6}$/.test(String(settings.config.splash?.backgroundColor ?? ''))
+                        ? String(settings.config.splash?.backgroundColor)
+                        : '#FFFFFF',
                     async: true,
                 })
             });

@@ -52,10 +52,14 @@ def main():
     parser.add_argument('--build-id', required=True)
     parser.add_argument('--identity-registry', required=True)
     parser.add_argument('--api-url', help='URL pública da API (https) gravada no app para carregar a configuração do provedor')
+    parser.add_argument('--splash-color', default='#FFFFFF', help='Cor de fundo da abertura (#RRGGBB)')
 
     args = parser.parse_args()
     arm64_only = args.format == 'apk' or args.arm64
     check_identity(args.identity_registry, args.id, args.nome, args.package)
+    if not re.fullmatch(r'#[0-9a-fA-F]{6}', args.splash_color or ''):
+        raise ValueError('invalid-splash-color')
+    splash_color = args.splash_color.upper()
     if not args.version_code or not args.version_code.isdigit() or not re.fullmatch(r'[a-zA-Z0-9_-]{1,100}', args.build_id):
         raise ValueError('invalid-build-identity')
 
@@ -338,13 +342,13 @@ flutter_launcher_icons:
         
         # Update flutter_native_splash.yaml to use provider logo
         splash_config_path = os.path.join(build_dir, 'flutter_native_splash.yaml')
-        # Fundo branco: a logo dos provedores costuma ter fundo branco ou
-        # transparente, e o app continua a abertura sobre branco (SplashScreen).
-        splash_config_content = """flutter_native_splash:
-  color: "#FFFFFF"
+        # Cor escolhida no painel (Splash & Login; padrão branco). O app
+        # continua a abertura na mesma cor (SplashScreen lê SPLASH_COLOR).
+        splash_config_content = f"""flutter_native_splash:
+  color: "{splash_color}"
   image: assets/images/logo_splash.png
   android_12:
-    color: "#FFFFFF"
+    color: "{splash_color}"
     image: assets/images/logo_splash.png
   web: false
 """
@@ -439,6 +443,9 @@ flutter_launcher_icons:
                 sys.exit(1)
             build_cmd += f" --dart-define=PUBLIC_API_URL={api_url}"
             print(f"🌐 API pública gravada no app: {api_url}")
+
+        # Cor da abertura também no app (SplashScreen continua a nativa).
+        build_cmd += f" --dart-define=SPLASH_COLOR={splash_color}"
 
         # Optimization: ARM64-v8a Only
         if arm64_only:

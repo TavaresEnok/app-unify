@@ -1,7 +1,8 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'vibe_icon_data.dart';
 import 'vibe_icon_part.dart';
+import 'vibe_tokens.dart';
 
 /// Ícone de traço do layout aprovado (`<svg class="ic">` no protótipo).
 ///
@@ -26,13 +27,15 @@ class VibeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parts = vibeIconData[name] ?? const <VibeIconPart>[];
+    // Estilo dos ícones do provedor (fino, padrão ou forte).
+    final weight = Theme.of(context).extension<VibeTokens>()?.iconWeight ?? 1;
     final paint = CustomPaint(
       size: Size.square(size),
       painter: _VibePartsPainter(
         parts: parts,
         color: color ?? IconTheme.of(context).color ?? const Color(0xFF000000),
         viewBox: 24,
-        strokeWidth: strokeWidth,
+        strokeWidth: strokeWidth * weight,
       ),
     );
     return semanticLabel == null

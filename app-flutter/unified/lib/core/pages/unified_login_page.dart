@@ -21,6 +21,10 @@ import '../vibe/vibe_tokens.dart';
 /// Aqui o fluxo é um só e a aparência (claro/escuro/neumórfico, cor primária,
 /// fundo) vem dos tokens do provedor. Uma correção de login passa a valer para
 /// todos os layouts de uma vez.
+/// Boas-vindas a mostrar depois de um login feito agora (lida e limpa pela
+/// [PainelPage]). Não vale para quem abre o app já logado.
+String pendingWelcomeMessage = '';
+
 class UnifiedLoginPage extends ConsumerStatefulWidget {
   const UnifiedLoginPage({super.key});
 
@@ -109,7 +113,9 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
       await ref
           .read(authNotifierProvider.notifier)
           .login(_cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''), config);
-      // Sucesso: o AuthGate navega automaticamente.
+      // Sucesso: o AuthGate navega automaticamente. As boas-vindas do
+      // provedor aparecem uma vez na primeira tela da conta.
+      pendingWelcomeMessage = config.config.welcomeMessage;
     } catch (_) {
       if (mounted) {
         setState(
@@ -356,20 +362,18 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
                           : 'Não conseguiu entrar? Fale com a $name.',
                       textAlign: TextAlign.center,
                       style: vibeText(t, 12.5, 500, color: t.mut, height: 1.5)),
-                  if (config?.privacyPolicyUrl.isNotEmpty == true)
-                    Center(
-                      child: TextButton(
-                        onPressed: () =>
-                            openExternalLink(context, config!.privacyPolicyUrl),
-                        style: TextButton.styleFrom(
-                            foregroundColor: t.mut,
-                            minimumSize: const Size(48, 44)),
-                        child: Text('Política de privacidade',
-                            style: vibeText(t, 12.5, 650, color: t.mut)
-                                .copyWith(
-                                    decoration: TextDecoration.underline)),
-                      ),
-                    ),
+                  // Links legais lado a lado: termos (quando o provedor
+                  // escreveu) e política de privacidade.
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      if (config?.termsUrl.isNotEmpty == true)
+                        _legalLink(t, 'Termos de uso', config!.termsUrl),
+                      if (config?.privacyPolicyUrl.isNotEmpty == true)
+                        _legalLink(t, 'Política de privacidade',
+                            config!.privacyPolicyUrl),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -378,6 +382,15 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
       ),
     );
   }
+
+  Widget _legalLink(VibeTokens t, String label, String url) => TextButton(
+        onPressed: () => openExternalLink(context, url),
+        style: TextButton.styleFrom(
+            foregroundColor: t.mut, minimumSize: const Size(48, 44)),
+        child: Text(label,
+            style: vibeText(t, 12.5, 650, color: t.mut)
+                .copyWith(decoration: TextDecoration.underline)),
+      );
 
   /// Um dos três atalhos do que o assinante encontra depois de entrar.
   Widget _feature(VibeTokens t, String icon, String label) {

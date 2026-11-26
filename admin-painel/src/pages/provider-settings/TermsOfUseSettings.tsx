@@ -7,7 +7,7 @@ import { Save, Loader2 } from 'lucide-react';
 import RichTextEditor from '@/components/RichTextEditor';
 
 export default function TermsOfUseSettings() {
-    const { config, setConfig, saveConfig, isSaving } = useSettings();
+    const { config, setConfig, saveConfig, isSaving, providerId } = useSettings();
 
     const defaultTerms = "<p>Estes são os termos de uso padrão. Por favor, edite-os no painel.</p>";
 
@@ -42,7 +42,7 @@ export default function TermsOfUseSettings() {
             <CardHeader>
                 <CardTitle>Termos de Serviço</CardTitle>
                 <CardDescription>
-                    Defina o conteúdo do Termo de Serviço que será exibido no aplicativo.
+                    O texto vira uma página pública com o link "Termos de uso" na tela de entrada e em Conta no app (versão 1.0.22 em diante).
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -53,7 +53,11 @@ export default function TermsOfUseSettings() {
                         value={localTerms}
                         onChange={handleSaveTerms} 
                     />
-                    <p className="text-sm text-muted-foreground">O texto que aparece na seção "Termos de Serviço" (pode conter formatação HTML).</p>
+                    <p className="text-sm text-muted-foreground">
+                        Na página pública o texto aparece em parágrafos simples (negrito e links não são mantidos). Enquanto estiver o texto de exemplo, o link não aparece.
+                        {' '}
+                        {providerId && <a className="underline" href={`https://appisp.com.br/api/public/providers/${providerId}/termos`} target="_blank" rel="noreferrer">Ver página publicada</a>}
+                    </p>
                 </div>
 
                 <Button onClick={() => void handleSave()} disabled={isSaving}>

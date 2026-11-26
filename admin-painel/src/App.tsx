@@ -14,7 +14,6 @@ import ReauthDialogHost from "@/components/ReauthDialogHost";
 
 // Lazy Imports for Performance
 const ProviderWorkspace = lazy(() => import("@/components/ProviderWorkspace"));
-const DashboardBuilder = lazy(() => import('./pages/provider-settings/DashboardBuilder'));
 const NotificationsManager = lazy(() => import('./pages/provider-settings/NotificationsManager'));
 const PromotionsManager = lazy(() => import('./pages/provider-settings/PromotionsManager'));
 const SplashLoginConfig = lazy(() => import('./pages/provider-settings/SplashLoginConfig'));
@@ -117,7 +116,7 @@ const ProviderSettingsRoutes = (
     <Route path="application-settings" element={<ApplicationSettings />} />
     <Route path="privacy" element={<PrivacySettings />} />
     <Route path="backup" element={<BackupSettings />} />
-    <Route path="dashboard-builder" element={<DashboardBuilder />} />
+    <Route path="dashboard-builder" element={<Navigate to="../appearance" replace />} />
     <Route path="notifications" element={<LegacyNotificationsRedirect />} />
     <Route path="promotions" element={<PromotionsManager />} />
     <Route path="splash-login" element={<SplashLoginConfig />} />

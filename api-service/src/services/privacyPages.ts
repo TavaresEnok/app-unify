@@ -195,6 +195,46 @@ ${contactsHtml(providerContacts(data))}
   return layout("Exclusão de dados", name, text(data.themeColor), body);
 }
 
+const DEFAULT_TERMS_PLACEHOLDER = "estes são os termos de uso padrão";
+
+/**
+ * Texto dos termos salvo pelo editor do painel (HTML) em parágrafos de texto
+ * puro: as tags são descartadas e o texto é escapado na página, então nada
+ * do HTML salvo é executado. O texto de exemplo do painel não conta.
+ */
+export function termsParagraphs(data: Data): string[] {
+  const raw = text(data.termsOfUse) || text(object(data.config).termsOfUse);
+  if (!raw) return [];
+  const plain = raw
+    .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, " ")
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\s*\/\s*(p|div|h[1-6]|li|ul|ol|blockquote)\s*>/gi, "\n\n")
+    .replace(/<\s*li[^>]*>/gi, "• ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+  const paragraphs = plain.split(/\n\s*\n/).map((p) => p.replace(/[ \t]+/g, " ").trim()).filter(Boolean);
+  if (paragraphs.length === 1 && paragraphs[0].toLowerCase().startsWith(DEFAULT_TERMS_PLACEHOLDER)) return [];
+  return paragraphs;
+}
+
+export function termsHtml(providerId: string, data: Data, updatedAt: string): string {
+  const name = providerName(data, providerId);
+  const paragraphs = termsParagraphs(data);
+  const body = `
+<header>
+  <h1>Termos de uso</h1>
+  <p class="muted">${escapeHtml(name)} · atualizado em ${escapeHtml(updatedAt)}</p>
+</header>
+${paragraphs.length
+    ? paragraphs.map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`).join("\n")
+    : "<p>Os termos de uso ainda não foram publicados por este provedor.</p>"}
+<h2>Contato</h2>
+${contactsHtml(providerContacts(data))}`;
+  return layout("Termos de uso", name, text(data.themeColor), body);
+}
+
 // Campos extras que o app lê na config pública: links de privacidade (gerados
 // quando o provedor não tem um próprio) e a política de atualização.
 export function publicConfigExtras(providerId: string, data: Data): Data {
@@ -206,6 +246,8 @@ export function publicConfigExtras(providerId: string, data: Data): Data {
     privacyPolicyUrl: /^https:\/\//i.test(custom) ? custom : defaults.privacyPolicyUrl,
     dataDeletionUrl: defaults.dataDeletionUrl,
   };
+  // Termos de uso escritos no painel viram uma página pública própria.
+  if (termsParagraphs(data).length) extras.termsUrl = `${publicApiBaseUrl()}/public/providers/${providerId}/termos`;
   const version = object(data.appVersion);
   if (Object.keys(version).length) {
     const storeUrls = object(version.storeUrls);

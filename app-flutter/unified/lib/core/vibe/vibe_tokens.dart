@@ -39,6 +39,7 @@ class VibeTokens extends ThemeExtension<VibeTokens> {
     required this.nav,
     required this.homeStatusOnBrand,
     this.dock,
+    this.iconWeight = 1.0,
   });
 
   /// `layout_02` … `layout_06`.
@@ -68,6 +69,10 @@ class VibeTokens extends ThemeExtension<VibeTokens> {
   /// Paleta própria da tela Dock de serviços (layout_03).
   final VibeDockPalette? dock;
 
+  /// Fator do traço dos ícones escolhido pelo provedor no painel
+  /// (fino 0,8 · padrão 1 · forte 1,25).
+  final double iconWeight;
+
   static const _layouts = {
     'layout_02',
     'layout_03',
@@ -84,10 +89,14 @@ class VibeTokens extends ThemeExtension<VibeTokens> {
       VibeTokens.resolve(layout: null, brand: const Color(0xFF2456C9));
 
   /// Monta os tokens do [layout] para a cor [brand] da marca.
+  /// [font] troca a fonte do layout por uma das fontes do app (escolha do
+  /// provedor no painel); [iconWeight] engrossa ou afina o traço dos ícones.
   factory VibeTokens.resolve({
     required String? layout,
     required Color brand,
     bool dark = false,
+    String? font,
+    double iconWeight = 1.0,
   }) {
     final id = normalize(layout);
     var ac = Color(0xFF000000 | (brand.toARGB32() & 0xFFFFFF));
@@ -121,12 +130,13 @@ class VibeTokens extends ThemeExtension<VibeTokens> {
         ? vibeReadable(vibeMix(ac, Colors.white, .38), card)
         : vibeReadable(ac, Colors.white);
     final hx = vibeLuminance(ac) > .2 ? const Color(0xFF111827) : Colors.white;
-    final (family, variable) = switch (id) {
-      'layout_06' => ('Sora', 'SoraVar'),
-      'layout_03' => ('Inter', null),
+    final (family, variable) = switch (font ?? id) {
+      'Sora' || 'layout_06' => ('Sora', 'SoraVar'),
+      'Inter' || 'layout_03' => ('Inter', null),
       _ => ('PlusJakartaSans', 'PlusJakartaSansVar'),
     };
     final base = VibeTokens(
+      iconWeight: iconWeight,
       layout: id,
       dark: dark,
       fontFamily: family,
@@ -255,6 +265,7 @@ class VibeTokens extends ThemeExtension<VibeTokens> {
         nav: nav,
         homeStatusOnBrand: homeStatusOnBrand,
         dock: dock ?? this.dock,
+        iconWeight: iconWeight,
       );
 
   @override

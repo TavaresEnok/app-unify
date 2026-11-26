@@ -32,7 +32,9 @@ final layoutTokensProvider = Provider<LayoutTokens>((ref) {
   final branded = value != null && RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(value)
       ? tokens.withPrimary(Color(0xFF000000 | int.parse(value, radix: 16)))
       : tokens;
-  return config == null ? branded : branded.withProviderColors(config.config);
+  return config == null
+      ? branded
+      : branded.withProviderColors(config.config).withAppearance(config.config);
 });
 
 // --- REPOSITORIES ---

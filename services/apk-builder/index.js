@@ -66,9 +66,10 @@ function createApp(options = {}) {
             next();
         } catch (error) { authorizationFailure(res, error); }
     }, limiter, async (req, res) => {
-        const { providerId, appName, logoUrl, format = 'apk', async: asynchronous = false } = req.body;
+        const { providerId, appName, logoUrl, format = 'apk', async: asynchronous = false, splashColor = '#FFFFFF' } = req.body;
         if (!/^[a-z0-9_-]{1,64}$/i.test(providerId) || typeof appName !== 'string' || !appName || appName.length > 80 || /^-/.test(appName) ||
-            /[\r\n\t\0]/.test(appName) || typeof logoUrl !== 'string' || !['apk', 'aab'].includes(format)) {
+            /[\r\n\t\0]/.test(appName) || typeof logoUrl !== 'string' || !['apk', 'aab'].includes(format) ||
+            typeof splashColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(splashColor)) {
             return res.status(400).json({ success: false, error: 'Parâmetros de geração inválidos.' });
         }
         if (active) return res.status(409).json({ success: false, error: 'Já existe uma geração em andamento. Aguarde a conclusão.' });
@@ -110,7 +111,7 @@ function createApp(options = {}) {
                 '--id', providerId, '--nome', appName, '--logo', logo, '--output', staging,
                 '--flutter-project', config.APK_FLUTTER_PROJECT || path.join(root, 'app-flutter/unified'),
                 '--package', registered.applicationId, '--build-id', id, '--identity-registry', config.APK_IDENTITY_REGISTRY || path.join(privateDir, 'identities.json'),
-                '--version-code', versionCode, '--version-name', `1.0.${versionCode}`, '--format', format, '--arm64'];
+                '--version-code', versionCode, '--version-name', `1.0.${versionCode}`, '--format', format, '--arm64', '--splash-color', splashColor.toUpperCase()];
             if (format === 'aab') args.push('--obfuscate');
             if (config.PUBLIC_API_URL) args.push('--api-url', config.PUBLIC_API_URL);
             child = run(config.PYTHON_BIN || '/usr/bin/python3', args, { cwd: root, env: childEnvironment(), detached: true });

@@ -7,6 +7,7 @@ const { getQueue, connection, jobId, queueName } = require('./lib/jobs');
 const { sanitize } = require('./lib/sanitize-client');
 const { validateSyncPage, syncParameters, hasNextSyncPage } = require('./lib/sync-page');
 const { shouldPrune, withPageRetry, nextDelay, syncFailureLog } = require('./lib/sync-guard');
+const { billingPushMessage } = require('./lib/billing-copy');
 const { pool, ensureCoreTables, ensureSgpCredentials, callSgpApi, formatSgpUrl } = require('./index');
 const queue = getQueue();
 const timezone = 'America/Fortaleza';
@@ -50,31 +51,6 @@ function dayOfMonthFromIso(isoDate) {
     return Number(String(isoDate || '').slice(8, 10)) || 0;
 }
 
-function billingPushMessage(offsetDays, formattedValue) {
-    if (offsetDays > 1) {
-        return {
-            title: `Fatura vence em ${offsetDays} dias`,
-            body: `Sua fatura de R$ ${formattedValue} vence em ${offsetDays} dias. Pague via PIX ou boleto pelo app.`,
-        };
-    }
-    if (offsetDays === 1) {
-        return {
-            title: 'Fatura vencendo amanhã',
-            body: `Sua fatura de R$ ${formattedValue} vence amanhã. Toque para pagar com PIX ou boleto.`,
-        };
-    }
-    if (offsetDays === 0) {
-        return {
-            title: 'Sua fatura vence hoje',
-            body: `Evite bloqueio: sua fatura de R$ ${formattedValue} vence hoje. Pague em segundos pelo app.`,
-        };
-    }
-    const overdue = Math.abs(offsetDays);
-    return {
-        title: `Fatura em aberto há ${overdue} ${overdue === 1 ? 'dia' : 'dias'}`,
-        body: `Identificamos uma fatura de R$ ${formattedValue} em aberto. Regularize ou faça promessa de pagamento no app.`,
-    };
-}
 
 async function seedReminders(job) {
     const { day, offset = 0 } = job.data;
@@ -201,7 +177,10 @@ async function invoiceReminder(job) {
     }
     if (!matchedInvoice) return { skipped: 'no-due-invoice' };
     const formattedValue = Number(matchedInvoice.valor || 0).toFixed(2).replace('.', ',');
-    const copy = billingPushMessage(matchedOffset, formattedValue);
+    // Texto do provedor (Mensagens → Lembrete de fatura), quando escrito.
+    const customRes = await pool.query(
+        "SELECT data->'messages'->>'invoiceReminder' AS body FROM providers WHERE id = $1", [providerId]).catch(() => null);
+    const copy = billingPushMessage(matchedOffset, formattedValue, customRes?.rows?.[0]?.body);
     // Idempotência por aparelho: um reenvio do job não repete push já entregue.
     const delivered = new Set(Array.isArray(job.data.deliveredTokens) ? job.data.deliveredTokens : []);
     let sent = 0; let invalid = 0; let lastError = null;

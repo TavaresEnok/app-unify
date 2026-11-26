@@ -5,6 +5,7 @@ import '../../providers/providers.dart';
 import '../../providers/customer_capabilities_provider.dart';
 import '../../navigation/customer_routes.dart';
 import '../../services/customer_contact_launcher.dart';
+import '../../utils/external_link.dart';
 import '../../vibe/vibe_page_parts.dart';
 
 /// Suporte (`PG.suporte` do layout aprovado): assuntos que resolvem sem
@@ -108,6 +109,29 @@ class CustomerSupportPage extends ConsumerWidget {
                 ),
             ]),
           ),
+        if (config.config.socialLinks.isNotEmpty) ...[
+          const VibeGroupTitle('Redes sociais'),
+          VibeCard(
+            child: VibeRows(children: [
+              for (final link in config.config.socialLinks)
+                VibeRow(
+                  icon: switch (link.kind) {
+                    'whatsapp' => 'wa',
+                    'website' => 'globe',
+                    _ => 'share',
+                  },
+                  title: switch (link.kind) {
+                    'instagram' => 'Instagram',
+                    'facebook' => 'Facebook',
+                    'whatsapp' => 'WhatsApp',
+                    _ => 'Site',
+                  },
+                  subtitle: Uri.parse(link.url).host.replaceFirst('www.', ''),
+                  onTap: () => openExternalLink(context, link.url),
+                ),
+            ]),
+          ),
+        ],
         if (can('faq'))
           VibeCard(
             child: VibeRow(
