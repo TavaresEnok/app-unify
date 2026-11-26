@@ -218,48 +218,60 @@ class _UnifiedLoginPageState extends ConsumerState<UnifiedLoginPage> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(side, 20, side, 26),
               child: SizedBox(
-                child: SizedBox(
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Altura fixa: a logo carrega depois e não informa
-                        // a própria altura na medição da tela.
-                        SizedBox(
-                          height: 44,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: VibeLogo(
-                                name: name.isEmpty ? 'Central' : name,
-                                logoUrl: config?.config.logoUrl,
-                                onBrand: true,
-                                height: 40),
-                          ),
-                        ),
-                        const Spacer(),
-                        const SizedBox(height: 20),
-                        if (showHeadline) ...[
-                          Text(headline,
-                              style: vibeText(t, 29, 800,
-                                  color: t.on,
-                                  height: 1.12,
-                                  letterSpacingEm: -.03)),
-                          const SizedBox(height: 10),
-                          Text(subheadline,
-                              style: vibeText(t, 14.5, 500,
-                                  color: t.on.withValues(alpha: .78),
-                                  height: 1.4)),
-                        ],
-                      ],
-                    ),
-                  ),
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // As ondas ocupam o alto da faixa; marca e frase ficam
+                    // juntas embaixo, perto da folha de entrada.
+                    const Spacer(),
+                    _brandCard(t, name, config),
+                    if (showHeadline) ...[
+                      const SizedBox(height: 22),
+                      Text(headline,
+                          style: vibeText(t, 29, 800,
+                              color: t.on,
+                              height: 1.12,
+                              letterSpacingEm: -.03)),
+                      const SizedBox(height: 10),
+                      Text(subheadline,
+                          style: vibeText(t, 14.5, 500,
+                              color: t.on.withValues(alpha: .78), height: 1.4)),
+                    ],
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Logo do provedor num cartão claro, grande o bastante para o slogan da
+  /// marca continuar legível. A altura é fixa porque a imagem chega depois
+  /// e não pode mudar a medida da tela.
+  Widget _brandCard(VibeTokens t, String name, ProviderConfig? config) {
+    return Container(
+      height: 76,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: .10),
+              blurRadius: 22,
+              spreadRadius: -6,
+              offset: const Offset(0, 8)),
+        ],
+      ),
+      child: VibeLogo(
+          name: name.isEmpty ? 'Central' : name,
+          logoUrl: config?.config.logoUrl,
+          background: Colors.white,
+          height: 52,
+          maxWidth: 230),
     );
   }
 
