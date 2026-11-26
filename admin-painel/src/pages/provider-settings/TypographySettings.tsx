@@ -35,7 +35,7 @@ export default function TypographySettings() {
             const current = (prev.typography ?? {}) as Record<string, string | undefined>;
             const next: Record<string, string | undefined> = { ...current, ...patch };
             if (next.appFont === 'layout') delete next.appFont;
-            return { ...prev, typography: next as typeof prev.typography };
+            return { ...prev, typography: next as unknown as typeof prev.typography };
         });
     };
 
