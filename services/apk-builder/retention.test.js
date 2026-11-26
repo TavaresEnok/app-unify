@@ -57,3 +57,16 @@ test('ignora id de provedor inválido e pasta inexistente', () => {
     assert.deepEqual(pruneProviderReleases(root, '../etc'), []);
     assert.deepEqual(pruneProviderReleases(root, 'nada'), []);
 });
+
+test('staging fica só para builds ainda publicados (e o recém-publicado)', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ret-'));
+    const out = path.join(root, 'public'); const staging = path.join(root, 'staging');
+    [1, 2, 3, 4].forEach(v => release(out, 'vibe', v, `b${v}`));
+    for (const [v, id] of [[1, 'b1'], [3, 'b3'], [4, 'b4'], [9, 'failed'], [5, 'fresh']]) {
+        fs.mkdirSync(path.join(staging, 'vibe', String(v), id), { recursive: true });
+    }
+    pruneProviderReleases(out, 'vibe', { keep: 2, protectBuildId: 'fresh', stagingRoot: staging });
+    const left = fs.readdirSync(path.join(staging, 'vibe')).flatMap(v => fs.readdirSync(path.join(staging, 'vibe', v)));
+    assert.deepEqual(left.sort(), ['b3', 'b4', 'fresh']);
+    assert.equal(fs.existsSync(path.join(staging, 'vibe', '9')), false);
+});

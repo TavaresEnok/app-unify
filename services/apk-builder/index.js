@@ -165,7 +165,7 @@ function createApp(options = {}) {
                     // (mantém os APK_KEEP_RELEASES mais recentes de cada formato).
                     try {
                         const removed = pruneProviderReleases(output, providerId,
-                            { keep: config.APK_KEEP_RELEASES || 3, protectBuildId: id });
+                            { keep: config.APK_KEEP_RELEASES || 3, protectBuildId: id, stagingRoot: path.join(privateDir, 'staging') });
                         if (removed.length) console.log(JSON.stringify({ event: 'apk.pruned', providerId, removed: removed.length }));
                     } catch { /* limpeza nunca afeta a publicação */ }
                 } catch (error) { fail(unavailable(error) ? 503 : 403, unavailable(error) ? 'authorization-unavailable' : 'build-release-denied'); }
