@@ -266,7 +266,8 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
                 true,
                 () => VibeInvoiceActions.copyPix(context, invoice,
                     asOf: view.asOf)),
-          if (view.hasBoleto)
+          if (view.hasBoleto ||
+              (view.canIssuePdf && !view.hasPix && !view.hasLine))
             _dockButton(context, 'i-boleto', 'Ver boleto', !view.hasPix,
                 () => VibeInvoiceActions.openBoleto(context, invoice)),
           if (view.hasLine && (!view.hasPix || !view.hasBoleto))

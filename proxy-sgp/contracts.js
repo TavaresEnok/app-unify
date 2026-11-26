@@ -7,6 +7,7 @@ const endpointContracts = [
   { method: 'POST', path: '/get-client-data-for-login', owner: 'proxy-sgp', access: 'compatibility', decision: 'keep-temporarily' },
   { method: 'POST', path: '/get-consumption-data', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/get-invoices', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
+  { method: 'POST', path: '/invoice/boleto-pdf', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/unlock-trust', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/diagnostic/onu-signal', owner: 'api-service', access: 'firebase-token', decision: 'facade' },
   { method: 'POST', path: '/diagnostic/onu-signal-base', owner: 'proxy-sgp', access: 'firebase-token', decision: 'keep-temporarily' },

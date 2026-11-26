@@ -5,7 +5,10 @@ import 'api_response.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'account_data_cache.dart';
+import 'api_endpoint.dart';
 import 'session_token_store.dart';
 
 class FinanceiroService {
@@ -140,6 +143,71 @@ class FinanceiroService {
     }
   }
 
+  /// Teto do PDF do boleto aceito pelo app (o servidor limita a 5 MB).
+  static const maxBoletoBytes = 6 * 1024 * 1024;
+
+  /// Baixa o PDF do boleto de uma fatura em aberto pela API (com a sessão).
+  /// Lança [BoletoUnavailableException] quando o provedor não emite o boleto
+  /// pelo app; outras falhas viram [ApiException] com mensagem pronta.
+  Future<Uint8List> downloadBoletoPdf(String faturaId,
+      {http.Client? client}) async {
+    final id = faturaId.trim();
+    if (!RegExp(r'^\d{1,12}$').hasMatch(id)) {
+      throw const BoletoUnavailableException();
+    }
+    final base = apiEndpoint(apiUrl, 'subscriber/invoices/$id/boleto');
+    final uri = contratoId == null
+        ? base
+        : base.replace(queryParameters: {'contratoId': '$contratoId'});
+    final headers = await _authenticatedHeaders()
+      ..remove('Content-Type')
+      ..['Accept'] = 'application/pdf';
+    final owned = client == null;
+    final httpClient = client ?? http.Client();
+    try {
+      final response = await httpClient
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 50));
+      final bytes = response.bodyBytes;
+      if (response.statusCode == 200) {
+        if (bytes.length > maxBoletoBytes ||
+            bytes.length < 5 ||
+            !listEquals(bytes.sublist(0, 5), const [37, 80, 68, 70, 45])) {
+          throw ApiException(502, boletoFailedMessage);
+        }
+        return bytes;
+      }
+      if (response.statusCode == 404) {
+        String? message;
+        try {
+          final body = json.decode(response.body);
+          final error = body is Map ? body['error'] : null;
+          final text = error is Map ? error['message'] : null;
+          if (text is String && text.trim().isNotEmpty) message = text.trim();
+        } catch (_) {}
+        throw BoletoUnavailableException(message);
+      }
+      if (response.statusCode == 401) {
+        ApiSession.onUnauthorized?.call();
+        throw ApiException(401, 'Sua sessão expirou. Entre novamente.');
+      }
+      if (response.statusCode == 429) {
+        throw ApiException(429,
+            'Você pediu o boleto muitas vezes. Tente de novo mais tarde ou use o PIX.');
+      }
+      throw ApiException(response.statusCode, boletoFailedMessage);
+    } on TimeoutException {
+      throw ApiException(504, boletoFailedMessage);
+    } on http.ClientException {
+      throw ApiException(503, boletoFailedMessage);
+    } finally {
+      if (owned) httpClient.close();
+    }
+  }
+
+  static const boletoFailedMessage =
+      'Não foi possível gerar o boleto agora. Tente de novo ou use o PIX.';
+
   Future<Map<String, String>> _authenticatedHeaders() async {
     String? token;
     try {
@@ -150,4 +218,16 @@ class FinanceiroService {
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
+}
+
+/// O provedor não emite o boleto desta fatura pelo app (ERP sem suporte,
+/// fatura vencida sem registro etc.). [message] vem do servidor, se houver.
+class BoletoUnavailableException implements Exception {
+  const BoletoUnavailableException([this.message]);
+
+  final String? message;
+
+  @override
+  String toString() =>
+      message ?? 'Boleto disponível na central do assinante ou com o suporte.';
 }

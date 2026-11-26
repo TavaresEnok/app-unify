@@ -113,6 +113,12 @@ class VibeInvoiceView {
   bool get hasLine =>
       !paid && invoice.linhaDigitavel?.trim().isNotEmpty == true;
   bool get hasPaymentData => hasPix || hasBoleto || hasLine;
+
+  /// Fatura em aberto sem link do boleto: o app pede o PDF ao provedor
+  /// (IXC com carteira Sicredi/Santander, por exemplo). Se o provedor não
+  /// emitir, a tela do documento avisa e indica a central/suporte.
+  bool get canIssuePdf =>
+      !paid && !hasBoleto && invoice.numero.trim().isNotEmpty;
 }
 
 /// Faturas da conta organizadas como o Início do protótipo: a primeira em

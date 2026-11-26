@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createIxcGateway, formatCpfCnpj, ixcDate, ixcHeaders, ixcUrl, contractStatusLabel } = require('./ixc-gateway');
+const { createIxcGateway, decodeBoletoPdf, ixcErrorText, MAX_BOLETO_BYTES, formatCpfCnpj, ixcDate, ixcHeaders, ixcUrl, contractStatusLabel } = require('./ixc-gateway');
 const outbound = require('./sgp-outbound');
 
 const NOW = new Date('2026-11-24T12:00:00Z');
@@ -398,4 +398,54 @@ test('clientes (sync): sem permissão nas tabelas de rede/faturas, sincroniza se
     const partial = gateway({ onCall: table => (table === 'radpop_radio_cliente_fibra' ? denied : undefined) });
     const withLogins = (await partial.handle('/api/ura/clientes/', { limit: 100, offset: 0 })).clientes[0].contratos[0];
     assert.deepEqual(withLogins.servicos, [{ login: 'maria.fibra', onu: null }]);
+});
+
+const FAKE_PDF = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(64, 1), Buffer.from('\n%%EOF')]);
+const boletoGateway = (reply = FAKE_PDF.toString('base64')) => gateway({ onCall: table => (table === 'get_boleto' ? (typeof reply === 'function' ? reply() : reply) : undefined) });
+
+test('boletoPdf: confere dono e situação no fn_areceber e decodifica o base64 do get_boleto', async () => {
+    const g = boletoGateway();
+    const { pdf, faturaId } = await g.boletoPdf({ cpfcnpj: '12345678909', faturaId: '901', contrato: '100' });
+    assert.equal(faturaId, '901');
+    assert.deepEqual(pdf, FAKE_PDF);
+    const emit = g.calls.find(c => c.table === 'get_boleto');
+    assert.deepEqual(emit.body, { boletos: '901', juro: 'N', multa: 'N', atualiza_boleto: 'N', tipo_boleto: 'arquivo', base64: 'S' });
+    assert.equal(emit.action, 'listar', 'get_boleto é leitura: nunca sem ixcsoft listar');
+    const lookup = g.calls.find(c => c.table === 'fn_areceber');
+    assert.equal(lookup.body.qtype, 'fn_areceber.id');
+    assert.equal(lookup.body.query, '901');
+});
+
+test('boletoPdf: fatura de outro cliente, de outro contrato, paga ou inexistente não chega ao get_boleto', async () => {
+    for (const [body, code] of [
+        [{ cpfcnpj: '12345678909', faturaId: '905' }, 'invoice-not-found'], // fatura do cliente 2
+        [{ cpfcnpj: '12345678909', faturaId: '901', contrato: '101' }, 'invoice-not-found'],
+        [{ cpfcnpj: '12345678909', faturaId: '903' }, 'invoice-not-open'],
+        [{ cpfcnpj: '12345678909', faturaId: '999' }, 'invoice-not-found'],
+        [{ cpfcnpj: '00000000000', faturaId: '901' }, 'invoice-not-found'],
+    ]) {
+        const g = boletoGateway();
+        await assert.rejects(g.boletoPdf(body), error => error.status === 404 && error.code === code, JSON.stringify(body));
+        assert.equal(g.calls.some(c => c.table === 'get_boleto'), false);
+    }
+    await assert.rejects(boletoGateway().boletoPdf({ cpfcnpj: '12345678909', faturaId: '9 OR 1' }), { status: 400 });
+});
+
+test('boletoPdf: erro do IXC (JSON ou dentro de HTML) vira "não disponível" sem expor a mensagem', async () => {
+    await assert.rejects(boletoGateway({ type: 'error', message: 'Carteira sem permissão' }).boletoPdf({ cpfcnpj: '12345678909', faturaId: '901' }),
+        error => error.status === 404 && error.code === 'boleto-unavailable' && !/Carteira/.test(error.message));
+    const html = '<!DOCTYPE html><html><body><script>x()</script>Boleto id: 901 API retornou: Negócio: Data de vencimento tem que ser posterior ou igual a data atual. {"type":"error","message":"Boleto id: 901 API retornou: Neg\\u00f3cio: Data de vencimento"}</body></html>';
+    await assert.rejects(boletoGateway(html).boletoPdf({ cpfcnpj: '12345678909', faturaId: '901' }), { status: 404, code: 'boleto-overdue' });
+    assert.match(ixcErrorText(html), /Negócio: Data de vencimento/);
+    assert.equal(ixcErrorText(FAKE_PDF.toString('base64')), '');
+});
+
+test('boletoPdf: rejeita o que não é PDF e arquivo acima do teto', async () => {
+    await assert.rejects(boletoGateway(Buffer.from('<html>oi</html>').toString('base64')).boletoPdf({ cpfcnpj: '12345678909', faturaId: '901' }), { status: 502 });
+    await assert.rejects(boletoGateway('não é base64!').boletoPdf({ cpfcnpj: '12345678909', faturaId: '901' }), { status: 502 });
+    await assert.rejects(boletoGateway({ total: 0 }).boletoPdf({ cpfcnpj: '12345678909', faturaId: '901' }), { status: 502 });
+    const huge = Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(MAX_BOLETO_BYTES)]).toString('base64');
+    assert.throws(() => decodeBoletoPdf(huge), { status: 502 });
+    assert.deepEqual(decodeBoletoPdf(`data:application/pdf;base64,${FAKE_PDF.toString('base64').replace(/(.{20})/g, '$1\n')}`), FAKE_PDF);
+    assert.deepEqual(decodeBoletoPdf({ base64: FAKE_PDF.toString('base64') }), FAKE_PDF);
 });

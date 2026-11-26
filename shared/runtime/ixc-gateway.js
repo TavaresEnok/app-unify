@@ -22,6 +22,9 @@ const DUE_WINDOW_DAYS = 40;
 // O SGP exige senha da central; no IXC o acesso é pelo token do provedor.
 // Marcador não secreto só para o código SGP considerar o contrato "consultável".
 const CENTRAL_MARKER = 'ixc';
+// Boleto em PDF (get_boleto, base64): teto do arquivo decodificado.
+const MAX_BOLETO_BYTES = 5 * 1024 * 1024;
+const MAX_BOLETO_BASE64 = Math.ceil(MAX_BOLETO_BYTES / 3) * 4 + 4096;
 
 const CONTRACT_STATUS = { A: 'Ativo', P: 'Pré-contrato', I: 'Inativo', N: 'Negativado', D: 'Cancelado' };
 const INTERNET_STATUS = {
@@ -69,6 +72,31 @@ function contractStatusLabel(contract) {
 
 function unsupported(message) { return Object.assign(new Error(message), { status: 501 }); }
 function ixcError(message) { return Object.assign(new Error(`IXC: ${String(message || 'erro desconhecido').slice(0, 200)}`), { status: 502 }); }
+function boletoUnavailable(message = 'Boleto não disponível para esta fatura.', code = 'boleto-unavailable') {
+    return Object.assign(new Error(message), { status: 404, code, publicMessage: message });
+}
+/** Mensagem de erro do IXC (JSON puro ou JSON/texto dentro de uma página HTML). */
+function ixcErrorText(data) {
+    if (data && typeof data === 'object') return data.type === 'error' ? String(data.message || '') : '';
+    const text = String(data || '');
+    const json = text.match(/\{"type"\s*:\s*"error"\s*,\s*"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (json) { try { return JSON.parse(`"${json[1]}"`); } catch { return json[1]; } }
+    if (/^\s*</.test(text)) return text.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'resposta HTML';
+    return '';
+}
+/** Decodifica o base64 do get_boleto e só aceita um PDF de verdade. */
+function decodeBoletoPdf(data) {
+    let text = typeof data === 'string' ? data : typeof data?.base64 === 'string' ? data.base64 : typeof data?.arquivo === 'string' ? data.arquivo : null;
+    if (text === null) throw ixcError('get_boleto sem arquivo');
+    text = text.trim().replace(/^data:application\/pdf;base64,/i, '').replace(/\s+/g, '');
+    if (text.length > MAX_BOLETO_BASE64) throw Object.assign(new Error('Boleto maior que o permitido.'), { status: 502 });
+    if (!text || !/^[A-Za-z0-9+/]+={0,2}$/.test(text)) throw ixcError('get_boleto não retornou PDF');
+    const pdf = Buffer.from(text, 'base64');
+    if (pdf.length > MAX_BOLETO_BYTES) throw Object.assign(new Error('Boleto maior que o permitido.'), { status: 502 });
+    if (pdf.length < 8 || pdf.subarray(0, 5).toString('latin1') !== '%PDF-') throw ixcError('get_boleto não retornou PDF');
+    return pdf;
+}
+
 function chunks(items, size) {
     const out = [];
     for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
@@ -343,6 +371,38 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
         });
     }
 
+    /**
+     * PDF do boleto de uma fatura em aberto (equivale a imprimir na central).
+     * Antes de emitir confere, pelo próprio fn_areceber, que a fatura é do CPF
+     * informado (e do contrato, se vier) e está em aberto. `atualiza_boleto: N`:
+     * o IXC não recalcula vencimento/valor; juros e multa ficam com o banco.
+     */
+    async function boletoPdf(body = {}) {
+        const faturaId = String(body.faturaId ?? body.id ?? '').trim();
+        if (!/^\d{1,12}$/.test(faturaId)) throw Object.assign(new Error('Fatura inválida.'), { status: 400 });
+        const clients = await findClients(body.cpfcnpj);
+        const owners = new Set(clients.map(c => String(c.id)));
+        if (!owners.size) throw boletoUnavailable('Fatura não encontrada.', 'invoice-not-found');
+        const { registros } = await list('fn_areceber', 'id', faturaId, { rp: 1 });
+        const invoice = registros.find(row => String(row.id) === faturaId);
+        if (!invoice || !owners.has(String(invoice.id_cliente))) throw boletoUnavailable('Fatura não encontrada.', 'invoice-not-found');
+        if (present(body.contrato) && !isLooseInvoice(invoice) && String(invoice.id_contrato) !== String(body.contrato)) {
+            throw boletoUnavailable('Fatura não encontrada.', 'invoice-not-found');
+        }
+        if (String(invoice.status).toUpperCase() !== 'A') throw boletoUnavailable('Esta fatura não está em aberto.', 'invoice-not-open');
+        const data = await call('get_boleto', {
+            boletos: faturaId, juro: 'N', multa: 'N', atualiza_boleto: 'N', tipo_boleto: 'arquivo', base64: 'S',
+        }, 'listar');
+        const failure = ixcErrorText(data);
+        if (failure) {
+            // Carteira de API (Sicredi, Santander…) registra o boleto ao emitir e
+            // recusa título vencido sem registro; não há o que tentar de novo.
+            if (/vencimento/i.test(failure)) throw boletoUnavailable('O boleto desta fatura vencida não pode ser emitido pelo app. Use o PIX ou fale com o suporte.', 'boleto-overdue');
+            throw boletoUnavailable();
+        }
+        return { pdf: decodeBoletoPdf(data), faturaId };
+    }
+
     async function loginsOfContract(contractId) {
         return listAll('radusuarios', 'id_contrato', contractId, { rp: 20, maxPages: 1 });
     }
@@ -518,7 +578,7 @@ function createIxcGateway({ call, allowWrites = true, pixLookup = true, now = ()
         return route[1](body);
     }
 
-    return { handle, list, contractStatusLabel };
+    return { handle, list, boletoPdf, contractStatusLabel };
 }
 
 /** Sem `ixcsoft: listar` o IXC trata o POST como escrita; leitura sempre usa `listar`. */
@@ -533,4 +593,4 @@ function ixcUrl(baseUrl, table) {
     return `${String(baseUrl).replace(/\/$/, '')}/webservice/v1/${table}`;
 }
 
-module.exports = { createIxcGateway, formatCpfCnpj, ixcDate, contractStatusLabel, ixcHeaders, ixcUrl, CENTRAL_MARKER };
+module.exports = { createIxcGateway, decodeBoletoPdf, ixcErrorText, MAX_BOLETO_BYTES, formatCpfCnpj, ixcDate, contractStatusLabel, ixcHeaders, ixcUrl, CENTRAL_MARKER };

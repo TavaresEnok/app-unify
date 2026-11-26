@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -6,11 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/fatura.dart';
 import '../../navigation/customer_shell_scope.dart';
 import '../../providers/financeiro_provider.dart';
+import '../../services/api_response.dart';
+import '../../services/financeiro_service.dart';
 import '../../vibe/vibe_invoice.dart';
 import '../../vibe/vibe_page_parts.dart';
 
@@ -21,12 +26,20 @@ Future<void> openInvoiceDocument(BuildContext context, Fatura invoice) =>
     pushCustomerPage<void>(context,
         route: 'invoice_document', page: InvoiceDocumentPage(invoice: invoice));
 
+/// Documento da fatura. Com link do provedor, baixa o PDF dele (sem
+/// credenciais do app). Fatura em aberto sem link (ex.: IXC com carteira
+/// Sicredi/Santander): pede o PDF do boleto à API, com a sessão do assinante.
 class InvoiceDocumentPage extends ConsumerStatefulWidget {
-  const InvoiceDocumentPage({super.key, required this.invoice, this.client});
+  const InvoiceDocumentPage(
+      {super.key, required this.invoice, this.client, this.saveAndShare});
 
   final Fatura invoice;
   @visibleForTesting
   final http.Client? client;
+
+  /// Grava o PDF e abre a folha do sistema (abrir no leitor, salvar, enviar).
+  @visibleForTesting
+  final Future<void> Function(Uint8List bytes, String fileName)? saveAndShare;
 
   @override
   ConsumerState<InvoiceDocumentPage> createState() =>
@@ -42,10 +55,25 @@ class _InvoiceDocumentPageState extends ConsumerState<InvoiceDocumentPage> {
   bool _loading = true;
   bool _unavailable = false;
 
+  /// PDF pedido à API (fatura em aberto sem link do provedor).
+  late final bool _fromApi = !widget.invoice.isPago &&
+      (widget.invoice.urlBoleto?.trim().isEmpty ?? true);
+
+  /// A API respondeu que o boleto não sai pelo app; texto do servidor.
+  String? _notIssued;
+
+  /// Falha passageira ao gerar o boleto (mensagem pronta).
+  String? _failure;
+  bool _sharing = false;
+
   @override
   void initState() {
     super.initState();
-    _load();
+    if (_fromApi) {
+      _loadFromApi();
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -88,6 +116,82 @@ class _InvoiceDocumentPageState extends ConsumerState<InvoiceDocumentPage> {
       }
     } finally {
       _client.close();
+    }
+  }
+
+  void _retry() {
+    setState(() {
+      _loading = true;
+      _failure = null;
+      _notIssued = null;
+    });
+    _loadFromApi();
+  }
+
+  Future<void> _loadFromApi() async {
+    final service = ref.read(financeiroViewModelProvider).service;
+    try {
+      if (kIsWeb || service == null) {
+        throw ApiException(0, FinanceiroService.boletoFailedMessage);
+      }
+      final bytes = await service.downloadBoletoPdf(widget.invoice.numero,
+          client: _client);
+      if (!mounted) return;
+      _document = bytes;
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _render(0);
+      } else if (mounted) {
+        // Sem visualização no app: o PDF abre pelo botão abaixo.
+        setState(() {
+          _loading = false;
+          _unavailable = true;
+        });
+      }
+    } on BoletoUnavailableException catch (error) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _notIssued = error.message ??
+              'Boleto disponível na central do assinante ou com o suporte.';
+        });
+      }
+    } catch (error) {
+      // ApiException já traz a frase para o assinante; o resto é genérico.
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failure = error is ApiException
+              ? error.message
+              : FinanceiroService.boletoFailedMessage;
+        });
+      }
+    }
+  }
+
+  static Future<void> _defaultSaveAndShare(
+      Uint8List bytes, String fileName) async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf', name: fileName)]);
+  }
+
+  Future<void> _sharePdf() async {
+    final bytes = _document;
+    if (bytes == null || _sharing) return;
+    setState(() => _sharing = true);
+    final id = widget.invoice.numero.replaceAll(RegExp(r'[^0-9A-Za-z_-]'), '');
+    try {
+      await (widget.saveAndShare ?? _defaultSaveAndShare)(
+          bytes, 'boleto-${id.isEmpty ? 'fatura' : id}.pdf');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+            content: Text('Não foi possível abrir o PDF do boleto.')));
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
     }
   }
 
@@ -191,7 +295,22 @@ class _InvoiceDocumentPageState extends ConsumerState<InvoiceDocumentPage> {
               title:
                   'Os dados da fatura mudaram. Volte e abra o documento novamente.')
         else if (_loading)
-          const VibeLoading(blocks: 2, label: 'Abrindo o documento')
+          VibeLoading(
+              blocks: 2,
+              label: _fromApi ? 'Gerando o boleto' : 'Abrindo o documento')
+        else if (_notIssued != null)
+          VibeOkBox(strip: true, warning: true, title: _notIssued!)
+        else if (_failure != null) ...[
+          VibeErrorLine(_failure!),
+          VibePageButton(
+              label: 'Tentar de novo', icon: 'bar', onPressed: _retry),
+        ] else if (_fromApi && (_unavailable || _image == null))
+          const VibeCard(
+              main: true,
+              child: VibeEmpty(
+                  icon: 'file',
+                  title: 'Boleto pronto',
+                  text: 'Abra o PDF para ver, salvar ou enviar o boleto.'))
         else if (_unavailable || _image == null)
           const VibeCard(
               main: true,
@@ -229,11 +348,18 @@ class _InvoiceDocumentPageState extends ConsumerState<InvoiceDocumentPage> {
               onPressed: current
                   ? () => VibeInvoiceActions.copyLine(context, invoice)
                   : null),
-        VibePageButton(
-            label: 'Abrir documento',
-            icon: 'down',
-            ghost: true,
-            onPressed: current ? _openExternal : null),
+        if (_fromApi && _document != null)
+          VibePageButton(
+              label: _sharing ? 'Abrindo o PDF…' : 'Abrir ou salvar PDF',
+              icon: 'down',
+              ghost: true,
+              onPressed: current && !_sharing ? _sharePdf : null)
+        else if (!_fromApi)
+          VibePageButton(
+              label: 'Abrir documento',
+              icon: 'down',
+              ghost: true,
+              onPressed: current ? _openExternal : null),
         if (view.hasPix)
           VibePageButton(
               label: 'Prefiro pagar com Pix',

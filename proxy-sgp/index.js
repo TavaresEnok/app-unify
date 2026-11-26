@@ -43,6 +43,7 @@ const { loadConfig } = require('./lib/config');
 const { maskCpfCnpj, secureLog } = require('./lib/secure-log');
 const { canIssueClientToken, subscriberIdentity } = require('./lib/client-access');
 const { createRateLimiter } = require('./lib/rate-limiter');
+const { createBoletoPdf } = require('./lib/boleto-pdf');
 
 const config = loadConfig();
 
@@ -296,8 +297,8 @@ async function callSgpApi(params) {
 }
 
 // IXC Provedor: traduz a rota SGP em chamadas ao webservice IXC (ver lib/ixc-gateway.js).
-async function ixcApi(credentials, sgpPath, data) {
-    const gateway = createIxcGateway({
+function ixcGatewayFor(credentials) {
+    return createIxcGateway({
         allowWrites: process.env.IXC_DISABLE_WRITES !== 'true',
         // Jobs (lembrete de fatura, sync) não precisam do PIX: evita N get_pix por assinante.
         pixLookup: !BACKGROUND,
@@ -305,8 +306,10 @@ async function ixcApi(credentials, sgpPath, data) {
             encoding: 'json', timeout: Math.min(45000, SGP_CALL_TIMEOUT_MS + 10000), headers: ixcHeaders(credentials.sgpParams.token, action),
         })).data,
     });
+}
+async function ixcApi(credentials, sgpPath, data) {
     const { token, app, providerId, url, ...params } = data;
-    return gateway.handle(sgpPath, params);
+    return ixcGatewayFor(credentials).handle(sgpPath, params);
 }
 
 
@@ -1195,6 +1198,11 @@ app.post('/get-invoices', verifyFirebaseToken, async (req, res) => {
         sendPublicError(res, error, 'Erro interno ao buscar faturas.');
     }
 });
+
+// Boleto em PDF da fatura em aberto (IXC: get_boleto); ver lib/boleto-pdf.js.
+const boleto = createBoletoPdf({ getStateRedis: () => stateRedis, getCacheRedis: () => (redisConnected ? redis : null),
+    perHour: positiveEnv('BOLETO_PDF_PER_HOUR', 20), ensureSgpCredentials, requireSgpClientCredentials, upstream, ixcGatewayFor, limits: IXC_LIMITS });
+app.post('/invoice/boleto-pdf', verifyFirebaseToken, boleto.limiter, boleto.handler);
 
 // 7. ROTA DESBLOQUEIO CONFIANCA
 app.post('/unlock-trust', verifyFirebaseToken, async (req, res) => {

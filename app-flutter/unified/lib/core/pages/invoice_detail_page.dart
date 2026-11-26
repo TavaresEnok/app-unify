@@ -123,9 +123,11 @@ class InvoiceDetailPage extends ConsumerWidget {
                         onPressed: when(() => VibeInvoiceActions.copyLine(
                             context, invoice,
                             asOf: asOf))),
-                    view.hasBoleto
+                    view.hasBoleto || view.canIssuePdf
                         ? VibePageButton(
-                            label: 'Abrir boleto',
+                            label: view.hasBoleto
+                                ? 'Abrir boleto'
+                                : 'Boleto (PDF)',
                             icon: 'bar',
                             ghost: true,
                             small: true,
@@ -137,9 +139,10 @@ class InvoiceDetailPage extends ConsumerWidget {
           ),
         // Fatura paga: o ERP não devolve mais o boleto (o link abre uma
         // página vazia), então o caminho é pedir o comprovante.
-        if (view.hasBoleto && !view.paid && !view.hasLine)
+        // Sem link do provedor, o boleto vem em PDF pela API (IXC).
+        if ((view.hasBoleto || view.canIssuePdf) && !view.paid && !view.hasLine)
           VibePageButton(
-              label: 'Abrir boleto',
+              label: view.hasBoleto ? 'Abrir boleto' : 'Abrir boleto (PDF)',
               icon: 'bar',
               ghost: true,
               onPressed:
@@ -147,7 +150,7 @@ class InvoiceDetailPage extends ConsumerWidget {
         if (view.paid)
           const VibeNote(
               'O boleto de faturas pagas não fica disponível. Peça o comprovante ao provedor.'),
-        if (!view.paid && !view.hasPaymentData)
+        if (!view.paid && !view.hasPaymentData && !view.canIssuePdf)
           const VibeOkBox(
               strip: true,
               warning: true,

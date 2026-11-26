@@ -229,9 +229,14 @@ class _MainInvoice extends StatelessWidget {
                     label: 'Copiar linha',
                     icon: 'copy',
                     onPressed: when(() => VibeInvoiceActions.copyLine(
-                        context, invoice,
-                        asOf: view.asOf)))
-                : details;
+                        context, invoice, asOf: view.asOf)))
+                : view.canIssuePdf
+                    ? VibePageButton(
+                        label: 'Abrir boleto',
+                        icon: 'bar',
+                        onPressed: when(() =>
+                            VibeInvoiceActions.openBoleto(context, invoice)))
+                    : details;
     final links = <(String, String, VoidCallback?)>[
       if (view.hasLine && view.hasPix)
         (
@@ -240,10 +245,10 @@ class _MainInvoice extends StatelessWidget {
           when(() =>
               VibeInvoiceActions.copyLine(context, invoice, asOf: view.asOf))
         ),
-      if (view.hasBoleto && (view.hasPix || view.hasLine))
+      if ((view.hasBoleto || view.canIssuePdf) && (view.hasPix || view.hasLine))
         (
           'bar',
-          'Abrir boleto',
+          view.hasBoleto ? 'Abrir boleto' : 'Boleto em PDF',
           when(() => VibeInvoiceActions.openBoleto(context, invoice))
         ),
     ];
@@ -282,7 +287,7 @@ class _MainInvoice extends StatelessWidget {
             redacted: redacted,
             tone: view.tone == VibeTone.neutral ? null : view.tone),
         if (view.note != null) VibeSubLine(icon: 'info', text: view.note!),
-        if (!view.hasPaymentData) ...[
+        if (!view.hasPaymentData && !view.canIssuePdf) ...[
           const SizedBox(height: 10),
           const VibeOkBox(
               strip: true,

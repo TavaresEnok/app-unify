@@ -3,7 +3,7 @@ import { verifyToken } from "../middlewares/auth";
 import { asyncRoute } from "../middlewares/errorHandler";
 import { sgpLimiter, tenantLimiter, subscriberLoginLimiter, subscriberLoginIpLimiter } from "../middlewares/rateLimits";
 import { ApiError } from "../middlewares/errorHandler";
-import { proxyToSgp } from "../services/proxySgpClient";
+import { proxyBoletoPdf, proxyToSgp } from "../services/proxySgpClient";
 import { assertCpfInTenant } from "../services/tenantScope";
 
 export const proxyRouter = Router();
@@ -37,3 +37,32 @@ for (const path of [
     res.status(result.status).json(result.data);
   }));
 }
+
+// Boleto em PDF de uma fatura em aberto (o app abre/compartilha o arquivo).
+// O assinante só pede o próprio boleto; o proxy confere no ERP que a fatura é
+// do CPF da sessão, limita a cota e guarda o PDF por alguns minutos.
+proxyRouter.get("/subscriber/invoices/:id/boleto", verifyToken, sgpLimiter, tenantLimiter, asyncRoute(async (req, res) => {
+  const faturaId = String(req.params.id || "").trim();
+  if (!/^\d{1,12}$/.test(faturaId)) throw new ApiError(400, "Fatura inválida.", "invalid-argument");
+  const contrato = typeof req.query.contratoId === "string" ? req.query.contratoId.trim() : "";
+  if (contrato && !/^\d{1,12}$/.test(contrato)) throw new ApiError(400, "Contrato inválido.", "invalid-argument");
+  const user = req.user;
+  const cpfCnpj = user?.role === "subscriber" && typeof user.cpfCnpj === "string"
+    ? user.cpfCnpj
+    : typeof req.query.cpfCnpj === "string" ? req.query.cpfCnpj.replace(/\D/g, "") : "";
+  const providerId = user?.superAdmin === true && typeof req.query.providerId === "string"
+    ? req.query.providerId
+    : user?.providerId;
+  const body: Record<string, unknown> = { cpfCnpj, ...(providerId ? { providerId } : {}), faturaId, ...(contrato ? { contratoId: contrato } : {}) };
+  req.body = body;
+  await assertCpfInTenant(req);
+  const pdf = await proxyBoletoPdf(body, req.headers.authorization, req.ip);
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Length": String(pdf.length),
+    "Content-Disposition": `inline; filename="boleto-${faturaId}.pdf"`,
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+  });
+  res.status(200).end(pdf);
+}));

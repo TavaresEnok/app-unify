@@ -75,6 +75,9 @@ class FinanceiroProvider with ChangeNotifier {
   DateTime? _lastUpdated;
 
   FinanceiroState get state => _state;
+
+  /// Serviço da conta (boleto em PDF usa a mesma sessão das faturas).
+  FinanceiroService? get service => _financeiroService;
   List<Fatura> get invoices => _invoices;
   Map<int, double> get monthlyTotals => _monthlyTotals;
   String get errorMessage => _errorMessage;
