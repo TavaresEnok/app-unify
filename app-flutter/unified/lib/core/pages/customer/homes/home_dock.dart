@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/fatura.dart';
@@ -152,44 +153,67 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
               child: Text('${open.length} faturas em aberto',
                   style: vibeText(t, 12, 700, color: p.ink))),
           const SizedBox(width: 8),
-          Flexible(
-            child: Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                    text: 'Total ',
-                    style: vibeText(t, 12, 500, color: p.muted)),
-                TextSpan(
-                    text: AppFormatters.currency(billing.openTotal),
-                    style: vibeText(t, 12, 700, color: p.muted)),
-              ]),
-              textAlign: TextAlign.right,
-            ),
+          Text.rich(
+            TextSpan(children: [
+              TextSpan(
+                  text: 'Total ', style: vibeText(t, 12, 500, color: p.muted)),
+              TextSpan(
+                  text: AppFormatters.currency(billing.openTotal),
+                  style: vibeText(t, 12, 700, color: p.muted)),
+            ]),
+            textAlign: TextAlign.right,
           ),
         ]),
         const SizedBox(height: 7),
-        LayoutBuilder(builder: (context, constraints) {
-          final half = (constraints.maxWidth - 5) / 2;
-          return Wrap(spacing: 5, runSpacing: 5, children: [
-            for (final invoice in open)
-              SizedBox(
-                width: half,
-                child:
-                    _choiceButton(context, invoice, identical(invoice, chosen)),
-              ),
-          ]);
-        }),
+        // Duas faturas: os dois meses lado a lado, como no protótipo. Três
+        // ou mais: uma faixa só, com rolagem lateral e o mês abreviado, em
+        // vez de uma grade que empurra a fatura para baixo.
+        if (open.length == 2)
+          Row(children: [
+            for (final (i, invoice) in open.indexed) ...[
+              if (i > 0) const SizedBox(width: 5),
+              Expanded(
+                  child: _choiceButton(
+                      context, invoice, identical(invoice, chosen))),
+            ],
+          ])
+        else
+          SizedBox(
+            height: 44,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: open.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 5),
+              itemBuilder: (context, i) => _choiceButton(
+                  context, open[i], identical(open[i], chosen),
+                  compact: true),
+            ),
+          ),
       ]),
     );
   }
 
-  Widget _choiceButton(BuildContext context, Fatura invoice, bool on) {
+  /// Mês curto para a faixa ("mai", "dez/25" quando é de outro ano).
+  static String _shortMonth(Fatura invoice) {
+    final due = invoice.vencimento;
+    final m = DateFormat('MMM', 'pt_BR').format(due).replaceAll('.', '');
+    final label = m.isEmpty ? m : '${m[0].toUpperCase()}${m.substring(1)}';
+    return due.year == DateTime.now().year
+        ? label
+        : '$label/${(due.year % 100).toString().padLeft(2, '0')}';
+  }
+
+  Widget _choiceButton(BuildContext context, Fatura invoice, bool on,
+      {bool compact = false}) {
     final t = VibeTokens.of(context);
     final p = t.dock!;
-    final label = VibeInvoiceView(invoice).monthTitle;
+    final view = VibeInvoiceView(invoice);
+    final label = compact ? _shortMonth(invoice) : view.monthTitle;
     return Semantics(
       button: true,
       selected: on,
-      label: 'Fatura de $label, ${AppFormatters.currency(invoice.valor)}',
+      label: 'Fatura de ${view.monthTitle}${view.overdue ? ', vencida' : ''}, '
+          '${AppFormatters.currency(invoice.valor)}',
       excludeSemantics: true,
       child: Material(
         color: on ? p.ink : Colors.transparent,
@@ -202,19 +226,31 @@ class _VibeDockHomeState extends ConsumerState<VibeDockHome> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child:
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Flexible(
-                  child: Text(label,
-                      style: vibeText(t, 13, 600, color: on ? p.base : p.ink)),
-                ),
-                if (on) ...[
-                  const SizedBox(width: 5),
-                  VibeIcon('i-check',
-                      size: 14, strokeWidth: 1.7, color: p.base),
-                ],
-              ]),
+              padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 10),
+              child: Row(
+                  mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (compact && view.overdue && !on) ...[
+                      // Ponto nas vencidas, para achar o atraso sem abrir cada uma.
+                      Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                              color: t.bad, shape: BoxShape.circle)),
+                      const SizedBox(width: 6),
+                    ],
+                    Flexible(
+                      child: Text(label,
+                          style:
+                              vibeText(t, 13, 600, color: on ? p.base : p.ink)),
+                    ),
+                    if (on) ...[
+                      const SizedBox(width: 5),
+                      VibeIcon('i-check',
+                          size: 14, strokeWidth: 1.7, color: p.base),
+                    ],
+                  ]),
             ),
           ),
         ),
