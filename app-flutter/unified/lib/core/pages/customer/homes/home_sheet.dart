@@ -31,8 +31,7 @@ class VibeSheetHome extends ConsumerWidget {
     final incomplete = vibeIncompleteNote(context, data, onBrand: true);
     final stale = vibeStaleNote(context, data, onBrand: true);
 
-    final top = Container(
-      color: t.ac,
+    final top = VibeBrandSurface(
       padding: EdgeInsets.fromLTRB(20, inset + 8, 20, 18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [

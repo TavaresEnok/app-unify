@@ -96,31 +96,17 @@ class VibeBlocksHome extends ConsumerWidget {
 
     Widget card() => slot.semantics(ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: Container(
-            color: t.ac,
-            child: Stack(children: [
-              // Círculo claro no canto (`.cd::after`).
-              Positioned(
-                right: -50,
-                top: -50,
-                child: Container(
-                  width: 160,
-                  height: 160,
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .08),
-                      shape: BoxShape.circle),
-                ),
+          child: VibeBrandSurface(
+            radius: BorderRadius.circular(20),
+            child: VibeRefreshEdge(
+              active: data.billing.refreshing,
+              onBrand: true,
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: empty ??
+                    (main == null ? const SizedBox.shrink() : invoice(main)),
               ),
-              VibeRefreshEdge(
-                active: data.billing.refreshing,
-                onBrand: true,
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: empty ??
-                      (main == null ? const SizedBox.shrink() : invoice(main)),
-                ),
-              ),
-            ]),
+            ),
           ),
         ));
 
@@ -249,8 +235,20 @@ class _BlockGrid extends StatelessWidget {
                         child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              VibeIcon(item.icon, size: 24, color: t.at),
-                              const SizedBox(height: 10),
+                              // Ícone numa placa suave da marca, como nos
+                              // outros layouts.
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                    color: t.ac
+                                        .withValues(alpha: t.dark ? .20 : .09),
+                                    borderRadius: BorderRadius.circular(12)),
+                                alignment: Alignment.center,
+                                child:
+                                    VibeIcon(item.icon, size: 21, color: t.at),
+                              ),
+                              const SizedBox(height: 8),
                               Text(item.label,
                                   textAlign: TextAlign.center,
                                   maxLines: 2,

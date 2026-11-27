@@ -28,10 +28,10 @@ void main() {
                   child: VibePromoCarousel(promos: promos)))),
     ));
     expect(tester.takeException(), isNull);
-    expect(find.text('1 de 2'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Próximo'));
+    // Sem setas nem contador: a navegação é deslizar ou tocar nos pontos.
+    expect(find.bySemanticsLabel('Próximo'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('2 de 2'));
     await tester.pumpAndSettle();
-    expect(find.text('2 de 2'), findsOneWidget);
     await tester.tap(find.bySemanticsLabel(RegExp('^Outra oferta')));
     expect(opened, ['2']);
     expect(tester.takeException(), isNull);

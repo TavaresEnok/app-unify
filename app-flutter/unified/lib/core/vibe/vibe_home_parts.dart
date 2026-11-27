@@ -378,6 +378,175 @@ class VibeConnectionPill extends StatelessWidget {
   }
 }
 
+/// Superfície da marca com profundidade: degradê sutil (mais escuro em
+/// cima, a cor exata da marca embaixo, para emendar com as faixas e folhas
+/// que continuam na cor da marca) e um brilho suave no canto superior.
+class VibeBrandSurface extends StatelessWidget {
+  const VibeBrandSurface(
+      {super.key, required this.child, this.padding, this.radius});
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final BorderRadius? radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [vibeMix(t.ac, Colors.black, t.dark ? .24 : .16), t.ac],
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: RadialGradient(
+            center: const Alignment(.95, -1.1),
+            radius: 1.25,
+            colors: [
+              Colors.white.withValues(alpha: .16),
+              Colors.white.withValues(alpha: 0),
+            ],
+          ),
+        ),
+        child:
+            padding == null ? child : Padding(padding: padding!, child: child),
+      ),
+    );
+  }
+}
+
+/// Cartão da conexão no Início: o plano, se o serviço está ativo e como o
+/// celular está conectado, com o atalho para testar.
+class VibeConnectionCard extends StatelessWidget {
+  const VibeConnectionCard({
+    super.key,
+    required this.network,
+    required this.plan,
+    required this.serviceStatus,
+    required this.onTap,
+  });
+
+  final VibeNetwork network;
+  final String plan;
+
+  /// Status do acesso no provedor ("Online", "Offline"…); vazio = sem dado.
+  final String serviceStatus;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = VibeTokens.of(context);
+    final status = serviceStatus.toLowerCase();
+    final offline = status.contains('off');
+    final online = status.contains('on') && !offline;
+    final phone = switch (network) {
+      VibeNetwork.wifi => 'celular no ${t.wifi}',
+      VibeNetwork.mobile => 'celular nos dados móveis',
+      VibeNetwork.offline => 'celular sem internet',
+      VibeNetwork.unknown => null,
+    };
+    final tone = offline || network == VibeNetwork.offline
+        ? VibeTone.warning
+        : online
+            ? VibeTone.ok
+            : VibeTone.neutral;
+    final known = online || offline;
+    final head = offline
+        ? 'Internet sem conexão agora'
+        : online
+            ? 'Internet ativa'
+            : plan.isNotEmpty
+                ? plan
+                : 'Sua conexão';
+    final phoneText =
+        phone == null ? null : '${phone[0].toUpperCase()}${phone.substring(1)}';
+    final sub = known
+        ? [if (plan.isNotEmpty) plan, if (phone != null) phone].join(' · ')
+        : phoneText ?? '';
+    // Respiro embaixo: o cartão vem antes de títulos de seção.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Semantics(
+        button: true,
+        label: '$head. $sub. Testar conexão',
+        excludeSemantics: true,
+        child: Material(
+          color: t.card,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: t.line)),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: Row(children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                      color: t.toneBackground(tone),
+                      borderRadius: BorderRadius.circular(12)),
+                  alignment: Alignment.center,
+                  child: VibeIcon(
+                      network == VibeNetwork.mobile ? 'cell' : 'wifi',
+                      size: 20,
+                      color: t.toneText(tone)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          if (known) ...[
+                            Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                    color: t.toneText(tone),
+                                    shape: BoxShape.circle)),
+                            const SizedBox(width: 6),
+                          ],
+                          Flexible(
+                              child: Text(head,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: vibeText(t, 14, 750))),
+                        ]),
+                        if (sub.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(sub,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: vibeText(t, 12.5, 550, color: t.mut)),
+                        ],
+                      ]),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                      color: t.ac.withValues(alpha: t.dark ? .22 : .10),
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Text('Testar',
+                      style: vibeText(t, 12.5, 750, color: t.at)),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Botão de avisos com marcador de não lidos (`.hb`).
 class VibeBell extends StatelessWidget {
   const VibeBell(
@@ -635,55 +804,55 @@ class VibeServiceRail extends StatelessWidget {
     final t = VibeTokens.of(context);
     final fg = onBrand ? t.on : t.ink;
     final scale = MediaQuery.textScalerOf(context).scale(1);
-    return LayoutBuilder(builder: (context, constraints) {
-      final minLabelWidth =
-          MediaQuery.textScalerOf(context).scale(12) * 4.5 + 12;
-      final visible =
-          (constraints.maxWidth - 24) / 3.5 >= minLabelWidth ? 3.5 : 2.5;
-      final width = (constraints.maxWidth - 8 * visible.floor()) / visible;
-      return SizedBox(
-        height: 88 + 30 * (scale - 1).clamp(0, 2),
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          clipBehavior: Clip.none,
-          padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return SizedBox(
-              width: width,
-              child: Semantics(
-                button: true,
-                label: item.label,
-                excludeSemantics: true,
-                child: InkWell(
-                  onTap: item.onTap,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Column(children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                            color: fg.withValues(alpha: .11),
-                            shape: BoxShape.circle),
-                        alignment: Alignment.center,
-                        child: VibeIcon(item.icon, size: 20, color: fg),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(item.label,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          style: vibeText(t, 12, 600, color: fg, height: 1.2)),
-                    ]),
-                  ),
+    Widget tile(VibeShortcut item) => Semantics(
+          button: true,
+          label: item.label,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: item.onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+              child: Column(children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                      color: fg.withValues(alpha: .11),
+                      borderRadius: BorderRadius.circular(14)),
+                  alignment: Alignment.center,
+                  child: VibeIcon(item.icon, size: 21, color: fg),
                 ),
-              ),
-            );
-          },
-        ),
+                const SizedBox(height: 6),
+                Text(item.label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: vibeText(t, 12, 600, color: fg, height: 1.2)),
+              ]),
+            ),
+          ),
+        );
+    // Todos os atalhos à vista, em colunas de até quatro: a faixa com
+    // rolagem cortava o rótulo do último ("Consum…") e parecia defeito.
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = scale > 1.3 && constraints.maxWidth < 380 ? 3 : 4;
+      // No máximo duas linhas: os mais usados e "Ver todos" por último (o
+      // resto fica a um toque, na lista completa).
+      final more = this.items.where((i) => i.label == 'Ver todos').toList();
+      final rest = this.items.where((i) => i.label != 'Ver todos').toList();
+      final limit = columns * 2;
+      final items = rest.length + more.length <= limit
+          ? [...rest, ...more]
+          : [...rest.take(limit - (more.isEmpty ? 0 : 1)), ...more];
+      final per = (items.length / ((items.length / columns).ceil()))
+          .ceil()
+          .clamp(1, columns);
+      final width = (constraints.maxWidth - 8 * (per - 1)) / per;
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Wrap(spacing: 8, runSpacing: 10, children: [
+          for (final item in items) SizedBox(width: width, child: tile(item)),
+        ]),
       );
     });
   }
@@ -771,49 +940,10 @@ class _VibePromoCarouselState extends State<VibePromoCarousel> {
     final promos = widget.promos;
     if (promos.isEmpty) return const SizedBox.shrink();
     final scale = MediaQuery.textScalerOf(context).scale(1);
-    Widget arrow(int delta) {
-      final enabled = delta < 0 ? _index > 0 : _index < promos.length - 1;
-      return Semantics(
-        button: true,
-        enabled: enabled,
-        label: delta < 0 ? 'Anterior' : 'Próximo',
-        excludeSemantics: true,
-        child: Opacity(
-          opacity: enabled ? 1 : .4,
-          child: Material(
-            color: t.card,
-            shape: CircleBorder(side: BorderSide(color: t.line)),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: enabled ? () => _go(_index + delta) : null,
-              child: SizedBox(
-                width: 44,
-                height: 44,
-                child: Center(
-                  child: Transform.rotate(
-                    angle: delta < 0 ? 3.14159265 : 0,
-                    child: VibeIcon('chev', size: 16, color: t.ink),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      VibeSectionTitle(widget.title,
-          trailing: promos.length < 2
-              ? null
-              : Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text('${_index + 1} de ${promos.length}',
-                      style: vibeText(t, 12.5, 650, color: t.mut)),
-                  const SizedBox(width: 8),
-                  arrow(-1),
-                  const SizedBox(width: 6),
-                  arrow(1),
-                ])),
+      // Só os pontos embaixo: no celular se desliza o cartão; setas e
+      // contador repetiam a mesma navegação.
+      VibeSectionTitle(widget.title),
       const SizedBox(height: 12),
       LayoutBuilder(builder: (context, constraints) {
         final width = constraints.maxWidth - 30;

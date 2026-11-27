@@ -186,8 +186,7 @@ class VibeRibbonHome extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 28),
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        Container(
-          color: t.ac,
+        VibeBrandSurface(
           padding: EdgeInsets.fromLTRB(20, inset + 8, 20, 8),
           child: VibeProfileHeader(
             initials: data.initials,

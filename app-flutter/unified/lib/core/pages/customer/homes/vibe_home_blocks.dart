@@ -484,8 +484,11 @@ List<Widget> vibeHomeAlerts(BuildContext context, VibeHomeData data,
   }
   if (data.can('network_diagnostic')) {
     if (out.isNotEmpty) out.add(SizedBox(height: gap));
-    out.add(
-        VibeConnectionPill(network: data.network, onTap: data.openDiagnostic));
+    out.add(VibeConnectionCard(
+        network: data.network,
+        plan: data.plan,
+        serviceStatus: data.user?.status ?? '',
+        onTap: data.openDiagnostic));
   }
   if (data.suspended && billing.overdue && data.can('invoices')) {
     out.add(SizedBox(height: gap));
